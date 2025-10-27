@@ -265,7 +265,7 @@ def render() -> None:
         )
 
         if plot_library == "altair":
-            st.altair_chart(cast("Chart", fig_priority), use_container_width=True)
+            st.altair_chart(cast("Chart", fig_priority), width="stretch")
         else:
             st.plotly_chart(fig_priority, width="stretch")
 
@@ -304,7 +304,7 @@ def render() -> None:
             )
 
             if plot_library == "altair":
-                st.altair_chart(cast("Chart", fig_vis), use_container_width=True)
+                st.altair_chart(cast("Chart", fig_vis), width="stretch")
             else:
                 st.plotly_chart(fig_vis, width="stretch")
 
@@ -329,7 +329,7 @@ def render() -> None:
             )
 
             if plot_library == "altair":
-                st.altair_chart(cast("Chart", fig_time), use_container_width=True)
+                st.altair_chart(cast("Chart", fig_time), width="stretch")
             else:
                 st.plotly_chart(fig_time, width="stretch")
 
@@ -351,7 +351,7 @@ def render() -> None:
         )
 
         if plot_library == "altair":
-            st.altair_chart(cast("Chart", fig_heatmap), use_container_width=True)
+            st.altair_chart(cast("Chart", fig_heatmap), width="stretch")
         else:
             st.plotly_chart(fig_heatmap, width="stretch")
 
@@ -444,7 +444,7 @@ def render() -> None:
         )
 
         if plot_library == "altair":
-            st.altair_chart(cast("Chart", fig_pred), use_container_width=True)
+            st.altair_chart(cast("Chart", fig_pred), width="stretch")
         else:
             st.plotly_chart(fig_pred, width="stretch")
 
