@@ -292,20 +292,20 @@ def _display_comparison_tables(
             margin: 1rem 0;
         }
         .comparison-table th {
-            background-color: #262730;
-            color: #fafafa;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
             padding: 0.75rem;
             text-align: left;
-            border-bottom: 2px solid #4da6ff;
+            border-bottom: 1px solid #404040;
             font-weight: 600;
         }
         .comparison-table td {
             padding: 0.75rem;
-            border-bottom: 1px solid #3d3d4d;
+            border-bottom: 1px solid #2a2a2a;
             color: #fafafa;
         }
         .comparison-table tr:hover {
-            background-color: #1a1d24;
+            background-color: #252525;
         }
     </style>
     """
@@ -466,18 +466,68 @@ def _display_comparison_tables(
         with col1:
             if len(newly_scheduled) > 0:
                 with st.expander(f"📋 View {len(newly_scheduled)} newly scheduled blocks"):
-                    display_df = newly_scheduled[["schedulingBlockId", "priority_current"]].rename(
-                        columns={"priority_current": "priority"}
-                    )
-                    st.dataframe(display_df, hide_index=True, height=200, width="stretch")
+                    # Merge with comparison schedule to get targetName and scheduled period
+                    display_df = newly_scheduled[["schedulingBlockId", "priority_current"]].copy()
+                    
+                    # Get additional columns from comparison schedule
+                    comparison_info = comparison_common[
+                        ["schedulingBlockId", "targetName", "scheduled_period.start", "scheduled_period.stop"]
+                    ].copy()
+                    
+                    # Merge to get name and period
+                    display_df = display_df.merge(comparison_info, on="schedulingBlockId", how="left")
+                    
+                    # Rename and reorder columns
+                    display_df = display_df.rename(columns={"priority_current": "priority"})
+                    display_df = display_df[[
+                        "schedulingBlockId", 
+                        "targetName",
+                        "priority",
+                        "scheduled_period.start",
+                        "scheduled_period.stop"
+                    ]]
+                    
+                    # Rename columns for better display
+                    display_df = display_df.rename(columns={
+                        "schedulingBlockId": "Block ID",
+                        "targetName": "Target Name",
+                        "priority": "Priority",
+                        "scheduled_period.start": "Start (MJD)",
+                        "scheduled_period.stop": "Stop (MJD)"
+                    })
+                    
+                    st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
         
         with col2:
             if len(newly_unscheduled) > 0:
                 with st.expander(f"📋 View {len(newly_unscheduled)} newly unscheduled blocks"):
-                    display_df = newly_unscheduled[["schedulingBlockId", "priority_current"]].rename(
-                        columns={"priority_current": "priority"}
-                    )
-                    st.dataframe(display_df, hide_index=True, height=200, width="stretch")
+                    # Merge with current schedule to get targetName (they were scheduled there)
+                    display_df = newly_unscheduled[["schedulingBlockId", "priority_current"]].copy()
+                    
+                    # Get additional columns from current schedule
+                    current_info = current_common[
+                        ["schedulingBlockId", "targetName"]
+                    ].copy()
+                    
+                    # Merge to get name
+                    display_df = display_df.merge(current_info, on="schedulingBlockId", how="left")
+                    
+                    # Rename and reorder columns
+                    display_df = display_df.rename(columns={"priority_current": "priority"})
+                    display_df = display_df[[
+                        "schedulingBlockId", 
+                        "targetName",
+                        "priority"
+                    ]]
+                    
+                    # Rename columns for better display
+                    display_df = display_df.rename(columns={
+                        "schedulingBlockId": "Block ID",
+                        "targetName": "Target Name",
+                        "priority": "Priority"
+                    })
+                    
+                    st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
 
 
 def _display_comparison_plots(
