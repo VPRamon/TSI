@@ -463,77 +463,82 @@ def _display_comparison_tables(
         # If no time data, just show the metrics table alone
         st.markdown(metrics_df.to_html(escape=False, index=False, classes="comparison-table"), unsafe_allow_html=True)
     
-    # Show expandable details for changes
-    if len(newly_scheduled) > 0 or len(newly_unscheduled) > 0:
-        add_vertical_space(1)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if len(newly_scheduled) > 0:
-                with st.expander(f"📋 View {len(newly_scheduled)} newly scheduled blocks"):
-                    # Merge with comparison schedule to get targetName and scheduled period
-                    display_df = newly_scheduled[["schedulingBlockId", "priority_current"]].copy()
-                    
-                    # Get additional columns from comparison schedule
-                    comparison_info = comparison_common[
-                        ["schedulingBlockId", "targetName", "scheduled_period.start", "scheduled_period.stop"]
-                    ].copy()
-                    
-                    # Merge to get name and period
-                    display_df = display_df.merge(comparison_info, on="schedulingBlockId", how="left")
-                    
-                    # Rename and reorder columns
-                    display_df = display_df.rename(columns={"priority_current": "priority"})
-                    display_df = display_df[[
-                        "schedulingBlockId", 
-                        "targetName",
-                        "priority",
-                        "scheduled_period.start",
-                        "scheduled_period.stop"
-                    ]]
-                    
-                    # Rename columns for better display
-                    display_df = display_df.rename(columns={
-                        "schedulingBlockId": "Block ID",
-                        "targetName": "Target Name",
-                        "priority": "Priority",
-                        "scheduled_period.start": "Start (MJD)",
-                        "scheduled_period.stop": "Stop (MJD)"
-                    })
-                    
-                    st.dataframe(display_df, hide_index=True, height=200, width="stretch")
-        
-        with col2:
-            if len(newly_unscheduled) > 0:
-                with st.expander(f"📋 View {len(newly_unscheduled)} newly unscheduled blocks"):
-                    # Merge with current schedule to get targetName (they were scheduled there)
-                    display_df = newly_unscheduled[["schedulingBlockId", "priority_current"]].copy()
-                    
-                    # Get additional columns from current schedule
-                    current_info = current_common[
-                        ["schedulingBlockId", "targetName"]
-                    ].copy()
-                    
-                    # Merge to get name
-                    display_df = display_df.merge(current_info, on="schedulingBlockId", how="left")
-                    
-                    # Rename and reorder columns
-                    display_df = display_df.rename(columns={"priority_current": "priority"})
-                    display_df = display_df[[
-                        "schedulingBlockId", 
-                        "targetName",
-                        "priority"
-                    ]]
-                    
-                    # Rename columns for better display
-                    display_df = display_df.rename(columns={
-                        "schedulingBlockId": "Block ID",
-                        "targetName": "Target Name",
-                        "priority": "Priority"
-                    })
-                    
-                    st.dataframe(display_df, hide_index=True, height=200, width="stretch")
+    # Show expandable details for changes (always show both columns)
+    add_vertical_space(1)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if len(newly_scheduled) > 0:
+            with st.expander(f"📋 View {len(newly_scheduled)} newly scheduled blocks"):
+                # Merge with comparison schedule to get targetName and scheduled period
+                display_df = newly_scheduled[["schedulingBlockId", "priority_current"]].copy()
+                
+                # Get additional columns from comparison schedule
+                comparison_info = comparison_common[
+                    ["schedulingBlockId", "targetName", "scheduled_period.start", "scheduled_period.stop"]
+                ].copy()
+                
+                # Merge to get name and period
+                display_df = display_df.merge(comparison_info, on="schedulingBlockId", how="left")
+                
+                # Rename and reorder columns
+                display_df = display_df.rename(columns={"priority_current": "priority"})
+                display_df = display_df[[
+                    "schedulingBlockId", 
+                    "targetName",
+                    "priority",
+                    "scheduled_period.start",
+                    "scheduled_period.stop"
+                ]]
+                
+                # Rename columns for better display
+                display_df = display_df.rename(columns={
+                    "schedulingBlockId": "Block ID",
+                    "targetName": "Target Name",
+                    "priority": "Priority",
+                    "scheduled_period.start": "Start (MJD)",
+                    "scheduled_period.stop": "Stop (MJD)"
+                })
+                
+                st.dataframe(display_df, hide_index=True, height=200, width="stretch")
+        else:
+            with st.expander("📋 View 0 newly scheduled blocks", expanded=False):
+                st.info("No blocks were newly scheduled in the comparison schedule.")
+    
+    with col2:
+        if len(newly_unscheduled) > 0:
+            with st.expander(f"📋 View {len(newly_unscheduled)} newly unscheduled blocks"):
+                # Merge with current schedule to get targetName (they were scheduled there)
+                display_df = newly_unscheduled[["schedulingBlockId", "priority_current"]].copy()
+                
+                # Get additional columns from current schedule
+                current_info = current_common[
+                    ["schedulingBlockId", "targetName"]
+                ].copy()
+                
+                # Merge to get name
+                display_df = display_df.merge(current_info, on="schedulingBlockId", how="left")
+                
+                # Rename and reorder columns
+                display_df = display_df.rename(columns={"priority_current": "priority"})
+                display_df = display_df[[
+                    "schedulingBlockId", 
+                    "targetName",
+                    "priority"
+                ]]
+                
+                # Rename columns for better display
+                display_df = display_df.rename(columns={
+                    "schedulingBlockId": "Block ID",
+                    "targetName": "Target Name",
+                    "priority": "Priority"
+                })
+                
+                st.dataframe(display_df, hide_index=True, height=200, width="stretch")
+        else:
+            with st.expander("📋 View 0 newly unscheduled blocks", expanded=False):
+                st.info("No blocks were removed in the comparison schedule.")
 
 
 def _display_comparison_plots(
@@ -735,37 +740,37 @@ def _create_changes_plot(
         specs=[[{"type": "histogram"}, {"type": "histogram"}]]
     )
     
-    if len(newly_scheduled) > 0:
-        fig.add_trace(
-            go.Histogram(
-                x=newly_scheduled["priority_current"],
-                name="Newly Scheduled",
-                marker=dict(
-                    color="#2ca02c",  # Green
-                    line=dict(color="#1a7a1a", width=2)
-                ),
-                nbinsx=20,
-                showlegend=False,
-                opacity=1.0,
+    # Always add the trace, even if empty
+    fig.add_trace(
+        go.Histogram(
+            x=newly_scheduled["priority_current"] if len(newly_scheduled) > 0 else [],
+            name="Newly Scheduled",
+            marker=dict(
+                color="#2ca02c",  # Green
+                line=dict(color="#1a7a1a", width=2)
             ),
-            row=1, col=1
-        )
+            nbinsx=20,
+            showlegend=False,
+            opacity=1.0,
+        ),
+        row=1, col=1
+    )
     
-    if len(newly_unscheduled) > 0:
-        fig.add_trace(
-            go.Histogram(
-                x=newly_unscheduled["priority_current"],
-                name="Newly Unscheduled",
-                marker=dict(
-                    color="#d62728",  # Red
-                    line=dict(color="#8b1a1a", width=2)
-                ),
-                nbinsx=20,
-                showlegend=False,
-                opacity=1.0,
+    # Always add the trace, even if empty
+    fig.add_trace(
+        go.Histogram(
+            x=newly_unscheduled["priority_current"] if len(newly_unscheduled) > 0 else [],
+            name="Newly Unscheduled",
+            marker=dict(
+                color="#d62728",  # Red
+                line=dict(color="#8b1a1a", width=2)
             ),
-            row=1, col=2
-        )
+            nbinsx=20,
+            showlegend=False,
+            opacity=1.0,
+        ),
+        row=1, col=2
+    )
     
     fig.update_xaxes(title_text="Priority", row=1, col=1)
     fig.update_xaxes(title_text="Priority", row=1, col=2)
