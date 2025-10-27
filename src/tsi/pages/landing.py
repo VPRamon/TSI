@@ -8,12 +8,12 @@ from typing import Any
 import streamlit as st
 
 from app_config import get_settings
+from core.time import format_datetime_utc
 from tsi import state
 from tsi.components.data_preview import render_data_preview
 from tsi.components.metrics import render_kpi_cards
 from tsi.services import load_dark_periods
 from tsi.services.loaders import load_csv, prepare_dataframe, validate_dataframe
-from core.time import format_datetime_utc
 from tsi.theme import add_vertical_space, render_landing_title
 
 
@@ -23,7 +23,7 @@ def render() -> None:
     # Try to auto-load dark periods if not already loaded
     if state.get_dark_periods() is None:
         _try_auto_load_dark_periods()
-    
+
     # Add significant vertical space at the top
     add_vertical_space(4)
 
@@ -177,7 +177,7 @@ def render() -> None:
         if existing_dark_periods is None:
             _try_auto_load_dark_periods()
             existing_dark_periods = state.get_dark_periods()
-            
+
         # Show auto-load message once
         if existing_dark_periods is not None and st.session_state.get("dark_periods_auto_loaded"):
             st.success(f"✅ Dark periods loaded automatically from data/dark_periods.json ({len(existing_dark_periods)} periods)")
@@ -252,7 +252,7 @@ def _try_auto_load_dark_periods() -> None:
         current_file = Path(__file__).resolve()
         repo_root = current_file.parent.parent.parent.parent
         dark_periods_path = repo_root / "data" / "dark_periods.json"
-        
+
         if dark_periods_path.exists():
             import traceback
             try:
@@ -266,7 +266,7 @@ def _try_auto_load_dark_periods() -> None:
                 # Log error for debugging
                 st.error(f"Error loading dark_periods.json automatically: {load_error}")
                 st.code(traceback.format_exc())
-    except Exception as e:
+    except Exception:
         # Path check failed - silently continue
         pass
 
