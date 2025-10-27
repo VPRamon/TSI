@@ -32,25 +32,6 @@ def render() -> None:
         st.warning("⚠️ No base schedule loaded. Please load a schedule from the landing page first.")
         return
 
-    # Display current schedule info
-    st.subheader("📊 Current Schedule")
-    
-    current_filename = state.get_data_filename()
-    if current_filename:
-        st.info(f"**Loaded:** {current_filename}")
-    
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Total Blocks", f"{len(current_df):,}")
-    with col2:
-        scheduled_count = current_df["scheduled_flag"].sum()
-        st.metric("Scheduled", f"{int(scheduled_count):,}")
-    with col3:
-        st.metric("Mean Priority", f"{current_df['priority'].mean():.2f}")
-
-    add_vertical_space(2)
-    st.divider()
-
     # Upload comparison schedule
     st.subheader("📤 Upload Comparison Schedule")
     
@@ -120,28 +101,9 @@ def render() -> None:
 
         # Display comparison if we have both schedules
         if comparison_df is not None:
-            add_vertical_space(2)
-            st.divider()
-            
-            # Show comparison schedule info
-            st.subheader("📊 Comparison Schedule")
-            
-            comparison_filename = st.session_state.get("comparison_filename", "Comparison Schedule")
-            st.info(f"**Loaded:** {comparison_filename}")
-            
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("Total Blocks", f"{len(comparison_df):,}")
-            with col2:
-                comp_scheduled_count = comparison_df["scheduled_flag"].sum()
-                st.metric("Scheduled", f"{int(comp_scheduled_count):,}")
-            with col3:
-                st.metric("Mean Priority", f"{comparison_df['priority'].mean():.2f}")
-
-            add_vertical_space(2)
-            st.divider()
-
             # Validate and compare
+            current_filename = state.get_data_filename()
+            comparison_filename = st.session_state.get("comparison_filename", "Comparison Schedule")
             _validate_and_compare(current_df, comparison_df, current_filename or "Current", comparison_filename)
 
 
