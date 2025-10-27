@@ -9,6 +9,7 @@ from plotly.subplots import make_subplots
 
 from tsi import state
 from core.loaders import load_schedule_from_json
+from tsi.services import prepare_dataframe
 from tsi.theme import add_vertical_space
 from tsi.config import PLOT_HEIGHT
 
@@ -87,7 +88,12 @@ def render() -> None:
                         validate=True
                     )
                     
+                    # Get the raw dataframe
                     comparison_df = result.dataframe
+                    
+                    # Apply the same preparation transformations as the main schedule
+                    # This adds scheduled_start_dt, scheduled_stop_dt, and other derived columns
+                    comparison_df = prepare_dataframe(comparison_df)
                     
                     # Convert visibility lists to strings for compatibility
                     if "visibility" in comparison_df.columns:
@@ -252,6 +258,74 @@ def _validate_and_compare(
     )
 
 
+def _calculate_observation_gaps(df: pd.DataFrame, schedule_name: str = "") -> tuple[int, float, float]:
+    """
+    Calculate gaps statistics between scheduled observations.
+    
+    A gap is defined as any time period between consecutive scheduled observations.
+    
+    Args:
+        df: DataFrame with scheduled observations containing scheduled_start_dt and scheduled_stop_dt
+        schedule_name: Name of the schedule for debugging
+    
+    Returns:
+        Tuple of (num_gaps, mean_gap_hours, median_gap_hours)
+    """
+    if len(df) <= 1:  # Need at least 2 observations to have a gap
+        st.warning(f"⚠️ DEBUG ({schedule_name}): Solo {len(df)} observaciones, no se pueden calcular gaps")
+        return 0, 0.0, 0.0
+    
+    # Check if we have the necessary datetime columns
+    if "scheduled_start_dt" not in df.columns or "scheduled_stop_dt" not in df.columns:
+        st.error(f"❌ DEBUG ({schedule_name}): Faltan columnas scheduled_start_dt o scheduled_stop_dt")
+        st.write(f"Columnas disponibles: {list(df.columns)}")
+        return 0, 0.0, 0.0
+    
+    # Filter out rows with null datetime values
+    valid_df = df.dropna(subset=["scheduled_start_dt", "scheduled_stop_dt"]).copy()
+    
+    st.info(f"ℹ️ DEBUG ({schedule_name}): Total obs={len(df)}, válidas={len(valid_df)}")
+    
+    if len(valid_df) <= 1:
+        st.warning(f"⚠️ DEBUG ({schedule_name}): Solo {len(valid_df)} observaciones válidas después de filtrar nulls")
+        return 0, 0.0, 0.0
+    
+    # Sort by start time
+    sorted_df = valid_df.sort_values("scheduled_start_dt").reset_index(drop=True)
+    
+    # Calculate gaps and their durations
+    gaps = 0
+    gap_durations = []  # in hours
+    gap_examples = []
+    
+    for i in range(len(sorted_df) - 1):
+        current_end = sorted_df.iloc[i]["scheduled_stop_dt"]
+        next_start = sorted_df.iloc[i + 1]["scheduled_start_dt"]
+        
+        # If there's a gap between observations (even 1 second counts)
+        if next_start > current_end:
+            gaps += 1
+            gap_duration_hours = (next_start - current_end).total_seconds() / 3600
+            gap_durations.append(gap_duration_hours)
+            
+            if len(gap_examples) < 5:  # Store first 5 examples
+                gap_examples.append(f"Gap {gaps}: {gap_duration_hours:.2f}h entre {current_end} y {next_start}")
+    
+    # Calculate mean and median
+    mean_gap = sum(gap_durations) / len(gap_durations) if gap_durations else 0.0
+    median_gap = sorted(gap_durations)[len(gap_durations) // 2] if gap_durations else 0.0
+    
+    st.success(f"✅ DEBUG ({schedule_name}): {gaps} gaps encontrados de {len(sorted_df)-1} transiciones posibles")
+    st.info(f"📊 DEBUG ({schedule_name}): Duración media de gaps: {mean_gap:.2f}h, mediana: {median_gap:.2f}h")
+    
+    if gap_examples:
+        with st.expander(f"Ver ejemplos de gaps en {schedule_name}"):
+            for example in gap_examples:
+                st.text(example)
+    
+    return gaps, mean_gap, median_gap
+
+
 def _display_comparison_tables(
     current_scheduled: pd.DataFrame,
     comparison_scheduled: pd.DataFrame,
@@ -265,6 +339,34 @@ def _display_comparison_tables(
     """Display compact comparison tables for metrics."""
     st.subheader("📊 Summary Tables")
     
+    # Add custom styling for the tables (once, at the beginning)
+    table_style = """
+    <style>
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        .comparison-table th {
+            background-color: #262730;
+            color: #fafafa;
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 2px solid #4da6ff;
+            font-weight: 600;
+        }
+        .comparison-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #3d3d4d;
+            color: #fafafa;
+        }
+        .comparison-table tr:hover {
+            background-color: #1a1d24;
+        }
+    </style>
+    """
+    st.markdown(table_style, unsafe_allow_html=True)
+    
     # Table 1: Priority and Scheduling Metrics
     current_count = len(current_scheduled)
     comparison_count = len(comparison_scheduled)
@@ -276,6 +378,44 @@ def _display_comparison_tables(
     comp_total_priority = comparison_scheduled["priority"].sum() if comparison_count > 0 else 0
     comp_mean_priority = comparison_scheduled["priority"].mean() if comparison_count > 0 else 0
     comp_median_priority = comparison_scheduled["priority"].median() if comparison_count > 0 else 0
+    
+    # Calculate deltas
+    delta_count = comparison_count - current_count
+    delta_total_priority = comp_total_priority - current_total_priority
+    delta_mean_priority = comp_mean_priority - current_mean_priority
+    delta_median_priority = comp_median_priority - current_median_priority
+    
+    # Helper function to format value with delta label
+    def format_with_delta(value: str, delta: float, is_count: bool = False, inverse_colors: bool = False) -> str:
+        """Format a value with a colored delta percentage label.
+        
+        Args:
+            value: The value to display
+            delta: The change from the previous value
+            is_count: Whether this is a count metric
+            inverse_colors: If True, positive changes are red (bad) and negative are green (good)
+        """
+        if delta == 0:
+            return value
+        
+        # Calculate percentage change (avoiding division by zero)
+        base_value = float(value.replace(",", ""))
+        if base_value == 0:
+            pct_change = 0
+        else:
+            pct_change = (delta / base_value) * 100
+        
+        # Choose color based on sign (inverse logic for metrics where increase is bad)
+        if inverse_colors:
+            color = "#d62728" if delta > 0 else "#2ca02c"  # red for positive, green for negative
+        else:
+            color = "#2ca02c" if delta > 0 else "#d62728"  # green for positive, red for negative
+        sign = "+" if delta > 0 else ""
+        
+        # Format the delta label
+        delta_label = f'<span style="background-color: {color}; color: white; padding: 2px 6px; border-radius: 3px; margin-left: 8px; font-size: 0.85em; font-weight: bold;">{sign}{pct_change:.1f}%</span>'
+        
+        return f"{value} {delta_label}"
     
     metrics_data = {
         "Metric": [
@@ -295,32 +435,21 @@ def _display_comparison_tables(
             "-",
         ],
         comparison_name: [
-            f"{comparison_count:,}",
-            f"{comp_total_priority:.2f}",
-            f"{comp_mean_priority:.2f}",
-            f"{comp_median_priority:.2f}",
+            format_with_delta(f"{comparison_count:,}", delta_count, is_count=True),
+            format_with_delta(f"{comp_total_priority:.2f}", delta_total_priority),
+            format_with_delta(f"{comp_mean_priority:.2f}", delta_mean_priority),
+            format_with_delta(f"{comp_median_priority:.2f}", delta_median_priority),
             f"{len(newly_scheduled):,}",
             f"{len(newly_unscheduled):,}",
-        ],
-        "Δ (Difference)": [
-            f"{comparison_count - current_count:+,}",
-            f"{comp_total_priority - current_total_priority:+.2f}",
-            f"{comp_mean_priority - current_mean_priority:+.2f}",
-            f"{comp_median_priority - current_median_priority:+.2f}",
-            f"+{len(newly_scheduled):,}",
-            f"-{len(newly_unscheduled):,}",
         ],
     }
     
     metrics_df = pd.DataFrame(metrics_data)
-    st.dataframe(metrics_df, hide_index=True, width="stretch")
     
     # Table 2: Time Metrics (if available)
     has_time_data = "requested_hours" in current_scheduled.columns and "requested_hours" in comparison_scheduled.columns
     
     if has_time_data:
-        add_vertical_space(1)
-        
         current_total_time = current_scheduled["requested_hours"].sum() if current_count > 0 else 0
         current_mean_time = current_scheduled["requested_hours"].mean() if current_count > 0 else 0
         current_median_time = current_scheduled["requested_hours"].median() if current_count > 0 else 0
@@ -329,31 +458,60 @@ def _display_comparison_tables(
         comp_mean_time = comparison_scheduled["requested_hours"].mean() if comparison_count > 0 else 0
         comp_median_time = comparison_scheduled["requested_hours"].median() if comparison_count > 0 else 0
         
+        # Calculate gaps between observations
+        current_gaps_count, current_mean_gap, current_median_gap = _calculate_observation_gaps(current_scheduled, current_name)
+        comp_gaps_count, comp_mean_gap, comp_median_gap = _calculate_observation_gaps(comparison_scheduled, comparison_name)
+        
+        # Calculate time deltas
+        delta_total_time = comp_total_time - current_total_time
+        delta_mean_time = comp_mean_time - current_mean_time
+        delta_median_time = comp_median_time - current_median_time
+        delta_gaps = comp_gaps_count - current_gaps_count
+        delta_mean_gap = comp_mean_gap - current_mean_gap
+        delta_median_gap = comp_median_gap - current_median_gap
+        
         time_data = {
             "Metric": [
                 "Total Planned Time (hrs)",
                 "Mean Planned Time (hrs)",
                 "Median Planned Time (hrs)",
+                "Gaps Between Observations",
+                "Mean Gap Duration (hrs)",
+                "Median Gap Duration (hrs)",
             ],
             current_name: [
                 f"{current_total_time:.2f}",
                 f"{current_mean_time:.2f}",
                 f"{current_median_time:.2f}",
+                f"{current_gaps_count:,}",
+                f"{current_mean_gap:.2f}",
+                f"{current_median_gap:.2f}",
             ],
             comparison_name: [
-                f"{comp_total_time:.2f}",
-                f"{comp_mean_time:.2f}",
-                f"{comp_median_time:.2f}",
-            ],
-            "Δ (Difference)": [
-                f"{comp_total_time - current_total_time:+.2f}",
-                f"{comp_mean_time - current_mean_time:+.2f}",
-                f"{comp_median_time - current_median_time:+.2f}",
+                format_with_delta(f"{comp_total_time:.2f}", delta_total_time),
+                format_with_delta(f"{comp_mean_time:.2f}", delta_mean_time),
+                format_with_delta(f"{comp_median_time:.2f}", delta_median_time),
+                format_with_delta(f"{comp_gaps_count:,}", delta_gaps, is_count=True, inverse_colors=True),
+                format_with_delta(f"{comp_mean_gap:.2f}", delta_mean_gap),
+                format_with_delta(f"{comp_median_gap:.2f}", delta_median_gap),
             ],
         }
         
         time_df = pd.DataFrame(time_data)
-        st.dataframe(time_df, hide_index=True, width="stretch")
+        
+        # Display both tables side by side
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.markdown("**Priority & Scheduling Metrics**")
+            st.markdown(metrics_df.to_html(escape=False, index=False, classes="comparison-table"), unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("**Time Metrics**")
+            st.markdown(time_df.to_html(escape=False, index=False, classes="comparison-table"), unsafe_allow_html=True)
+    else:
+        # If no time data, just show the metrics table alone
+        st.markdown(metrics_df.to_html(escape=False, index=False, classes="comparison-table"), unsafe_allow_html=True)
     
     # Show expandable details for changes
     if len(newly_scheduled) > 0 or len(newly_unscheduled) > 0:
