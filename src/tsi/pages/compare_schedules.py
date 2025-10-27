@@ -32,9 +32,6 @@ def render() -> None:
         st.warning("⚠️ No base schedule loaded. Please load a schedule from the landing page first.")
         return
 
-    # Upload comparison schedule
-    st.subheader("📤 Upload Comparison Schedule")
-    
     uploaded_json = st.file_uploader(
         "Choose a schedule.json file to compare",
         type=["json"],
