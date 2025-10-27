@@ -26,6 +26,7 @@ def render() -> None:
     )
 
     df = state.get_prepared_data()
+    dark_periods_df = state.get_dark_periods()
 
     if df is None:
         st.warning("No data loaded. Please return to the landing page.")
@@ -73,80 +74,11 @@ def render() -> None:
     # Get unique months sorted chronologically
     all_months = sorted(scheduled_df["scheduled_month_label"].unique())
 
-    # Sidebar filters
-    with st.sidebar:
-        st.header("Timeline Filters")
-
-        # Priority range filter
-        stored_range = state.get_priority_range()
-        if (
-            stored_range is None
-            or stored_range[0] < priority_min
-            or stored_range[1] > priority_max
-            or stored_range == (0.0, 10.0)
-        ):
-            default_range = (priority_min, priority_max)
-        else:
-            default_range = stored_range
-
-        priority_range = render_priority_filter(
-            "timeline_priority_range",
-            min_value=priority_min,
-            max_value=priority_max,
-            default=default_range,
-        )
-        state.set_priority_range(priority_range)
-
-        # Month selector
-        st.markdown("**Months to display**")
-        selected_months = st.multiselect(
-            "Select months",
-            options=all_months,
-            default=all_months,
-            key="timeline_month_filter",
-            help="Filter by specific months to focus on specific periods",
-        )
-
-        # Duration threshold filter
-        st.markdown("**Duration filter**")
-        show_short_blocks = st.checkbox(
-            "Filter short blocks",
-            value=False,
-            key="timeline_filter_short",
-            help="Enable to hide blocks with duration less than the threshold",
-        )
-
-        duration_threshold = 0.0
-        if show_short_blocks:
-            duration_threshold = render_number_input(
-                "Minimum duration (hours)",
-                min_value=0,
-                max_value=100,
-                default=1,
-                key="timeline_duration_threshold",
-            )
-
-        st.divider()
-
-        # Instructions
-        st.info(
-            """
-            **💡 How to read the timeline:**
-            - **Y axis (vertical)** = Months of the year
-            - **X axis (horizontal)** = Days of the month (1-31)
-            - Each row shows only the observations for that month
-            - Horizontal blocks = scheduled observations
-            - Color = priority (Viridis scale)
-            - You can zoom/pan to explore details
-            - Day range is limited to 1-31 (invalid days won't be shown)
-            """
-        )
-
-        st.divider()
-
-        if render_reset_filters_button():
-            state.reset_filters()
-            st.rerun()
+    # Simple filters - use default values
+    priority_range = (priority_min, priority_max)
+    selected_months = all_months
+    show_short_blocks = False
+    duration_threshold = 0.0
 
     # Apply filters
     filtered_df = scheduled_df[
@@ -165,7 +97,20 @@ def render() -> None:
         return
 
     # Build the monthly timeline figure
-    fig = build_monthly_timeline(filtered_df, priority_range)
+    # Always include dark periods if available - users can toggle them in the plot legend
+    filtered_dark_periods = None
+    if dark_periods_df is not None and not dark_periods_df.empty:
+        filtered_dark_periods = dark_periods_df.copy()
+        if selected_months:
+            filtered_dark_periods = filtered_dark_periods[
+                filtered_dark_periods["months"].apply(
+                    lambda month_list: any(month in selected_months for month in month_list)
+                )
+            ]
+        if filtered_dark_periods.empty:
+            filtered_dark_periods = None
+
+    fig = build_monthly_timeline(filtered_df, priority_range, filtered_dark_periods)
 
     # Display the chart with configuration to limit pan range
     # Disable pan on X axis to prevent moving beyond day boundaries
@@ -176,7 +121,38 @@ def render() -> None:
         "modeBarButtonsToRemove": ["lasso2d", "select2d"],
         "scrollZoom": True,  # Enable zoom with scroll wheel
     }
-    st.plotly_chart(fig, use_container_width=True, config=config)
+    st.plotly_chart(fig, width='stretch', config=config)
+
+    # Show dark period summary if available
+    if filtered_dark_periods is not None:
+        st.markdown("---")
+        st.subheader("ℹ️ Observable periods information")
+
+        dark_count = len(filtered_dark_periods)
+        total_dark_hours = filtered_dark_periods["duration_hours"].sum()
+        min_dark = filtered_dark_periods["start_dt"].min()
+        max_dark = filtered_dark_periods["stop_dt"].max()
+
+        st.caption(
+            f"Detected {dark_count:,} dark/nocturnal OBSERVABLE periods (total {total_dark_hours:,.1f} h). "
+            f"The chart shows DAYTIME periods (non-observable) in light yellow."
+            f" Time range: {format_datetime_utc(min_dark)} → {format_datetime_utc(max_dark)}."
+        )
+
+        dark_display = filtered_dark_periods.copy()
+        dark_display["Start"] = dark_display["start_dt"].dt.strftime("%Y-%m-%d %H:%M")
+        dark_display["End"] = dark_display["stop_dt"].dt.strftime("%Y-%m-%d %H:%M")
+        dark_display = dark_display[["Start", "End", "duration_hours", "months"]]
+        dark_display = dark_display.rename(
+            columns={"duration_hours": "Duration (h)", "months": "Months"}
+        )
+
+        st.dataframe(
+            dark_display,
+            width='stretch',
+            hide_index=True,
+            height=min(300, 60 + 24 * min(len(dark_display), 8)),
+        )
 
     # Add detailed information table
     st.markdown("---")
@@ -353,7 +329,11 @@ def render() -> None:
     st.caption(f"**Time range:** {format_datetime_utc(min_date)} → {format_datetime_utc(max_date)}")
 
 
-def build_monthly_timeline(df: pd.DataFrame, priority_range: tuple[float, float]) -> go.Figure:
+def build_monthly_timeline(
+    df: pd.DataFrame,
+    priority_range: tuple[float, float],
+    dark_periods: pd.DataFrame | None = None,
+) -> go.Figure:
     """
     Build a Plotly figure showing scheduled observations grouped by month.
 
@@ -364,12 +344,20 @@ def build_monthly_timeline(df: pd.DataFrame, priority_range: tuple[float, float]
     Args:
         df: DataFrame with scheduled observations and monthly grouping columns
         priority_range: (min, max) priority values for color normalization
+        dark_periods: Optional DataFrame with dark period windows to overlay
 
     Returns:
         Plotly Figure object
     """
     # Get sorted months for Y-axis ordering
-    ordered_months = sorted(df["scheduled_month_label"].unique())
+    scheduled_months = set(df["scheduled_month_label"].unique())
+    dark_months: set[str] = set()
+    if dark_periods is not None and "months" in dark_periods.columns:
+        for month_list in dark_periods["months"]:
+            if isinstance(month_list, list):
+                dark_months.update(month_list)
+
+    ordered_months = sorted(scheduled_months | dark_months)
     num_months = len(ordered_months)
 
     # Create figure
@@ -382,6 +370,94 @@ def build_monthly_timeline(df: pd.DataFrame, priority_range: tuple[float, float]
 
     # Create a mapping from month_label to numeric position
     month_to_position = {month: idx for idx, month in enumerate(ordered_months)}
+
+    # Add both dark and light period overlays - users can toggle them in the legend
+    if dark_periods is not None and not dark_periods.empty:
+        # Add light periods (inverted from dark periods) to show non-observable times
+        light_segments = _invert_to_light_periods(dark_periods)
+        
+        light_traces_added = 0
+        for month_label, seg_start, seg_stop in light_segments:
+            if month_label not in month_to_position:
+                continue
+
+            y_pos = month_to_position[month_label]
+            y_bottom = y_pos - 0.04  # Narrower band (was 0.45 before)
+            y_top = y_pos + 0.04
+
+            x_start = _datetime_to_day_fraction(seg_start)
+            x_stop = _datetime_to_day_fraction(seg_stop)
+            if x_stop <= x_start:
+                continue
+
+            duration_hours = (seg_stop - seg_start).total_seconds() / 3600.0
+
+            # Mark LIGHT periods (daytime, non-observable) with light yellow
+            fig.add_trace(
+                go.Scatter(
+                    name="Daytime periods (non-observable)",
+                    x=[x_start, x_stop, x_stop, x_start, x_start],
+                    y=[y_bottom, y_bottom, y_top, y_top, y_bottom],
+                    fill="toself",
+                    fillcolor="rgba(255, 230, 180, 0.15)",  # Very soft yellow
+                    line=dict(color="rgba(200, 180, 140, 0.3)", width=1.5),  # Subtle outline
+                    hovertemplate=(
+                        "<b>☀️ Daytime period (non-observable)</b><br><br>"
+                        f"<b>Month:</b> {month_label}<br>"
+                        f"<b>Start:</b> {format_datetime_utc(seg_start)}<br>"
+                        f"<b>End:</b> {format_datetime_utc(seg_stop)}<br>"
+                        f"<b>Duration:</b> {duration_hours:.2f} hours"
+                        "<extra></extra>"
+                    ),
+                    legendgroup="light_periods",
+                    showlegend=light_traces_added == 0,
+                    mode="lines",
+                )
+            )
+            light_traces_added += 1
+        
+        # Add dark periods (observable times) with dark blue
+        dark_segments = _split_dark_periods_by_month(dark_periods)
+        
+        dark_traces_added = 0
+        for month_label, seg_start, seg_stop in dark_segments:
+            if month_label not in month_to_position:
+                continue
+
+            y_pos = month_to_position[month_label]
+            y_bottom = y_pos - 0.04  # Narrower band (consistent with daytime periods)
+            y_top = y_pos + 0.04
+
+            x_start = _datetime_to_day_fraction(seg_start)
+            x_stop = _datetime_to_day_fraction(seg_stop)
+            if x_stop <= x_start:
+                continue
+
+            duration_hours = (seg_stop - seg_start).total_seconds() / 3600.0
+
+            # Mark DARK periods (nighttime, observable) with dark blue
+            fig.add_trace(
+                go.Scatter(
+                    name="Nighttime periods (observable)",
+                    x=[x_start, x_stop, x_stop, x_start, x_start],
+                    y=[y_bottom, y_bottom, y_top, y_top, y_bottom],
+                    fill="toself",
+                    fillcolor="rgba(80, 100, 140, 0.15)",  # Very soft bluish gray
+                    line=dict(color="rgba(100, 120, 160, 0.3)", width=1.5),  # Subtle outline
+                    hovertemplate=(
+                        "<b>🌙 Nighttime period (observable)</b><br><br>"
+                        f"<b>Month:</b> {month_label}<br>"
+                        f"<b>Start:</b> {format_datetime_utc(seg_start)}<br>"
+                        f"<b>End:</b> {format_datetime_utc(seg_stop)}<br>"
+                        f"<b>Duration:</b> {duration_hours:.2f} hours"
+                        "<extra></extra>"
+                    ),
+                    legendgroup="dark_periods",
+                    showlegend=dark_traces_added == 0,
+                    mode="lines",
+                )
+            )
+            dark_traces_added += 1
 
     # Iterate through each observation and add as a filled rectangle
     # Key: convert datetime to day-of-month (1-31) for X axis
@@ -636,3 +712,154 @@ def _viridis_color(normalized_value: float) -> str:
 
     # Fallback (should not reach here)
     return "68, 1, 84"
+
+
+def _split_dark_periods_by_month(
+    dark_df: pd.DataFrame,
+) -> list[tuple[str, pd.Timestamp, pd.Timestamp]]:
+    """Split each dark period by month boundaries for plotting."""
+
+    segments: list[tuple[str, pd.Timestamp, pd.Timestamp]] = []
+    for _, row in dark_df.iterrows():
+        start_dt = row.get("start_dt")
+        stop_dt = row.get("stop_dt")
+
+        if start_dt is None or stop_dt is None:
+            continue
+        if pd.isna(start_dt) or pd.isna(stop_dt):
+            continue
+
+        for month_label, seg_start, seg_stop in _iter_month_segments(start_dt, stop_dt):
+            if seg_stop <= seg_start:
+                continue
+            segments.append((month_label, seg_start, seg_stop))
+
+    return segments
+
+
+def _invert_to_light_periods(
+    dark_df: pd.DataFrame,
+) -> list[tuple[str, pd.Timestamp, pd.Timestamp]]:
+    """
+    Invert dark (observable) periods to obtain light (non-observable) periods.
+
+    Dark periods represent the nighttime windows when observations are possible.
+    This function computes the gaps between dark periods, which correspond to the
+    daytime windows when observations are NOT possible.
+
+    Returns:
+        List of tuples: (month_label, start, stop) for each light period
+    """
+    if dark_df.empty:
+        return []
+    
+    # Sort by start time
+    dark_df_sorted = dark_df.sort_values('start_dt').reset_index(drop=True)
+    
+    light_segments: list[tuple[str, pd.Timestamp, pd.Timestamp]] = []
+    
+    # For each month, find the gaps between dark periods
+    all_months = set()
+    for month_list in dark_df_sorted['months']:
+        all_months.update(month_list)
+    
+    for month_label in sorted(all_months):
+        # Get all dark periods for this month
+        month_dark = dark_df_sorted[
+            dark_df_sorted['months'].apply(lambda x: month_label in x)
+        ].copy()
+        
+        if month_dark.empty:
+            continue
+        
+        # Get month boundaries
+        year, month = map(int, month_label.split('-'))
+        month_start = pd.Timestamp(year=year, month=month, day=1, hour=0, minute=0, tz='UTC')
+        
+        # Compute the first instant of the next month (serves as month end boundary)
+        if month == 12:
+            month_end = pd.Timestamp(year=year + 1, month=1, day=1, hour=0, minute=0, tz='UTC')
+        else:
+            month_end = pd.Timestamp(year=year, month=month + 1, day=1, hour=0, minute=0, tz='UTC')
+        
+        # Collect all dark periods of the month in order
+        dark_periods_in_month = []
+        for _, row in month_dark.iterrows():
+            start = max(row['start_dt'], month_start)
+            stop = min(row['stop_dt'], month_end)
+            if start < stop:
+                dark_periods_in_month.append((start, stop))
+        
+        # Sort by start time
+        dark_periods_in_month.sort(key=lambda x: x[0])
+        
+        if not dark_periods_in_month:
+            continue
+        
+        # Create light periods between dark periods
+        # 1. Gap from the start of the month to the first dark period
+        first_dark_start = dark_periods_in_month[0][0]
+        if month_start < first_dark_start:
+            light_segments.append((month_label, month_start, first_dark_start))
+        
+        # 2. Gaps between consecutive dark periods
+        for i in range(len(dark_periods_in_month) - 1):
+            current_dark_end = dark_periods_in_month[i][1]
+            next_dark_start = dark_periods_in_month[i + 1][0]
+            
+            if current_dark_end < next_dark_start:
+                light_segments.append((month_label, current_dark_end, next_dark_start))
+        
+        # 3. Gap from the last dark period to the end of the month
+        last_dark_end = dark_periods_in_month[-1][1]
+        if last_dark_end < month_end:
+            light_segments.append((month_label, last_dark_end, month_end))
+    
+    return light_segments
+
+
+def _iter_month_segments(
+    start_dt: pd.Timestamp, stop_dt: pd.Timestamp
+) -> list[tuple[str, pd.Timestamp, pd.Timestamp]]:
+    """Yield (month, start, stop) segments clipped to month boundaries."""
+
+    segments: list[tuple[str, pd.Timestamp, pd.Timestamp]] = []
+    current_start = start_dt
+
+    while current_start < stop_dt:
+        month_label = current_start.strftime("%Y-%m")
+        next_month_start = _start_of_next_month(current_start)
+        month_end = min(stop_dt, next_month_start - pd.Timedelta(seconds=1))
+
+        segments.append((month_label, current_start, month_end))
+
+        if month_end >= stop_dt:
+            break
+
+        current_start = next_month_start
+
+    return segments
+
+
+def _start_of_next_month(dt: pd.Timestamp) -> pd.Timestamp:
+    """Return the first instant of the month following ``dt`` preserving timezone."""
+
+    tz = dt.tzinfo or "UTC"
+    year = dt.year
+    month = dt.month
+
+    if month == 12:
+        return pd.Timestamp(year=year + 1, month=1, day=1, tz=tz)
+
+    return pd.Timestamp(year=year, month=month + 1, day=1, tz=tz)
+
+
+def _datetime_to_day_fraction(dt: pd.Timestamp) -> float:
+    """Convert a timestamp into day-of-month with fractional component."""
+
+    base = dt.day
+    base += dt.hour / 24.0
+    base += dt.minute / 1440.0
+    base += dt.second / 86_400.0
+    base += dt.microsecond / 86_400_000_000.0
+    return base

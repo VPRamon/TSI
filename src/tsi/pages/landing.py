@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import streamlit as st
@@ -10,12 +11,19 @@ from app_config import get_settings
 from tsi import state
 from tsi.components.data_preview import render_data_preview
 from tsi.components.metrics import render_kpi_cards
+from tsi.services import load_dark_periods
 from tsi.services.loaders import load_csv, prepare_dataframe, validate_dataframe
+from core.time import format_datetime_utc
 from tsi.theme import add_vertical_space, render_landing_title
 
 
 def render() -> None:
     """Render the landing page with data selection options."""
+
+    # Try to auto-load dark periods if not already loaded
+    if state.get_dark_periods() is None:
+        _try_auto_load_dark_periods()
+    
     # Add significant vertical space at the top
     add_vertical_space(4)
 
@@ -119,6 +127,7 @@ def render() -> None:
         st.divider()
 
         df = state.get_prepared_data()
+        existing_dark_periods = state.get_dark_periods()
 
         st.success("✅ Data loaded successfully!")
 
@@ -155,8 +164,111 @@ def render() -> None:
             title="📋 Data Preview",
         )
 
+        st.markdown("---")
+        st.subheader("🌑 Dark periods (optional)")
+        st.caption(
+            "Load a `dark_periods.json` file to highlight dark windows on the"
+            " **Planned Schedule** page. This helps identify why there are"
+            " gaps without observations."
+        )
+
+        # Auto-load dark periods from local file if available and not already loaded
+        existing_dark_periods = state.get_dark_periods()
+        if existing_dark_periods is None:
+            _try_auto_load_dark_periods()
+            existing_dark_periods = state.get_dark_periods()
+            
+        # Show auto-load message once
+        if existing_dark_periods is not None and st.session_state.get("dark_periods_auto_loaded"):
+            st.success(f"✅ Dark periods loaded automatically from data/dark_periods.json ({len(existing_dark_periods)} periods)")
+            # Remove the flag so message doesn't repeat
+            st.session_state.pop("dark_periods_auto_loaded", None)
+
+        dark_periods_file = st.file_uploader(
+            "Select dark_periods.json",
+            type=["json"],
+            key="dark_periods_uploader",
+            help="File exported from CTA with the dark periods of the year",
+        )
+
+        if dark_periods_file is not None:
+            file_token = f"{getattr(dark_periods_file, 'name', '')}:{getattr(dark_periods_file, 'size', '')}"
+            if st.session_state.get("dark_periods_last_token") != file_token:
+                try:
+                    dark_periods_df = load_dark_periods(dark_periods_file)
+                except Exception as exc:  # pragma: no cover - Streamlit feedback only
+                    st.error(f"❌ Could not load dark periods: {exc}")
+                else:
+                    if dark_periods_df.empty:
+                        state.set_dark_periods(None)
+                        st.warning("⚠️ The file does not contain valid dark periods.")
+                    else:
+                        state.set_dark_periods(dark_periods_df)
+                        st.session_state["dark_periods_last_token"] = file_token
+                        st.success(f"🌑 {len(dark_periods_df):,} dark periods loaded.")
+
+        existing_dark_periods = state.get_dark_periods()
+
+        if existing_dark_periods is not None and not existing_dark_periods.empty:
+            min_dark = existing_dark_periods["start_dt"].min()
+            max_dark = existing_dark_periods["stop_dt"].max()
+            total_dark_hours = existing_dark_periods["duration_hours"].sum()
+
+            st.caption(
+                f"Currently there are {len(existing_dark_periods):,} dark periods loaded"
+                f" (total {total_dark_hours:,.1f} h)."
+                f" Time range: {format_datetime_utc(min_dark)} → {format_datetime_utc(max_dark)}."
+            )
+
+            with st.expander("View loaded dark periods", expanded=False):
+                preview_cols = existing_dark_periods.copy()
+                preview_cols["start"] = preview_cols["start_dt"].dt.strftime("%Y-%m-%d %H:%M")
+                preview_cols["end"] = preview_cols["stop_dt"].dt.strftime("%Y-%m-%d %H:%M")
+                preview_cols = preview_cols[["start", "end", "duration_hours", "months"]]
+                preview_cols = preview_cols.rename(
+                    columns={"duration_hours": "Duration (h)", "months": "Months"}
+                )
+                st.dataframe(
+                    preview_cols,
+                    hide_index=True,
+                    width='stretch',
+                    height=240,
+                )
+
+            if st.button("Remove dark periods", key="clear_dark_periods"):
+                state.set_dark_periods(None)
+                st.session_state.pop("dark_periods_last_token", None)
+                st.rerun()
+
         # Provide navigation hint
-        st.info("👆 Use the navigation menu above to explore visualizations and insights")
+        st.info("👆 Use the top navigation to explore visualizations and insights")
+
+
+def _try_auto_load_dark_periods() -> None:
+    """Try to auto-load dark periods from the local data directory if available."""
+    try:
+        # Build path relative to the repository root
+        # This module is in src/tsi/pages/, so go up 3 levels to get to repo root
+        current_file = Path(__file__).resolve()
+        repo_root = current_file.parent.parent.parent.parent
+        dark_periods_path = repo_root / "data" / "dark_periods.json"
+        
+        if dark_periods_path.exists():
+            import traceback
+            try:
+                dark_periods_df = load_dark_periods(dark_periods_path)
+                if not dark_periods_df.empty:
+                    state.set_dark_periods(dark_periods_df)
+                    # Mark that auto-load was successful
+                    if "dark_periods_auto_loaded" not in st.session_state:
+                        st.session_state["dark_periods_auto_loaded"] = True
+            except Exception as load_error:
+                # Log error for debugging
+                st.error(f"Error loading dark_periods.json automatically: {load_error}")
+                st.code(traceback.format_exc())
+    except Exception as e:
+        # Path check failed - silently continue
+        pass
 
 
 def _load_data(
@@ -217,6 +329,9 @@ def _load_data(
 
             # Store in session state
             state.set_prepared_data(prepared_df)
+            # Don't clear dark_periods - keep them loaded if they exist
+            # Only clear the upload token so user can re-upload if needed
+            st.session_state.pop("dark_periods_last_token", None)
             st.session_state[state.KEY_DATA_SOURCE] = source
 
             # Store filename
@@ -237,6 +352,10 @@ def _load_data(
 
             # Auto-navigate to first page
             state.set_current_page("Sky Map")
+
+            # Try to auto-load dark periods after loading data
+            if state.get_dark_periods() is None:
+                _try_auto_load_dark_periods()
 
             # Force rerun to show the navigation
             st.rerun()
