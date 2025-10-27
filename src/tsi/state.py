@@ -1,0 +1,147 @@
+"""Session state management utilities."""
+
+from typing import Any
+
+import streamlit as st
+
+# State keys
+KEY_DATA_RAW = "data_raw"
+KEY_DATA_PREPARED = "data_prepared"
+KEY_CURRENT_PAGE = "current_page"
+KEY_DATA_SOURCE = "data_source"
+KEY_DATA_FILENAME = "data_filename"
+KEY_PRIORITY_RANGE = "priority_range"
+KEY_SCHEDULED_FILTER = "scheduled_filter"
+KEY_SELECTED_BINS = "selected_bins"
+KEY_SCHEDULE_WINDOW = "scheduled_time_window"
+KEY_DIST_FILTER_MODE = "dist_filter_mode"
+
+
+def initialize_state() -> None:
+    """Initialize session state with default values."""
+    if KEY_DATA_RAW not in st.session_state:
+        st.session_state[KEY_DATA_RAW] = None
+
+    if KEY_DATA_PREPARED not in st.session_state:
+        st.session_state[KEY_DATA_PREPARED] = None
+
+    if KEY_CURRENT_PAGE not in st.session_state:
+        st.session_state[KEY_CURRENT_PAGE] = None
+
+    if KEY_DATA_SOURCE not in st.session_state:
+        st.session_state[KEY_DATA_SOURCE] = None
+
+    if KEY_DATA_FILENAME not in st.session_state:
+        st.session_state[KEY_DATA_FILENAME] = None
+
+    if KEY_PRIORITY_RANGE not in st.session_state:
+        st.session_state[KEY_PRIORITY_RANGE] = None
+
+    if KEY_SCHEDULED_FILTER not in st.session_state:
+        st.session_state[KEY_SCHEDULED_FILTER] = "All"
+
+    if KEY_SELECTED_BINS not in st.session_state:
+        st.session_state[KEY_SELECTED_BINS] = None
+
+    if KEY_SCHEDULE_WINDOW not in st.session_state:
+        st.session_state[KEY_SCHEDULE_WINDOW] = None
+
+    if KEY_DIST_FILTER_MODE not in st.session_state:
+        st.session_state[KEY_DIST_FILTER_MODE] = "all"
+
+
+def has_data() -> bool:
+    """Check if data has been loaded."""
+    return st.session_state.get(KEY_DATA_PREPARED) is not None
+
+
+def get_prepared_data() -> Any:
+    """Get the prepared DataFrame from session state."""
+    return st.session_state.get(KEY_DATA_PREPARED)
+
+
+def set_prepared_data(df: Any) -> None:
+    """Set the prepared DataFrame in session state."""
+    st.session_state[KEY_DATA_PREPARED] = df
+
+
+def get_current_page() -> str | None:
+    """Get the current page name."""
+    return st.session_state.get(KEY_CURRENT_PAGE)
+
+
+def set_current_page(page: str) -> None:
+    """Set the current page name."""
+    st.session_state[KEY_CURRENT_PAGE] = page
+
+
+def get_priority_range() -> tuple[float, float]:
+    """Get the priority filter range."""
+    result = st.session_state.get(KEY_PRIORITY_RANGE, (0.0, 10.0))
+    return result  # type: ignore[return-value,no-any-return]
+
+
+def set_priority_range(range_vals: tuple[float, float]) -> None:
+    """Set the priority filter range."""
+    st.session_state[KEY_PRIORITY_RANGE] = range_vals
+
+
+def get_scheduled_filter() -> str:
+    """Get the scheduled/unscheduled filter."""
+    result = st.session_state.get(KEY_SCHEDULED_FILTER, "All")
+    return str(result)
+
+
+def set_scheduled_filter(filter_val: str) -> None:
+    """Set the scheduled/unscheduled filter."""
+    st.session_state[KEY_SCHEDULED_FILTER] = filter_val
+
+
+def get_selected_bins() -> Any:
+    """Get selected priority bins."""
+    return st.session_state.get(KEY_SELECTED_BINS)
+
+
+def set_selected_bins(values: Any) -> None:
+    """Set selected priority bins."""
+    st.session_state[KEY_SELECTED_BINS] = values
+
+
+def reset_filters() -> None:
+    """Reset all filters to defaults."""
+    # Set to None so each page can use its data's full range
+    st.session_state[KEY_PRIORITY_RANGE] = None
+    st.session_state[KEY_SCHEDULED_FILTER] = "All"
+    st.session_state[KEY_SELECTED_BINS] = None
+    st.session_state[KEY_SCHEDULE_WINDOW] = None
+    st.session_state[KEY_DIST_FILTER_MODE] = "all"
+
+
+def clear_data() -> None:
+    """Clear all data from session state."""
+    st.session_state[KEY_DATA_RAW] = None
+    st.session_state[KEY_DATA_PREPARED] = None
+    st.session_state[KEY_DATA_SOURCE] = None
+    st.session_state[KEY_DATA_FILENAME] = None
+    st.session_state[KEY_CURRENT_PAGE] = None
+    reset_filters()
+
+
+def get_schedule_window() -> Any:
+    """Get selected scheduled time window."""
+    return st.session_state.get(KEY_SCHEDULE_WINDOW)
+
+
+def set_schedule_window(window: Any) -> None:
+    """Persist scheduled time window filter."""
+    st.session_state[KEY_SCHEDULE_WINDOW] = window
+
+
+def get_data_filename() -> str | None:
+    """Get the loaded dataset filename."""
+    return st.session_state.get(KEY_DATA_FILENAME)
+
+
+def set_data_filename(filename: str) -> None:
+    """Set the loaded dataset filename."""
+    st.session_state[KEY_DATA_FILENAME] = filename
