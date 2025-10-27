@@ -14,16 +14,18 @@ RUN apt-get update \
         git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install python dependencies in two layers to improve build caching
+# Copy project files needed for installation
+COPY pyproject.toml ./
 COPY requirements.txt ./
+COPY README.md ./
+COPY src ./src
+
+# Install python dependencies (includes -e . from requirements.txt)
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt
 
-# Copy the rest of the project
+# Copy the rest of the project files
 COPY . .
-
-# Install the project in editable mode with development dependencies so tests can run
-RUN pip install -e ".[dev]"
 
 EXPOSE 8501
 
