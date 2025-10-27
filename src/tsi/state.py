@@ -14,6 +14,7 @@ KEY_PRIORITY_RANGE = "priority_range"
 KEY_SCHEDULED_FILTER = "scheduled_filter"
 KEY_SELECTED_BINS = "selected_bins"
 KEY_SCHEDULE_WINDOW = "scheduled_time_window"
+KEY_DARK_PERIODS = "dark_periods"
 KEY_DIST_FILTER_MODE = "dist_filter_mode"
 
 
@@ -45,6 +46,9 @@ def initialize_state() -> None:
 
     if KEY_SCHEDULE_WINDOW not in st.session_state:
         st.session_state[KEY_SCHEDULE_WINDOW] = None
+
+    if KEY_DARK_PERIODS not in st.session_state:
+        st.session_state[KEY_DARK_PERIODS] = None
 
     if KEY_DIST_FILTER_MODE not in st.session_state:
         st.session_state[KEY_DIST_FILTER_MODE] = "all"
@@ -124,7 +128,20 @@ def clear_data() -> None:
     st.session_state[KEY_DATA_SOURCE] = None
     st.session_state[KEY_DATA_FILENAME] = None
     st.session_state[KEY_CURRENT_PAGE] = None
+    st.session_state[KEY_DARK_PERIODS] = None
     reset_filters()
+
+
+def get_dark_periods() -> Any:
+    """Return the loaded dark periods DataFrame, if any."""
+
+    return st.session_state.get(KEY_DARK_PERIODS)
+
+
+def set_dark_periods(df: Any | None) -> None:
+    """Store dark periods data in the session state."""
+
+    st.session_state[KEY_DARK_PERIODS] = df
 
 
 def get_schedule_window() -> Any:
