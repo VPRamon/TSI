@@ -272,22 +272,16 @@ def _calculate_observation_gaps(df: pd.DataFrame, schedule_name: str = "") -> tu
         Tuple of (num_gaps, mean_gap_hours, median_gap_hours)
     """
     if len(df) <= 1:  # Need at least 2 observations to have a gap
-        st.warning(f"⚠️ DEBUG ({schedule_name}): Solo {len(df)} observaciones, no se pueden calcular gaps")
         return 0, 0.0, 0.0
     
     # Check if we have the necessary datetime columns
     if "scheduled_start_dt" not in df.columns or "scheduled_stop_dt" not in df.columns:
-        st.error(f"❌ DEBUG ({schedule_name}): Faltan columnas scheduled_start_dt o scheduled_stop_dt")
-        st.write(f"Columnas disponibles: {list(df.columns)}")
         return 0, 0.0, 0.0
     
     # Filter out rows with null datetime values
     valid_df = df.dropna(subset=["scheduled_start_dt", "scheduled_stop_dt"]).copy()
     
-    st.info(f"ℹ️ DEBUG ({schedule_name}): Total obs={len(df)}, válidas={len(valid_df)}")
-    
     if len(valid_df) <= 1:
-        st.warning(f"⚠️ DEBUG ({schedule_name}): Solo {len(valid_df)} observaciones válidas después de filtrar nulls")
         return 0, 0.0, 0.0
     
     # Sort by start time
@@ -296,7 +290,6 @@ def _calculate_observation_gaps(df: pd.DataFrame, schedule_name: str = "") -> tu
     # Calculate gaps and their durations
     gaps = 0
     gap_durations = []  # in hours
-    gap_examples = []
     
     for i in range(len(sorted_df) - 1):
         current_end = sorted_df.iloc[i]["scheduled_stop_dt"]
@@ -307,21 +300,10 @@ def _calculate_observation_gaps(df: pd.DataFrame, schedule_name: str = "") -> tu
             gaps += 1
             gap_duration_hours = (next_start - current_end).total_seconds() / 3600
             gap_durations.append(gap_duration_hours)
-            
-            if len(gap_examples) < 5:  # Store first 5 examples
-                gap_examples.append(f"Gap {gaps}: {gap_duration_hours:.2f}h entre {current_end} y {next_start}")
     
     # Calculate mean and median
     mean_gap = sum(gap_durations) / len(gap_durations) if gap_durations else 0.0
     median_gap = sorted(gap_durations)[len(gap_durations) // 2] if gap_durations else 0.0
-    
-    st.success(f"✅ DEBUG ({schedule_name}): {gaps} gaps encontrados de {len(sorted_df)-1} transiciones posibles")
-    st.info(f"📊 DEBUG ({schedule_name}): Duración media de gaps: {mean_gap:.2f}h, mediana: {median_gap:.2f}h")
-    
-    if gap_examples:
-        with st.expander(f"Ver ejemplos de gaps en {schedule_name}"):
-            for example in gap_examples:
-                st.text(example)
     
     return gaps, mean_gap, median_gap
 
