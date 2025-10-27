@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import io
 import json
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Iterable, Sequence
 
 import pandas as pd
 
