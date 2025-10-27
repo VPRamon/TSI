@@ -77,7 +77,7 @@ def route_to_page(page_name: str) -> None:
         "Schedule": scheduled_timeline.render,
         "Insights": insights.render,
         "Trends": scheduling_trends.render,
-        "Compare Schedules": compare_schedules.render,
+        "Compare": compare_schedules.render,
     }
 
     render_func = page_map.get(page_name)
