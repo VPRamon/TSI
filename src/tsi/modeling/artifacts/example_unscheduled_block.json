@@ -1,0 +1,19 @@
+{
+  "schedulingBlockId": "OBS-001-UNSCHEDULED",
+  "priority": 5.0,
+  "minObservationTimeInSec": 1800,
+  "requestedDurationSec": 3600,
+  "decInDeg": 45.0,
+  "raInDeg": 180.0,
+  "minAzimuthAngleInDeg": 0.0,
+  "maxAzimuthAngleInDeg": 360.0,
+  "minElevationAngleInDeg": 30.0,
+  "maxElevationAngleInDeg": 85.0,
+  "total_visibility_hours": 2.5,
+  "num_visibility_periods": 2,
+  "elevation_range_deg": 55.0,
+  "visibility_efficiency": 0.65,
+  "period_saturation": 0.85,
+  "night_fraction": 0.70,
+  "priority_bin": "Medium"
+}
