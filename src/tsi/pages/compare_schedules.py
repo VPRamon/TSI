@@ -541,23 +541,24 @@ def _display_comparison_plots(
     comparison_name: str,
 ) -> None:
     """Display comparison visualizations."""
-    st.header("� Comparison Visualizations")
+    st.header("📊 Comparison Visualizations")
     
-    # Plot 1: Priority Distribution Comparison
-    st.subheader("Priority Distribution Comparison")
-    fig_priority = _create_priority_distribution_plot(
-        current_scheduled, comparison_scheduled, current_name, comparison_name
-    )
-    st.plotly_chart(fig_priority, width="stretch")
+    # Row 1: Priority Distribution and Scheduling Status side by side
+    col1, col2 = st.columns(2)
     
-    add_vertical_space(1)
+    with col1:
+        st.subheader("Priority Distribution Comparison")
+        fig_priority = _create_priority_distribution_plot(
+            current_scheduled, comparison_scheduled, current_name, comparison_name
+        )
+        st.plotly_chart(fig_priority, use_container_width=True)
     
-    # Plot 2: Scheduling Status Breakdown
-    st.subheader("Scheduling Status Breakdown")
-    fig_status = _create_scheduling_status_plot(
-        current_common, comparison_common, current_name, comparison_name
-    )
-    st.plotly_chart(fig_status, width="stretch")
+    with col2:
+        st.subheader("Scheduling Status Breakdown")
+        fig_status = _create_scheduling_status_plot(
+            current_common, comparison_common, current_name, comparison_name
+        )
+        st.plotly_chart(fig_status, use_container_width=True)
     
     add_vertical_space(1)
     
@@ -567,7 +568,7 @@ def _display_comparison_plots(
         fig_changes = _create_changes_plot(
             newly_scheduled, newly_unscheduled, current_name, comparison_name
         )
-        st.plotly_chart(fig_changes, width="stretch")
+        st.plotly_chart(fig_changes, use_container_width=True)
     
     # Plot 4: Time comparison (if available)
     has_time_data = "requested_hours" in current_scheduled.columns and "requested_hours" in comparison_scheduled.columns
@@ -577,7 +578,7 @@ def _display_comparison_plots(
         fig_time = _create_time_distribution_plot(
             current_scheduled, comparison_scheduled, current_name, comparison_name
         )
-        st.plotly_chart(fig_time, width="stretch")
+        st.plotly_chart(fig_time, use_container_width=True)
 
 
 def _create_priority_distribution_plot(
@@ -589,30 +590,57 @@ def _create_priority_distribution_plot(
     """Create overlaid histogram of priority distributions."""
     fig = go.Figure()
     
-    # Current schedule
-    fig.add_trace(go.Histogram(
+    # Determine which dataset has fewer items to plot it on top
+    current_count = len(current_scheduled)
+    comparison_count = len(comparison_scheduled)
+    
+    # Create traces (smaller one will be added last to appear on top)
+    trace_current = go.Histogram(
         x=current_scheduled["priority"],
         name=current_name,
-        opacity=0.7,
-        marker=dict(color="#1f77b4"),
+        opacity=1.0,  # Fully opaque
+        marker=dict(
+            color="#1f77b4",  # Solid blue
+            line=dict(color="#0d5a9e", width=2)
+        ),
         nbinsx=30,
-    ))
+    )
     
-    # Comparison schedule
-    fig.add_trace(go.Histogram(
+    trace_comparison = go.Histogram(
         x=comparison_scheduled["priority"],
         name=comparison_name,
-        opacity=0.7,
-        marker=dict(color="#ff7f0e"),
+        opacity=1.0,  # Fully opaque
+        marker=dict(
+            color="#ff7f0e",  # Solid orange
+            line=dict(color="#cc6600", width=2)
+        ),
         nbinsx=30,
-    ))
+    )
+    
+    # Add larger dataset first, then smaller on top
+    if current_count >= comparison_count:
+        fig.add_trace(trace_current)
+        fig.add_trace(trace_comparison)
+    else:
+        fig.add_trace(trace_comparison)
+        fig.add_trace(trace_current)
     
     fig.update_layout(
         barmode='overlay',
         xaxis_title="Priority",
         yaxis_title="Count",
-        height=PLOT_HEIGHT - 100,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=450,  # Fixed height for consistency with scheduling status plot
+        legend=dict(
+            orientation="h", 
+            yanchor="bottom", 
+            y=1.02, 
+            xanchor="right", 
+            x=1,
+            font=dict(size=12, color="white"),
+            bgcolor="rgba(0, 0, 0, 0.5)",
+            bordercolor="white",
+            borderwidth=1
+        ),
         plot_bgcolor="rgba(14, 17, 23, 0.3)",
         paper_bgcolor="rgba(0, 0, 0, 0)",
     )
@@ -639,25 +667,47 @@ def _create_scheduling_status_plot(
         name=current_name,
         x=["Scheduled", "Unscheduled"],
         y=[current_scheduled, current_unscheduled],
-        marker=dict(color="#1f77b4"),
+        marker=dict(
+            color="#1f77b4",  # Solid blue
+            line=dict(color="#0d5a9e", width=2),
+            pattern=dict(shape="/", bgcolor="#0d5a9e", fgcolor="#1f77b4", solidity=0.3)
+        ),
         text=[f"{current_scheduled:,}", f"{current_unscheduled:,}"],
         textposition="auto",
+        textfont=dict(color="white", size=12, family="Arial Black"),
+        opacity=1.0,
     ))
     
     fig.add_trace(go.Bar(
         name=comparison_name,
         x=["Scheduled", "Unscheduled"],
         y=[comp_scheduled, comp_unscheduled],
-        marker=dict(color="#ff7f0e"),
+        marker=dict(
+            color="#ff7f0e",  # Solid orange
+            line=dict(color="#cc6600", width=2),
+            pattern=dict(shape="\\", bgcolor="#cc6600", fgcolor="#ff7f0e", solidity=0.3)
+        ),
         text=[f"{comp_scheduled:,}", f"{comp_unscheduled:,}"],
         textposition="auto",
+        textfont=dict(color="white", size=12, family="Arial Black"),
+        opacity=1.0,
     ))
     
     fig.update_layout(
         barmode='group',
         yaxis_title="Number of Blocks",
-        height=PLOT_HEIGHT - 150,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        height=450,  # Fixed height to match priority distribution plot
+        legend=dict(
+            orientation="h", 
+            yanchor="bottom", 
+            y=1.02, 
+            xanchor="right", 
+            x=1,
+            font=dict(size=12, color="white"),
+            bgcolor="rgba(0, 0, 0, 0.5)",
+            bordercolor="white",
+            borderwidth=1
+        ),
         plot_bgcolor="rgba(14, 17, 23, 0.3)",
         paper_bgcolor="rgba(0, 0, 0, 0)",
     )
@@ -684,9 +734,13 @@ def _create_changes_plot(
             go.Histogram(
                 x=newly_scheduled["priority_current"],
                 name="Newly Scheduled",
-                marker=dict(color="#2ca02c"),
+                marker=dict(
+                    color="#2ca02c",  # Green
+                    line=dict(color="#1a7a1a", width=2)
+                ),
                 nbinsx=20,
                 showlegend=False,
+                opacity=1.0,
             ),
             row=1, col=1
         )
@@ -696,9 +750,13 @@ def _create_changes_plot(
             go.Histogram(
                 x=newly_unscheduled["priority_current"],
                 name="Newly Unscheduled",
-                marker=dict(color="#d62728"),
+                marker=dict(
+                    color="#d62728",  # Red
+                    line=dict(color="#8b1a1a", width=2)
+                ),
                 nbinsx=20,
                 showlegend=False,
+                opacity=1.0,
             ),
             row=1, col=2
         )
@@ -707,6 +765,9 @@ def _create_changes_plot(
     fig.update_xaxes(title_text="Priority", row=1, col=2)
     fig.update_yaxes(title_text="Count", row=1, col=1)
     fig.update_yaxes(title_text="Count", row=1, col=2)
+    
+    # Update subplot titles styling
+    fig.update_annotations(font=dict(size=14, color="white"))
     
     fig.update_layout(
         height=PLOT_HEIGHT - 100,
@@ -726,25 +787,59 @@ def _create_time_distribution_plot(
     """Create box plot comparison of requested time distributions."""
     fig = go.Figure()
     
-    fig.add_trace(go.Box(
+    # Determine which dataset has fewer items to plot it on top
+    current_count = len(current_scheduled)
+    comparison_count = len(comparison_scheduled)
+    
+    trace_current = go.Box(
         y=current_scheduled["requested_hours"],
         name=current_name,
-        marker=dict(color="#1f77b4"),
+        marker=dict(
+            color="#1f77b4",
+            line=dict(color="#0d5a9e", width=2)
+        ),
+        fillcolor="#1f77b4",  # Solid fill
+        line=dict(color="#0d5a9e", width=2),
         boxmean='sd',
-    ))
+        opacity=1.0,
+    )
     
-    fig.add_trace(go.Box(
+    trace_comparison = go.Box(
         y=comparison_scheduled["requested_hours"],
         name=comparison_name,
-        marker=dict(color="#ff7f0e"),
+        marker=dict(
+            color="#ff7f0e",
+            line=dict(color="#cc6600", width=2)
+        ),
+        fillcolor="#ff7f0e",  # Solid fill
+        line=dict(color="#cc6600", width=2),
         boxmean='sd',
-    ))
+        opacity=1.0,
+    )
+    
+    # Add larger dataset first, then smaller on top
+    if current_count >= comparison_count:
+        fig.add_trace(trace_current)
+        fig.add_trace(trace_comparison)
+    else:
+        fig.add_trace(trace_comparison)
+        fig.add_trace(trace_current)
     
     fig.update_layout(
         yaxis_title="Requested Hours",
         height=PLOT_HEIGHT - 150,
         showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+        legend=dict(
+            orientation="h", 
+            yanchor="bottom", 
+            y=1.02, 
+            xanchor="right", 
+            x=1,
+            font=dict(size=12, color="white"),
+            bgcolor="rgba(0, 0, 0, 0.5)",
+            bordercolor="white",
+            borderwidth=1
+        ),
         plot_bgcolor="rgba(14, 17, 23, 0.3)",
         paper_bgcolor="rgba(0, 0, 0, 0)",
     )
