@@ -8,7 +8,7 @@ machine-learning models and SHAP explainers.
 import json
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import joblib
 import matplotlib.pyplot as plt
@@ -419,7 +419,7 @@ def _format_value_for_display(value: Any) -> str:
         except TypeError:
             return str(value)
     if isinstance(value, (pd.Timestamp, np.datetime64)):
-        return pd.to_datetime(value).isoformat()
+        return cast(str, pd.to_datetime(value).isoformat())
     if isinstance(value, (bytes, bytearray)):
         return value.decode("utf-8", errors="replace")
     if isinstance(value, np.generic):

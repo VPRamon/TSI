@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime, timedelta
+from typing import cast
 
 import pandas as pd
 import streamlit as st
@@ -275,8 +276,8 @@ def _ts_to_datetime(ts: pd.Timestamp) -> datetime:
     # Floor to seconds to avoid nanoseconds warning
     ts = ts.floor("s")
     if ts.tzinfo is not None:
-        return ts.tz_convert(None).to_pydatetime()
-    return ts.to_pydatetime()
+        return cast(datetime, ts.tz_convert(None).to_pydatetime())
+    return cast(datetime, ts.to_pydatetime())
 
 
 def _to_utc_timestamp(value: datetime) -> pd.Timestamp:

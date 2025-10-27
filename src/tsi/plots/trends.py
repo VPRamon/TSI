@@ -6,9 +6,13 @@ Supports Altair (default) and Plotly for interactive charts.
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Literal
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    from altair import Chart
+    from plotly.graph_objects import Figure
 
 try:
     import altair as alt
@@ -36,7 +40,7 @@ def bar_rate_by_priority(
     n_col: str = "n",
     library: Literal["altair", "plotly"] = "altair",
     title: str = "Scheduling rate by priority",
-) -> Any:
+) -> Chart | Figure:
     """
     Create bar chart of scheduling rate by priority.
 
@@ -133,7 +137,7 @@ def loess_trend(
     title: str = "Smoothed trend",
     x_label: str = "X",
     y_label: str = "Scheduling rate",
-) -> Any:
+) -> Chart | Figure:
     """
     Create smoothed trend chart (LOESS or equivalent).
 
@@ -222,7 +226,7 @@ def heatmap_visibility_priority(
     n_bins_priority: int = 10,
     library: Literal["altair", "plotly"] = "altair",
     title: str = "Heatmap: Visibility × Priority",
-) -> Any:
+) -> Chart | Figure:
     """
     Create 2D heatmap of scheduling rate.
 
@@ -343,7 +347,7 @@ def pred_curve_vs_visibility(
     library: Literal["altair", "plotly"] = "altair",
     title: str = "Estimated probability vs Visibility",
     fixed_time: float | None = None,
-) -> Any:
+) -> Chart | Figure:
     """
     Create chart of estimated probability vs visibility, colored by priority.
 

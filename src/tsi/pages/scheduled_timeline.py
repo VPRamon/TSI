@@ -1,5 +1,7 @@
 """Scheduled Timeline - Monthly view of scheduled observations."""
 
+from typing import cast
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -852,9 +854,9 @@ def _start_of_next_month(dt: pd.Timestamp) -> pd.Timestamp:
 def _datetime_to_day_fraction(dt: pd.Timestamp) -> float:
     """Convert a timestamp into day-of-month with fractional component."""
 
-    base = dt.day
+    base = float(dt.day)
     base += dt.hour / 24.0
     base += dt.minute / 1440.0
     base += dt.second / 86_400.0
     base += dt.microsecond / 86_400_000_000.0
-    return base
+    return cast(float, base)
