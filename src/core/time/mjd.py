@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 from collections.abc import Sequence
 from datetime import datetime, timezone
+from typing import cast
 
 import pandas as pd
 
@@ -81,4 +82,4 @@ def get_time_range(
 def format_datetime_utc(dt: pd.Timestamp) -> str:
     """Pretty-print a UTC timestamp."""
 
-    return dt.strftime("%Y-%m-%d %H:%M:%S UTC")
+    return cast(str, dt.strftime("%Y-%m-%d %H:%M:%S UTC"))

@@ -16,6 +16,7 @@ from tsi.services.analytics import (
     generate_insights,
     get_top_observations,
 )
+from tsi.services.dark_periods import load_dark_periods
 from tsi.services.loaders import (
     get_filtered_dataframe,
     load_csv,
@@ -29,6 +30,7 @@ __all__ = [
     "prepare_dataframe",
     "get_filtered_dataframe",
     "validate_dataframe",
+    "load_dark_periods",
     # time_utils
     "mjd_to_datetime",
     "datetime_to_mjd",

@@ -8,7 +8,7 @@ machine-learning models and SHAP explainers.
 import json
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import joblib
 import matplotlib.pyplot as plt
@@ -79,7 +79,7 @@ def prepare_observation_data(df: pd.DataFrame) -> pd.DataFrame:
         if "Priority" in df_prepared.columns:
             df_prepared["Priority"] = df_prepared["Priority"].fillna(
                 5.0
-            )  # Prioridad media por defecto
+            )  # Medium priority by default
 
         # Compute scheduled_seconds if scheduled period information is available
         if (
@@ -113,14 +113,14 @@ def prepare_observation_data(df: pd.DataFrame) -> pd.DataFrame:
                         "max_visibility_gap": 0.0,
                     }
 
-                # Calcular duraciones en horas
+                # Calculate durations in hours
                 durations = []
                 for start_dt, end_dt in periods:
                     if start_dt and end_dt:
                         duration_hours = (end_dt - start_dt).total_seconds() / 3600.0
                         durations.append(duration_hours)
 
-                # Calcular gaps entre periodos
+                # Calculate gaps between periods
                 gaps = []
                 for i in range(len(periods) - 1):
                     if periods[i][1] and periods[i + 1][0]:
@@ -144,14 +144,14 @@ def prepare_observation_data(df: pd.DataFrame) -> pd.DataFrame:
                 if stat_name not in df_prepared.columns:
                     df_prepared[stat_name] = visibility_stats.apply(lambda x: x[stat_name])
         else:
-            # Si no hay datos parseados de visibilidad, usar valores por defecto
+            # If no parsed visibility data, use default values
             for col in ["num_visibility_periods", "mean_visibility_duration", "max_visibility_gap"]:
                 if col not in df_prepared.columns:
                     df_prepared[col] = 0 if col == "num_visibility_periods" else 0.0
 
-        # Asegurar que total_visibility_hours existe
+        # Ensure total_visibility_hours exists
         if "total_visibility_hours" not in df_prepared.columns:
-            # Si no existe, intentar calcularlo desde los periodos
+            # If it doesn't exist, try to calculate it from the periods
             if "visibility_periods_parsed" in df_prepared.columns:
 
                 def calc_total_hours(periods: Any) -> float:
@@ -201,7 +201,7 @@ def prepare_observation_data(df: pd.DataFrame) -> pd.DataFrame:
                 else:
                     df_engineered["priority_normalized"] = 0.5
 
-                # Asignar categoria basada en el valor
+                # Assign category based on value
                 if priority_val <= 5:
                     df_engineered["priority_category"] = "Low"
                 elif priority_val <= 10:
@@ -419,7 +419,7 @@ def _format_value_for_display(value: Any) -> str:
         except TypeError:
             return str(value)
     if isinstance(value, (pd.Timestamp, np.datetime64)):
-        return pd.to_datetime(value).isoformat()
+        return cast(str, pd.to_datetime(value).isoformat())
     if isinstance(value, (bytes, bytearray)):
         return value.decode("utf-8", errors="replace")
     if isinstance(value, np.generic):
@@ -794,7 +794,7 @@ def render() -> None:
 
     st.divider()
 
-    # Verificar que hay datos cargados
+    # Verify that data is loaded
     if not state.has_data():
         st.warning("⚠️ **No data loaded**")
         st.info("Please load a dataset from the landing page before using this feature.")
@@ -882,7 +882,7 @@ def render() -> None:
 
         observation_df = df_unscheduled.iloc[[index_to_select]].copy()
 
-        # Intentar obtener ID
+        # Try to get ID
         id_col = None
         for col in observation_df.columns:
             if "id" in col.lower() or "block" in col.lower():
@@ -982,7 +982,7 @@ def render() -> None:
         else:
             st.warning("⚠️ No observations match the criteria. Adjust the filters.")
 
-    # Mostrar preview de los datos seleccionados
+    # Show preview of the selected data
     if observation_df is not None and len(observation_df) > 0:
         with st.expander("👁️ Preview of Selected Data", expanded=False):
             # Convert values to strings to avoid Arrow issues when transposing
@@ -1044,7 +1044,7 @@ def render() -> None:
                         config,
                     )
 
-                    # Guardar log (con datos originales para referencia)
+                    # Save log (with original data for reference)
                     save_analysis_log(block_id, observation_df.iloc[[0]], result)
 
                     st.success("✅ Analysis complete")
