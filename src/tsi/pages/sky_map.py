@@ -160,7 +160,7 @@ def render() -> None:
             category_palette=category_palette,
         )
 
-        st.plotly_chart(fig, width='stretch', key="sky_map_chart")
+        st.plotly_chart(fig, width="stretch", key="sky_map_chart")
 
         st.markdown("---")
         _render_stats(filtered_df)

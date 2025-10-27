@@ -86,9 +86,7 @@ def load_dark_periods(file_or_buffer: io.IOBase | str | Path | dict | list) -> p
     df = pd.DataFrame(periods, columns=["start_dt", "stop_dt"])
     df["start_mjd"] = df["start_dt"].apply(datetime_to_mjd)
     df["stop_mjd"] = df["stop_dt"].apply(datetime_to_mjd)
-    df["duration_hours"] = (
-        (df["stop_dt"] - df["start_dt"]).dt.total_seconds() / 3600.0
-    )
+    df["duration_hours"] = (df["stop_dt"] - df["start_dt"]).dt.total_seconds() / 3600.0
     df["months"] = df.apply(
         lambda row: list(_enumerate_months(row["start_dt"], row["stop_dt"])), axis=1
     )

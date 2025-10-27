@@ -260,9 +260,9 @@ def render() -> None:
         )
 
         if plot_library == "altair":
-            st.altair_chart(fig_priority, width='stretch')
+            st.altair_chart(fig_priority, width="stretch")
         else:
-            st.plotly_chart(fig_priority, width='stretch')
+            st.plotly_chart(fig_priority, width="stretch")
 
     except Exception as e:
         st.error(f"❌ Error computing empirical rates: {e}")
@@ -299,9 +299,9 @@ def render() -> None:
             )
 
             if plot_library == "altair":
-                st.altair_chart(fig_vis, width='stretch')
+                st.altair_chart(fig_vis, width="stretch")
             else:
-                st.plotly_chart(fig_vis, width='stretch')
+                st.plotly_chart(fig_vis, width="stretch")
 
     with col2:
         st.markdown("**Requested time → Scheduling rate**")
@@ -324,9 +324,9 @@ def render() -> None:
             )
 
             if plot_library == "altair":
-                st.altair_chart(fig_time, width='stretch')
+                st.altair_chart(fig_time, width="stretch")
             else:
-                st.plotly_chart(fig_time, width='stretch')
+                st.plotly_chart(fig_time, width="stretch")
 
     st.divider()
 
@@ -346,9 +346,9 @@ def render() -> None:
         )
 
         if plot_library == "altair":
-            st.altair_chart(fig_heatmap, width='stretch')
+            st.altair_chart(fig_heatmap, width="stretch")
         else:
-            st.plotly_chart(fig_heatmap, width='stretch')
+            st.plotly_chart(fig_heatmap, width="stretch")
 
     except Exception as e:
         st.error(f"❌ Error generating heatmap: {e}")
@@ -439,9 +439,9 @@ def render() -> None:
         )
 
         if plot_library == "altair":
-            st.altair_chart(fig_pred, width='stretch')
+            st.altair_chart(fig_pred, width="stretch")
         else:
-            st.plotly_chart(fig_pred, width='stretch')
+            st.plotly_chart(fig_pred, width="stretch")
 
         st.caption(
             f"📌 The curves show the estimated scheduling probability as a function "
