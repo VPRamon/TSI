@@ -1,0 +1,221 @@
+/* Custom styles for Telescope Scheduling Intelligence - Dark Mode */
+
+/* Dataset title - shown above navigation */
+.dataset-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    text-align: center;
+    color: #4da6ff;
+    padding: 1.2rem 0 1rem 0;
+    margin: 0;
+    background-color: #0e1117;
+    letter-spacing: 1.5px;
+    border-bottom: none;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+    line-height: 1;
+}
+
+/* Sticky navigation bar */
+.main-nav {
+    position: sticky;
+    top: 0;
+    background-color: #0e1117;
+    z-index: 999;
+    padding: 1rem 0;
+    border-bottom: 2px solid #262730;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Tighter padding - reduce side margins */
+.stMainBlockContainer.block-container,
+.main .block-container,
+section.main > div.block-container,
+[data-testid="stAppViewContainer"] .main .block-container,
+[data-testid="stMainBlockContainer"] {
+    padding-left: 3rem !important;
+    padding-right: 3rem !important;
+    padding-top: 0.5rem !important;
+    max-width: 100% !important;
+}
+
+/* Even tighter on wide screens for better space usage */
+@media (min-width: 1024px) {
+    .stMainBlockContainer.block-container,
+    .main .block-container,
+    section.main > div.block-container,
+    [data-testid="stAppViewContainer"] .main .block-container,
+    [data-testid="stMainBlockContainer"] {
+        padding-left: 4rem !important;
+        padding-right: 4rem !important;
+        max-width: 100% !important;
+    }
+}
+
+@media (min-width: 1400px) {
+    .stMainBlockContainer.block-container,
+    .main .block-container,
+    section.main > div.block-container,
+    [data-testid="stAppViewContainer"] .main .block-container,
+    [data-testid="stMainBlockContainer"] {
+        padding-left: 5rem !important;
+        padding-right: 5rem !important;
+        max-width: 1600px !important;
+    }
+}
+
+/* Force reduce padding in all Streamlit containers */
+div[data-testid="stVerticalBlock"] > div {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* Landing page title */
+.landing-title {
+    font-size: 3.5rem;
+    font-weight: 700;
+    text-align: center;
+    color: #4da6ff;
+    margin: 3rem 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Metric cards */
+.metric-card {
+    background: linear-gradient(135deg, #262730 0%, #1a1d24 100%);
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    border: 1px solid #3d3d4d;
+    transition: transform 0.2s;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(77, 166, 255, 0.2);
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #4da6ff;
+    margin-bottom: 0.5rem;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    color: #b3b3b3;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Navigation pills */
+.nav-pills {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 1rem 0;
+}
+
+.nav-pill {
+    padding: 0.75rem 1.75rem;
+    border-radius: 25px;
+    background: #262730;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid #3d3d4d;
+    font-weight: 500;
+    color: #fafafa;
+}
+
+.nav-pill:hover {
+    background: #3d3d4d;
+    transform: translateY(-1px);
+    border-color: #4da6ff;
+}
+
+.nav-pill.active {
+    background: #4da6ff;
+    color: #0e1117;
+    border-color: #4da6ff;
+    box-shadow: 0 4px 8px rgba(77, 166, 255, 0.4);
+}
+
+/* Responsive tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #3d3d4d;
+}
+
+th {
+    background-color: #262730;
+    font-weight: 600;
+    color: #fafafa;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+tr:hover {
+    background-color: #1a1d24;
+}
+
+/* Button styles */
+.stButton > button {
+    border-radius: 8px;
+    padding: 0.5rem 2rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(77, 166, 255, 0.3);
+}
+
+/* File uploader */
+.uploadedFile {
+    border-radius: 8px;
+    padding: 1rem;
+    background: #262730;
+    border: 1px solid #3d3d4d;
+}
+
+/* Plotly charts */
+.js-plotly-plot {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Insights section */
+.insight-item {
+    padding: 1rem;
+    margin: 0.5rem 0;
+    background: #262730;
+    border-left: 4px solid #4da6ff;
+    border-radius: 4px;
+}
+
+/* Hide Streamlit branding */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+
+/* Dataframe styling */
+.dataframe {
+    font-size: 0.9rem;
+}
+
+.dataframe th {
+    background-color: #4da6ff !important;
+    color: #0e1117 !important;
+}
