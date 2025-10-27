@@ -6,6 +6,7 @@ import io
 import json
 from collections.abc import Iterable, Sequence
 from pathlib import Path
+from typing import Any, cast
 
 import pandas as pd
 
@@ -94,7 +95,7 @@ def load_dark_periods(file_or_buffer: io.IOBase | str | Path | dict | list) -> p
     return df.sort_values("start_dt").reset_index(drop=True)
 
 
-def _read_json_payload(file_or_buffer: io.IOBase | str | Path | dict | list):
+def _read_json_payload(file_or_buffer: io.IOBase | str | Path | dict | list) -> dict | list:
     """Return the parsed JSON payload from ``file_or_buffer``."""
 
     if isinstance(file_or_buffer, (dict, list)):
@@ -103,7 +104,7 @@ def _read_json_payload(file_or_buffer: io.IOBase | str | Path | dict | list):
     if isinstance(file_or_buffer, (str, Path)):
         path = Path(file_or_buffer)
         with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
+            return cast(dict | list, json.load(handle))
 
     if hasattr(file_or_buffer, "read"):
         contents = file_or_buffer.read()
@@ -111,12 +112,12 @@ def _read_json_payload(file_or_buffer: io.IOBase | str | Path | dict | list):
             contents = contents.decode("utf-8")
         if hasattr(file_or_buffer, "seek"):
             file_or_buffer.seek(0)
-        return json.loads(contents)
+        return cast(dict | list, json.loads(contents))
 
     raise TypeError(f"Unsupported dark periods input: {type(file_or_buffer)}")
 
 
-def _extract_periods(payload) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+def _extract_periods(payload: Any) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
     """Extract a list of (start, stop) timestamps from the payload."""
 
     raw_periods: Sequence | None = None
@@ -153,7 +154,7 @@ def _extract_periods(payload) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
     return periods
 
 
-def _parse_period(period) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
+def _parse_period(period: Any) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
     """Parse a period entry returning UTC timestamps or ``(None, None)``."""
 
     start_value = None
@@ -176,7 +177,7 @@ def _parse_period(period) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
     return start_dt, stop_dt
 
 
-def _parse_time_value(value) -> pd.Timestamp | None:
+def _parse_time_value(value: Any) -> pd.Timestamp | None:
     """Parse a single timestamp value from various formats."""
 
     if value is None:

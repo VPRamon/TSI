@@ -4,7 +4,7 @@ Configuration loader for centralized parameter management.
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import yaml
 
@@ -180,4 +180,4 @@ class ModelConfig:
         return f"ModelConfig(config_path='{self.config_path}')"
 
     def __str__(self) -> str:
-        return yaml.dump(self.config, default_flow_style=False, indent=2)
+        return cast(str, yaml.dump(self.config, default_flow_style=False, indent=2))
