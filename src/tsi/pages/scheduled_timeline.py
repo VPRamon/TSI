@@ -116,7 +116,7 @@ def render() -> None:
         "modeBarButtonsToRemove": ["lasso2d", "select2d"],
         "scrollZoom": True,  # Enable zoom with scroll wheel
     }
-    st.plotly_chart(fig, width='stretch', config=config)
+    st.plotly_chart(fig, width="stretch", config=config)
 
     # Show dark period summary if available
     if filtered_dark_periods is not None:
@@ -144,7 +144,7 @@ def render() -> None:
 
         st.dataframe(
             dark_display,
-            width='stretch',
+            width="stretch",
             hide_index=True,
             height=min(300, 60 + 24 * min(len(dark_display), 8)),
         )
@@ -749,39 +749,39 @@ def _invert_to_light_periods(
         return []
 
     # Sort by start time
-    dark_df_sorted = dark_df.sort_values('start_dt').reset_index(drop=True)
+    dark_df_sorted = dark_df.sort_values("start_dt").reset_index(drop=True)
 
     light_segments: list[tuple[str, pd.Timestamp, pd.Timestamp]] = []
 
     # For each month, find the gaps between dark periods
     all_months = set()
-    for month_list in dark_df_sorted['months']:
+    for month_list in dark_df_sorted["months"]:
         all_months.update(month_list)
 
     for month_label in sorted(all_months):
         # Get all dark periods for this month
         month_dark = dark_df_sorted[
-            dark_df_sorted['months'].apply(lambda x: month_label in x)
+            dark_df_sorted["months"].apply(lambda x: month_label in x)
         ].copy()
 
         if month_dark.empty:
             continue
 
         # Get month boundaries
-        year, month = map(int, month_label.split('-'))
-        month_start = pd.Timestamp(year=year, month=month, day=1, hour=0, minute=0, tz='UTC')
+        year, month = map(int, month_label.split("-"))
+        month_start = pd.Timestamp(year=year, month=month, day=1, hour=0, minute=0, tz="UTC")
 
         # Compute the first instant of the next month (serves as month end boundary)
         if month == 12:
-            month_end = pd.Timestamp(year=year + 1, month=1, day=1, hour=0, minute=0, tz='UTC')
+            month_end = pd.Timestamp(year=year + 1, month=1, day=1, hour=0, minute=0, tz="UTC")
         else:
-            month_end = pd.Timestamp(year=year, month=month + 1, day=1, hour=0, minute=0, tz='UTC')
+            month_end = pd.Timestamp(year=year, month=month + 1, day=1, hour=0, minute=0, tz="UTC")
 
         # Collect all dark periods of the month in order
         dark_periods_in_month = []
         for _, row in month_dark.iterrows():
-            start = max(row['start_dt'], month_start)
-            stop = min(row['stop_dt'], month_end)
+            start = max(row["start_dt"], month_start)
+            stop = min(row["stop_dt"], month_end)
             if start < stop:
                 dark_periods_in_month.append((start, stop))
 

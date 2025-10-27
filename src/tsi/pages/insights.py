@@ -122,7 +122,7 @@ def render() -> None:
 
         with col2:
             fig = build_correlation_heatmap(correlations)
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, width="stretch")
     else:
         st.info("Insufficient data for correlation analysis")
 

@@ -147,7 +147,7 @@ def render() -> None:
             bin_duration_minutes=bin_duration_minutes,
         )
 
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, width="stretch")
 
     # Information panel
     st.info(
