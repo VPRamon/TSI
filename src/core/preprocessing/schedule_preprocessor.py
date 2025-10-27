@@ -153,9 +153,13 @@ class SchedulePreprocessor:
         else:
             record["fixedStopTime"] = None
 
-        # Coordinates from target
+        # Coordinates and identifiers from target
         try:
-            coordinates = sb.get("target", {}).get("position_", {}).get("coord", {})
+            target = sb.get("target", {}) or {}
+            record["targetId"] = target.get("id_")
+            record["targetName"] = target.get("name")
+
+            coordinates = target.get("position_", {}).get("coord", {})
             celestial = coordinates.get("celestial", {})
             record["decInDeg"] = celestial.get("decInDeg")
             record["raInDeg"] = celestial.get("raInDeg")
@@ -163,6 +167,8 @@ class SchedulePreprocessor:
             logger.warning(
                 f"Failed to extract coordinates for block {record['schedulingBlockId']}: {e}"
             )
+            record["targetId"] = None
+            record["targetName"] = None
             record["decInDeg"] = None
             record["raInDeg"] = None
 
@@ -565,6 +571,8 @@ class SchedulePreprocessor:
         # Define column order (same as expected by app)
         columns_order = [
             "schedulingBlockId",
+            "targetId",
+            "targetName",
             "priority",
             "minObservationTimeInSec",
             "requestedDurationSec",

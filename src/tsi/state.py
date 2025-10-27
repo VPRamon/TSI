@@ -16,6 +16,7 @@ KEY_SELECTED_BINS = "selected_bins"
 KEY_SCHEDULE_WINDOW = "scheduled_time_window"
 KEY_DARK_PERIODS = "dark_periods"
 KEY_DIST_FILTER_MODE = "dist_filter_mode"
+KEY_COMPARISON_SCHEDULE = "comparison_schedule"
 
 
 def initialize_state() -> None:
@@ -52,6 +53,9 @@ def initialize_state() -> None:
 
     if KEY_DIST_FILTER_MODE not in st.session_state:
         st.session_state[KEY_DIST_FILTER_MODE] = "all"
+
+    if KEY_COMPARISON_SCHEDULE not in st.session_state:
+        st.session_state[KEY_COMPARISON_SCHEDULE] = None
 
 
 def has_data() -> bool:
@@ -162,3 +166,13 @@ def get_data_filename() -> str | None:
 def set_data_filename(filename: str) -> None:
     """Set the loaded dataset filename."""
     st.session_state[KEY_DATA_FILENAME] = filename
+
+
+def get_comparison_schedule() -> Any:
+    """Get the comparison schedule DataFrame from session state."""
+    return st.session_state.get(KEY_COMPARISON_SCHEDULE)
+
+
+def set_comparison_schedule(df: Any) -> None:
+    """Set the comparison schedule DataFrame in session state."""
+    st.session_state[KEY_COMPARISON_SCHEDULE] = df

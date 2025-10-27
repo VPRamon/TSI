@@ -61,6 +61,7 @@ def route_to_page(page_name: str) -> None:
     """
     # Import page modules dynamically to avoid circular imports
     from tsi.pages import (
+        compare_schedules,
         distributions,
         insights,
         scheduled_timeline,
@@ -76,6 +77,7 @@ def route_to_page(page_name: str) -> None:
         "Schedule": scheduled_timeline.render,
         "Insights": insights.render,
         "Trends": scheduling_trends.render,
+        "Compare Schedules": compare_schedules.render,
     }
 
     render_func = page_map.get(page_name)
