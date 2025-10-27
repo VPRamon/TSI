@@ -180,7 +180,9 @@ def render() -> None:
 
         # Show auto-load message once
         if existing_dark_periods is not None and st.session_state.get("dark_periods_auto_loaded"):
-            st.success(f"✅ Dark periods loaded automatically from data/dark_periods.json ({len(existing_dark_periods)} periods)")
+            st.success(
+                f"✅ Dark periods loaded automatically from data/dark_periods.json ({len(existing_dark_periods)} periods)"
+            )
             # Remove the flag so message doesn't repeat
             st.session_state.pop("dark_periods_auto_loaded", None)
 
@@ -192,7 +194,9 @@ def render() -> None:
         )
 
         if dark_periods_file is not None:
-            file_token = f"{getattr(dark_periods_file, 'name', '')}:{getattr(dark_periods_file, 'size', '')}"
+            file_token = (
+                f"{getattr(dark_periods_file, 'name', '')}:{getattr(dark_periods_file, 'size', '')}"
+            )
             if st.session_state.get("dark_periods_last_token") != file_token:
                 try:
                     dark_periods_df = load_dark_periods(dark_periods_file)
@@ -231,7 +235,7 @@ def render() -> None:
                 st.dataframe(
                     preview_cols,
                     hide_index=True,
-                    width='stretch',
+                    width="stretch",
                     height=240,
                 )
 
@@ -255,6 +259,7 @@ def _try_auto_load_dark_periods() -> None:
 
         if dark_periods_path.exists():
             import traceback
+
             try:
                 dark_periods_df = load_dark_periods(dark_periods_path)
                 if not dark_periods_df.empty:
