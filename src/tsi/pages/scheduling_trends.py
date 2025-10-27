@@ -6,7 +6,12 @@ and interactive visualizations.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, cast
+
 import streamlit as st
+
+if TYPE_CHECKING:
+    from altair import Chart
 
 from tsi import state
 from tsi.modeling.trends import (
@@ -260,9 +265,9 @@ def render() -> None:
         )
 
         if plot_library == "altair":
-            st.altair_chart(fig_priority, use_container_width=True)
+            st.altair_chart(cast("Chart", fig_priority), use_container_width=True)
         else:
-            st.plotly_chart(fig_priority, use_container_width=True)
+            st.plotly_chart(fig_priority, width="stretch")
 
     except Exception as e:
         st.error(f"❌ Error computing empirical rates: {e}")
@@ -299,9 +304,9 @@ def render() -> None:
             )
 
             if plot_library == "altair":
-                st.altair_chart(fig_vis, use_container_width=True)
+                st.altair_chart(cast("Chart", fig_vis), use_container_width=True)
             else:
-                st.plotly_chart(fig_vis, use_container_width=True)
+                st.plotly_chart(fig_vis, width="stretch")
 
     with col2:
         st.markdown("**Requested time → Scheduling rate**")
@@ -324,9 +329,9 @@ def render() -> None:
             )
 
             if plot_library == "altair":
-                st.altair_chart(fig_time, use_container_width=True)
+                st.altair_chart(cast("Chart", fig_time), use_container_width=True)
             else:
-                st.plotly_chart(fig_time, use_container_width=True)
+                st.plotly_chart(fig_time, width="stretch")
 
     st.divider()
 
@@ -346,9 +351,9 @@ def render() -> None:
         )
 
         if plot_library == "altair":
-            st.altair_chart(fig_heatmap, use_container_width=True)
+            st.altair_chart(cast("Chart", fig_heatmap), use_container_width=True)
         else:
-            st.plotly_chart(fig_heatmap, use_container_width=True)
+            st.plotly_chart(fig_heatmap, width="stretch")
 
     except Exception as e:
         st.error(f"❌ Error generating heatmap: {e}")
@@ -439,9 +444,9 @@ def render() -> None:
         )
 
         if plot_library == "altair":
-            st.altair_chart(fig_pred, use_container_width=True)
+            st.altair_chart(cast("Chart", fig_pred), use_container_width=True)
         else:
-            st.plotly_chart(fig_pred, use_container_width=True)
+            st.plotly_chart(fig_pred, width="stretch")
 
         st.caption(
             f"📌 The curves show the estimated scheduling probability as a function "

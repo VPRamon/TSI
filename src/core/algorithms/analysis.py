@@ -174,24 +174,24 @@ def _build_conflicts(
     conflicts: list[str] = []
 
     if candidate_start < window_start:
-        conflicts.append("Inicio antes de la ventana de visibilidad")
+        conflicts.append("Start before visibility window")
     if candidate_end > window_stop:
         conflicts.append(
-            "Fin fuera de la ventana de visibilidad "
+            "End outside visibility window "
             f"({format_datetime_utc(candidate_end)} > {format_datetime_utc(window_stop)})"
         )
 
     fixed_start = row.get("fixed_start_dt")
     if pd.notna(fixed_start) and candidate_start < fixed_start:
         conflicts.append(
-            "Viola el inicio fijo "
+            "Violates fixed start "
             f"({format_datetime_utc(candidate_start)} < {format_datetime_utc(fixed_start)})"
         )
 
     fixed_stop = row.get("fixed_stop_dt")
     if pd.notna(fixed_stop) and candidate_end > fixed_stop:
         conflicts.append(
-            "Viola el fin fijo "
+            "Violates fixed end "
             f"({format_datetime_utc(candidate_end)} > {format_datetime_utc(fixed_stop)})"
         )
 
