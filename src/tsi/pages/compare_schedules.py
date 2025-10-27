@@ -72,13 +72,19 @@ def render() -> None:
                     # Get the raw dataframe
                     comparison_df = result.dataframe
                     
+                    # Convert any list columns to strings BEFORE prepare_dataframe to avoid hashing issues
+                    # Streamlit's cache cannot hash DataFrames with unhashable types (like lists)
+                    for col in comparison_df.columns:
+                        # Check if column contains lists by examining the dtype and sample values
+                        if comparison_df[col].dtype == object and len(comparison_df) > 0:
+                            # Sample first non-null value
+                            sample_val = comparison_df[col].dropna().iloc[0] if len(comparison_df[col].dropna()) > 0 else None
+                            if isinstance(sample_val, list):
+                                comparison_df[col] = comparison_df[col].apply(str)
+                    
                     # Apply the same preparation transformations as the main schedule
                     # This adds scheduled_start_dt, scheduled_stop_dt, and other derived columns
                     comparison_df = prepare_dataframe(comparison_df)
-                    
-                    # Convert visibility lists to strings for compatibility
-                    if "visibility" in comparison_df.columns:
-                        comparison_df["visibility"] = comparison_df["visibility"].apply(str)
                     
                     # Show processing stats only if there are warnings
                     if result.validation.warnings:
@@ -496,7 +502,7 @@ def _display_comparison_tables(
                         "scheduled_period.stop": "Stop (MJD)"
                     })
                     
-                    st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
+                    st.dataframe(display_df, hide_index=True, height=200, width="stretch")
         
         with col2:
             if len(newly_unscheduled) > 0:
@@ -527,7 +533,7 @@ def _display_comparison_tables(
                         "priority": "Priority"
                     })
                     
-                    st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
+                    st.dataframe(display_df, hide_index=True, height=200, width="stretch")
 
 
 def _display_comparison_plots(
