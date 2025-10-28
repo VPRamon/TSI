@@ -7,8 +7,8 @@ from tsi.plots.distributions import build_figures
 
 FILTER_OPTIONS = ("all", "exclude_impossible")
 FILTER_LABELS = {
-    "all": "📋 Todas las observaciones",
-    "exclude_impossible": "✅ Solo observaciones posibles",
+    "all": "📋 All blocks",
+    "exclude_impossible": "✅ Filter invalid requests",
 }
 
 
