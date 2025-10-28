@@ -72,7 +72,7 @@ def render() -> None:
     # Apply filter based on user selection
     if filter_supported and impossible_mask is not None:
         if filter_mode == "exclude_impossible":
-            filtered_df = df[~impossible_mask].copy()
+            filtered_df = df[~impossible_mask]  # Use view instead of copy
 
     if filtered_df.empty:
         st.warning("⚠️ No observations available with the selected filter.")

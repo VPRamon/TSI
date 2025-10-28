@@ -75,7 +75,7 @@ def render() -> None:
 
         if render_reset_filters_button():
             state.reset_filters()
-            st.rerun()
+            # Streamlit will auto-rerun on button click
 
     # Main-panel histogram settings so they remain visible even if the sidebar is collapsed
     settings_container = st.expander("Histogram Settings", expanded=True)
@@ -132,14 +132,14 @@ def render() -> None:
 
         st.info("💡 **Tip:** Adjust the mode and bin thickness to focus on specific time scales.")
 
-    # Filter data
+    # Filter data BEFORE parsing visibility - major performance improvement
     filtered_df = get_filtered_dataframe(
         df,
         priority_range=priority_range,
         scheduled_filter="All",
     )
 
-    # Build and display histogram
+    # Build and display histogram (parsing happens only on filtered data)
     with st.spinner("Building visibility histogram..."):
         fig = build_visibility_histogram(
             df=filtered_df,
