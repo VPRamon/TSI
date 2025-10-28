@@ -7,8 +7,8 @@ from tsi.plots.distributions import build_figures
 
 FILTER_OPTIONS = ("all", "exclude_impossible")
 FILTER_LABELS = {
-    "all": "📋 Todas las observaciones",
-    "exclude_impossible": "✅ Solo observaciones posibles",
+    "all": "📋 All blocks",
+    "exclude_impossible": "✅ Filter invalid requests",
 }
 
 
@@ -32,16 +32,35 @@ def render() -> None:
     if state.KEY_DIST_FILTER_MODE not in st.session_state:
         st.session_state[state.KEY_DIST_FILTER_MODE] = "all"
 
-    filter_supported = (
-        "minObservationTimeInSec" in df.columns and "total_visibility_hours" in df.columns
+    filter_supported = "total_visibility_hours" in df.columns and (
+        "minObservationTimeInSec" in df.columns or "requested_hours" in df.columns
     )
     impossible_mask = None
 
     if filter_supported:
         TOLERANCE_SEC = 1
-        min_duration_secs = df["minObservationTimeInSec"].fillna(0)
         visibility_secs = df["total_visibility_hours"] * 3600.0
-        impossible_mask = (min_duration_secs - TOLERANCE_SEC > visibility_secs).fillna(False)
+
+        # Check both minimum observation time and requested duration
+        impossible_conditions = []
+
+        if "minObservationTimeInSec" in df.columns:
+            min_duration_secs = df["minObservationTimeInSec"].fillna(0)
+            impossible_conditions.append(
+                (min_duration_secs - TOLERANCE_SEC > visibility_secs).fillna(False)
+            )
+
+        if "requested_hours" in df.columns:
+            requested_secs = df["requested_hours"] * 3600.0
+            impossible_conditions.append(
+                (requested_secs - TOLERANCE_SEC > visibility_secs).fillna(False)
+            )
+
+        # An observation is impossible if ANY of the conditions is true
+        if impossible_conditions:
+            impossible_mask = impossible_conditions[0]
+            for condition in impossible_conditions[1:]:
+                impossible_mask = impossible_mask | condition
 
     # Filter controls aligned to the right, vertically stacked
     filter_mode = "all"
@@ -72,7 +91,7 @@ def render() -> None:
     # Apply filter based on user selection
     if filter_supported and impossible_mask is not None:
         if filter_mode == "exclude_impossible":
-            filtered_df = df[~impossible_mask].copy()
+            filtered_df = df[~impossible_mask]  # Use view instead of copy
 
     if filtered_df.empty:
         st.warning("⚠️ No observations available with the selected filter.")

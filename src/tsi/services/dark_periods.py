@@ -197,21 +197,21 @@ def _parse_time_value(value: Any) -> pd.Timestamp | None:
             return None
 
     if isinstance(value, (int, float)):
-        return mjd_to_datetime(float(value))
+        return cast(pd.Timestamp, mjd_to_datetime(float(value)))
 
     if isinstance(value, str):
         stripped = value.strip()
         if stripped == "":
             return None
         try:
-            return mjd_to_datetime(float(stripped))
+            return cast(pd.Timestamp, mjd_to_datetime(float(stripped)))
         except ValueError:
             dt = pd.to_datetime(stripped, utc=True, errors="coerce")
             if pd.isna(dt):
                 return None
             if dt.tzinfo is None:
                 dt = dt.tz_localize("UTC")
-            return dt
+            return cast(pd.Timestamp, dt)
 
     return None
 

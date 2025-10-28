@@ -17,7 +17,7 @@ def mjd_to_datetime(mjd: float) -> pd.Timestamp:
     """Convert Modified Julian Date to a timezone-aware UTC timestamp."""
 
     seconds_since_epoch = (float(mjd) - MJD_UNIX_EPOCH) * SECONDS_PER_DAY
-    return pd.to_datetime(seconds_since_epoch, unit="s", utc=True)
+    return cast(pd.Timestamp, pd.to_datetime(seconds_since_epoch, unit="s", utc=True))
 
 
 def datetime_to_mjd(dt: datetime) -> float:

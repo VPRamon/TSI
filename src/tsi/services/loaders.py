@@ -108,6 +108,7 @@ def get_filtered_dataframe(
     priority_range: tuple[float, float] = (0.0, 10.0),
     scheduled_filter: str = "All",
     priority_bins: list[str] | None = None,
+    block_ids: list[str | int] | None = None,
 ) -> pd.DataFrame:
     """
     Filter DataFrame based on user-selected criteria.
@@ -117,6 +118,7 @@ def get_filtered_dataframe(
         priority_range=priority_range,
         scheduled_filter=scheduled_filter,  # type: ignore[arg-type]
         priority_bins=priority_bins or [],
+        block_ids=block_ids or [],
     )
     return result  # type: ignore[return-value,no-any-return]
 
