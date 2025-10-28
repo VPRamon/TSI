@@ -51,6 +51,7 @@ PAGES = [
     "Schedule",
     "Insights",
     "Trends",
+    "Compare",
 ]
 
 # Plot defaults

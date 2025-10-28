@@ -18,7 +18,7 @@ def render() -> None:
         """
         Monthly chronological view of scheduled observations. Each row represents a month
         and the horizontal axis shows the days (1-31) of that specific month, avoiding visual
-        overflow. Colors represent the priority of each block (darker = higher priority).
+        overflow. Colors represent the priority of each block (darker = lower priority).
         """
     )
 
@@ -118,7 +118,7 @@ def render() -> None:
         "modeBarButtonsToRemove": ["lasso2d", "select2d"],
         "scrollZoom": True,  # Enable zoom with scroll wheel
     }
-    st.plotly_chart(fig, width="stretch", config=config)
+    st.plotly_chart(fig, use_container_width=True, config=config)
 
     # Show dark period summary if available
     if filtered_dark_periods is not None:
