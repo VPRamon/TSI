@@ -456,9 +456,9 @@ def render() -> None:
             st.plotly_chart(fig_pred, use_container_width=True)
 
         st.caption(
-            f"📌 Each curve represents a different **priority level**. "
-            f"Higher priority observations have higher predicted probability of being scheduled. "
-            f"The model captures the interaction between priority and visibility."
+            "📌 Each curve represents a different **priority level**. "
+            "Higher priority observations have higher predicted probability of being scheduled. "
+            "The model captures the interaction between priority and visibility."
         )
 
     except Exception as e:
