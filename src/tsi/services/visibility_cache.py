@@ -78,7 +78,7 @@ def ensure_visibility_parsed(
         if len(df) > 0:
             cache_key = f"visibility_parsed_{len(df)}_{df.index[0]}_{df.index[-1]}"
         else:
-            cache_key = f"visibility_parsed_empty"
+            cache_key = "visibility_parsed_empty"
     except Exception:
         # Fallback if index access fails
         cache_key = f"visibility_parsed_{id(df)}"

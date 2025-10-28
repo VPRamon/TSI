@@ -244,7 +244,7 @@ def _filter_dataframe(
         if scheduled_filter == "All":
             # Include all unscheduled + scheduled within window
             unscheduled_mask = ~df["scheduled_flag"]
-            mask &= (unscheduled_mask | scheduled_mask)
+            mask &= unscheduled_mask | scheduled_mask
         elif scheduled_filter == "Scheduled":
             mask &= scheduled_mask
         # For unscheduled, window doesn't apply - already filtered above
