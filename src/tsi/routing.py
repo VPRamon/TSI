@@ -37,17 +37,16 @@ def render_navigation() -> str | None:
             if st.button(
                 page,
                 key=f"nav_{page}",
-                width="stretch",
+                use_container_width=True,
                 type="primary" if page == current_page else "secondary",
             ):
-                # Update current page immediately when clicked
+                # Update current page and force rerun to update button highlight
                 state.set_current_page(page)
-                # Force rerun to update the UI immediately
                 st.rerun()
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Return the current page from state (which was just updated if a button was clicked)
+    # Return the current page from state
     current = state.get_current_page()
     return str(current) if current else None
 
@@ -59,30 +58,25 @@ def route_to_page(page_name: str) -> None:
     Args:
         page_name: Name of the page to render
     """
-    # Import page modules dynamically to avoid circular imports
-    from tsi.pages import (
-        compare_schedules,
-        distributions,
-        insights,
-        scheduled_timeline,
-        scheduling_trends,
-        sky_map,
-        visibility_schedule,
-    )
-
+    # Lazy import - only load the needed page module for better performance
     page_map = {
-        "Sky Map": sky_map.render,
-        "Distributions": distributions.render,
-        "Visibility Map": visibility_schedule.render,
-        "Schedule": scheduled_timeline.render,
-        "Insights": insights.render,
-        "Trends": scheduling_trends.render,
-        "Compare": compare_schedules.render,
+        "Sky Map": ("tsi.pages.sky_map", "render"),
+        "Distributions": ("tsi.pages.distributions", "render"),
+        "Visibility Map": ("tsi.pages.visibility_schedule", "render"),
+        "Schedule": ("tsi.pages.scheduled_timeline", "render"),
+        "Insights": ("tsi.pages.insights", "render"),
+        "Trends": ("tsi.pages.scheduling_trends", "render"),
+        "Compare": ("tsi.pages.compare_schedules", "render"),
     }
 
-    render_func = page_map.get(page_name)
+    page_info = page_map.get(page_name)
 
-    if render_func:
+    if page_info:
+        module_name, func_name = page_info
+        # Import only the specific module needed
+        import importlib
+        module = importlib.import_module(module_name)
+        render_func = getattr(module, func_name)
         render_func()
     else:
         st.error(f"Unknown page: {page_name}")

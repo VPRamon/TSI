@@ -4,10 +4,12 @@ from collections.abc import Sequence
 
 import pandas as pd
 import plotly.graph_objects as go
+import streamlit as st
 
 from tsi.config import PLOT_HEIGHT, PLOT_MARGIN
 
 
+@st.cache_data(show_spinner=False, ttl=3600)
 def build_figure(
     df: pd.DataFrame,
     color_by: str = "priority_bin",

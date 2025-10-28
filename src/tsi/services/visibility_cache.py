@@ -69,37 +69,30 @@ def ensure_visibility_parsed(
         if df["visibility_periods_parsed"].notna().any():
             return df
 
-    # Create a copy to avoid modifying the original
+    # Only copy when we need to modify
     df_copy = df.copy()
 
-    # Generate hash for caching (based on index to detect row changes)
+    # Generate cache key based on DataFrame length and first/last index values
+    # This is faster than hashing entire index
     try:
-        df_hash = hash(df.index.values.tobytes())
-    except Exception:
-        # Fallback if hashing fails
-        df_hash = hash(str(df.index.tolist()))
-
-    # Use cached parsing if available
-    try:
-        # Try to use the cached version
-        cache_key = f"visibility_parsed_{df_hash}_{len(df)}"
-
-        # Check if we have this in Streamlit session state (faster than disk cache)
-        if cache_key in st.session_state and not force:
-            df_copy["visibility_periods_parsed"] = st.session_state[cache_key]
+        if len(df) > 0:
+            cache_key = f"visibility_parsed_{len(df)}_{df.index[0]}_{df.index[-1]}"
         else:
-            # Parse and cache
-            parsed_series = parse_visibility_for_rows(df_copy, visibility_column)
-            df_copy["visibility_periods_parsed"] = parsed_series
+            cache_key = f"visibility_parsed_empty"
+    except Exception:
+        # Fallback if index access fails
+        cache_key = f"visibility_parsed_{id(df)}"
 
-            # Store in session state for instant retrieval
-            st.session_state[cache_key] = parsed_series
-    except Exception as e:
-        # Fallback: parse without caching
-        import warnings
+    # Check if we have this in Streamlit session state (faster than disk cache)
+    if cache_key in st.session_state and not force:
+        df_copy["visibility_periods_parsed"] = st.session_state[cache_key]
+    else:
+        # Parse and cache
+        parsed_series = parse_visibility_for_rows(df_copy, visibility_column)
+        df_copy["visibility_periods_parsed"] = parsed_series
 
-        warnings.warn(f"Failed to cache visibility parsing: {e}")
-        df_copy["visibility_periods_parsed"] = parse_visibility_for_rows(df_copy, visibility_column)
+        # Store in session state for instant retrieval
+        st.session_state[cache_key] = parsed_series
 
     return df_copy
 

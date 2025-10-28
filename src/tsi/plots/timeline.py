@@ -5,11 +5,13 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import streamlit as st
 
 from core.time import format_datetime_utc
 from tsi.services.visibility_cache import parse_subset_lazy
 
 
+@st.cache_data(show_spinner=False, ttl=3600)
 def build_timeline(
     df: pd.DataFrame,
     max_blocks: int = 50,
@@ -234,6 +236,7 @@ def build_timeline(
     return fig
 
 
+@st.cache_data(show_spinner=False, ttl=3600)
 def build_visibility_histogram(
     df: pd.DataFrame,
     num_bins: int | None = 50,
@@ -255,7 +258,7 @@ def build_visibility_histogram(
         fig.update_layout(title="No data to display")
         return fig
 
-    # Ensure visibility is parsed (with caching)
+    # Ensure visibility is parsed (with caching) - ONLY for rows in df
     from tsi.services.visibility_cache import ensure_visibility_parsed
 
     df_with_vis = ensure_visibility_parsed(df)
@@ -293,25 +296,37 @@ def build_visibility_histogram(
 
     # Initialize bins
     bin_edges = [min_time + i * bin_duration for i in range(num_bins + 1)]
-    bin_counts = [0] * num_bins
+    
+    # Vectorized approach: convert periods to arrays for faster processing
+    # Build arrays of all period starts and stops
+    period_starts = np.array([pd.Timestamp(start).value for start, _ in all_periods], dtype=np.int64)
+    period_stops = np.array([pd.Timestamp(stop).value for _, stop in all_periods], dtype=np.int64)
+    
+    # Convert bin edges to numpy array
+    bin_edge_values = np.array([pd.Timestamp(edge).value for edge in bin_edges], dtype=np.int64)
+    
+    # Count overlaps using vectorized operations
+    bin_counts = []
+    for i in range(num_bins):
+        bin_start = bin_edge_values[i]
+        bin_end = bin_edge_values[i + 1]
+        
+        # A period overlaps if: period_start < bin_end AND period_stop > bin_start
+        overlaps = (period_starts < bin_end) & (period_stops > bin_start)
+        
+        # Count unique rows (not periods) - track which row each period belongs to
+        # We need to build a row index array
+        row_indices = []
+        for row_idx, periods in enumerate(df_with_vis["visibility_periods_parsed"]):
+            if periods:
+                row_indices.extend([row_idx] * len(periods))
+        
+        row_indices = np.array(row_indices, dtype=np.int32)
+        overlapping_rows = np.unique(row_indices[overlaps])
+        bin_counts.append(len(overlapping_rows))
+    
     # Calculate bin centers correctly (timedelta arithmetic)
     bin_centers = [bin_edges[i] + (bin_edges[i + 1] - bin_edges[i]) / 2 for i in range(num_bins)]
-
-    # Count visible blocks in each bin
-    for i in range(num_bins):
-        bin_start = bin_edges[i]
-        bin_end = bin_edges[i + 1]
-
-        count = 0
-        for periods in df_with_vis["visibility_periods_parsed"]:
-            if periods:
-                # Check if any visibility period overlaps with this bin
-                for vis_start, vis_stop in periods:
-                    if vis_start < bin_end and vis_stop > bin_start:
-                        count += 1
-                        break  # Count each block only once per bin
-
-        bin_counts[i] = count
 
     # Create the histogram
     fig = go.Figure()

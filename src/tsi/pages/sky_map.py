@@ -52,8 +52,11 @@ def render() -> None:
     if priority_min == priority_max:
         priority_max = priority_min + 1.0
 
-    df = df.copy()
-    df["priority_bin"] = df["priority_bin"].astype("string").fillna("No priority")
+    # Convert priority_bin to string, handling NaN values
+    # Use a view instead of copy for better performance
+    if df["priority_bin"].dtype != "string":
+        df = df.copy()  # Only copy when we need to modify
+        df["priority_bin"] = df["priority_bin"].astype("string").fillna("No priority")
 
     priority_bins = df["priority_bin"].dropna().unique().tolist()
     if not priority_bins:
@@ -134,7 +137,7 @@ def render() -> None:
             if render_reset_filters_button():
                 state.reset_filters()
                 _reset_sky_map_controls()
-                st.rerun()
+                # Streamlit will auto-rerun on button click
 
     with map_col:
         filtered_df = _filter_dataframe(
@@ -215,39 +218,39 @@ def _filter_dataframe(
     schedule_window: tuple[datetime, datetime] | None,
 ) -> pd.DataFrame:
     """Apply priority, bin, scheduled status and time filters."""
-    filtered = df[
-        (df["priority"] >= priority_range[0]) & (df["priority"] <= priority_range[1])
-    ].copy()
+    # Use boolean indexing without copying until the final result
+    mask = (df["priority"] >= priority_range[0]) & (df["priority"] <= priority_range[1])
 
     if selected_bins:
-        filtered = filtered[filtered["priority_bin"].isin(selected_bins)]
+        mask &= df["priority_bin"].isin(selected_bins)
 
     if scheduled_filter == "Scheduled":
-        filtered = filtered[filtered["scheduled_flag"]]
+        mask &= df["scheduled_flag"]
     elif scheduled_filter == "Unscheduled":
-        filtered = filtered[~filtered["scheduled_flag"]]
+        mask &= ~df["scheduled_flag"]
 
+    # Apply time window filter if specified
     if schedule_window:
         start_ts = _to_utc_timestamp(schedule_window[0])
         end_ts = _to_utc_timestamp(schedule_window[1])
 
         scheduled_mask = (
-            filtered["scheduled_flag"]
-            & filtered["scheduled_start_dt"].notna()
-            & (filtered["scheduled_start_dt"] >= start_ts)
-            & (filtered["scheduled_start_dt"] <= end_ts)
+            df["scheduled_flag"]
+            & df["scheduled_start_dt"].notna()
+            & (df["scheduled_start_dt"] >= start_ts)
+            & (df["scheduled_start_dt"] <= end_ts)
         )
 
         if scheduled_filter == "All":
-            unscheduled = filtered[~filtered["scheduled_flag"]]
-            filtered = pd.concat([unscheduled, filtered[scheduled_mask]], ignore_index=True)
+            # Include all unscheduled + scheduled within window
+            unscheduled_mask = ~df["scheduled_flag"]
+            mask &= (unscheduled_mask | scheduled_mask)
         elif scheduled_filter == "Scheduled":
-            filtered = filtered[scheduled_mask]
-        else:
-            # When showing only unscheduled targets, the schedule window must not remove them
-            pass
+            mask &= scheduled_mask
+        # For unscheduled, window doesn't apply - already filtered above
 
-    return filtered
+    # Only create copy at the end when returning filtered result
+    return df[mask].copy()
 
 
 def _render_stats(df: pd.DataFrame) -> None:
