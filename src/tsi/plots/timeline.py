@@ -296,37 +296,39 @@ def build_visibility_histogram(
 
     # Initialize bins
     bin_edges = [min_time + i * bin_duration for i in range(num_bins + 1)]
-    
+
     # Build a mapping of period index to row index
     # This ensures we count each block only once per bin, even if it has multiple visibility periods
-    row_indices = []
+    row_indices_list: list[int] = []
     for row_idx, periods in enumerate(df_with_vis["visibility_periods_parsed"]):
         if periods:
-            row_indices.extend([row_idx] * len(periods))
-    
-    row_indices = np.array(row_indices, dtype=np.int32)
-    
+            row_indices_list.extend([row_idx] * len(periods))
+
+    row_indices = np.array(row_indices_list, dtype=np.int32)
+
     # Vectorized approach: convert periods to arrays for faster processing
     # Build arrays of all period starts and stops
-    period_starts = np.array([pd.Timestamp(start).value for start, _ in all_periods], dtype=np.int64)
+    period_starts = np.array(
+        [pd.Timestamp(start).value for start, _ in all_periods], dtype=np.int64
+    )
     period_stops = np.array([pd.Timestamp(stop).value for _, stop in all_periods], dtype=np.int64)
-    
+
     # Convert bin edges to numpy array
     bin_edge_values = np.array([pd.Timestamp(edge).value for edge in bin_edges], dtype=np.int64)
-    
+
     # Count overlaps using vectorized operations
     bin_counts = []
     for i in range(num_bins):
         bin_start = bin_edge_values[i]
         bin_end = bin_edge_values[i + 1]
-        
+
         # A period overlaps if: period_start < bin_end AND period_stop > bin_start
         overlaps = (period_starts < bin_end) & (period_stops > bin_start)
-        
+
         # Count unique blocks (rows) that have at least one overlapping period in this bin
         overlapping_rows = np.unique(row_indices[overlaps])
         bin_counts.append(len(overlapping_rows))
-    
+
     # Calculate bin centers correctly (timedelta arithmetic)
     bin_centers = [bin_edges[i] + (bin_edges[i + 1] - bin_edges[i]) / 2 for i in range(num_bins)]
 

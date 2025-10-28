@@ -82,7 +82,9 @@ def render() -> None:
     # Main-panel histogram settings so they remain visible even if the sidebar is collapsed
     settings_container = st.expander("Histogram Settings", expanded=True)
     with settings_container:
-        st.markdown("Customize the bin width and apply additional filters without opening the sidebar.")
+        st.markdown(
+            "Customize the bin width and apply additional filters without opening the sidebar."
+        )
 
         # Priority filter slider
         st.subheader("🎯 Priority Filter")
@@ -99,7 +101,7 @@ def render() -> None:
         # Block ID filter
         st.subheader("🔢 Block ID Filter")
         all_block_ids = sorted(df["schedulingBlockId"].dropna().unique())
-        
+
         # Add a checkbox to enable/disable block ID filtering
         enable_block_filter = st.checkbox(
             "Filter by specific Block IDs",
@@ -107,7 +109,7 @@ def render() -> None:
             key="visibility_histogram_enable_block_filter",
             help="Enable to select specific scheduling blocks to display in the histogram",
         )
-        
+
         selected_block_ids = None
         if enable_block_filter:
             selected_block_ids = st.multiselect(
@@ -148,7 +150,9 @@ def render() -> None:
                 "Increase the number of bins for finer resolution or decrease it for smoother trends."
             )
             if num_bins and num_bins > 100:
-                st.warning("⚠️ High bin counts (>100) may take 10+ seconds to compute. Consider using fewer bins or filtering data first.")
+                st.warning(
+                    "⚠️ High bin counts (>100) may take 10+ seconds to compute. Consider using fewer bins or filtering data first."
+                )
         else:
             num_bins = None
             col1, col2 = st.columns([1, 1])
@@ -233,24 +237,30 @@ def render() -> None:
     # Add a manual "Generate" button to give users control over when to run expensive computation
     col_btn1, col_btn2 = st.columns([1, 4])
     with col_btn1:
-        generate_clicked = st.button("🔄 Generate Histogram", type="primary", use_container_width=True)
+        generate_clicked = st.button(
+            "🔄 Generate Histogram", type="primary", use_container_width=True
+        )
     with col_btn2:
         st.caption("")
-    
+
     # Only build histogram if button was clicked or if we have a cached result
     if generate_clicked or "visibility_histogram_generated" in st.session_state:
         # Mark that we've generated it at least once
         st.session_state["visibility_histogram_generated"] = True
-        
+
         with histogram_container:
-            with st.spinner("🔄 Building visibility histogram... This may take 10-30 seconds for large datasets."):
+            with st.spinner(
+                "🔄 Building visibility histogram... This may take 10-30 seconds for large datasets."
+            ):
                 fig = build_visibility_histogram(
                     df=filtered_df,
                     num_bins=num_bins,
                     bin_duration_minutes=bin_duration_minutes,
                 )
-            
+
             st.plotly_chart(fig, use_container_width=True)
     else:
         with histogram_container:
-            st.info("👆 Click 'Generate Histogram' above to build the visualization. This prevents automatic computation on page load.")
+            st.info(
+                "👆 Click 'Generate Histogram' above to build the visualization. This prevents automatic computation on page load."
+            )

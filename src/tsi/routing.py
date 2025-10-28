@@ -75,6 +75,7 @@ def route_to_page(page_name: str) -> None:
         module_name, func_name = page_info
         # Import only the specific module needed
         import importlib
+
         module = importlib.import_module(module_name)
         render_func = getattr(module, func_name)
         render_func()
