@@ -16,10 +16,20 @@ from tsi.services.analytics import (
 )
 from tsi.services.report import generate_html_report, generate_markdown_report
 
+FILTER_OPTIONS = ("all", "exclude_impossible")
+FILTER_LABELS = {
+    "all": "📋 All blocks",
+    "exclude_impossible": "✅ Filter invalid requests",
+}
+
 
 def render() -> None:
     """Render the Insights & Conclusions page."""
-    st.title("💡 Insights & Conclusions")
+    # Title and filter controls in same row
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        st.title("💡 Insights & Conclusions")
 
     st.markdown(
         """
@@ -34,14 +44,57 @@ def render() -> None:
         st.warning("No data loaded. Please return to the landing page.")
         return
 
+    filtered_df = df
+
+    # Initialize session state only if not present
+    if state.KEY_INSIGHTS_FILTER_MODE not in st.session_state:
+        st.session_state[state.KEY_INSIGHTS_FILTER_MODE] = "all"
+
+    filter_supported = (
+        "minObservationTimeInSec" in df.columns and "total_visibility_hours" in df.columns
+    )
+    impossible_mask = None
+
+    if filter_supported:
+        TOLERANCE_SEC = 1
+        min_duration_secs = df["minObservationTimeInSec"].fillna(0)
+        visibility_secs = df["total_visibility_hours"] * 3600.0
+        impossible_mask = (min_duration_secs - TOLERANCE_SEC > visibility_secs).fillna(False)
+
+    # Filter controls aligned to the right, vertically stacked
+    filter_mode = "all"
+    if filter_supported:
+        with col2:
+            # Add empty space to align vertically with title
+            st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+            filter_mode = st.radio(
+                "Filtrar:",
+                options=FILTER_OPTIONS,
+                format_func=lambda x: FILTER_LABELS[x],
+                key=state.KEY_INSIGHTS_FILTER_MODE,
+                horizontal=False,
+                label_visibility="collapsed",
+            )
+    else:
+        st.session_state[state.KEY_INSIGHTS_FILTER_MODE] = "all"
+
+    # Apply filter based on user selection
+    if filter_supported and impossible_mask is not None:
+        if filter_mode == "exclude_impossible":
+            filtered_df = df[~impossible_mask]
+
+    if filtered_df.empty:
+        st.warning("⚠️ No observations available with the selected filter.")
+        return
+
     # Compute analytics
     with st.spinner("Computing analytics..."):
-        metrics = compute_metrics(df)
-        insights = generate_insights(df, metrics)
-        correlations = compute_correlations(df)
-        top_priority = get_top_observations(df, by="priority", n=10)
-        top_visibility = get_top_observations(df, by="total_visibility_hours", n=10)
-        conflicts = find_conflicts(df)
+        metrics = compute_metrics(filtered_df)
+        insights = generate_insights(filtered_df, metrics)
+        correlations = compute_correlations(filtered_df)
+        top_priority = get_top_observations(filtered_df, by="priority", n=10)
+        top_visibility = get_top_observations(filtered_df, by="total_visibility_hours", n=10)
+        conflicts = find_conflicts(filtered_df)
 
     # Key Metrics
     st.header("📈 Key Metrics")
