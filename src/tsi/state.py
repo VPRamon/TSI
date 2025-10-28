@@ -17,6 +17,7 @@ KEY_SELECTED_BLOCK_IDS = "selected_block_ids"
 KEY_SCHEDULE_WINDOW = "scheduled_time_window"
 KEY_DARK_PERIODS = "dark_periods"
 KEY_DIST_FILTER_MODE = "dist_filter_mode"
+KEY_INSIGHTS_FILTER_MODE = "insights_filter_mode"
 KEY_COMPARISON_SCHEDULE = "comparison_schedule"
 
 
@@ -57,6 +58,9 @@ def initialize_state() -> None:
 
     if KEY_DIST_FILTER_MODE not in st.session_state:
         st.session_state[KEY_DIST_FILTER_MODE] = "all"
+
+    if KEY_INSIGHTS_FILTER_MODE not in st.session_state:
+        st.session_state[KEY_INSIGHTS_FILTER_MODE] = "all"
 
     if KEY_COMPARISON_SCHEDULE not in st.session_state:
         st.session_state[KEY_COMPARISON_SCHEDULE] = None
@@ -138,6 +142,7 @@ def reset_filters() -> None:
     st.session_state[KEY_SELECTED_BLOCK_IDS] = None
     st.session_state[KEY_SCHEDULE_WINDOW] = None
     st.session_state[KEY_DIST_FILTER_MODE] = "all"
+    st.session_state[KEY_INSIGHTS_FILTER_MODE] = "all"
 
 
 def clear_data() -> None:
