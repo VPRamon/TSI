@@ -157,6 +157,7 @@ def filter_dataframe(
     priority_range: tuple[float, float] = (0.0, 10.0),
     scheduled_filter: Literal["All", "Scheduled", "Unscheduled"] = "All",
     priority_bins: Sequence[str] | None = None,
+    block_ids: Sequence[str | int] | None = None,
 ) -> pd.DataFrame:
     """Return a filtered view of *df* according to UI criteria."""
 
@@ -170,5 +171,9 @@ def filter_dataframe(
 
     if priority_bins:
         filtered = filtered[filtered["priority_bin"].isin(priority_bins)]
+
+    if block_ids:
+        # Filter by block IDs - handle both string and int types
+        filtered = filtered[filtered["schedulingBlockId"].isin(block_ids)]
 
     return filtered
