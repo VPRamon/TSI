@@ -235,7 +235,7 @@ def render() -> None:
     with col_btn1:
         generate_clicked = st.button("🔄 Generate Histogram", type="primary", use_container_width=True)
     with col_btn2:
-        st.caption("Click to build the histogram. Large datasets may take 10-30 seconds.")
+        st.caption("")
     
     # Only build histogram if button was clicked or if we have a cached result
     if generate_clicked or "visibility_histogram_generated" in st.session_state:
