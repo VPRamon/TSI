@@ -297,6 +297,15 @@ def build_visibility_histogram(
     # Initialize bins
     bin_edges = [min_time + i * bin_duration for i in range(num_bins + 1)]
     
+    # Build a mapping of period index to row index
+    # This ensures we count each block only once per bin, even if it has multiple visibility periods
+    row_indices = []
+    for row_idx, periods in enumerate(df_with_vis["visibility_periods_parsed"]):
+        if periods:
+            row_indices.extend([row_idx] * len(periods))
+    
+    row_indices = np.array(row_indices, dtype=np.int32)
+    
     # Vectorized approach: convert periods to arrays for faster processing
     # Build arrays of all period starts and stops
     period_starts = np.array([pd.Timestamp(start).value for start, _ in all_periods], dtype=np.int64)
@@ -314,14 +323,7 @@ def build_visibility_histogram(
         # A period overlaps if: period_start < bin_end AND period_stop > bin_start
         overlaps = (period_starts < bin_end) & (period_stops > bin_start)
         
-        # Count unique rows (not periods) - track which row each period belongs to
-        # We need to build a row index array
-        row_indices = []
-        for row_idx, periods in enumerate(df_with_vis["visibility_periods_parsed"]):
-            if periods:
-                row_indices.extend([row_idx] * len(periods))
-        
-        row_indices = np.array(row_indices, dtype=np.int32)
+        # Count unique blocks (rows) that have at least one overlapping period in this bin
         overlapping_rows = np.unique(row_indices[overlaps])
         bin_counts.append(len(overlapping_rows))
     

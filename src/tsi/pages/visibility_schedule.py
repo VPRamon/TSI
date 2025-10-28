@@ -82,8 +82,49 @@ def render() -> None:
     # Main-panel histogram settings so they remain visible even if the sidebar is collapsed
     settings_container = st.expander("Histogram Settings", expanded=True)
     with settings_container:
-        st.markdown("Customize the bin width without opening the sidebar.")
+        st.markdown("Customize the bin width and apply additional filters without opening the sidebar.")
 
+        # Priority filter slider
+        st.subheader("🎯 Priority Filter")
+        priority_filter_range = st.slider(
+            "Filter by Priority Range",
+            min_value=priority_min,
+            max_value=priority_max,
+            value=(priority_min, priority_max),
+            step=0.1,
+            key="visibility_histogram_priority_filter",
+            help="Filter blocks by priority range for the histogram",
+        )
+
+        # Block ID filter
+        st.subheader("🔢 Block ID Filter")
+        all_block_ids = sorted(df["schedulingBlockId"].dropna().unique())
+        
+        # Add a checkbox to enable/disable block ID filtering
+        enable_block_filter = st.checkbox(
+            "Filter by specific Block IDs",
+            value=False,
+            key="visibility_histogram_enable_block_filter",
+            help="Enable to select specific scheduling blocks to display in the histogram",
+        )
+        
+        selected_block_ids = None
+        if enable_block_filter:
+            selected_block_ids = st.multiselect(
+                "Select Block IDs",
+                options=all_block_ids,
+                default=None,
+                key="visibility_histogram_block_ids",
+                help="Choose specific blocks to include in the histogram. Leave empty to include all blocks.",
+            )
+            if selected_block_ids:
+                st.caption(f"✓ {len(selected_block_ids)} block(s) selected")
+            else:
+                st.info("💡 Select at least one block ID to apply filtering")
+
+        st.divider()
+
+        st.subheader("📊 Bin Configuration")
         bin_mode = st.radio(
             "Bin Size Mode",
             options=["Number of bins", "Fixed duration"],
@@ -136,11 +177,18 @@ def render() -> None:
 
         st.info("💡 **Tip:** Adjust the mode and bin thickness to focus on specific time scales.")
 
+    # Apply the filters from the Histogram Settings panel
+    # Combine sidebar priority filter with histogram settings priority filter (use the more restrictive range)
+    effective_priority_min = max(priority_range[0], priority_filter_range[0])
+    effective_priority_max = min(priority_range[1], priority_filter_range[1])
+    effective_priority_range = (effective_priority_min, effective_priority_max)
+
     # Filter data BEFORE parsing visibility - major performance improvement
     filtered_df = get_filtered_dataframe(
         df,
-        priority_range=priority_range,
+        priority_range=effective_priority_range,
         scheduled_filter="All",
+        block_ids=selected_block_ids if selected_block_ids else None,
     )
 
     # Show statistics FIRST - this gives immediate feedback while histogram loads
