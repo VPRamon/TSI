@@ -242,7 +242,7 @@ def render() -> None:
             if st.button("Remove dark periods", key="clear_dark_periods"):
                 state.set_dark_periods(None)
                 st.session_state.pop("dark_periods_last_token", None)
-                st.rerun()
+                # Streamlit will auto-rerun on button click
 
         # Provide navigation hint
         st.info("👆 Use the top navigation to explore visualizations and insights")
@@ -362,7 +362,7 @@ def _load_data(
             if state.get_dark_periods() is None:
                 _try_auto_load_dark_periods()
 
-            # Force rerun to show the navigation
+            # Force rerun to navigate away from landing page to the selected page
             st.rerun()
 
     except Exception as e:
