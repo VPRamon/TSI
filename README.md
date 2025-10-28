@@ -1,320 +1,188 @@
 # Telescope Scheduling Intelligence
 
-A production-grade, multi-module Streamlit application for analyzing and visualizing telescope scheduling data.
+Analyze and visualize astronomical scheduling outputs with an interactive Streamlit app, a reusable preprocessing library, examples, and notebooks. https://telescope-scheduling-intelligence.streamlit.app
 
-![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
-![Streamlit](https://img.shields.io/badge/streamlit-1.31+-red.svg)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
+![Streamlit](https://img.shields.io/badge/streamlit-1.31%2B-ff4b4b.svg)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
 
-## Features
+## What’s inside
 
-- 🌌 **Sky Map**: Interactive celestial coordinate visualization with RA/Dec plotting
-- 📊 **Distributions**: Comprehensive statistical analysis of scheduling parameters
-- 📅 **Visibility & Schedule Timeline**: Gantt-style visualization of observation windows
-- 💡 **Insights & Conclusions**: Automated analytics with correlation analysis and integrity checks
-- 🧠 **Predictive Model (CLI only)**: Run offline scripts to analyze unscheduled blocks with ML
-- �📥 **Flexible Data Loading**: Upload custom CSV or use sample dataset
-- 🎨 **Professional UI**: Clean, responsive design with persistent navigation
+- Streamlit dashboard with pages for Sky Map, Distributions, Visibility Map, Scheduled Timeline, Insights, Trends, and Compare
+- JSON/CSV loaders and preprocessing pipeline (fast, consistent, validated)
+- Optional Dark Periods overlay to distinguish observable vs non-observable time windows
+- Scripts and examples for batch preprocessing and data exploration
+- Tests (unit + e2e) and a Docker image for reproducible runs
 
-## Architecture
-
-This application follows best practices with:
-
-- **Modular design**: Clear separation of concerns across services, plots, pages, and components
-- **Type safety**: Pydantic schemas and type hints throughout
-- **Performance**: Strategic caching with `@st.cache_data` decorators
-- **Testability**: Comprehensive pytest suite
-- **Code quality**: Configured with ruff, black, and mypy
-
-## Project Structure
+## Repository layout (key files)
 
 ```
-telescope_scheduling_intelligence/
-├── pyproject.toml
-├── requirements.txt
-├── README.md
-├── .streamlit/
-│   └── config.toml
+.
 ├── data/
-│   ├── schedule.csv                  # Sample preprocessed data
-│   ├── schedule.json                 # Raw schedule JSON
-│   ├── possible_periods.json         # Visibility/possible periods data
-│   └── dark_periods.json             # Dark time periods data
-│
+│   ├── schedule.csv              # Sample preprocessed dataset (used by the app)
+│   ├── schedule.json             # Raw schedule (example)
+│   ├── possible_periods.json     # Optional visibility periods
+│   └── dark_periods.json         # Optional dark periods (auto-detected by the app)
+├── examples/
+│   ├── example_data_loading.py   # Loaders usage
+│   └── example_preprocessing.py  # Preprocessor usage
+├── notebooks/
+│   ├── eda.ipynb
+│   └── scheduling_trends.ipynb
+├── scripts/
+│   ├── preprocess_schedules.py   # CLI: JSON → CSV (single/batch)
+│   └── train_model.py            # Modeling pipeline entrypoint
 ├── src/
 │   ├── core/
-│   │   ├── loaders/                  # Unified data loading
-│   │   │   ├── __init__.py
-│   │   │   └── schedule_loader.py
-│   │   ├── preprocessing/            # Data preprocessing
-│   │   │   └── schedule_preprocessor.py
-│   │   └── ...
+│   │   ├── loaders/              # JSON/CSV/data-dir loaders
+│   │   └── preprocessing/        # SchedulePreprocessor + helpers
 │   └── tsi/
-│       ├── app.py              # Main entry point
-│       ├── state.py            # Session state management
-│       ├── theme.py            # Theming and CSS
-│       ├── routing.py          # Navigation logic
-│       ├── config.py           # Configuration constants
-│       ├── models/
-│       │   └── schemas.py      # Data models
-│       ├── services/
-│       │   ├── loaders.py      # Data loading
-│       │   ├── time_utils.py   # Time conversion utilities
-│       │   ├── analytics.py    # Statistical analysis
-│       │   └── report.py       # Report generation
-│       ├── plots/
-│       │   ├── sky_map.py
-│       │   ├── distributions.py
-│       │   └── timeline.py
-│       ├── pages/
-│       │   ├── landing.py
-│       │   ├── sky_map.py
-│       │   ├── distributions.py
-│       │   ├── visibility_schedule.py
-│       │   └── insights.py
-│       ├── components/
-│       │   ├── toolbar.py
-│       │   ├── data_preview.py
-│       │   └── metrics.py
-│       └── assets/
-│           └── styles.css
-├── tests/
-│   ├── test_time_utils.py
-│   ├── test_loaders.py
-│   └── test_analytics.py
-└── docs/
-    └── index.md
+│       ├── app.py                # Streamlit entrypoint
+│       ├── routing.py, state.py, theme.py
+│       ├── pages/                # Sky Map, Distributions, Visibility Map, Schedule, Insights, Trends, Compare
+│       ├── plots/, components/, services/
+│       └── assets/styles.css
+├── run_dashboard.sh              # Local launcher (venv + streamlit)
+├── streamlit_app.py              # Streamlit Cloud entry (imports tsi.app.main)
+├── Dockerfile
+├── pyproject.toml
+├── requirements.txt
+└── tests/
+    ├── core/, e2e/, manual/
+    └── benchmarks/
 ```
 
-## Installation
+## Quickstart
+
+Prereqs: Python 3.10+ and pip.
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd bootcamp
-
-# Install dependencies
+# Install
 pip install -r requirements.txt
 
-# For development
-pip install -e ".[dev]"
+# Run the Streamlit app
+streamlit run src/tsi/app.py
+
+# Or use the helper
+./run_dashboard.sh
 ```
 
-## Usage
+The app opens at http://localhost:8501. On the landing page you can:
+- Upload a preprocessed CSV (fastest), or
+- Upload a raw schedule.json (+ optional possible_periods.json). JSON is processed in‑memory, or
+- Load the bundled sample dataset at `data/schedule.csv`.
 
-### Preprocess Data (Optional)
+Dark periods: if `data/dark_periods.json` exists, it is auto‑loaded; you can also upload it later on the landing page. The Scheduled Timeline page then shades nighttime (observable) vs daytime (non‑observable) periods.
 
-If you have raw JSON schedule files, you can preprocess them into CSV format:
+## Preprocess JSON → CSV (recommended for performance)
+
+The dashboard can process JSON directly, but for repeat analysis and faster loads prefer CSV precomputation using the CLI.
 
 ```bash
-# Process a single schedule JSON file
-python preprocess_schedules.py \
+# Single file
+python scripts/preprocess_schedules.py \
   --schedule data/schedule.json \
   --output data/schedule.csv
 
-# Process with visibility/possible periods data
-python preprocess_schedules.py \
+# With visibility/possible periods
+python scripts/preprocess_schedules.py \
   --schedule data/schedule.json \
   --visibility data/possible_periods.json \
   --output data/schedule.csv \
   --verbose
 
-# Batch process multiple schedule files in a directory
-python preprocess_schedules.py \
+# Batch directory
+python scripts/preprocess_schedules.py \
   --batch-dir data/schedules \
   --output-dir data/preprocessed
 
-# Batch process with custom patterns
-python preprocess_schedules.py \
+# Batch with custom patterns
+python scripts/preprocess_schedules.py \
   --batch-dir data/schedules \
   --pattern "schedule_*.json" \
   --visibility-pattern "possible_periods*.json" \
   --output-dir data/preprocessed
 ```
 
-For more details, see [PREPROCESS_SCHEDULES_README.md](PREPROCESS_SCHEDULES_README.md).
+Examples: see `examples/example_data_loading.py` and `examples/example_preprocessing.py`.
 
-### Run the application
+## Data schema (CSV expected by the app)
 
-```bash
-streamlit run src/tsi/app.py
+Required columns (from `src/tsi/config.py`):
+- schedulingBlockId, priority, minObservationTimeInSec, requestedDurationSec
+- fixedStartTime, fixedStopTime, decInDeg, raInDeg
+- minAzimuthAngleInDeg, maxAzimuthAngleInDeg, minElevationAngleInDeg, maxElevationAngleInDeg
+- scheduled_period.start, scheduled_period.stop
+- visibility, num_visibility_periods, total_visibility_hours, priority_bin
+- scheduled_flag, requested_hours, elevation_range_deg
+
+Notes
+- Times are MJD in the raw JSON; the app converts to UTC timestamps for display.
+- The `visibility` column is a list of (start, stop) MJD pairs; when stored in CSV it’s stringified.
+
+## Dashboard pages
+
+- Sky Map: RA/Dec scatter with color by priority or status, size by requested hours, priority and time filters
+- Distributions: histograms and summary distributions (priority, visibility hours, requested duration, elevation range)
+- Visibility Map: visualize visibility windows and constraints
+- Scheduled Timeline: month‑by‑month view of scheduled observations; optional dark/daytime overlays; CSV export
+- Insights: scheduling rates, correlations, integrity checks, and top lists
+- Trends: time evolution of scheduling metrics
+- Compare: load a second CSV to compare two schedules side‑by‑side
+
+## Configuration
+
+Runtime settings are managed via `pydantic-settings` in `src/app_config/settings.py` and can be overridden with environment variables or a `.env` file at repo root.
+
+Key variables
+- DATA_ROOT: base data directory (default: data)
+- SAMPLE_DATASET: path to the sample CSV (default: data/schedule.csv)
+- CACHE_TTL_SECONDS: cache TTL for loaders (default: 600)
+
+Example `.env`
+```
+SAMPLE_DATASET=data/schedule.csv
+DATA_ROOT=data
+CACHE_TTL_SECONDS=900
 ```
 
-Or use the convenience script:
+## Run tests and quality gates
 
 ```bash
-./run_dashboard.sh
-```
-
-The dashboard will open at `http://localhost:8501`.
-
-### Run with Docker
-
-You can build a container image that contains all runtime and development dependencies for the
-Streamlit dashboard and the test suite.
-
-```bash
-# Build the image
-docker build -t tsi-app .
-
-# Run the Streamlit application (http://localhost:8501)
-docker run --rm -p 8501:8501 tsi-app
-
-# Run the test suite inside the container
-docker run --rm tsi-app pytest
-```
-
-The default container command launches the dashboard, so specifying an alternate command (such as
-`pytest`) lets you reuse the same image for CI or local test execution.
-
-### Data Loading Options
-
-The application supports three methods of loading data:
-
-1. **Upload CSV**: Upload a preprocessed CSV file (recommended for performance)
-2. **Upload JSON**: Upload raw `schedule.json` (and optionally `possible_periods.json`) - processed automatically in-memory
-3. **Use Sample Data**: Load the included sample dataset
-
-**For Notebooks**: Notebooks use preprocessed CSV files (e.g., `data/schedule.csv`). The data loading logic is centralized in `src/core/loaders/`.
-
-See [DATA_LOADING_ARCHITECTURE.md](doc/DATA_LOADING_ARCHITECTURE.md) for detailed documentation on the unified data loading system.
-
-### Run tests
-
-```bash
+# Unit + e2e tests
 pytest
-```
 
-### Code quality
-
-```bash
-# Format code
-black src/ tests/
-
-# Lint
+# Optional dev tools (install with: pip install -e ".[dev]")
 ruff check src/ tests/
-
-# Type check
+black --check src/ tests/
 mypy src/
 ```
 
-## Data Schema
+## Docker
 
-The application expects CSV files with the following columns:
+```bash
+# Build
+docker build -t tsi-app .
 
-- `schedulingBlockId`: Unique identifier
-- `priority`: Observation priority (0-10)
-- `minObservationTimeInSec`: Minimum observation time
-- `requestedDurationSec`: Requested duration
-- `fixedStartTime`: Optional fixed start constraint (MJD)
-- `fixedStopTime`: Optional fixed stop constraint (MJD)
-- `decInDeg`: Declination in degrees
-- `raInDeg`: Right Ascension in degrees
-- `minAzimuthAngleInDeg`: Minimum azimuth constraint
-- `maxAzimuthAngleInDeg`: Maximum azimuth constraint
-- `minElevationAngleInDeg`: Minimum elevation constraint
-- `maxElevationAngleInDeg`: Maximum elevation constraint
-- `scheduled_period.start`: Scheduled start time (MJD)
-- `scheduled_period.stop`: Scheduled stop time (MJD)
-- `visibility`: List of visibility windows (stringified tuples of MJD values)
-- `num_visibility_periods`: Count of visibility windows
-- `total_visibility_hours`: Total visibility time in hours
-- `priority_bin`: Priority category
+# Run dashboard (http://localhost:8501)
+docker run --rm -p 8501:8501 tsi-app
 
-**Note**: All time values use Modified Julian Date (MJD) format and are converted to UTC internally.
+# Run tests inside the same image
+docker run --rm tsi-app pytest
+```
 
-## Key Features
+The image defaults to launching the dashboard; overriding the command lets you reuse it for CI.
 
-### Landing Page
-- Upload custom CSV files
-- Use pre-loaded sample dataset
-- Data validation and preview
+## Development notes
 
-### Sky Map
-- Interactive RA/Dec scatter plot
-- Color by priority or scheduling status
-- Size by requested observation hours
-- Flip RA axis for astronomical convention
-- Filterable by priority and scheduling status
-
-### Distributions
-- Priority histogram with adjustable bins
-- Visibility hours distribution
-- Requested duration analysis
-- Elevation constraint range
-- Scheduled vs unscheduled counts
-- Violin plots for comparative analysis
-
-### Visibility & Schedule Timeline
-- Gantt-style timeline visualization
-- Visibility windows
-- Scheduled periods overlay
-- Fixed time constraints
-- Zoomable date range
-- Multi-layer filtering
-
-### Insights
-- Automated scheduling rate calculation
-- Priority statistics and correlations
-- Top observations by priority and visibility
-- Integrity checks for scheduling conflicts
-- Downloadable analytical reports
-
-### Predictive Model (CLI Only)
-
-The predictive model and SHAP-based explainability tooling remain available for offline use, but the Streamlit prediction page
-has been removed. To work with the model:
-
-1. Train or refresh the model artifacts:
-   ```bash
-   python scripts/train_model.py
-   ```
-
-2. Run the scripted demo for a full CLI walkthrough:
-   ```bash
-   python demo_unscheduled_analysis.py
-   ```
-
-3. Validate the artifacts and inference pipeline with the test harness:
-   ```bash
-   python test_unscheduled_analysis.py
-   ```
-
-Example inputs are available in `src/tsi/modeling/artifacts/`, including `example_unscheduled_block.csv` and
-`example_unscheduled_block.json`.
-
-## Development
-
-### Adding a new page
-
-1. Create module in `src/tsi/pages/`
-2. Register in `src/tsi/routing.py`
-3. Add navigation item
-
-### Adding a new plot
-
-1. Create module in `src/tsi/plots/`
-2. Implement `build_figure()` function
-3. Use in appropriate page module
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+- Add pages under `src/tsi/pages/` and register them in `src/tsi/routing.py`.
+- Plots live in `src/tsi/plots/`, components in `src/tsi/components/`, services in `src/tsi/services/`.
+- JSON/CSV parsing and preprocessing are under `src/core/`.
 
 ## License
 
-GNU Affero General Public License v3.0 - see LICENSE file for details
-
-## Support
-
-For issues, questions, or contributions, please open an issue on GitHub.
+AGPL-3.0 — see `LICENSE` for details.
 
 ---
 
-**Built with ❤️ using Streamlit, Plotly, and modern Python best practices**
+Built with Streamlit, Plotly, pandas, and modern Python tooling.
