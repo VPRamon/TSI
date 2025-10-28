@@ -363,8 +363,10 @@ def render() -> None:
     # ===== SECTION 4: LOGISTIC MODEL WITH INTERACTIONS =====
     st.subheader("4️⃣ Logistic model with interactions")
     st.caption(
-        "🤖 Multivariable logistic model that includes interaction terms "
-        "(priority × visibility, visibility × time). "
+        "🤖 Multivariable logistic model with 3 predictor variables: "
+        "**priority**, **visibility**, and **requested time**. "
+        "Includes interaction terms (priority × visibility, visibility × time) "
+        "to capture non-linear effects. "
         "Predicts the **estimated probability** of scheduling."
     )
 
@@ -409,7 +411,12 @@ def render() -> None:
     )
 
     # Plot of estimated probability vs visibility
-    st.markdown("**Estimated probability vs Visibility (by priority)**")
+    st.markdown("**Estimated probability vs Visibility**")
+    st.caption(
+        "This plot shows how scheduling probability changes with visibility "
+        "for different priority levels (interaction: priority × visibility). "
+        f"Requested time is held constant at **{fixed_time:.1f} hours**."
+    )
 
     try:
         # Create prediction grid
@@ -449,9 +456,9 @@ def render() -> None:
             st.plotly_chart(fig_pred, use_container_width=True)
 
         st.caption(
-            f"📌 The curves show the estimated scheduling probability as a function "
-            f"of visibility, for different priority levels. "
-            f"The requested time is fixed at **{fixed_time:.1f} hours**."
+            f"📌 Each curve represents a different **priority level**. "
+            f"Higher priority observations have higher predicted probability of being scheduled. "
+            f"The model captures the interaction between priority and visibility."
         )
 
     except Exception as e:
