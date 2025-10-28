@@ -75,13 +75,58 @@ def render() -> None:
 
         if render_reset_filters_button():
             state.reset_filters()
-            st.rerun()
+            # Clear histogram generation flag so it doesn't auto-generate on reset
+            st.session_state.pop("visibility_histogram_generated", None)
+            # Streamlit will auto-rerun on button click
 
     # Main-panel histogram settings so they remain visible even if the sidebar is collapsed
     settings_container = st.expander("Histogram Settings", expanded=True)
     with settings_container:
-        st.markdown("Customize the bin width without opening the sidebar.")
+        st.markdown(
+            "Customize the bin width and apply additional filters without opening the sidebar."
+        )
 
+        # Priority filter slider
+        st.subheader("🎯 Priority Filter")
+        priority_filter_range = st.slider(
+            "Filter by Priority Range",
+            min_value=priority_min,
+            max_value=priority_max,
+            value=(priority_min, priority_max),
+            step=0.1,
+            key="visibility_histogram_priority_filter",
+            help="Filter blocks by priority range for the histogram",
+        )
+
+        # Block ID filter
+        st.subheader("🔢 Block ID Filter")
+        all_block_ids = sorted(df["schedulingBlockId"].dropna().unique())
+
+        # Add a checkbox to enable/disable block ID filtering
+        enable_block_filter = st.checkbox(
+            "Filter by specific Block IDs",
+            value=False,
+            key="visibility_histogram_enable_block_filter",
+            help="Enable to select specific scheduling blocks to display in the histogram",
+        )
+
+        selected_block_ids = None
+        if enable_block_filter:
+            selected_block_ids = st.multiselect(
+                "Select Block IDs",
+                options=all_block_ids,
+                default=None,
+                key="visibility_histogram_block_ids",
+                help="Choose specific blocks to include in the histogram. Leave empty to include all blocks.",
+            )
+            if selected_block_ids:
+                st.caption(f"✓ {len(selected_block_ids)} block(s) selected")
+            else:
+                st.info("💡 Select at least one block ID to apply filtering")
+
+        st.divider()
+
+        st.subheader("📊 Bin Configuration")
         bin_mode = st.radio(
             "Bin Size Mode",
             options=["Number of bins", "Fixed duration"],
@@ -98,12 +143,16 @@ def render() -> None:
                 "Number of Time Bins",
                 min_value=10,
                 max_value=500,
-                default=100,
+                default=50,  # Reduced from 100 for better performance
                 key="visibility_histogram_bins",
             )
             st.caption(
                 "Increase the number of bins for finer resolution or decrease it for smoother trends."
             )
+            if num_bins and num_bins > 100:
+                st.warning(
+                    "⚠️ High bin counts (>100) may take 10+ seconds to compute. Consider using fewer bins or filtering data first."
+                )
         else:
             num_bins = None
             col1, col2 = st.columns([1, 1])
@@ -132,37 +181,22 @@ def render() -> None:
 
         st.info("💡 **Tip:** Adjust the mode and bin thickness to focus on specific time scales.")
 
-    # Filter data
+    # Apply the filters from the Histogram Settings panel
+    # Combine sidebar priority filter with histogram settings priority filter (use the more restrictive range)
+    effective_priority_min = max(priority_range[0], priority_filter_range[0])
+    effective_priority_max = min(priority_range[1], priority_filter_range[1])
+    effective_priority_range = (effective_priority_min, effective_priority_max)
+
+    # Filter data BEFORE parsing visibility - major performance improvement
     filtered_df = get_filtered_dataframe(
         df,
-        priority_range=priority_range,
+        priority_range=effective_priority_range,
         scheduled_filter="All",
+        block_ids=selected_block_ids if selected_block_ids else None,
     )
 
-    # Build and display histogram
-    with st.spinner("Building visibility histogram..."):
-        fig = build_visibility_histogram(
-            df=filtered_df,
-            num_bins=num_bins,
-            bin_duration_minutes=bin_duration_minutes,
-        )
-
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Information panel
-    st.info(
-        """
-        **How to read this chart:**
-        - **X-axis**: Time period of observations (UTC)
-        - **Y-axis**: Number of blocks/targets that are visible at that time
-        - **Color**: Intensity indicates density of visible targets (darker = more targets)
-
-        This histogram aggregates all visibility windows into time bins, showing when
-        the telescope has the most observation opportunities.
-        """
-    )
-
-    # Statistics
+    # Show statistics FIRST - this gives immediate feedback while histogram loads
+    st.subheader("📊 Dataset Statistics")
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -181,3 +215,52 @@ def render() -> None:
             st.metric("Avg Visibility Periods", f"{avg_vis_periods:.1f}")
         else:
             st.metric("Avg Visibility Periods", "N/A")
+
+    st.divider()
+
+    # Information panel BEFORE the heavy computation
+    st.info(
+        """
+        **How to read this chart:**
+        - **X-axis**: Time period of observations (UTC)
+        - **Y-axis**: Number of blocks/targets that are visible at that time
+        - **Color**: Intensity indicates density of visible targets (darker = more targets)
+
+        This histogram aggregates all visibility windows into time bins, showing when
+        the telescope has the most observation opportunities.
+        """
+    )
+
+    # Create a placeholder for the histogram
+    histogram_container = st.container()
+
+    # Add a manual "Generate" button to give users control over when to run expensive computation
+    col_btn1, col_btn2 = st.columns([1, 4])
+    with col_btn1:
+        generate_clicked = st.button(
+            "🔄 Generate Histogram", type="primary", use_container_width=True
+        )
+    with col_btn2:
+        st.caption("")
+
+    # Only build histogram if button was clicked or if we have a cached result
+    if generate_clicked or "visibility_histogram_generated" in st.session_state:
+        # Mark that we've generated it at least once
+        st.session_state["visibility_histogram_generated"] = True
+
+        with histogram_container:
+            with st.spinner(
+                "🔄 Building visibility histogram... This may take 10-30 seconds for large datasets."
+            ):
+                fig = build_visibility_histogram(
+                    df=filtered_df,
+                    num_bins=num_bins,
+                    bin_duration_minutes=bin_duration_minutes,
+                )
+
+            st.plotly_chart(fig, use_container_width=True)
+    else:
+        with histogram_container:
+            st.info(
+                "👆 Click 'Generate Histogram' above to build the visualization. This prevents automatic computation on page load."
+            )
