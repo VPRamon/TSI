@@ -31,7 +31,7 @@ from tsi.plots.trends import (
 )
 
 
-@st.cache_data(show_spinner="Computing empirical rates...")
+@st.cache_resource(show_spinner="Computing empirical rates...")
 def _compute_empirical_cached(
     df_hash: int,
     n_bins: int,
@@ -267,7 +267,7 @@ def render() -> None:
         if plot_library == "altair":
             st.altair_chart(cast("Chart", fig_priority), use_container_width=True)
         else:
-            st.plotly_chart(fig_priority, width="stretch")
+            st.plotly_chart(fig_priority, use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ Error computing empirical rates: {e}")
@@ -306,7 +306,7 @@ def render() -> None:
             if plot_library == "altair":
                 st.altair_chart(cast("Chart", fig_vis), use_container_width=True)
             else:
-                st.plotly_chart(fig_vis, width="stretch")
+                st.plotly_chart(fig_vis, use_container_width=True)
 
     with col2:
         st.markdown("**Requested time → Scheduling rate**")
@@ -331,7 +331,7 @@ def render() -> None:
             if plot_library == "altair":
                 st.altair_chart(cast("Chart", fig_time), use_container_width=True)
             else:
-                st.plotly_chart(fig_time, width="stretch")
+                st.plotly_chart(fig_time, use_container_width=True)
 
     st.divider()
 
@@ -353,7 +353,7 @@ def render() -> None:
         if plot_library == "altair":
             st.altair_chart(cast("Chart", fig_heatmap), use_container_width=True)
         else:
-            st.plotly_chart(fig_heatmap, width="stretch")
+            st.plotly_chart(fig_heatmap, use_container_width=True)
 
     except Exception as e:
         st.error(f"❌ Error generating heatmap: {e}")
@@ -446,7 +446,7 @@ def render() -> None:
         if plot_library == "altair":
             st.altair_chart(cast("Chart", fig_pred), use_container_width=True)
         else:
-            st.plotly_chart(fig_pred, width="stretch")
+            st.plotly_chart(fig_pred, use_container_width=True)
 
         st.caption(
             f"📌 The curves show the estimated scheduling probability as a function "
