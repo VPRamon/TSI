@@ -58,22 +58,22 @@ def render() -> None:
     if filter_supported:
         TOLERANCE_SEC = 1
         visibility_secs = df["total_visibility_hours"] * 3600.0
-        
+
         # Check both minimum observation time and requested duration
         impossible_conditions = []
-        
+
         if "minObservationTimeInSec" in df.columns:
             min_duration_secs = df["minObservationTimeInSec"].fillna(0)
             impossible_conditions.append(
                 (min_duration_secs - TOLERANCE_SEC > visibility_secs).fillna(False)
             )
-        
+
         if "requested_hours" in df.columns:
             requested_secs = df["requested_hours"] * 3600.0
             impossible_conditions.append(
                 (requested_secs - TOLERANCE_SEC > visibility_secs).fillna(False)
             )
-        
+
         # An observation is impossible if ANY of the conditions is true
         if impossible_conditions:
             impossible_mask = impossible_conditions[0]
