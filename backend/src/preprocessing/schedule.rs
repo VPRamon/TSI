@@ -1,6 +1,9 @@
-/// Schedule preprocessing logic
-/// Computes derived fields for SchedulingBlock from raw JSON data
-use crate::models::schedule::{PriorityBin, SchedulingBlock, VisibilityPeriod};
+/// Preprocessing logic for scheduling blocks
+
+use crate::models::schedule::{PriorityBin, SchedulingBlock};
+
+#[cfg(test)]
+use crate::models::schedule::VisibilityPeriod;
 
 /// Progress callback signature for SSE streaming
 pub type ProgressCallback = Box<dyn Fn(usize, usize, &str) + Send + Sync>;

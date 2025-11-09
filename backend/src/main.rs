@@ -30,6 +30,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/datasets/current", get(routes::get_current_dataset))
         .route("/api/v1/datasets/current", delete(routes::clear_dataset))
         
+        // Analytics endpoints
+        .route("/api/v1/analytics/metrics", get(routes::get_metrics))
+        .route("/api/v1/analytics/correlations", get(routes::get_correlations))
+        .route("/api/v1/analytics/conflicts", get(routes::get_conflicts))
+        .route("/api/v1/analytics/top", get(routes::get_top))
+        .route("/api/v1/analytics/distribution", get(routes::get_distribution))
+        
         .with_state(state)
         .layer(
             CorsLayer::new()
@@ -40,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8081));
     tracing::info!(%addr, "TSI backend listening");
-    tracing::info!("Phase 1 complete - JSON upload & preprocessing ready");
+    tracing::info!("Phase 2 complete - Analytics backend ready");
     
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

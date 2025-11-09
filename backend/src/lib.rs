@@ -4,3 +4,4 @@ pub mod loaders;
 pub mod state;
 pub mod routes;
 pub mod preprocessing;
+pub mod analytics;

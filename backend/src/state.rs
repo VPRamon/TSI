@@ -135,6 +135,18 @@ impl AppState {
         let state = self.inner.read().map_err(|e| e.to_string())?;
         Ok(state.dataset.as_ref().map(|ds| ds.metadata.clone()))
     }
+
+    /// Get reference to blocks for read-only operations (helper for analytics)
+    pub fn with_dataset<F, R>(&self, f: F) -> Result<R, String>
+    where
+        F: FnOnce(&[SchedulingBlock]) -> R,
+    {
+        let state = self.inner.read().map_err(|e| e.to_string())?;
+        match &state.dataset {
+            Some(ds) => Ok(f(&ds.blocks)),
+            None => Err("No dataset loaded".to_string()),
+        }
+    }
 }
 
 impl Default for AppState {
