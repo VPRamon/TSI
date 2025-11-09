@@ -42,6 +42,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/visualizations/visibility-map", get(routes::get_visibility_map))
         .route("/api/v1/visualizations/timeline", get(routes::get_timeline))
         
+        // Comparison endpoints
+        .route("/api/v1/datasets/comparison/upload", post(routes::upload_comparison_csv))
+        .route("/api/v1/analytics/compare", get(routes::get_comparison))
+        .route("/api/v1/datasets/comparison", delete(routes::clear_comparison))
+        
         .with_state(state)
         .layer(
             CorsLayer::new()
@@ -52,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8081));
     tracing::info!(%addr, "TSI backend listening");
-    tracing::info!("Phase 4 complete - Visualization endpoints ready");
+    tracing::info!("Phase 5 in progress - Comparison endpoints added");
     
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

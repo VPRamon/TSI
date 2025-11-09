@@ -39,7 +39,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/compare',
     name: 'Compare',
-    component: () => import('./pages/Placeholder.vue') // Placeholder for Phase 5
+    component: () => import('./pages/CompareSchedules.vue')
   }
 ]
 
