@@ -1,0 +1,38 @@
+[package]
+name = "tsi_backend"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "tsi_backend"
+path = "src/main.rs"
+
+[lib]
+name = "tsi_backend"
+path = "src/lib.rs"
+
+[dependencies]
+axum = { version = "0.7", features = ["multipart", "ws"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+utoipa = { version = "4.0", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "6.0", features = ["axum"] }
+polars = { version = "0.34", features = ["ndarray", "parquet", "csv", "lazy", "json", "strings"] }
+anyhow = "1.0"
+thiserror = "1.0"
+futures = "0.3"
+tokio-stream = "0.1"
+chrono = { version = "0.4.42", features = ["serde"] }
+uuid = { version = "1.18.1", features = ["serde", "v4"] }
+
+[dev-dependencies]
+reqwest = { version = "0.11", features = ["json"] }
+criterion = "0.5"
+
+[[bench]]
+name = "compute_bench"
+harness = false
