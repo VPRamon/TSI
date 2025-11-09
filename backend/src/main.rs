@@ -36,6 +36,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/v1/analytics/conflicts", get(routes::get_conflicts))
         .route("/api/v1/analytics/top", get(routes::get_top))
         .route("/api/v1/analytics/distribution", get(routes::get_distribution))
+        .route("/api/v1/analytics/trends", get(routes::get_trends))
+        
+        // Visualization endpoints
+        .route("/api/v1/visualizations/visibility-map", get(routes::get_visibility_map))
+        .route("/api/v1/visualizations/timeline", get(routes::get_timeline))
         
         .with_state(state)
         .layer(
@@ -47,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8081));
     tracing::info!(%addr, "TSI backend listening");
-    tracing::info!("Phase 2 complete - Analytics backend ready");
+    tracing::info!("Phase 4 complete - Visualization endpoints ready");
     
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

@@ -65,6 +65,42 @@ fn default_bins() -> usize {
     20
 }
 
+/// Query parameters for trends endpoint
+#[derive(Debug, Deserialize)]
+pub struct TrendsQuery {
+    /// Metric to analyze: scheduling_rate, utilization, priority_distribution
+    #[serde(default = "default_metric")]
+    pub metric: String,
+    
+    /// Group by: month, week, day
+    #[serde(default = "default_group_by")]
+    pub group_by: String,
+}
+
+fn default_metric() -> String {
+    "scheduling_rate".to_string()
+}
+
+fn default_group_by() -> String {
+    "month".to_string()
+}
+
+/// Single time point in trends data
+#[derive(Debug, Serialize)]
+pub struct TrendPoint {
+    pub period: String,
+    pub value: f64,
+    pub count: usize,
+}
+
+/// Response for trends endpoint
+#[derive(Debug, Serialize)]
+pub struct TrendsResponse {
+    pub metric: String,
+    pub group_by: String,
+    pub data: Vec<TrendPoint>,
+}
+
 /// Response wrapper for errors
 #[derive(Serialize)]
 pub struct ErrorResponse {
@@ -210,4 +246,114 @@ pub async fn get_distribution(
         })?;
     
     Ok(Json(result))
+}
+
+/// GET /api/v1/analytics/trends - Get time series trends
+pub async fn get_trends(
+    State(state): State<AppState>,
+    Query(params): Query<TrendsQuery>,
+) -> Result<Json<TrendsResponse>, (StatusCode, Json<ErrorResponse>)> {
+    use std::collections::HashMap;
+    
+    let data = state
+        .with_dataset(|blocks| {
+            // Group observations by time period
+            let mut period_groups: HashMap<String, Vec<&crate::models::schedule::SchedulingBlock>> = HashMap::new();
+            
+            for block in blocks.iter() {
+                if let Some(scheduled_time) = block.scheduled_period_start {
+                    // Convert MJD to period string
+                    let period = match params.group_by.as_str() {
+                        "month" => {
+                            // Approximate month from MJD
+                            let days_since_mjd0 = scheduled_time;
+                            let years_since_1858 = days_since_mjd0 / 365.25;
+                            let year = 1858 + years_since_1858 as i32;
+                            let year_fraction = years_since_1858.fract();
+                            let month = (year_fraction * 12.0) as u8 + 1;
+                            format!("{}-{:02}", year, month)
+                        }
+                        "week" => {
+                            // Week number from MJD
+                            let week = (scheduled_time / 7.0) as i32;
+                            format!("Week {}", week)
+                        }
+                        _ => {
+                            // Day
+                            format!("Day {}", scheduled_time as i32)
+                        }
+                    };
+                    
+                    period_groups.entry(period).or_insert_with(Vec::new).push(block);
+                }
+            }
+            
+            // Compute metric for each period
+            let mut results: Vec<TrendPoint> = period_groups
+                .into_iter()
+                .map(|(period, group_blocks)| {
+                    let count = group_blocks.len();
+                    let value = match params.metric.as_str() {
+                        "scheduling_rate" => {
+                            // Percentage of blocks that are scheduled
+                            let scheduled = group_blocks.iter().filter(|b| b.scheduled_flag).count();
+                            (scheduled as f64 / count as f64) * 100.0
+                        }
+                        "utilization" => {
+                            // Scheduled hours / visibility hours
+                            let scheduled_hours: f64 = group_blocks
+                                .iter()
+                                .filter_map(|b| {
+                                    if let (Some(start), Some(stop)) = (b.scheduled_period_start, b.scheduled_period_stop) {
+                                        Some((stop - start) * 24.0) // Convert MJD to hours
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .sum();
+                            let visibility_hours: f64 = group_blocks
+                                .iter()
+                                .map(|b| b.total_visibility_hours)
+                                .sum();
+                            if visibility_hours > 0.0 {
+                                (scheduled_hours / visibility_hours) * 100.0
+                            } else {
+                                0.0
+                            }
+                        }
+                        "priority_distribution" | "avg_priority" => {
+                            // Average priority
+                            let sum: f64 = group_blocks.iter().map(|b| b.priority).sum();
+                            sum / count as f64
+                        }
+                        _ => count as f64,
+                    };
+                    
+                    TrendPoint {
+                        period,
+                        value,
+                        count,
+                    }
+                })
+                .collect();
+            
+            // Sort by period
+            results.sort_by(|a, b| a.period.cmp(&b.period));
+            
+            results
+        })
+        .map_err(|e| {
+            (
+                StatusCode::NOT_FOUND,
+                Json(ErrorResponse {
+                    error: format!("No dataset loaded: {}", e),
+                }),
+            )
+        })?;
+    
+    Ok(Json(TrendsResponse {
+        metric: params.metric,
+        group_by: params.group_by,
+        data,
+    }))
 }

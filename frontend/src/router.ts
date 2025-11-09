@@ -24,17 +24,17 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/visibility-map',
     name: 'VisibilityMap',
-    component: () => import('./pages/Placeholder.vue') // Placeholder for Phase 4
+    component: () => import('./pages/VisibilityMap.vue')
   },
   {
     path: '/timeline',
     name: 'Timeline',
-    component: () => import('./pages/Placeholder.vue') // Placeholder for Phase 4
+    component: () => import('./pages/ScheduledTimeline.vue')
   },
   {
     path: '/trends',
     name: 'Trends',
-    component: () => import('./pages/Placeholder.vue') // Placeholder for Phase 4
+    component: () => import('./pages/Trends.vue')
   },
   {
     path: '/compare',
