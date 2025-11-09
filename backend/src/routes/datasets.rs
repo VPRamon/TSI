@@ -100,6 +100,110 @@ pub async fn upload_csv(
         .into_response()
 }
 
+/// Upload and load JSON files (schedule + optional visibility)
+pub async fn upload_json(
+    State(state): State<AppState>,
+    mut multipart: Multipart,
+) -> impl IntoResponse {
+    let mut schedule_data: Option<Vec<u8>> = None;
+    let mut visibility_data: Option<Vec<u8>> = None;
+    let mut schedule_filename = String::from("schedule.json");
+
+    // Extract files from multipart form
+    while let Some(field) = multipart.next_field().await.unwrap_or(None) {
+        let field_name = field.name().unwrap_or("").to_string();
+        let file_name = field.file_name().map(|s| s.to_string());
+        
+        if let Ok(data) = field.bytes().await {
+            match field_name.as_str() {
+                "schedule" => {
+                    schedule_data = Some(data.to_vec());
+                    if let Some(name) = file_name {
+                        schedule_filename = name;
+                    }
+                }
+                "visibility" => {
+                    visibility_data = Some(data.to_vec());
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Validate schedule file is present
+    let schedule_bytes = match schedule_data {
+        Some(data) => data,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "No schedule file provided".to_string(),
+                    details: Some("Field 'schedule' is required".to_string()),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    // Parse JSON strings
+    let schedule_json = match String::from_utf8(schedule_bytes) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "Invalid UTF-8 in schedule file".to_string(),
+                    details: Some(e.to_string()),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    let visibility_json = visibility_data.and_then(|bytes| {
+        String::from_utf8(bytes).ok()
+    });
+
+    // Load and preprocess JSON
+    let blocks = match loaders::load_json(&schedule_json, visibility_json.as_deref()) {
+        Ok(b) => b,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: "Failed to parse JSON".to_string(),
+                    details: Some(e.to_string()),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    // Store in state
+    let metadata = match state.load_dataset(blocks, schedule_filename) {
+        Ok(m) => m,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(ErrorResponse {
+                    error: "Failed to store dataset".to_string(),
+                    details: Some(e),
+                }),
+            )
+                .into_response();
+        }
+    };
+
+    (
+        StatusCode::OK,
+        Json(DatasetResponse {
+            metadata,
+            message: "Dataset loaded and preprocessed successfully".to_string(),
+        }),
+    )
+        .into_response()
+}
+
 /// Load the sample dataset from data/schedule.csv
 pub async fn load_sample(State(state): State<AppState>) -> impl IntoResponse {
     // Path to sample data (relative to project root)
@@ -211,3 +315,4 @@ pub async fn clear_dataset(State(state): State<AppState>) -> impl IntoResponse {
             .into_response(),
     }
 }
+

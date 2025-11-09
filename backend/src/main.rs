@@ -24,6 +24,7 @@ async fn main() -> anyhow::Result<()> {
         
         // Dataset management
         .route("/api/v1/datasets/upload/csv", post(routes::upload_csv))
+        .route("/api/v1/datasets/upload/json", post(routes::upload_json))
         .route("/api/v1/datasets/sample", post(routes::load_sample))
         .route("/api/v1/datasets/current/metadata", get(routes::get_current_metadata))
         .route("/api/v1/datasets/current", get(routes::get_current_dataset))
@@ -37,9 +38,9 @@ async fn main() -> anyhow::Result<()> {
                 .allow_headers(Any),
         );
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = SocketAddr::from(([127, 0, 0, 1], 8081));
     tracing::info!(%addr, "TSI backend listening");
-    tracing::info!("Phase 0 complete - Dataset management ready");
+    tracing::info!("Phase 1 complete - JSON upload & preprocessing ready");
     
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
