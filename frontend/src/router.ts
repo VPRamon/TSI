@@ -9,12 +9,37 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/sky-map',
     name: 'SkyMap',
-    component: () => import('./pages/SkyMapPlaceholder.vue')
+    component: () => import('./pages/SkyMap.vue')
   },
   {
     path: '/distributions',
     name: 'Distributions',
-    component: () => import('./pages/DistributionsPlaceholder.vue')
+    component: () => import('./pages/Distributions.vue')
+  },
+  {
+    path: '/insights',
+    name: 'Insights',
+    component: () => import('./pages/Insights.vue')
+  },
+  {
+    path: '/visibility-map',
+    name: 'VisibilityMap',
+    component: () => import('./pages/Placeholder.vue') // Placeholder for Phase 4
+  },
+  {
+    path: '/timeline',
+    name: 'Timeline',
+    component: () => import('./pages/Placeholder.vue') // Placeholder for Phase 4
+  },
+  {
+    path: '/trends',
+    name: 'Trends',
+    component: () => import('./pages/Placeholder.vue') // Placeholder for Phase 4
+  },
+  {
+    path: '/compare',
+    name: 'Compare',
+    component: () => import('./pages/Placeholder.vue') // Placeholder for Phase 5
   }
 ]
 

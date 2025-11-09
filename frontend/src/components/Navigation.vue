@@ -42,7 +42,12 @@ export default defineComponent({
     const pages = [
       { name: 'Upload', path: '/' },
       { name: 'Sky Map', path: '/sky-map' },
-      { name: 'Distributions', path: '/distributions' }
+      { name: 'Distributions', path: '/distributions' },
+      { name: 'Insights', path: '/insights' },
+      { name: 'Visibility', path: '/visibility-map' },
+      { name: 'Timeline', path: '/timeline' },
+      { name: 'Trends', path: '/trends' },
+      { name: 'Compare', path: '/compare' }
     ]
 
     function isActive(path: string) {
