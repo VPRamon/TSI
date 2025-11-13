@@ -1,70 +1,160 @@
 <template>
-  <div class="max-w-4xl mx-auto mt-12">
-    <h1 class="text-4xl font-bold text-gray-900 mb-2">Telescope Scheduling Intelligence</h1>
-    <p class="text-gray-600 mb-8">Upload schedule data to begin analysis</p>
-
-    <!-- Upload Options -->
-    <div class="grid grid-cols-2 gap-6 mb-8">
-      <!-- CSV Upload -->
-      <div class="bg-white p-6 rounded-lg shadow border">
-        <h3 class="text-lg font-semibold mb-4">Upload Preprocessed CSV</h3>
-        <FileUpload 
-          accept=".csv" 
-          uploadType="csv"
-          @upload="handleUpload"
-        />
-      </div>
-
-      <!-- JSON Upload -->
-      <div class="bg-white p-6 rounded-lg shadow border">
-        <h3 class="text-lg font-semibold mb-4">Upload Raw JSON</h3>
-        <FileUpload 
-          accept=".json" 
-          uploadType="json"
-          :multiple="true"
-          @upload="handleUpload"
-        />
-        <p class="text-xs text-gray-500 mt-2">
-          Upload schedule.json and optionally possible_periods.json
+  <div class="landing-page">
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="hero-content">
+        <div class="hero-badge">🔭 Powered by Rust + Vue 3</div>
+        <h1 class="hero-title">
+          Telescope Scheduling
+          <span class="gradient-text">Intelligence</span>
+        </h1>
+        <p class="hero-subtitle">
+          Analyze and visualize astronomical scheduling outputs with high-performance analytics,
+          interactive sky maps, and comprehensive insights.
         </p>
+        
+        <!-- Quick Stats -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">⚡</div>
+            <div class="stat-value">Fast</div>
+            <div class="stat-label">Rust Backend</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-value">8+</div>
+            <div class="stat-label">Visualization Pages</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🎯</div>
+            <div class="stat-value">Real-time</div>
+            <div class="stat-label">Analytics</div>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Sample Dataset -->
-    <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
-      <h3 class="text-lg font-semibold mb-2">Or Try Sample Data</h3>
-      <p class="text-sm text-gray-600 mb-4">
-        Load a sample dataset (2,647 scheduling blocks) to explore the app
-      </p>
-      <button 
-        @click="loadSample"
-        :disabled="loading"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {{ loading ? 'Loading...' : 'Load Sample Dataset' }}
-      </button>
-    </div>
+    <!-- Main Content -->
+    <section class="content-section">
+      <div class="container">
+        <!-- Features Grid -->
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">🗺️</div>
+            <h3 class="feature-title">Sky Map</h3>
+            <p class="feature-description">
+              Interactive RA/Dec scatter plots with priority coloring and time filtering
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📈</div>
+            <h3 class="feature-title">Trends & Insights</h3>
+            <p class="feature-description">
+              Time evolution analysis, correlations, and scheduling rate metrics
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">⏱️</div>
+            <h3 class="feature-title">Timeline View</h3>
+            <p class="feature-description">
+              Month-by-month scheduling with dark period overlays and CSV export
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔍</div>
+            <h3 class="feature-title">Compare Schedules</h3>
+            <p class="feature-description">
+              Side-by-side comparison of multiple scheduling runs
+            </p>
+          </div>
+        </div>
 
-    <!-- Progress Bar -->
-    <div v-if="uploadProgress > 0 && uploadProgress < 100" class="mt-6">
-      <div class="bg-gray-200 rounded-full h-4 overflow-hidden">
-        <div 
-          class="bg-blue-600 h-full transition-all duration-300"
-          :style="{ width: uploadProgress + '%' }"
-        ></div>
+        <!-- Upload Section -->
+        <div class="upload-section">
+          <h2 class="section-title">Get Started</h2>
+          <p class="section-subtitle">Upload your scheduling data or try our sample dataset</p>
+
+          <div class="upload-grid">
+            <!-- CSV Upload -->
+            <div class="upload-card">
+              <div class="upload-icon">📄</div>
+              <h3 class="upload-title">Preprocessed CSV</h3>
+              <p class="upload-description">
+                Fastest loading for preprocessed schedule data
+              </p>
+              <FileUpload 
+                accept=".csv" 
+                uploadType="csv"
+                @upload="handleUpload"
+              />
+            </div>
+
+            <!-- JSON Upload -->
+            <div class="upload-card">
+              <div class="upload-icon">📦</div>
+              <h3 class="upload-title">Raw JSON</h3>
+              <p class="upload-description">
+                Upload schedule.json and optional visibility data
+              </p>
+              <FileUpload 
+                accept=".json" 
+                uploadType="json"
+                :multiple="true"
+                @upload="handleUpload"
+              />
+              <p class="upload-hint">
+                Accepts schedule.json + possible_periods.json
+              </p>
+            </div>
+
+            <!-- Sample Data -->
+            <div class="upload-card sample-card">
+              <div class="upload-icon">✨</div>
+              <h3 class="upload-title">Try Sample Data</h3>
+              <p class="upload-description">
+                Explore with 2,647 scheduling blocks
+              </p>
+              <button 
+                @click="loadSample"
+                :disabled="loading"
+                class="sample-button"
+              >
+                <span v-if="loading" class="loading-spinner"></span>
+                {{ loading ? 'Loading...' : 'Load Sample Dataset' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <transition name="fade">
+            <div v-if="uploadProgress > 0 && uploadProgress < 100" class="progress-container">
+              <div class="progress-bar">
+                <div 
+                  class="progress-fill"
+                  :style="{ width: uploadProgress + '%' }"
+                ></div>
+              </div>
+              <p class="progress-text">{{ progressMessage }}</p>
+            </div>
+          </transition>
+
+          <!-- Messages -->
+          <transition name="fade">
+            <div v-if="successMessage" class="message success-message">
+              <span class="message-icon">✓</span>
+              <p>{{ successMessage }}</p>
+            </div>
+          </transition>
+
+          <transition name="fade">
+            <div v-if="errorMessage" class="message error-message">
+              <span class="message-icon">✕</span>
+              <p>{{ errorMessage }}</p>
+            </div>
+          </transition>
+        </div>
       </div>
-      <p class="text-sm text-gray-600 mt-2 text-center">{{ progressMessage }}</p>
-    </div>
-
-    <!-- Success Message -->
-    <div v-if="successMessage" class="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-      <p class="text-green-800">{{ successMessage }}</p>
-    </div>
-
-    <!-- Error Message -->
-    <div v-if="errorMessage" class="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-      <p class="text-red-800">{{ errorMessage }}</p>
-    </div>
+    </section>
   </div>
 </template>
 
@@ -177,3 +267,357 @@ export default defineComponent({
   }
 })
 </script>
+
+<style scoped>
+.landing-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.hero-section {
+  padding: 80px 20px;
+  text-align: center;
+  color: white;
+}
+
+.hero-content {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.hero-badge {
+  display: inline-block;
+  padding: 8px 20px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.hero-title {
+  font-size: 56px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: 20px;
+  line-height: 1.6;
+  opacity: 0.95;
+  margin-bottom: 40px;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.stat-card {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  padding: 20px;
+  text-align: center;
+}
+
+.stat-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.content-section {
+  background: #f9fafb;
+  padding: 60px 20px;
+  border-radius: 40px 40px 0 0;
+  margin-top: -20px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 60px;
+}
+
+.feature-card {
+  background: white;
+  padding: 30px 20px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.feature-icon {
+  font-size: 40px;
+  margin-bottom: 15px;
+  display: block;
+}
+
+.feature-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 10px;
+}
+
+.feature-description {
+  font-size: 14px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.upload-section {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.section-title {
+  font-size: 36px;
+  font-weight: 700;
+  text-align: center;
+  color: #1f2937;
+  margin-bottom: 10px;
+}
+
+.section-subtitle {
+  text-align: center;
+  color: #6b7280;
+  margin-bottom: 40px;
+  font-size: 18px;
+}
+
+.upload-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.upload-card {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  border: 2px dashed #d1d5db;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.upload-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.sample-card {
+  border-style: solid;
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+}
+
+.upload-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.upload-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 10px;
+}
+
+.upload-description {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.upload-hint {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-top: 10px;
+  font-style: italic;
+}
+
+.sample-button {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 16px;
+  min-width: 180px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.sample-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.sample-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.progress-container {
+  margin: 30px 0;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.progress-bar {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+  border-radius: 10px;
+}
+
+.progress-text {
+  text-align: center;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.message {
+  padding: 16px 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.success-message {
+  background: #d1fae5;
+  border: 1px solid #6ee7b7;
+  color: #047857;
+}
+
+.error-message {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+}
+
+.message-icon {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.message p {
+  flex: 1;
+  margin: 0;
+  font-weight: 500;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+@media (max-width: 1024px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .upload-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 36px;
+  }
+  
+  .hero-subtitle {
+    font-size: 16px;
+  }
+  
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
