@@ -1,6 +1,6 @@
 # TSI Backend (Rust + Axum)
 
-Production-grade REST API for telescope scheduling analytics, ported from Python Streamlit to Rust.
+Production-grade REST API for telescope scheduling analytics.
 
 ## Features
 

@@ -6,28 +6,33 @@
     "codespaces": {
       "openFiles": [
         "README.md",
-        "src/tsi/app.py"
+        "backend/src/main.rs",
+        "frontend/src/App.vue"
       ]
     },
     "vscode": {
       "settings": {},
       "extensions": [
-        "ms-python.python",
-        "ms-python.vscode-pylance"
+        "rust-lang.rust-analyzer",
+        "vue.volar",
+        "dbaeumer.vscode-eslint"
       ]
     }
   },
-  "updateContentCommand": "[ -f packages.txt ] && sudo apt update && sudo apt upgrade -y && sudo xargs apt install -y <packages.txt; [ -f requirements.txt ] && pip3 install --user -r requirements.txt; pip3 install --user streamlit; echo '✅ Packages installed and Requirements met'",
-  "postAttachCommand": {
-    "server": "streamlit run src/tsi/app.py --server.enableCORS false --server.enableXsrfProtection false"
-  },
+  "updateContentCommand": "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && cd frontend && npm install; echo '✅ Rust and Node.js dependencies installed'",
+  "postAttachCommand": {},
   "portsAttributes": {
-    "8501": {
-      "label": "Application",
+    "5173": {
+      "label": "Frontend",
       "onAutoForward": "openPreview"
+    },
+    "8081": {
+      "label": "Backend API",
+      "onAutoForward": "notify"
     }
   },
   "forwardPorts": [
-    8501
+    5173,
+    8081
   ]
 }

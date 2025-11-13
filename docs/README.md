@@ -1,6 +1,6 @@
 # App Pages Documentation
 
-This folder documents each page of the Streamlit dashboard.
+This folder documents each page of the TSI dashboard.
 
 - [Sky Map](./sky-map.md)
 - [Distributions](./distributions.md)
@@ -10,4 +10,4 @@ This folder documents each page of the Streamlit dashboard.
 - [Scheduling Trends](./trends.md)
 - [Compare Schedules](./compare.md)
 
-See the project’s top-level `README.md` for installation, preprocessing, and usage.
+See the project's top-level `README.md` for installation and usage.
