@@ -55,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
                 .allow_headers(Any),
         );
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8081));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8081));
     tracing::info!(%addr, "TSI backend listening");
     tracing::info!("Phase 5 in progress - Comparison endpoints added");
     
