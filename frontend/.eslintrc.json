@@ -1,0 +1,19 @@
+{
+  "extends": [
+    "plugin:vue/vue3-recommended",
+    "@vue/typescript/recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "module"
+  },
+  "rules": {
+    "vue/multi-word-component-names": "off",
+    "vue/require-default-prop": "warn",
+    "vue/component-name-in-template-casing": ["error", "PascalCase"],
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-debugger": "warn"
+  }
+}

@@ -5,13 +5,14 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use std::path::PathBuf;
-
 use crate::{
     loaders,
     models::api::{DatasetListResponse, DatasetResponse, ErrorResponse},
     state::AppState,
 };
+
+const SAMPLE_DATA: &[u8] =
+    include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../data/schedule.csv"));
 
 /// Upload and load a CSV file
 pub async fn upload_csv(
@@ -206,10 +207,7 @@ pub async fn upload_json(
 
 /// Load the sample dataset from data/schedule.csv
 pub async fn load_sample(State(state): State<AppState>) -> impl IntoResponse {
-    // Path to sample data (relative to project root)
-    let sample_path = PathBuf::from("../data/schedule.csv");
-    
-    let blocks = match loaders::load_csv(&sample_path) {
+    let blocks = match loaders::load_csv_from_bytes(SAMPLE_DATA) {
         Ok(b) => b,
         Err(e) => {
             return (
@@ -315,4 +313,3 @@ pub async fn clear_dataset(State(state): State<AppState>) -> impl IntoResponse {
             .into_response(),
     }
 }
-

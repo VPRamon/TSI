@@ -75,36 +75,21 @@
           <p class="section-subtitle">Upload your scheduling data or try our sample dataset</p>
 
           <div class="upload-grid">
-            <!-- CSV Upload -->
-            <div class="upload-card">
-              <div class="upload-icon">📄</div>
-              <h3 class="upload-title">Preprocessed CSV</h3>
+            <div class="upload-card primary-upload-card">
+              <div class="upload-icon">📤</div>
+              <h3 class="upload-title">Upload Your Data</h3>
               <p class="upload-description">
-                Fastest loading for preprocessed schedule data
+                Supports preprocessed CSV files or raw JSON bundles with schedule and visibility data.
               </p>
+              <ul class="upload-details">
+                <li><span>CSV:</span> Upload a single preprocessed schedule file</li>
+                <li><span>JSON:</span> Include <code>schedule.json</code> and optional <code>possible_periods.json</code></li>
+              </ul>
               <FileUpload 
-                accept=".csv" 
-                uploadType="csv"
-                @upload="handleUpload"
-              />
-            </div>
-
-            <!-- JSON Upload -->
-            <div class="upload-card">
-              <div class="upload-icon">📦</div>
-              <h3 class="upload-title">Raw JSON</h3>
-              <p class="upload-description">
-                Upload schedule.json and optional visibility data
-              </p>
-              <FileUpload 
-                accept=".json" 
-                uploadType="json"
+                accept=".csv,.json" 
                 :multiple="true"
                 @upload="handleUpload"
               />
-              <p class="upload-hint">
-                Accepts schedule.json + possible_periods.json
-              </p>
             </div>
 
             <!-- Sample Data -->
@@ -176,7 +161,9 @@ export default defineComponent({
     const successMessage = ref('')
     const errorMessage = ref('')
 
-    async function handleUpload(data: { type: string; files: File[] }) {
+    async function handleUpload(files: File[]) {
+      if (!files || files.length === 0) return
+
       loading.value = true
       uploadProgress.value = 10
       progressMessage.value = 'Uploading files...'
@@ -185,9 +172,24 @@ export default defineComponent({
 
       try {
         const formData = new FormData()
+        const lowerNames = files.map(f => f.name.toLowerCase())
+        const hasCsv = lowerNames.some(name => name.endsWith('.csv'))
+        const hasJson = lowerNames.some(name => name.endsWith('.json'))
+
+        if (!hasCsv && !hasJson) {
+          throw new Error('Unsupported file type. Please upload CSV or JSON files.')
+        }
+
+        if (hasCsv && hasJson) {
+          throw new Error('Please upload either CSV or JSON files, not both at the same time.')
+        }
         
-        if (data.type === 'csv') {
-          formData.append('file', data.files[0])
+        if (hasCsv) {
+          if (files.length > 1) {
+            throw new Error('CSV upload accepts a single file.')
+          }
+
+          formData.append('file', files[0])
           uploadProgress.value = 30
           progressMessage.value = 'Parsing CSV...'
           
@@ -198,13 +200,15 @@ export default defineComponent({
           uploadProgress.value = 100
           successMessage.value = `Loaded ${resp.data.metadata.num_blocks} scheduling blocks`
           
-        } else if (data.type === 'json') {
+        } else if (hasJson) {
           // For JSON, expect schedule.json and optional possible_periods.json
-          const scheduleFile = data.files.find(f => f.name.includes('schedule'))
-          const visibilityFile = data.files.find(f => f.name.includes('possible_periods') || f.name.includes('visibility'))
+          const scheduleFile = files.find(f => f.name.toLowerCase().includes('schedule'))
+          const visibilityFile = files.find(
+            f => f.name.toLowerCase().includes('possible_periods') || f.name.toLowerCase().includes('visibility')
+          )
           
           if (!scheduleFile) {
-            throw new Error('Please upload a schedule.json file')
+            throw new Error('Please include schedule.json when uploading JSON data.')
           }
           
           formData.append('schedule', scheduleFile)
@@ -426,7 +430,7 @@ export default defineComponent({
 
 .upload-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 20px;
   margin-bottom: 30px;
 }
@@ -443,6 +447,12 @@ export default defineComponent({
 .upload-card:hover {
   border-color: #667eea;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.primary-upload-card {
+  border-style: solid;
+  border-color: rgba(102, 126, 234, 0.4);
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.06) 0%, rgba(118, 75, 162, 0.04) 100%);
 }
 
 .sample-card {
@@ -470,11 +480,34 @@ export default defineComponent({
   line-height: 1.5;
 }
 
-.upload-hint {
-  font-size: 12px;
-  color: #9ca3af;
-  margin-top: 10px;
-  font-style: italic;
+.upload-details {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto 20px;
+  text-align: left;
+  max-width: 360px;
+}
+
+.upload-details li {
+  font-size: 14px;
+  color: #4b5563;
+  margin-bottom: 8px;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.upload-details span {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.upload-details code {
+  background: rgba(15, 23, 42, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Fira Code', Consolas, monospace;
+  font-size: 13px;
 }
 
 .sample-button {

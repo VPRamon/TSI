@@ -1,66 +1,63 @@
 <template>
-  <div 
-    class="border-2 border-dashed rounded-lg p-8 text-center transition-colors"
-    :class="isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white'"
-    @dragover.prevent="isDragging = true"
-    @dragleave.prevent="isDragging = false"
-    @drop.prevent="onDrop"
-  >
+  <div class="upload-widget">
     <input 
       ref="fileInput"
       type="file" 
       :accept="accept"
       :multiple="multiple"
-      style="display: none;" 
+      class="hidden-input"
       @change="onFileSelect"
     />
-    
-    <div class="space-y-4">
-      <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+    <div 
+      class="upload-dropzone"
+      :class="{ 'is-dragging': isDragging }"
+      @dragover.prevent="isDragging = true"
+      @dragleave.prevent="isDragging = false"
+      @drop.prevent="onDrop"
+    >
+      <svg class="dropzone-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
           d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
       </svg>
-      
-      <div>
-        <button 
-          type="button"
-          @click="triggerFileInput"
-          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Choose File{{ multiple ? 's' : '' }}
-        </button>
-        <p class="text-sm text-gray-500 mt-2">or drag and drop here</p>
-      </div>
-      
-      <p v-if="selectedFiles.length > 0" class="text-sm text-gray-700">
-        Selected: {{ selectedFiles.map(f => f.name).join(', ') }}
+      <p class="dropzone-title">Drag &amp; drop files here</p>
+      <p class="dropzone-subtitle">
+        or click below to browse {{ multiple ? 'files' : 'a file' }}
+      </p>
+      <p v-if="selectedFiles.length > 0" class="selected-files">
+        {{ selectedFiles.map(f => f.name).join(', ') }}
       </p>
     </div>
 
-    <button 
-      v-if="selectedFiles.length > 0"
-      type="button"
-      @click="upload"
-      :disabled="uploading"
-      class="mt-4 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {{ uploading ? 'Uploading...' : 'Upload' }}
-    </button>
+    <div class="upload-actions">
+      <button 
+        type="button"
+        class="ghost-button"
+        @click="triggerFileInput"
+      >
+        Browse {{ multiple ? 'Files' : 'File' }}
+      </button>
+      <button 
+        type="button"
+        class="primary-button"
+        @click="upload"
+        :disabled="selectedFiles.length === 0 || uploading"
+      >
+        <span v-if="uploading" class="button-spinner"></span>
+        {{ uploading ? 'Uploading...' : 'Upload' }}
+      </button>
+    </div>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, PropType } from 'vue'
+import { defineComponent, ref } from 'vue'
 
 export default defineComponent({
   props: {
     accept: {
       type: String,
       default: '*'
-    },
-    uploadType: {
-      type: String as PropType<'csv' | 'json'>,
-      required: true
     },
     multiple: {
       type: Boolean,
@@ -78,28 +75,29 @@ export default defineComponent({
       fileInput.value?.click()
     }
 
+    function setFiles(files: FileList | null) {
+      if (files) {
+        selectedFiles.value = Array.from(files)
+      }
+    }
+
     function onFileSelect(event: Event) {
       const input = event.target as HTMLInputElement
-      if (input.files) {
-        selectedFiles.value = Array.from(input.files)
-      }
+      setFiles(input.files)
     }
 
     function onDrop(event: DragEvent) {
       isDragging.value = false
       if (event.dataTransfer?.files) {
-        selectedFiles.value = Array.from(event.dataTransfer.files)
+        setFiles(event.dataTransfer.files)
       }
     }
 
     function upload() {
-      if (selectedFiles.value.length === 0) return
+      if (selectedFiles.value.length === 0 || uploading.value) return
       
       uploading.value = true
-      emit('upload', {
-        type: props.uploadType,
-        files: selectedFiles.value
-      })
+      emit('upload', selectedFiles.value)
       
       // Reset after short delay
       setTimeout(() => {
@@ -120,3 +118,116 @@ export default defineComponent({
   }
 })
 </script>
+
+<style scoped>
+.upload-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 250px;
+}
+
+.hidden-input {
+  display: none;
+}
+
+.upload-dropzone {
+  border: 1.5px dashed #cfd8e3;
+  border-radius: 12px;
+  padding: 24px 16px;
+  text-align: center;
+  background: #f9fafb;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.upload-dropzone.is-dragging {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.08);
+}
+
+.dropzone-icon {
+  width: 48px;
+  height: 48px;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.dropzone-title {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.dropzone-subtitle {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.selected-files {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #374151;
+  word-break: break-word;
+}
+
+.upload-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.ghost-button {
+  flex: 1;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  padding: 12px;
+  font-weight: 600;
+  color: #374151;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.ghost-button:hover {
+  border-color: #667eea;
+  transform: translateY(-1px);
+}
+
+.primary-button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 600;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.primary-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.25);
+}
+
+.primary-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: white;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>
