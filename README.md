@@ -80,12 +80,6 @@ Frontend runs at http://localhost:5173. See [`frontend/README.md`](frontend/READ
 │   ├── schedule.json
 │   └── dark_periods.json
 │
-├── src/                 # Python utilities (legacy preprocessing)
-│   ├── core/           # Core preprocessing library
-│   │   ├── loaders/    # Data loaders
-│   │   └── preprocessing/
-│   └── adapters/       # Data adapters
-│
 ├── tests/              # Python core library tests
 │   └── core/
 │
@@ -95,9 +89,6 @@ Frontend runs at http://localhost:5173. See [`frontend/README.md`](frontend/READ
 │
 ├── migration-doc/      # Migration documentation
 │   └── PHASE_*.md
-│
-├── old/               # Legacy application (archived)
-│   └── ...
 │
 ├── docker-compose.yml
 ├── ARCHITECTURE.md
