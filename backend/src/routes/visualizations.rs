@@ -3,11 +3,11 @@
 use axum::{
     extract::{Query, State},
     http::StatusCode,
-    response::IntoResponse,
     Json,
 };
 use serde::{Deserialize, Serialize};
 
+use crate::models::api::ErrorResponse;
 use crate::models::schedule::VisibilityPeriod;
 use crate::state::AppState;
 
@@ -67,13 +67,6 @@ pub struct TimelineResponse {
     pub total_count: usize,
     pub month: Option<u8>,
     pub year: Option<i32>,
-}
-
-/// Error response for visualization endpoints
-#[derive(Debug, Serialize)]
-pub struct ErrorResponse {
-    error: String,
-    details: Option<String>,
 }
 
 /// GET /api/v1/visualizations/visibility-map?block_id=...

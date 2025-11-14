@@ -1,0 +1,21 @@
+# Backend
+backend/target
+backend/.git
+backend/.vscode
+
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/.git
+frontend/.vscode
+
+# General
+.git
+.vscode
+.DS_Store
+*.md
+!README.md
+
+# Tests and notebooks
+tests/__pycache__
+notebooks/.ipynb_checkpoints

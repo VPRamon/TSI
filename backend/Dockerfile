@@ -1,6 +1,7 @@
 FROM rust:latest AS builder
 WORKDIR /app
-COPY . .
+COPY ./backend .
+COPY ./data ../data
 RUN apt-get update && \
     apt-get install -y libclang-dev build-essential pkg-config && \
     rm -rf /var/lib/apt/lists/*

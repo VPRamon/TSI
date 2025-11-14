@@ -13,6 +13,7 @@ use crate::analytics::{
     metrics::{compute_metrics, SchedulingMetrics},
     top_observations::{get_top_observations, RankedObservation, SortBy, SortOrder},
 };
+use crate::models::api::ErrorResponse;
 use crate::state::AppState;
 
 /// Query parameters for correlation endpoint
@@ -101,12 +102,6 @@ pub struct TrendsResponse {
     pub data: Vec<TrendPoint>,
 }
 
-/// Response wrapper for errors
-#[derive(Serialize)]
-pub struct ErrorResponse {
-    pub error: String,
-}
-
 /// GET /api/v1/analytics/metrics - Get overall scheduling metrics
 pub async fn get_metrics(
     State(state): State<AppState>,
@@ -118,6 +113,7 @@ pub async fn get_metrics(
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
                     error: format!("No dataset loaded: {}", e),
+                    details: None,
                 }),
             )
         })?;
@@ -150,6 +146,7 @@ pub async fn get_correlations(
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
                     error: format!("No dataset loaded: {}", e),
+                    details: None,
                 }),
             )
         })?;
@@ -169,6 +166,7 @@ pub async fn get_conflicts(
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
                     error: format!("No dataset loaded: {}", e),
+                    details: None,
                 }),
             )
         })?;
@@ -202,6 +200,7 @@ pub async fn get_top(
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
                     error: format!("No dataset loaded: {}", e),
+                    details: None,
                 }),
             )
         })?;
@@ -233,6 +232,7 @@ pub async fn get_distribution(
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
                     error: format!("No dataset loaded: {}", e),
+                    details: None,
                 }),
             )
         })?
@@ -241,6 +241,7 @@ pub async fn get_distribution(
                 StatusCode::BAD_REQUEST,
                 Json(ErrorResponse {
                     error: format!("Invalid column: {}", column),
+                    details: None,
                 }),
             )
         })?;
@@ -347,6 +348,7 @@ pub async fn get_trends(
                 StatusCode::NOT_FOUND,
                 Json(ErrorResponse {
                     error: format!("No dataset loaded: {}", e),
+                    details: None,
                 }),
             )
         })?;
