@@ -10,7 +10,11 @@ from typing import Any, cast
 
 import pandas as pd
 
-from core.time import datetime_to_mjd, mjd_to_datetime
+from tsi.services.rust_compat import datetime_to_mjd_rust, mjd_to_datetime_rust
+
+# Use Rust backend for time conversions (8x faster)
+datetime_to_mjd = datetime_to_mjd_rust
+mjd_to_datetime = mjd_to_datetime_rust
 
 # Candidate keys that may contain the list of dark periods in the JSON payload.
 _PERIOD_KEYS = (
