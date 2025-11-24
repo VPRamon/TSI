@@ -1,8 +1,28 @@
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::path::Path;
 
 use crate::core::domain::SchedulingBlock;
+
+/// Custom deserializer that accepts either string or integer for scheduling block ID
+fn deserialize_scheduling_block_id<'de, D>(deserializer: D) -> Result<i64, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    use serde::de::Error;
+    
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrInt {
+        String(String),
+        Int(i64),
+    }
+    
+    match StringOrInt::deserialize(deserializer)? {
+        StringOrInt::String(s) => s.parse::<i64>().map_err(D::Error::custom),
+        StringOrInt::Int(i) => Ok(i),
+    }
+}
 
 /// Raw JSON structure for time values
 #[derive(Debug, Deserialize)]
@@ -103,7 +123,7 @@ struct SchedulingBlockConfiguration {
 /// Raw JSON structure as it comes from schedule.json
 #[derive(Debug, Deserialize)]
 struct RawSchedulingBlock {
-    #[serde(rename = "schedulingBlockId")]
+    #[serde(rename = "schedulingBlockId", deserialize_with = "deserialize_scheduling_block_id")]
     scheduling_block_id: i64,
     priority: f64,
     #[serde(rename = "scheduled_period")]
