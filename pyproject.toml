@@ -30,8 +30,21 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["setuptools>=68.0", "wheel", "maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+module-name = "tsi_rust"
+manifest-path = "rust_backend/Cargo.toml"
+bindings = "pyo3"
+compatibility = "linux"
+features = ["pyo3/extension-module"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = true
 
 [tool.ruff]
 line-length = 100
