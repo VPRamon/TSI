@@ -188,13 +188,13 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
     Ok(df)
 }
 
-#[cfg(all(test, not(feature = "extension-module")))]
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::domain::{SchedulingBlock, Period};
+    use crate::core::domain::Period;
     use siderust::astro::ModifiedJulianDate;
     use siderust::coordinates::spherical::direction::ICRS;
-    use siderust::units::{time::*, angular::Degrees};
+    use siderust::units::{Degrees, Seconds};
 
     #[test]
     fn test_blocks_to_dataframe_roundtrip() {

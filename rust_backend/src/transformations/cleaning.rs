@@ -108,7 +108,7 @@ pub fn validate_schema(
     Ok((issues.is_empty(), issues))
 }
 
-#[cfg(all(test, not(feature = "extension-module")))]
+#[cfg(test)]
 mod tests {
     use super::*;
     

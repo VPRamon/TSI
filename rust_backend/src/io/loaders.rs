@@ -90,7 +90,7 @@ impl ScheduleLoader {
     }
 }
 
-#[cfg(all(test, not(feature = "extension-module")))]
+#[cfg(test)]
 mod tests {
     use super::*;
 

@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::core::domain::{SchedulingBlock, Period};
-use crate::time::mjd::mjd_to_epoch;
+use siderust::astro::ModifiedJulianDate;
 
 /// Raw structure for visibility period from JSON
 #[derive(Debug, Deserialize)]
@@ -75,8 +75,8 @@ impl ScheduleEnricher {
             let periods: Vec<Period> = raw_periods
                 .into_iter()
                 .map(|raw| {
-                    let start = mjd_to_epoch(raw.start_time.value);
-                    let stop = mjd_to_epoch(raw.stop_time.value);
+                    let start = ModifiedJulianDate::new(raw.start_time.value);
+                    let stop = ModifiedJulianDate::new(raw.stop_time.value);
                     Period::new(start, stop)
                 })
                 .collect();
@@ -118,7 +118,7 @@ impl Default for ScheduleEnricher {
     }
 }
 
-#[cfg(all(test, not(feature = "extension-module")))]
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -160,7 +160,6 @@ mod tests {
     
     #[test]
     fn test_enrich_block() {
-        use siderust::astro::ModifiedJulianDate;
         use siderust::coordinates::spherical::direction::ICRS;
         use siderust::units::{time::*, angular::Degrees};
         

@@ -25,10 +25,6 @@ thiserror = "2.0"
 criterion = { version = "0.7", features = ["html_reports"] }
 proptest = "1.4"
 
-[[bench]]
-name = "mjd_benchmark"
-harness = false
-
 [profile.release]
 lto = true
 codegen-units = 1

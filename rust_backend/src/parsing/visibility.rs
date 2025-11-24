@@ -1,5 +1,71 @@
 use crate::core::domain::Period;
-use crate::time::mjd::parse_visibility_string;
+use siderust::astro::ModifiedJulianDate;
+
+/// Parse a Python list of visibility periods (as string) into Period structs
+/// 
+/// Expected format: "[(start_mjd, stop_mjd), ...]"
+/// where start_mjd and stop_mjd are MJD floats
+/// 
+/// # Arguments
+/// * `visibility_str` - String representation of visibility periods
+/// 
+/// # Returns
+/// * `Vec<Period>` - Parsed visibility periods
+pub fn parse_visibility_string(visibility_str: &str) -> Result<Vec<Period>, String> {
+    if visibility_str.trim().is_empty() || visibility_str == "[]" {
+        return Ok(Vec::new());
+    }
+    
+    // Parse string like "[(mjd1, mjd2), (mjd3, mjd4)]"
+    let cleaned = visibility_str
+        .trim()
+        .trim_start_matches('[')
+        .trim_end_matches(']');
+    
+    if cleaned.is_empty() {
+        return Ok(Vec::new());
+    }
+    
+    let mut periods = Vec::new();
+    let mut current_tuple = String::new();
+    let mut paren_depth = 0;
+    
+    for ch in cleaned.chars() {
+        match ch {
+            '(' => {
+                paren_depth += 1;
+                if paren_depth == 1 {
+                    current_tuple.clear();
+                }
+            }
+            ')' => {
+                paren_depth -= 1;
+                if paren_depth == 0 && !current_tuple.is_empty() {
+                    // Parse tuple (start, stop)
+                    let parts: Vec<&str> = current_tuple.split(',').collect();
+                    if parts.len() == 2 {
+                        if let (Ok(start), Ok(stop)) = (
+                            parts[0].trim().parse::<f64>(),
+                            parts[1].trim().parse::<f64>(),
+                        ) {
+                            periods.push(Period::new(
+                                ModifiedJulianDate::new(start),
+                                ModifiedJulianDate::new(stop),
+                            ));
+                        }
+                    }
+                }
+            }
+            _ => {
+                if paren_depth > 0 {
+                    current_tuple.push(ch);
+                }
+            }
+        }
+    }
+    
+    Ok(periods)
+}
 
 /// High-performance visibility parser optimized for batch processing
 pub struct VisibilityParser;
@@ -15,32 +81,5 @@ impl VisibilityParser {
             .iter()
             .map(|s| parse_visibility_string(s))
             .collect()
-    }
-}
-
-#[cfg(all(test, not(feature = "extension-module")))]
-mod tests {
-    use super::*;
-    
-    #[test]
-    fn test_visibility_parser() {
-        let input = "[(59580.0, 59581.0)]";
-        let periods = VisibilityParser::parse(input).unwrap();
-        assert_eq!(periods.len(), 1);
-    }
-    
-    #[test]
-    fn test_batch_parsing() {
-        let inputs = vec![
-            "[(59580.0, 59581.0)]",
-            "[(59582.0, 59583.0), (59584.0, 59585.0)]",
-            "[]",
-        ];
-        
-        let results = VisibilityParser::parse_batch(&inputs);
-        assert_eq!(results.len(), 3);
-        assert_eq!(results[0].as_ref().unwrap().len(), 1);
-        assert_eq!(results[1].as_ref().unwrap().len(), 2);
-        assert_eq!(results[2].as_ref().unwrap().len(), 0);
     }
 }

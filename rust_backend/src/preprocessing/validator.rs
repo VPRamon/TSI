@@ -270,14 +270,14 @@ impl ScheduleValidator {
     }
 }
 
-#[cfg(all(test, not(feature = "extension-module")))]
+#[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::domain::Period;
+    use crate::core::domain::{Period, SchedulingBlock};
     use siderust::astro::ModifiedJulianDate;
     use siderust::coordinates::spherical::direction::ICRS;
-    use siderust::units::{time::*, angular::Degrees};
-    
+    use siderust::units::{Degrees, Seconds};
+
     #[test]
     fn test_validate_valid_block() {
         let block = SchedulingBlock {

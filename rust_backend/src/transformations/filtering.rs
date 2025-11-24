@@ -178,10 +178,11 @@ pub fn validate_dataframe(df: &DataFrame) -> (bool, Vec<String>) {
     (issues.is_empty(), issues)
 }
 
-#[cfg(all(test, not(feature = "extension-module")))]
+
+#[cfg(test)]
 mod tests {
     use super::*;
-    
+
     fn sample_dataframe() -> DataFrame {
         DataFrame::new(vec![
             Series::new("priority".into(), &[5.0, 10.0, 15.0, 20.0]).into(),

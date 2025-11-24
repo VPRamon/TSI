@@ -169,10 +169,10 @@ pub fn get_top_observations(
     top.select(existing_cols)
 }
 
-#[cfg(all(test, not(feature = "extension-module")))]
+#[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_compute_metrics_empty() {
         let _df = DataFrame::empty();
