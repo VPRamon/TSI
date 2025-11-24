@@ -189,12 +189,12 @@ impl ScheduleValidator {
         }
         
         // Check coordinates
-        if block.ra_in_deg.is_none() || block.dec_in_deg.is_none() {
+        if block.coordinates.is_none() {
             result.stats.missing_coordinates += 1;
         }
         
         // Check constraints
-        if block.min_elevation_angle_in_deg.is_none() || block.max_elevation_angle_in_deg.is_none() {
+        if block.min_elevation_angle.is_none() || block.max_elevation_angle.is_none() {
             result.stats.missing_constraints += 1;
         }
         
@@ -208,32 +208,34 @@ impl ScheduleValidator {
         }
         
         // Validate duration
-        if block.requested_duration_sec <= 0.0 {
+        if block.requested_duration.value() <= 0.0 {
             result.stats.invalid_durations += 1;
             result.add_error(format!(
                 "Block {} has invalid duration: {}",
-                block.scheduling_block_id, block.requested_duration_sec
+                block.scheduling_block_id, block.requested_duration.value()
             ));
         }
         
         // Validate elevation range
-        if let (Some(min_el), Some(max_el)) = (block.min_elevation_angle_in_deg, block.max_elevation_angle_in_deg) {
-            if min_el < 0.0 || min_el > 90.0 {
+        if let (Some(min_el), Some(max_el)) = (block.min_elevation_angle, block.max_elevation_angle) {
+            let min_el_val = min_el.value();
+            let max_el_val = max_el.value();
+            if min_el_val < 0.0 || min_el_val > 90.0 {
                 result.add_warning(format!(
                     "Block {} has invalid min elevation: {}",
-                    block.scheduling_block_id, min_el
+                    block.scheduling_block_id, min_el_val
                 ));
             }
-            if max_el < 0.0 || max_el > 90.0 {
+            if max_el_val < 0.0 || max_el_val > 90.0 {
                 result.add_warning(format!(
                     "Block {} has invalid max elevation: {}",
-                    block.scheduling_block_id, max_el
+                    block.scheduling_block_id, max_el_val
                 ));
             }
-            if min_el >= max_el {
+            if min_el_val >= max_el_val {
                 result.add_error(format!(
                     "Block {} has min elevation >= max elevation: {} >= {}",
-                    block.scheduling_block_id, min_el, max_el
+                    block.scheduling_block_id, min_el_val, max_el_val
                 ));
             }
         }
@@ -271,24 +273,28 @@ impl ScheduleValidator {
 #[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
+    use crate::core::domain::Period;
+    use siderust::astro::ModifiedJulianDate;
+    use siderust::coordinates::spherical::direction::ICRS;
+    use siderust::units::{time::*, angular::Degrees};
     
     #[test]
     fn test_validate_valid_block() {
         let block = SchedulingBlock {
             scheduling_block_id: "test-001".to_string(),
             priority: 10.0,
-            requested_duration_sec: 3600.0,
-            min_observation_time_sec: Some(1800.0),
-            fixed_start_time: None,
-            fixed_stop_time: None,
-            ra_in_deg: Some(180.0),
-            dec_in_deg: Some(45.0),
-            min_azimuth_angle_in_deg: Some(0.0),
-            max_azimuth_angle_in_deg: Some(360.0),
-            min_elevation_angle_in_deg: Some(30.0),
-            max_elevation_angle_in_deg: Some(80.0),
-            scheduled_start: Some(59580.0),
-            scheduled_stop: Some(59580.5),
+            requested_duration: Seconds::new(3600.0),
+            min_observation_time: Seconds::new(1800.0),
+            fixed_time: None,
+            coordinates: Some(ICRS::new(Degrees::new(180.0), Degrees::new(45.0))),
+            min_azimuth_angle: Some(Degrees::new(0.0)),
+            max_azimuth_angle: Some(Degrees::new(360.0)),
+            min_elevation_angle: Some(Degrees::new(30.0)),
+            max_elevation_angle: Some(Degrees::new(80.0)),
+            scheduled_period: Some(Period::new(
+                ModifiedJulianDate::new(59580.0),
+                ModifiedJulianDate::new(59580.5),
+            )),
             visibility_periods: vec![],
         };
         
@@ -304,18 +310,15 @@ mod tests {
         let block = SchedulingBlock {
             scheduling_block_id: "test-002".to_string(),
             priority: 25.0,  // Invalid: > 20
-            requested_duration_sec: -100.0,  // Invalid: negative
-            min_observation_time_sec: None,
-            fixed_start_time: None,
-            fixed_stop_time: None,
-            ra_in_deg: None,  // Missing
-            dec_in_deg: None,  // Missing
-            min_azimuth_angle_in_deg: Some(0.0),
-            max_azimuth_angle_in_deg: Some(360.0),
-            min_elevation_angle_in_deg: Some(80.0),
-            max_elevation_angle_in_deg: Some(30.0),  // Invalid: max < min
-            scheduled_start: None,
-            scheduled_stop: None,
+            requested_duration: Seconds::new(-100.0),  // Invalid: negative
+            min_observation_time: Seconds::new(0.0),
+            fixed_time: None,
+            coordinates: None,  // Missing
+            min_azimuth_angle: Some(Degrees::new(0.0)),
+            max_azimuth_angle: Some(Degrees::new(360.0)),
+            min_elevation_angle: Some(Degrees::new(80.0)),
+            max_elevation_angle: Some(Degrees::new(30.0)),  // Invalid: max < min
+            scheduled_period: None,
             visibility_periods: vec![],
         };
         

@@ -24,28 +24,36 @@ pub fn parse_schedule_csv_to_blocks(csv_path: &Path) -> Result<Vec<SchedulingBlo
 
 /// Convert a Polars DataFrame to SchedulingBlock structures
 pub fn dataframe_to_blocks(df: &DataFrame) -> Result<Vec<SchedulingBlock>> {
+    use crate::core::domain::Period;
+    use siderust::astro::ModifiedJulianDate;
+    use siderust::coordinates::spherical::direction::ICRS;
+    use siderust::units::{
+        time::Seconds,
+        angular::Degrees,
+    };
+
     let mut blocks = Vec::new();
     let height = df.height();
-    
+
     // Extract columns
     let ids = df.column("schedulingBlockId")?.str()?;
     let priorities = df.column("priority")?.f64()?;
     let requested_durations = df.column("requestedDurationSec")?.f64()?;
     let min_obs_times = df.column("minObservationTimeInSec").ok().and_then(|c| c.f64().ok());
-    
+
     let ra = df.column("raInDeg").ok().and_then(|c| c.f64().ok());
     let dec = df.column("decInDeg").ok().and_then(|c| c.f64().ok());
-    
+
     let min_az = df.column("minAzimuthAngleInDeg").ok().and_then(|c| c.f64().ok());
     let max_az = df.column("maxAzimuthAngleInDeg").ok().and_then(|c| c.f64().ok());
     let min_el = df.column("minElevationAngleInDeg").ok().and_then(|c| c.f64().ok());
     let max_el = df.column("maxElevationAngleInDeg").ok().and_then(|c| c.f64().ok());
-    
+
     let scheduled_starts = df.column("scheduled_period.start").ok().and_then(|c| c.f64().ok());
     let scheduled_stops = df.column("scheduled_period.stop").ok().and_then(|c| c.f64().ok());
-    
+
     let visibility_col = df.column("visibility").ok().and_then(|c| c.str().ok());
-    
+
     for i in 0..height {
         let id = ids.get(i)
             .with_context(|| format!("Missing schedulingBlockId at row {}", i))?
@@ -71,18 +79,27 @@ pub fn dataframe_to_blocks(df: &DataFrame) -> Result<Vec<SchedulingBlock>> {
         let block = SchedulingBlock {
             scheduling_block_id: id,
             priority,
-            requested_duration_sec: requested_duration,
-            min_observation_time_sec: min_obs_times.and_then(|col| col.get(i)),
-            fixed_start_time: None, // Not typically in CSV
-            fixed_stop_time: None,
-            ra_in_deg: ra.and_then(|col| col.get(i)),
-            dec_in_deg: dec.and_then(|col| col.get(i)),
-            min_azimuth_angle_in_deg: min_az.and_then(|col| col.get(i)),
-            max_azimuth_angle_in_deg: max_az.and_then(|col| col.get(i)),
-            min_elevation_angle_in_deg: min_el.and_then(|col| col.get(i)),
-            max_elevation_angle_in_deg: max_el.and_then(|col| col.get(i)),
-            scheduled_start: scheduled_starts.and_then(|col| col.get(i)),
-            scheduled_stop: scheduled_stops.and_then(|col| col.get(i)),
+            requested_duration: Seconds::new(requested_duration),
+            min_observation_time: Seconds::new(min_obs_times.and_then(|col| col.get(i)).unwrap_or(0.0)),
+            fixed_time: None, // Not typically in CSV
+            coordinates: match (ra.and_then(|col| col.get(i)), dec.and_then(|col| col.get(i))) {
+                (Some(ra_val), Some(dec_val)) => Some(ICRS::new(Degrees::new(ra_val), Degrees::new(dec_val))),
+                _ => None,
+            },
+            min_azimuth_angle: min_az.and_then(|col| col.get(i)).map(Degrees::new),
+            max_azimuth_angle: max_az.and_then(|col| col.get(i)).map(Degrees::new),
+            min_elevation_angle: min_el.and_then(|col| col.get(i)).map(Degrees::new),
+            max_elevation_angle: max_el.and_then(|col| col.get(i)).map(Degrees::new),
+            scheduled_period: match (
+                scheduled_starts.and_then(|col| col.get(i)),
+                scheduled_stops.and_then(|col| col.get(i))
+            ) {
+                (Some(start), Some(stop)) => Some(Period::new(
+                    ModifiedJulianDate::new(start),
+                    ModifiedJulianDate::new(stop),
+                )),
+                _ => None,
+            },
             visibility_periods,
         };
         
@@ -123,25 +140,26 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
     for block in blocks {
         ids.push(block.scheduling_block_id.clone());
         priorities.push(block.priority);
-        requested_durations.push(block.requested_duration_sec);
-        min_obs_times.push(block.min_observation_time_sec);
+        requested_durations.push(block.requested_duration.value());
+        min_obs_times.push(Some(block.min_observation_time.value()));
         
-        ras.push(block.ra_in_deg);
-        decs.push(block.dec_in_deg);
+        // Extract RA/Dec from coordinates
+        ras.push(block.coordinates.as_ref().map(|c| c.ra().value()));
+        decs.push(block.coordinates.as_ref().map(|c| c.dec().value()));
         
-        min_azs.push(block.min_azimuth_angle_in_deg);
-        max_azs.push(block.max_azimuth_angle_in_deg);
-        min_els.push(block.min_elevation_angle_in_deg);
-        max_els.push(block.max_elevation_angle_in_deg);
+        min_azs.push(block.min_azimuth_angle.map(|a| a.value()));
+        max_azs.push(block.max_azimuth_angle.map(|a| a.value()));
+        min_els.push(block.min_elevation_angle.map(|a| a.value()));
+        max_els.push(block.max_elevation_angle.map(|a| a.value()));
         
-        scheduled_starts.push(block.scheduled_start);
-        scheduled_stops.push(block.scheduled_stop);
+        scheduled_starts.push(block.scheduled_period.as_ref().map(|p| p.start.value()));
+        scheduled_stops.push(block.scheduled_period.as_ref().map(|p| p.stop.value()));
         scheduled_flags.push(block.is_scheduled());
         
         num_vis_periods.push(block.num_visibility_periods() as u32);
-        total_vis_hours.push(block.total_visibility_hours());
-        requested_hours.push(block.requested_hours());
-        elevation_ranges.push(block.elevation_range_deg());
+        total_vis_hours.push(block.total_visibility_hours().value());
+        requested_hours.push(block.requested_duration.value() / 3600.0); // Convert seconds to hours
+        elevation_ranges.push(block.elevation_range().map(|r| r.value()));
         priority_bins.push(block.priority_bin().to_string());
     }
     
@@ -173,7 +191,10 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
 #[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
-    use crate::core::domain::SchedulingBlock;
+    use crate::core::domain::{SchedulingBlock, Period};
+    use siderust::astro::ModifiedJulianDate;
+    use siderust::coordinates::spherical::direction::ICRS;
+    use siderust::units::{time::*, angular::Degrees};
 
     #[test]
     fn test_blocks_to_dataframe_roundtrip() {
@@ -181,18 +202,18 @@ mod tests {
             SchedulingBlock {
                 scheduling_block_id: "1000004990".to_string(),
                 priority: 8.5,
-                requested_duration_sec: 1200.0,
-                min_observation_time_sec: Some(1200.0),
-                fixed_start_time: None,
-                fixed_stop_time: None,
-                ra_in_deg: Some(158.03),
-                dec_in_deg: Some(-68.03),
-                min_azimuth_angle_in_deg: Some(0.0),
-                max_azimuth_angle_in_deg: Some(360.0),
-                min_elevation_angle_in_deg: Some(60.0),
-                max_elevation_angle_in_deg: Some(90.0),
-                scheduled_start: Some(61894.194),
-                scheduled_stop: Some(61894.208),
+                requested_duration: Seconds::new(1200.0),
+                min_observation_time: Seconds::new(1200.0),
+                fixed_time: None,
+                coordinates: Some(ICRS::new(Degrees::new(158.03), Degrees::new(-68.03))),
+                min_azimuth_angle: Some(Degrees::new(0.0)),
+                max_azimuth_angle: Some(Degrees::new(360.0)),
+                min_elevation_angle: Some(Degrees::new(60.0)),
+                max_elevation_angle: Some(Degrees::new(90.0)),
+                scheduled_period: Some(Period::new(
+                    ModifiedJulianDate::new(61894.194),
+                    ModifiedJulianDate::new(61894.208),
+                )),
                 visibility_periods: vec![],
             },
         ];

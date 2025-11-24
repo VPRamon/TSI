@@ -3,8 +3,8 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::core::domain::{SchedulingBlock, VisibilityPeriod};
-use crate::time::mjd::mjd_to_datetime_rust;
+use crate::core::domain::{SchedulingBlock, Period};
+use crate::time::mjd::mjd_to_epoch;
 
 /// Raw structure for visibility period from JSON
 #[derive(Debug, Deserialize)]
@@ -29,7 +29,7 @@ struct VisibilityJson {
 
 /// Enricher for adding visibility data to scheduling blocks
 pub struct ScheduleEnricher {
-    visibility_data: Option<HashMap<String, Vec<VisibilityPeriod>>>,
+    visibility_data: Option<HashMap<String, Vec<Period>>>,
 }
 
 impl ScheduleEnricher {
@@ -57,7 +57,7 @@ impl ScheduleEnricher {
     }
     
     /// Load visibility data from a JSON file
-    fn load_visibility_file(path: &Path) -> Result<HashMap<String, Vec<VisibilityPeriod>>> {
+    fn load_visibility_file(path: &Path) -> Result<HashMap<String, Vec<Period>>> {
         let json_content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read visibility file: {}", path.display()))?;
         
@@ -65,19 +65,19 @@ impl ScheduleEnricher {
     }
     
     /// Parse visibility JSON into a HashMap
-    fn parse_visibility_json(json_str: &str) -> Result<HashMap<String, Vec<VisibilityPeriod>>> {
+    fn parse_visibility_json(json_str: &str) -> Result<HashMap<String, Vec<Period>>> {
         let visibility_json: VisibilityJson = serde_json::from_str(json_str)
             .context("Failed to parse visibility JSON")?;
         
         let mut result = HashMap::new();
         
         for (sb_id, raw_periods) in visibility_json.scheduling_blocks {
-            let periods: Vec<VisibilityPeriod> = raw_periods
+            let periods: Vec<Period> = raw_periods
                 .into_iter()
                 .map(|raw| {
-                    let start = mjd_to_datetime_rust(raw.start_time.value);
-                    let stop = mjd_to_datetime_rust(raw.stop_time.value);
-                    VisibilityPeriod::new(start, stop)
+                    let start = mjd_to_epoch(raw.start_time.value);
+                    let stop = mjd_to_epoch(raw.stop_time.value);
+                    Period::new(start, stop)
                 })
                 .collect();
             
@@ -160,6 +160,10 @@ mod tests {
     
     #[test]
     fn test_enrich_block() {
+        use siderust::astro::ModifiedJulianDate;
+        use siderust::coordinates::spherical::direction::ICRS;
+        use siderust::units::{time::*, angular::Degrees};
+        
         let json = r#"{
             "SchedulingBlock": {
                 "test-001": [
@@ -176,18 +180,15 @@ mod tests {
         let mut block = SchedulingBlock {
             scheduling_block_id: "test-001".to_string(),
             priority: 10.0,
-            requested_duration_sec: 3600.0,
-            min_observation_time_sec: None,
-            fixed_start_time: None,
-            fixed_stop_time: None,
-            ra_in_deg: Some(180.0),
-            dec_in_deg: Some(45.0),
-            min_azimuth_angle_in_deg: Some(0.0),
-            max_azimuth_angle_in_deg: Some(360.0),
-            min_elevation_angle_in_deg: Some(30.0),
-            max_elevation_angle_in_deg: Some(80.0),
-            scheduled_start: None,
-            scheduled_stop: None,
+            requested_duration: Seconds::new(3600.0),
+            min_observation_time: Seconds::new(0.0),
+            fixed_time: None,
+            coordinates: Some(ICRS::new(Degrees::new(180.0), Degrees::new(45.0))),
+            min_azimuth_angle: Some(Degrees::new(0.0)),
+            max_azimuth_angle: Some(Degrees::new(360.0)),
+            min_elevation_angle: Some(Degrees::new(30.0)),
+            max_elevation_angle: Some(Degrees::new(80.0)),
+            scheduled_period: None,
             visibility_periods: vec![],
         };
         
@@ -196,6 +197,6 @@ mod tests {
         enricher.enrich_block(&mut block);
         
         assert_eq!(block.visibility_periods.len(), 1);
-        assert!(block.total_visibility_hours() > 0.0);
+        assert!(block.total_visibility_hours().value() > 0.0);
     }
 }

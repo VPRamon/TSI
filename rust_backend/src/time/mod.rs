@@ -4,4 +4,4 @@ pub mod mjd;
 pub use mjd::{mjd_to_datetime, datetime_to_mjd, parse_visibility_periods};
 
 // Re-export core Rust functions for use in benchmarks and internal code
-pub use mjd::{mjd_to_datetime_rust, datetime_to_mjd_rust, parse_visibility_string};
+pub use mjd::{mjd_to_epoch, epoch_to_mjd, parse_visibility_string};

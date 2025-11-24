@@ -384,7 +384,7 @@ anyhow = "1.0"                   # Error handling
 
 #### **FASE 1A: Fundamentos + Domain Model (Semana 1-2)**
 ✅ Setup workspace Rust con estructura modular
-✅ Definir tipos de dominio (`ScheduleBlock`, `Observation`, `VisibilityPeriod`)
+✅ Definir tipos de dominio (`ScheduleBlock`, `Observation`, `Period`)
 ✅ Implementar `rust_backend::time::mjd` (conversiones MJD)
 ✅ Implementar `rust_backend::parsing::visibility` (parser optimizado)
 ✅ Tests unitarios Rust + benchmarks
