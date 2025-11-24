@@ -1,16 +1,16 @@
-use crate::core::domain::VisibilityPeriod;
+use crate::core::domain::Period;
 use crate::time::mjd::parse_visibility_string;
 
 /// High-performance visibility parser optimized for batch processing
 pub struct VisibilityParser;
 
 impl VisibilityParser {
-    pub fn parse(visibility_str: &str) -> Result<Vec<VisibilityPeriod>, String> {
+    pub fn parse(visibility_str: &str) -> Result<Vec<Period>, String> {
         parse_visibility_string(visibility_str)
     }
     
     /// Parse multiple visibility strings in parallel (for batch processing)
-    pub fn parse_batch(visibility_strings: &[&str]) -> Vec<Result<Vec<VisibilityPeriod>, String>> {
+    pub fn parse_batch(visibility_strings: &[&str]) -> Vec<Result<Vec<Period>, String>> {
         visibility_strings
             .iter()
             .map(|s| parse_visibility_string(s))

@@ -150,6 +150,14 @@ pub fn parse_schedule_json_str(json_str: &str) -> Result<Vec<SchedulingBlock>> {
 
 /// Convert raw JSON structure to domain model
 fn convert_raw_to_domain(raw: RawSchedulingBlock) -> SchedulingBlock {
+    use crate::core::domain::Period;
+    use siderust::astro::ModifiedJulianDate;
+    use siderust::coordinates::spherical::direction::ICRS;
+    use siderust::units::{
+        time::*,
+        angular::Degrees,
+    };
+
     let (scheduled_start, scheduled_stop) = raw
         .scheduled_period
         .map(|p| (Some(p.start_time.value), Some(p.stop_time.value)))
@@ -161,22 +169,34 @@ fn convert_raw_to_domain(raw: RawSchedulingBlock) -> SchedulingBlock {
     // Get fixed times if they exist
     let fixed_start_time = time_constraint.fixed_start_time.first().copied();
     let fixed_stop_time = time_constraint.fixed_stop_time.first().copied();
-    
+
     SchedulingBlock {
         scheduling_block_id: raw.scheduling_block_id.to_string(),
         priority: raw.priority,
-        requested_duration_sec: time_constraint.requested_duration_sec,
-        min_observation_time_sec: time_constraint.min_observation_time_in_sec,
-        fixed_start_time,
-        fixed_stop_time,
-        ra_in_deg: Some(raw.target.position.coord.celestial.ra_in_deg),
-        dec_in_deg: Some(raw.target.position.coord.celestial.dec_in_deg),
-        min_azimuth_angle_in_deg: Some(constraints.azimuth_constraint.min_azimuth_angle_in_deg),
-        max_azimuth_angle_in_deg: Some(constraints.azimuth_constraint.max_azimuth_angle_in_deg),
-        min_elevation_angle_in_deg: Some(constraints.elevation_constraint.min_elevation_angle_in_deg),
-        max_elevation_angle_in_deg: Some(constraints.elevation_constraint.max_elevation_angle_in_deg),
-        scheduled_start,
-        scheduled_stop,
+        requested_duration: Seconds::new(time_constraint.requested_duration_sec),
+        min_observation_time: Seconds::new(time_constraint.min_observation_time_in_sec.unwrap_or(0.0)),
+        fixed_time: match (fixed_start_time, fixed_stop_time) {
+            (Some(start), Some(stop)) => Some(Period::new(
+                ModifiedJulianDate::new(start),
+                ModifiedJulianDate::new(stop),
+            )),
+            _ => None,
+        },
+        coordinates: Some(ICRS::new(
+            Degrees::new(raw.target.position.coord.celestial.ra_in_deg),
+            Degrees::new(raw.target.position.coord.celestial.dec_in_deg),
+        )),
+        min_azimuth_angle: Some(Degrees::new(constraints.azimuth_constraint.min_azimuth_angle_in_deg)),
+        max_azimuth_angle: Some(Degrees::new(constraints.azimuth_constraint.max_azimuth_angle_in_deg)),
+        min_elevation_angle: Some(Degrees::new(constraints.elevation_constraint.min_elevation_angle_in_deg)),
+        max_elevation_angle: Some(Degrees::new(constraints.elevation_constraint.max_elevation_angle_in_deg)),
+        scheduled_period: match (scheduled_start, scheduled_stop) {
+            (Some(start), Some(stop)) => Some(Period::new(
+                ModifiedJulianDate::new(start),
+                ModifiedJulianDate::new(stop),
+            )),
+            _ => None,
+        },
         visibility_periods: vec![], // Will be enriched later with visibility data
     }
 }
@@ -248,12 +268,25 @@ mod tests {
         let block = &blocks[0];
         assert_eq!(block.scheduling_block_id, "1000004990");
         assert_eq!(block.priority, 8.5);
-        assert_eq!(block.requested_duration_sec, 1200.0);
-        assert_eq!(block.min_observation_time_sec, Some(1200.0));
-        assert_eq!(block.ra_in_deg, Some(158.03297990185885));
-        assert_eq!(block.dec_in_deg, Some(-68.02521140748772));
-        assert_eq!(block.scheduled_start, Some(61894.19429606479));
-        assert_eq!(block.scheduled_stop, Some(61894.20818495378));
+        assert_eq!(block.requested_duration.value(), 1200.0);
+        assert_eq!(block.min_observation_time.value(), 1200.0);
+        
+        // Check coordinates
+        if let Some(coords) = &block.coordinates {
+            assert!((coords.ra().value() - 158.03297990185885).abs() < 1e-6);
+            assert!((coords.dec().value() - (-68.02521140748772)).abs() < 1e-6);
+        } else {
+            panic!("Expected coordinates to be present");
+        }
+        
+        // Check scheduled period
+        if let Some(period) = &block.scheduled_period {
+            assert!((period.start.value() - 61894.19429606479).abs() < 1e-6);
+            assert!((period.stop.value() - 61894.20818495378).abs() < 1e-6);
+        } else {
+            panic!("Expected scheduled period to be present");
+        }
+        
         assert!(block.is_scheduled());
     }
 }
