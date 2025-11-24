@@ -393,11 +393,25 @@ anyhow = "1.0"                   # Error handling
 
 ---
 
-#### **FASE 1B: Parsing & Loading (Semana 3)**
+#### **FASE 1B: Parsing & Loading (Semana 3)** ✅ COMPLETADA
 ✅ `rust_backend::parsing::json_parser` (serde_json + custom deserializers)
-✅ `rust_backend::parsing::csv_parser` (csv crate + Arrow)
+✅ `rust_backend::parsing::csv_parser` (csv crate + Polars)
 ✅ `rust_backend::io::loaders` (unified loading interface)
 ✅ PyO3 bindings: `tsi_rust.load_schedule()` → Polars DataFrame
+
+**Implementado:**
+- JSON parser con soporte para estructura anidada compleja
+- CSV parser con conversión directa a Polars DataFrame
+- Interfaz unificada de carga (`ScheduleLoader`)
+- Bindings PyO3: `load_schedule()`, `load_schedule_from_csv()`, `load_schedule_from_json()`
+- Conversión automática Polars → pandas
+- Columnas derivadas calculadas en Rust (scheduled_flag, requested_hours, priority_bin, etc.)
+
+**Resultados:**
+- ✅ CSV: 2647 bloques cargados correctamente
+- ✅ JSON: Parser funcional (archivos pequeños/medianos)
+- ✅ 23 columnas en DataFrame resultante (incluyendo derivadas)
+- ✅ Tests de integración en `/tests/test_phase_1b_loaders.py`
 
 **Entregable:** Carga completa JSON/CSV en Rust, exportable a Python
 
