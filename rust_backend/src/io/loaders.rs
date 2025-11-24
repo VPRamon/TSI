@@ -101,27 +101,51 @@ mod tests {
                 {
                     "schedulingBlockId": "1000004990",
                     "priority": 8.5,
-                    "fixedStartTime": null,
-                    "fixedStopTime": null,
                     "scheduled_period": {
-                        "start": 61894.19429606479,
-                        "stop": 61894.20818495378
+                        "durationInSec": 1200.0,
+                        "startTime": {
+                            "format": "MJD",
+                            "scale": "UTC",
+                            "value": 61894.19429606479
+                        },
+                        "stopTime": {
+                            "format": "MJD",
+                            "scale": "UTC",
+                            "value": 61894.20818495378
+                        }
                     },
                     "target": {
-                        "targetId": 10,
-                        "targetName": "T32",
-                        "raInDeg": 158.03297990185885,
-                        "decInDeg": -68.02521140748772
+                        "id_": 10,
+                        "name": "T32",
+                        "position_": {
+                            "coord": {
+                                "celestial": {
+                                    "raInDeg": 158.03297990185885,
+                                    "decInDeg": -68.02521140748772,
+                                    "equinox": 2000.0,
+                                    "raProperMotionInMarcsecYear": 0.0,
+                                    "decProperMotionInMarcsecYear": 0.0
+                                }
+                            }
+                        }
                     },
-                    "observation": {
-                        "minObservationTimeInSec": 1200,
-                        "requestedDurationSec": 1200
-                    },
-                    "controlParameters": {
-                        "minAzimuthAngleInDeg": 0.0,
-                        "maxAzimuthAngleInDeg": 360.0,
-                        "minElevationAngleInDeg": 60.0,
-                        "maxElevationAngleInDeg": 90.0
+                    "schedulingBlockConfiguration_": {
+                        "constraints_": {
+                            "azimuthConstraint_": {
+                                "minAzimuthAngleInDeg": 0.0,
+                                "maxAzimuthAngleInDeg": 360.0
+                            },
+                            "elevationConstraint_": {
+                                "minElevationAngleInDeg": 60.0,
+                                "maxElevationAngleInDeg": 90.0
+                            },
+                            "timeConstraint_": {
+                                "fixedStartTime": [],
+                                "fixedStopTime": [],
+                                "minObservationTimeInSec": 1200,
+                                "requestedDurationSec": 1200
+                            }
+                        }
                     }
                 }
             ]
