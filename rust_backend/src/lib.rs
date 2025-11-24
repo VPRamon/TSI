@@ -11,7 +11,7 @@ pub mod python;
 
 /// TSI Rust Backend - High-performance telescope scheduling analysis
 #[pymodule]
-fn tsi_rust(_py: Python, m: &PyModule) -> PyResult<()> {
+fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Register time conversion functions
     m.add_function(wrap_pyfunction!(time::mjd_to_datetime, m)?)?;
     m.add_function(wrap_pyfunction!(time::datetime_to_mjd, m)?)?;
