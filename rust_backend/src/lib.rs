@@ -28,8 +28,18 @@ fn tsi_rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_preprocess_schedule_str, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_validate_schedule, m)?)?;
     
-    // Register validation result class
+    // Register algorithm functions
+    m.add_function(wrap_pyfunction!(python::py_compute_metrics, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_compute_correlations, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_top_observations, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_find_conflicts, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_greedy_schedule, m)?)?;
+    
+    // Register classes
     m.add_class::<python::PyValidationResult>()?;
+    m.add_class::<python::PyAnalyticsSnapshot>()?;
+    m.add_class::<python::PySchedulingConflict>()?;
+    m.add_class::<python::PyOptimizationResult>()?;
     
     Ok(())
 }
