@@ -17,5 +17,11 @@ fn tsi_rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(time::datetime_to_mjd, m)?)?;
     m.add_function(wrap_pyfunction!(time::parse_visibility_periods, m)?)?;
     
+    // Register data loading functions
+    m.add_function(wrap_pyfunction!(python::load_schedule, m)?)?;
+    m.add_function(wrap_pyfunction!(python::load_schedule_from_json, m)?)?;
+    m.add_function(wrap_pyfunction!(python::load_schedule_from_json_str, m)?)?;
+    m.add_function(wrap_pyfunction!(python::load_schedule_from_csv, m)?)?;
+    
     Ok(())
 }
