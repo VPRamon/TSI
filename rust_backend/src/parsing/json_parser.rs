@@ -1,9 +1,8 @@
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::path::Path;
 
-use crate::core::domain::{SchedulingBlock, VisibilityPeriod};
-use crate::time::mjd::mjd_to_datetime;
+use crate::core::domain::SchedulingBlock;
 
 /// Raw JSON structure for time values
 #[derive(Debug, Deserialize)]
@@ -43,6 +42,7 @@ struct Position {
 
 /// Raw JSON structure for target information
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Target {
     #[serde(rename = "id_")]
     id: Option<i64>,
@@ -181,7 +181,7 @@ fn convert_raw_to_domain(raw: RawSchedulingBlock) -> SchedulingBlock {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
 

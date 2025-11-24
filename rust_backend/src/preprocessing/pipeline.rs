@@ -3,7 +3,6 @@ use polars::prelude::*;
 use std::path::Path;
 
 use crate::core::domain::SchedulingBlock;
-use crate::io::loaders::ScheduleLoader;
 use crate::parsing::csv_parser;
 use crate::preprocessing::enricher::ScheduleEnricher;
 use crate::preprocessing::validator::{ScheduleValidator, ValidationResult};
@@ -189,7 +188,7 @@ pub fn preprocess_schedule(
     pipeline.process(schedule_path, visibility_path)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
 

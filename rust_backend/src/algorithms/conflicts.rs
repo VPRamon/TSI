@@ -155,14 +155,14 @@ pub fn suggest_candidate_positions(
     Ok(candidates)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
     
     #[test]
     fn test_find_conflicts_empty() {
         let df = DataFrame::empty();
-        let result = find_conflicts(&df);
+        let _result = find_conflicts(&df);
         // Should handle empty DataFrame
     }
 }

@@ -95,7 +95,7 @@ impl ScheduleValidator {
         ];
         
         for col in required_cols {
-            if !df.get_column_names().contains(&col) {
+            if df.column(col).is_err() {
                 result.add_error(format!("Missing required column: {}", col));
             }
         }
@@ -268,7 +268,7 @@ impl ScheduleValidator {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
     

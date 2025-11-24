@@ -18,7 +18,7 @@ impl VisibilityParser {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
     

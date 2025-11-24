@@ -90,7 +90,7 @@ impl ScheduleLoader {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
 
@@ -133,8 +133,9 @@ mod tests {
         assert_eq!(result.dataframe.height(), 1);
         
         // Verify some columns exist
-        assert!(result.dataframe.get_column_names().contains(&"schedulingBlockId"));
-        assert!(result.dataframe.get_column_names().contains(&"priority"));
-        assert!(result.dataframe.get_column_names().contains(&"scheduled_flag"));
+        let col_names = result.dataframe.get_column_names();
+        assert!(col_names.iter().any(|s| s.as_str() == "schedulingBlockId"));
+        assert!(col_names.iter().any(|s| s.as_str() == "priority"));
+        assert!(col_names.iter().any(|s| s.as_str() == "scheduled_flag"));
     }
 }

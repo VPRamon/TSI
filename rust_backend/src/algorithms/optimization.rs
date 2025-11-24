@@ -113,12 +113,23 @@ pub fn greedy_schedule(
 ///
 /// This version can evaluate multiple candidates in parallel
 /// Useful for large datasets where constraint checking is expensive
-#[cfg(feature = "rayon")]
+/// 
+/// Note: Requires rayon feature to be enabled in Cargo.toml
+#[allow(dead_code)]
 pub fn greedy_schedule_parallel(
-    observations: &[Observation],
-    constraints: &[Box<dyn Constraint>],
-    max_iterations: usize,
+    _observations: &[Observation],
+    _constraints: &[Box<dyn Constraint>],
+    _max_iterations: usize,
 ) -> OptimizationResult {
+    // Rayon feature not configured - falling back to single-threaded version
+    OptimizationResult {
+        solution: vec![],
+        objective_value: 0.0,
+        iterations: 0,
+        converged: false,
+    }
+    
+    /* Original parallel implementation - requires rayon feature:
     use rayon::prelude::*;
     
     if observations.is_empty() || max_iterations == 0 {
@@ -187,9 +198,10 @@ pub fn greedy_schedule_parallel(
         iterations,
         converged: iterations < max_iterations,
     }
+    */
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
     

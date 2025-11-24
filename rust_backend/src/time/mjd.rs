@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Timelike, TimeZone, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use pyo3::prelude::*;
 
 use crate::core::domain::VisibilityPeriod;
@@ -111,7 +111,7 @@ pub fn parse_visibility_string(visibility_str: &str) -> Result<Vec<VisibilityPer
 
 /// Convert Modified Julian Date to Python datetime (PyO3 binding)
 #[pyfunction]
-pub fn mjd_to_datetime(py: Python, mjd: f64) -> PyResult<PyObject> {
+pub fn mjd_to_datetime(py: Python, mjd: f64) -> PyResult<Py<PyAny>> {
     let dt = mjd_to_datetime_rust(mjd);
     
     // Create Python datetime using direct construction
@@ -124,12 +124,12 @@ pub fn mjd_to_datetime(py: Python, mjd: f64) -> PyResult<PyObject> {
     
     let py_dt = datetime_cls.call_method1("fromtimestamp", (timestamp, utc))?;
     
-    Ok(py_dt.to_object(py))
+    Ok(py_dt.unbind())
 }
 
 /// Convert Python datetime to Modified Julian Date (PyO3 binding)
 #[pyfunction]
-pub fn datetime_to_mjd(_py: Python, dt: &PyAny) -> PyResult<f64> {
+pub fn datetime_to_mjd(dt: &Bound<'_, PyAny>) -> PyResult<f64> {
     // Get timestamp from Python datetime
     let timestamp = dt.call_method0("timestamp")?.extract::<f64>()?;
     
@@ -142,7 +142,7 @@ pub fn datetime_to_mjd(_py: Python, dt: &PyAny) -> PyResult<f64> {
 /// 
 /// Returns a list of tuples (start_datetime, stop_datetime)
 #[pyfunction]
-pub fn parse_visibility_periods(py: Python, visibility_str: &str) -> PyResult<PyObject> {
+pub fn parse_visibility_periods(py: Python, visibility_str: &str) -> PyResult<Py<PyAny>> {
     let periods = parse_visibility_string(visibility_str)
         .map_err(|e| pyo3::exceptions::PyValueError::new_err(e))?;
     
@@ -155,22 +155,23 @@ pub fn parse_visibility_periods(py: Python, visibility_str: &str) -> PyResult<Py
     for period in periods {
         // Convert start
         let start_timestamp = period.start.timestamp() as f64 + (period.start.timestamp_subsec_micros() as f64 / 1_000_000.0);
-        let start_py = datetime_cls.call_method1("fromtimestamp", (start_timestamp, utc))?;
+        let start_py = datetime_cls.call_method1("fromtimestamp", (start_timestamp, &utc))?;
         
         // Convert stop
         let stop_timestamp = period.stop.timestamp() as f64 + (period.stop.timestamp_subsec_micros() as f64 / 1_000_000.0);
-        let stop_py = datetime_cls.call_method1("fromtimestamp", (stop_timestamp, utc))?;
+        let stop_py = datetime_cls.call_method1("fromtimestamp", (stop_timestamp, &utc))?;
         
-        let tuple = pyo3::types::PyTuple::new(py, &[start_py, stop_py]);
+        let tuple = pyo3::types::PyTuple::new(py, vec![start_py, stop_py])?;
         py_list.append(tuple)?;
     }
     
-    Ok(py_list.to_object(py))
+    Ok(py_list.unbind().into())
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
+    use chrono::Datelike;
     
     #[test]
     fn test_mjd_roundtrip() {

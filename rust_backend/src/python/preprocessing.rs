@@ -29,7 +29,7 @@ impl PyValidationResult {
     }
     
     /// Get statistics as a Python dict
-    fn get_stats(&self, py: Python) -> PyResult<PyObject> {
+    fn get_stats(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         // Stats will be added if needed
         Ok(dict.into())

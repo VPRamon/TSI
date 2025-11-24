@@ -1,3 +1,18 @@
 [workspace]
 members = ["rust_backend"]
 resolver = "2"
+
+# Force all polars dependencies to use 0.51.0 to avoid version mismatch
+# pyo3-polars 0.25 expects 0.52, but 0.52.0 has compilation bugs
+[workspace.dependencies]
+polars = { version = "=0.51.0" }
+polars-core = { version = "=0.51.0" }
+polars-lazy = { version = "=0.51.0" }
+polars-ops = { version = "=0.51.0" }
+polars-io = { version = "=0.51.0" }
+polars-time = { version = "=0.51.0" }
+polars-plan = { version = "=0.51.0" }
+polars-expr = { version = "=0.51.0" }
+polars-arrow = { version = "=0.51.0" }
+polars-utils = { version = "=0.51.0" }
+polars-schema = { version = "=0.51.0" }

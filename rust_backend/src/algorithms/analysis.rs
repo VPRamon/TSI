@@ -1,4 +1,5 @@
 use polars::prelude::*;
+use polars::frame::DataFrame;
 use serde::{Deserialize, Serialize};
 use std::ops::Not;
 
@@ -161,20 +162,20 @@ pub fn get_top_observations(
         .collect();
     
     // Sort descending and take top n
-    let sorted = df.sort([by], vec![true], false)?;
+    let sorted = df.sort([by], SortMultipleOptions::default().with_order_descending_multi([true]))?;
     let top = sorted.head(Some(n));
     
     // Select only relevant columns
-    top.select(&existing_cols)
+    top.select(existing_cols)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
     
     #[test]
     fn test_compute_metrics_empty() {
-        let df = DataFrame::empty();
+        let _df = DataFrame::empty();
         // Should handle empty DataFrame gracefully
     }
     

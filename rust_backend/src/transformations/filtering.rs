@@ -30,7 +30,7 @@ pub fn filter_by_range(
     min_value: f64,
     max_value: f64,
 ) -> PolarsResult<DataFrame> {
-    let series = df.column(column)?;
+    let series = df.column(column)?.as_materialized_series();
     
     // Create mask for range [min_value, max_value]
     let ge_mask = series.gt_eq(min_value)?;
@@ -178,15 +178,15 @@ pub fn validate_dataframe(df: &DataFrame) -> (bool, Vec<String>) {
     (issues.is_empty(), issues)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
     
     fn sample_dataframe() -> DataFrame {
         DataFrame::new(vec![
-            Series::new("priority", &[5.0, 10.0, 15.0, 20.0]),
-            Series::new("scheduled_flag", &[true, false, true, false]),
-            Series::new("priority_bin", &["Low", "Medium", "High", "Very High"]),
+            Series::new("priority".into(), &[5.0, 10.0, 15.0, 20.0]).into(),
+            Series::new("scheduled_flag".into(), &[true, false, true, false]).into(),
+            Series::new("priority_bin".into(), &["Low", "Medium", "High", "Very High"]).into(),
         ])
         .unwrap()
     }
@@ -214,10 +214,10 @@ mod tests {
     #[test]
     fn test_validate_dataframe() {
         let df = DataFrame::new(vec![
-            Series::new("schedulingBlockId", &["SB001", "SB002"]),
-            Series::new("priority", &[5.0, 10.0]),
-            Series::new("decInDeg", &[45.0, -30.0]),
-            Series::new("raInDeg", &[120.0, 270.0]),
+            Series::new("schedulingBlockId".into(), &["SB001", "SB002"]).into(),
+            Series::new("priority".into(), &[5.0, 10.0]).into(),
+            Series::new("decInDeg".into(), &[45.0, -30.0]).into(),
+            Series::new("raInDeg".into(), &[120.0, 270.0]).into(),
         ])
         .unwrap();
         

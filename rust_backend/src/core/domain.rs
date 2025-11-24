@@ -104,7 +104,7 @@ impl SchedulingBlock {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
     use chrono::TimeZone;

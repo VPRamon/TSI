@@ -44,7 +44,7 @@ impl PyAnalyticsSnapshot {
         )
     }
     
-    fn to_dict(&self, py: Python) -> PyResult<PyObject> {
+    fn to_dict(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         dict.set_item("total_observations", self.total_observations)?;
         dict.set_item("scheduled_count", self.scheduled_count)?;
