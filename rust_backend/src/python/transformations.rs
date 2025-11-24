@@ -12,8 +12,8 @@ pub fn py_remove_duplicates(
     subset: Option<Vec<String>>,
     keep: &str,
 ) -> PyResult<PyDataFrame> {
-    let dataframe = df.into();
-    let result = cleaning::remove_duplicates(&dataframe, subset, keep)
+    let dataframe = &df.0;
+    let result = cleaning::remove_duplicates(dataframe, subset, keep)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     Ok(PyDataFrame(result))
 }
@@ -21,8 +21,8 @@ pub fn py_remove_duplicates(
 /// Remove rows with missing coordinates (RA or Dec)
 #[pyfunction]
 pub fn py_remove_missing_coordinates(df: PyDataFrame) -> PyResult<PyDataFrame> {
-    let dataframe = df.into();
-    let result = cleaning::remove_missing_coordinates(&dataframe)
+    let dataframe = &df.0;
+    let result = cleaning::remove_missing_coordinates(dataframe)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     Ok(PyDataFrame(result))
 }
@@ -36,11 +36,11 @@ pub fn py_impute_missing(
     strategy: &str,
     fill_value: Option<f64>,
 ) -> PyResult<PyDataFrame> {
-    let mut dataframe: DataFrame = df.into();
-    let series = dataframe
+    let mut dataframe = df.0.clone();
+    let col = dataframe
         .column(column)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?
-        .clone();
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    let series = col.as_materialized_series().clone();
     
     let imputed = cleaning::impute_missing(&series, strategy, fill_value)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
@@ -60,7 +60,7 @@ pub fn py_validate_schema(
     required_columns: Vec<String>,
     expected_dtypes: Option<Vec<(String, String)>>,
 ) -> PyResult<(bool, Vec<String>)> {
-    let dataframe: DataFrame = df.into();
+    let dataframe = &df.0;
     
     // Convert string dtypes to Polars DataType if provided
     let polars_dtypes = expected_dtypes.map(|dtypes| {
@@ -91,8 +91,8 @@ pub fn py_filter_by_range(
     min_value: f64,
     max_value: f64,
 ) -> PyResult<PyDataFrame> {
-    let dataframe = df.into();
-    let result = filtering::filter_by_range(&dataframe, column, min_value, max_value)
+    let dataframe = &df.0;
+    let result = filtering::filter_by_range(dataframe, column, min_value, max_value)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     Ok(PyDataFrame(result))
 }
@@ -100,8 +100,8 @@ pub fn py_filter_by_range(
 /// Filter DataFrame by scheduled flag
 #[pyfunction]
 pub fn py_filter_by_scheduled(df: PyDataFrame, filter_type: &str) -> PyResult<PyDataFrame> {
-    let dataframe = df.into();
-    let result = filtering::filter_by_scheduled(&dataframe, filter_type)
+    let dataframe = &df.0;
+    let result = filtering::filter_by_scheduled(dataframe, filter_type)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     Ok(PyDataFrame(result))
 }
@@ -117,9 +117,9 @@ pub fn py_filter_dataframe(
     priority_bins: Option<Vec<String>>,
     block_ids: Option<Vec<String>>,
 ) -> PyResult<PyDataFrame> {
-    let dataframe = df.into();
+    let dataframe = &df.0;
     let result = filtering::filter_dataframe(
-        &dataframe,
+        dataframe,
         priority_min,
         priority_max,
         scheduled_filter,
@@ -133,8 +133,8 @@ pub fn py_filter_dataframe(
 /// Validate DataFrame structure and data quality
 #[pyfunction]
 pub fn py_validate_dataframe(df: PyDataFrame) -> PyResult<(bool, Vec<String>)> {
-    let dataframe = df.into();
-    Ok(filtering::validate_dataframe(&dataframe))
+    let dataframe = &df.0;
+    Ok(filtering::validate_dataframe(dataframe))
 }
 
 pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {

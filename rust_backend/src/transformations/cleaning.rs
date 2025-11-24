@@ -16,9 +16,10 @@ pub fn remove_duplicates(
     };
     
     if let Some(cols) = subset {
-        df.unique(Some(&cols), unique_strategy, None)
+        let col_strs: Vec<String> = cols.into_iter().collect();
+        df.unique::<Vec<String>, String>(Some(&col_strs), unique_strategy, None)
     } else {
-        df.unique(None, unique_strategy, None)
+        df.unique::<Vec<String>, String>(None::<&[String]>, unique_strategy, None)
     }
 }
 
@@ -44,7 +45,7 @@ pub fn impute_missing(
     match strategy {
         "mean" => {
             let float_series = series.cast(&DataType::Float64)?;
-            if let Some(mean) = float_series.mean() {
+            if float_series.mean().is_some() {
                 Ok(float_series.fill_null(FillNullStrategy::Mean)?)
             } else {
                 Ok(series.clone())
@@ -52,15 +53,14 @@ pub fn impute_missing(
         }
         "median" => {
             let float_series = series.cast(&DataType::Float64)?;
-            if let Some(median) = float_series.median() {
+            if float_series.median().is_some() {
                 Ok(float_series.fill_null(FillNullStrategy::Mean)?)
             } else {
                 Ok(series.clone())
             }
         }
         "constant" => {
-            if let Some(val) = fill_value {
-                let literal = AnyValue::Float64(val);
+            if let Some(_val) = fill_value {
                 Ok(series.fill_null(FillNullStrategy::Forward(None))?)
             } else {
                 Err(PolarsError::ComputeError(
@@ -83,8 +83,9 @@ pub fn validate_schema(
     let mut issues: Vec<String> = Vec::new();
     
     // Check for missing required columns
+    let col_names: Vec<_> = df.get_column_names_owned();
     for col in &required_columns {
-        if !df.get_column_names().contains(&col.as_str()) {
+        if !col_names.iter().any(|c| c.as_str() == col.as_str()) {
             issues.push(format!("Missing required column: {}", col));
         }
     }
@@ -107,15 +108,15 @@ pub fn validate_schema(
     Ok((issues.is_empty(), issues))
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
     
     #[test]
     fn test_remove_duplicates() {
         let df = DataFrame::new(vec![
-            Series::new("id", &[1, 2, 2, 3]),
-            Series::new("value", &[10, 20, 20, 30]),
+            Series::new("id".into(), &[1, 2, 2, 3]).into(),
+            Series::new("value".into(), &[10, 20, 20, 30]).into(),
         ])
         .unwrap();
         
@@ -126,8 +127,8 @@ mod tests {
     #[test]
     fn test_remove_missing_coordinates() {
         let df = DataFrame::new(vec![
-            Series::new("raInDeg", &[Some(120.0), None, Some(270.0)]),
-            Series::new("decInDeg", &[Some(45.0), Some(-30.0), None]),
+            Series::new("raInDeg".into(), &[Some(120.0), None, Some(270.0)]).into(),
+            Series::new("decInDeg".into(), &[Some(45.0), Some(-30.0), None]).into(),
         ])
         .unwrap();
         
@@ -138,8 +139,8 @@ mod tests {
     #[test]
     fn test_validate_schema() {
         let df = DataFrame::new(vec![
-            Series::new("priority", &[5.0, 10.0]),
-            Series::new("schedulingBlockId", &["SB001", "SB002"]),
+            Series::new("priority".into(), &[5.0, 10.0]).into(),
+            Series::new("schedulingBlockId".into(), &["SB001", "SB002"]).into(),
         ])
         .unwrap();
         

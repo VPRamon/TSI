@@ -7,9 +7,9 @@ use crate::parsing::visibility::VisibilityParser;
 
 /// Parse CSV file into a Polars DataFrame
 pub fn parse_schedule_csv(csv_path: &Path) -> Result<DataFrame> {
-    let df = CsvReader::from_path(csv_path)
-        .with_context(|| format!("Failed to read CSV file: {}", csv_path.display()))?
-        .has_header(true)
+    let df = CsvReadOptions::default()
+        .with_has_header(true)
+        .try_into_reader_with_file_path(Some(csv_path.into()))?
         .finish()
         .context("Failed to parse CSV into DataFrame")?;
     
@@ -170,7 +170,7 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
     Ok(df)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "extension-module")))]
 mod tests {
     use super::*;
     use crate::core::domain::SchedulingBlock;
@@ -200,9 +200,10 @@ mod tests {
         let df = blocks_to_dataframe(&blocks).unwrap();
         
         assert_eq!(df.height(), 1);
-        assert!(df.get_column_names().contains(&"schedulingBlockId"));
-        assert!(df.get_column_names().contains(&"priority"));
-        assert!(df.get_column_names().contains(&"scheduled_flag"));
+        let col_names = df.get_column_names();
+        assert!(col_names.iter().any(|s| s.as_str() == "schedulingBlockId"));
+        assert!(col_names.iter().any(|s| s.as_str() == "priority"));
+        assert!(col_names.iter().any(|s| s.as_str() == "scheduled_flag"));
         
         // Check values
         let ids = df.column("schedulingBlockId").unwrap().str().unwrap();

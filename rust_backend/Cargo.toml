@@ -8,9 +8,11 @@ name = "tsi_rust"
 crate-type = ["cdylib", "rlib"]  # rlib needed for benchmarks and tests
 
 [dependencies]
-pyo3 = { version = "0.26", features = ["extension-module", "abi3-py310"] }
-pyo3-polars = "0.25"
-polars = { version = "0.51", features = ["lazy", "temporal", "csv", "json"] }
+# Using pyo3 0.25 to match pyo3-polars 0.24 compatibility
+# pyo3-polars 0.25 requires polars 0.52 which has critical compilation bugs
+pyo3 = { version = "0.25", features = ["abi3-py310"] }
+pyo3-polars = "0.24"
+polars = { version = "0.51.0", features = ["lazy", "temporal", "csv", "json"] }
 csv = "1.3"
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
