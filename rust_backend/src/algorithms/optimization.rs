@@ -201,11 +201,13 @@ pub fn greedy_schedule_parallel(
     */
 }
 
-#[cfg(all(test, not(feature = "extension-module")))]
+#[cfg(test)]
 mod tests {
     use super::*;
     
+    // Test helper: a constraint that is always satisfied
     struct AlwaysSatisfied;
+    
     impl Constraint for AlwaysSatisfied {
         fn is_satisfied(&self, _indices: &[usize], _observations: &[Observation]) -> bool {
             true

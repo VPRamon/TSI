@@ -188,7 +188,7 @@ pub fn preprocess_schedule(
     pipeline.process(schedule_path, visibility_path)
 }
 
-#[cfg(all(test, not(feature = "extension-module")))]
+#[cfg(test)]
 mod tests {
     use super::*;
 
