@@ -450,6 +450,26 @@ def load_schedule(path: str | Path, **kwargs) -> pd.DataFrame:
     return backend.load_schedule(path, **kwargs)
 
 
+def load_dark_periods(path: str | Path) -> pd.DataFrame:
+    """
+    Quick function to load dark periods data.
+    
+    Args:
+        path: Path to dark_periods.json file
+    
+    Returns:
+        pandas DataFrame with columns: start_dt, stop_dt, start_mjd, stop_mjd, 
+        duration_hours, months
+    
+    Example:
+        >>> from tsi_rust_api import load_dark_periods
+        >>> df = load_dark_periods("data/dark_periods.json")
+        >>> print(f"Loaded {len(df)} dark periods")
+    """
+    df_polars = tsi_rust.load_dark_periods(str(path))
+    return df_polars.to_pandas()
+
+
 def compute_metrics(df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
     """Quick function to compute scheduling metrics."""
     backend = TSIBackend()
@@ -471,6 +491,7 @@ __version__ = "0.1.0"
 __all__ = [
     "TSIBackend",
     "load_schedule",
+    "load_dark_periods",
     "compute_metrics",
     "filter_by_priority",
 ]

@@ -21,6 +21,7 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::load_schedule_from_json, m)?)?;
     m.add_function(wrap_pyfunction!(python::load_schedule_from_json_str, m)?)?;
     m.add_function(wrap_pyfunction!(python::load_schedule_from_csv, m)?)?;
+    m.add_function(wrap_pyfunction!(python::load_dark_periods, m)?)?;
     
     // Register preprocessing functions
     m.add_function(wrap_pyfunction!(python::py_preprocess_schedule, m)?)?;

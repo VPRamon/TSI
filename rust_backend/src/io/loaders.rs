@@ -5,6 +5,7 @@ use std::path::Path;
 use crate::core::domain::SchedulingBlock;
 use crate::parsing::csv_parser;
 use crate::parsing::json_parser;
+use crate::parsing::dark_periods_parser;
 
 /// Represents the source type of schedule data
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -87,6 +88,29 @@ impl ScheduleLoader {
     /// Load schedule data from JSON and get SchedulingBlock structures
     pub fn load_blocks_from_json(json_path: &Path) -> Result<Vec<SchedulingBlock>> {
         json_parser::parse_schedule_json(json_path)
+    }
+}
+
+/// Unified interface for loading dark periods data
+pub struct DarkPeriodsLoader;
+
+impl DarkPeriodsLoader {
+    /// Load dark periods from a JSON file and return a Polars DataFrame
+    pub fn load_from_file(path: &Path) -> Result<DataFrame> {
+        let periods = dark_periods_parser::parse_dark_periods_file(path)
+            .context("Failed to parse dark periods file")?;
+        
+        dark_periods_parser::periods_to_dataframe(periods)
+            .context("Failed to convert dark periods to DataFrame")
+    }
+    
+    /// Load dark periods from a JSON string and return a Polars DataFrame
+    pub fn load_from_str(json_str: &str) -> Result<DataFrame> {
+        let periods = dark_periods_parser::parse_dark_periods_str(json_str)
+            .context("Failed to parse dark periods string")?;
+        
+        dark_periods_parser::periods_to_dataframe(periods)
+            .context("Failed to convert dark periods to DataFrame")
     }
 }
 
