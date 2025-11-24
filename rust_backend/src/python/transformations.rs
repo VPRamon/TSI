@@ -137,7 +137,7 @@ pub fn py_validate_dataframe(df: PyDataFrame) -> PyResult<(bool, Vec<String>)> {
     Ok(filtering::validate_dataframe(&dataframe))
 }
 
-pub fn register_transformation_functions(m: &PyModule) -> PyResult<()> {
+pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_remove_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
     m.add_function(wrap_pyfunction!(py_impute_missing, m)?)?;
