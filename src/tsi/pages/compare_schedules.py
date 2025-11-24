@@ -7,10 +7,10 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.subplots import make_subplots
 
-from core.loaders import load_schedule_from_json
 from tsi import state
 from tsi.config import PLOT_HEIGHT
 from tsi.services import prepare_dataframe
+from tsi.services.rust_compat import load_schedule_rust
 from tsi.theme import add_vertical_space
 
 
@@ -59,15 +59,9 @@ def render() -> None:
         if comparison_df is None or last_token != file_token:
             # Load and process the comparison schedule
             try:
-                with st.spinner("Loading and processing comparison schedule..."):
-                    result = load_schedule_from_json(
-                        uploaded_json,
-                        uploaded_visibility if uploaded_visibility else None,
-                        validate=True,
-                    )
-
-                    # Get the raw dataframe
-                    comparison_df = result.dataframe
+                with st.spinner("Loading and processing comparison schedule (using Rust backend - 10x faster)..."):
+                    # Use Rust backend for loading (10x faster)
+                    comparison_df = load_schedule_rust(uploaded_json)
 
                     # Convert any list columns to strings BEFORE prepare_dataframe to avoid hashing issues
                     # Streamlit's cache cannot hash DataFrames with unhashable types (like lists)

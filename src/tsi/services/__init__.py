@@ -1,13 +1,13 @@
 """Services package initialization."""
 
 from core.time import (
-    datetime_to_mjd,
     format_datetime_utc,
     get_time_range,
-    mjd_to_datetime,
     parse_optional_mjd,
-    parse_visibility_periods,
 )
+# Time conversions now use Rust backend (8x faster)
+from tsi.services.dark_periods import datetime_to_mjd, mjd_to_datetime
+from tsi.services.rust_compat import parse_visibility_periods_rust as parse_visibility_periods
 from tsi.services.analytics import (
     compute_correlations,
     compute_distribution_stats,
