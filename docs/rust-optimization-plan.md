@@ -447,21 +447,32 @@ anyhow = "1.0"                   # Error handling
 
 ---
 
-#### **FASE 1F: Python Integration Layer (Semana 8)**
+#### **FASE 1F: Python Integration Layer (Semana 8)** ✅ **COMPLETADO**
 ✅ PyO3 wrappers completos en `rust_backend::python`
 ✅ Conversiones automáticas Rust ↔ Polars ↔ pandas
-✅ Documentación de API Python
-✅ Backward compatibility layer (opcional)
+✅ API ergonómica con clase `TSIBackend`
+✅ Documentación completa (docs/PYTHON_API.md)
+✅ 10 ejemplos prácticos (examples/api_examples.py)
+✅ 15 tests de integración (15/15 passing)
+✅ Type hints completos para IDE support
+✅ Funciones de conveniencia para uso rápido
 
-**Entregable:** API Python completa y ergonómica
+**Entregable:** ✅ API Python completa y ergonómica con 100% tests passing
+
+**Archivos creados:**
+- `src/tsi_rust_api.py` (630 líneas)
+- `docs/PYTHON_API.md` (700+ líneas)
+- `examples/api_examples.py` (350+ líneas)
+- `tests/test_phase_1f_integration.py` (290 líneas, 15/15 tests passing)
+- `docs/FASE_1F_COMPLETADO.md` (documento de finalización)
 
 ---
 
-#### **FASE 1G: Refactor Streamlit App (Semana 9)**
-✅ Actualizar `src/tsi/` para usar `tsi_rust` en lugar de `src/core/`
-✅ Eliminar imports de `core.preprocessing`, `core.algorithms`, etc.
-✅ Simplificar código Python (solo UI logic)
-✅ Tests E2E actualizados
+#### **FASE 1G: Refactor Streamlit App (Semana 9)** 🎯 **SIGUIENTE**
+🔲 Actualizar `src/tsi/` para usar `tsi_rust_api` en lugar de `src/core/`
+🔲 Eliminar imports de `core.preprocessing`, `core.algorithms`, etc.
+🔲 Simplificar código Python (solo UI logic)
+🔲 Tests E2E actualizados
 
 **Entregable:** App Streamlit funcionando 100% con backend Rust
 
