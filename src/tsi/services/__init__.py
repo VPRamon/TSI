@@ -6,8 +6,12 @@ from core.time import (
     parse_optional_mjd,
 )
 # Time conversions now use Rust backend (8x faster)
-from tsi.services.dark_periods import datetime_to_mjd, mjd_to_datetime
-from tsi.services.rust_compat import parse_visibility_periods_rust as parse_visibility_periods
+from tsi.services.rust_compat import (
+    datetime_to_mjd_rust as datetime_to_mjd,
+    mjd_to_datetime_rust as mjd_to_datetime,
+    parse_visibility_periods_rust as parse_visibility_periods,
+    load_dark_periods_rust as load_dark_periods,
+)
 from tsi.services.analytics import (
     compute_correlations,
     compute_distribution_stats,
@@ -16,7 +20,6 @@ from tsi.services.analytics import (
     generate_insights,
     get_top_observations,
 )
-from tsi.services.dark_periods import load_dark_periods
 from tsi.services.loaders import (
     get_filtered_dataframe,
     load_csv,
