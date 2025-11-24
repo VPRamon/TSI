@@ -85,6 +85,13 @@ pub struct SchedulingBlock {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fixed_stop_time: Option<f64>,
     
+    // Target information
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_name: Option<String>,
+    
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub target_id: Option<i64>,
+    
     pub dec_in_deg: f64,
     pub ra_in_deg: f64,
     pub min_azimuth_angle_in_deg: f64,
@@ -120,6 +127,8 @@ impl SchedulingBlock {
         requested_duration_sec: f64,
         fixed_start_time: Option<f64>,
         fixed_stop_time: Option<f64>,
+        target_name: Option<String>,
+        target_id: Option<i64>,
         dec_in_deg: f64,
         ra_in_deg: f64,
         min_azimuth_angle_in_deg: f64,
@@ -145,6 +154,8 @@ impl SchedulingBlock {
             requested_duration_sec,
             fixed_start_time,
             fixed_stop_time,
+            target_name,
+            target_id,
             dec_in_deg,
             ra_in_deg,
             min_azimuth_angle_in_deg,
@@ -211,6 +222,8 @@ mod tests {
             1200.0,
             None,
             None,
+            Some("TestTarget".to_string()),
+            Some(42),
             0.0,
             0.0,
             0.0,

@@ -123,6 +123,8 @@ impl CsvParser {
                 requested_duration_sec: req_duration,
                 fixed_start_time: fixed_start,
                 fixed_stop_time: fixed_stop,
+                target_name: None,
+                target_id: None,
                 dec_in_deg: dec,
                 ra_in_deg: ra,
                 min_azimuth_angle_in_deg: min_az,

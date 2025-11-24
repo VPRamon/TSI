@@ -119,15 +119,17 @@ use([
 const API_BASE = 'http://localhost:8081/api/v1'
 
 interface SchedulingBlock {
-  scheduling_block_id: string
-  right_ascension_deg: number
-  declination_deg: number
+  schedulingBlockId: string
+  raInDeg: number
+  decInDeg: number
   priority: number
-  priority_bin: string
-  scheduled_flag: boolean
-  requested_hours: number
-  total_visibility_hours: number
-  elevation_range_deg?: number
+  priorityBin: string
+  scheduledFlag: boolean
+  requestedHours: number
+  totalVisibilityHours: number
+  elevationRangeDeg?: number
+  targetName?: string
+  targetId?: number
 }
 
 export default defineComponent({
@@ -181,10 +183,10 @@ export default defineComponent({
         }
         
         // Scheduled status filter
-        if (filters.value.scheduledStatus === 'scheduled' && !block.scheduled_flag) {
+        if (filters.value.scheduledStatus === 'scheduled' && !block.scheduledFlag) {
           return false
         }
-        if (filters.value.scheduledStatus === 'unscheduled' && block.scheduled_flag) {
+        if (filters.value.scheduledStatus === 'unscheduled' && block.scheduledFlag) {
           return false
         }
         
@@ -217,7 +219,7 @@ export default defineComponent({
         // Group by priority bin
         const groups = new Map<string, SchedulingBlock[]>()
         filteredData.value.forEach(block => {
-          const bin = block.priority_bin || 'Unknown'
+          const bin = block.priorityBin || 'Unknown'
           if (!groups.has(bin)) {
             groups.set(bin, [])
           }
@@ -230,8 +232,8 @@ export default defineComponent({
             name: bin,
             type: 'scatter',
             data: blocks.map(b => ({
-              value: [b.right_ascension_deg, b.declination_deg],
-              symbolSize: Math.max(5, Math.min(20, b.requested_hours * 3)),
+              value: [b.raInDeg, b.decInDeg],
+              symbolSize: Math.max(5, Math.min(20, b.requestedHours * 3)),
               itemStyle: {
                 color: priorityBinColors[bin] || '#9ca3af'
               },
@@ -244,8 +246,8 @@ export default defineComponent({
         })
       } else if (filters.value.colorBy === 'scheduled') {
         // Group by scheduled status
-        const scheduled = filteredData.value.filter(b => b.scheduled_flag)
-        const unscheduled = filteredData.value.filter(b => !b.scheduled_flag)
+        const scheduled = filteredData.value.filter(b => b.scheduledFlag)
+        const unscheduled = filteredData.value.filter(b => !b.scheduledFlag)
 
         if (scheduled.length > 0) {
           legendData.push('Scheduled')
@@ -253,8 +255,8 @@ export default defineComponent({
             name: 'Scheduled',
             type: 'scatter',
             data: scheduled.map(b => ({
-              value: [b.right_ascension_deg, b.declination_deg],
-              symbolSize: Math.max(5, Math.min(20, b.requested_hours * 3)),
+              value: [b.raInDeg, b.decInDeg],
+              symbolSize: Math.max(5, Math.min(20, b.requestedHours * 3)),
               itemStyle: {
                 color: statusColors['Scheduled']
               },
@@ -269,8 +271,8 @@ export default defineComponent({
             name: 'Unscheduled',
             type: 'scatter',
             data: unscheduled.map(b => ({
-              value: [b.right_ascension_deg, b.declination_deg],
-              symbolSize: Math.max(5, Math.min(20, b.requested_hours * 3)),
+              value: [b.raInDeg, b.decInDeg],
+              symbolSize: Math.max(5, Math.min(20, b.requestedHours * 3)),
               itemStyle: {
                 color: statusColors['Unscheduled']
               },
@@ -284,8 +286,8 @@ export default defineComponent({
           name: 'Observations',
           type: 'scatter',
           data: filteredData.value.map(b => ({
-            value: [b.right_ascension_deg, b.declination_deg, b.priority],
-            symbolSize: Math.max(5, Math.min(20, b.requested_hours * 3)),
+            value: [b.raInDeg, b.decInDeg, b.priority],
+            symbolSize: Math.max(5, Math.min(20, b.requestedHours * 3)),
             block: b
           }))
         })
@@ -302,16 +304,32 @@ export default defineComponent({
             const block = params.data.block
             if (!block) return ''
             
-            return `
-              <strong>Block ID:</strong> ${block.scheduling_block_id}<br/>
-              <strong>RA:</strong> ${block.right_ascension_deg.toFixed(2)}°<br/>
-              <strong>Dec:</strong> ${block.declination_deg.toFixed(2)}°<br/>
+            let tooltip = ''
+            
+            // Add target information if available
+            if (block.targetName || block.targetId) {
+              tooltip += '<div style="font-weight: bold; margin-bottom: 4px; color: #2563eb;">'
+              if (block.targetName) {
+                tooltip += `🎯 ${block.targetName}`
+              }
+              if (block.targetId) {
+                tooltip += ` (ID: ${block.targetId})`
+              }
+              tooltip += '</div>'
+            }
+            
+            tooltip += `
+              <strong>Block ID:</strong> ${block.schedulingBlockId}<br/>
+              <strong>RA:</strong> ${block.raInDeg.toFixed(2)}°<br/>
+              <strong>Dec:</strong> ${block.decInDeg.toFixed(2)}°<br/>
               <strong>Priority:</strong> ${block.priority.toFixed(2)}<br/>
-              <strong>Priority Bin:</strong> ${block.priority_bin}<br/>
-              <strong>Status:</strong> ${block.scheduled_flag ? 'Scheduled' : 'Unscheduled'}<br/>
-              <strong>Requested:</strong> ${block.requested_hours.toFixed(2)}h<br/>
-              <strong>Visibility:</strong> ${block.total_visibility_hours.toFixed(2)}h
+              <strong>Priority Bin:</strong> ${block.priorityBin}<br/>
+              <strong>Status:</strong> ${block.scheduledFlag ? 'Scheduled' : 'Unscheduled'}<br/>
+              <strong>Requested:</strong> ${block.requestedHours.toFixed(2)}h<br/>
+              <strong>Visibility:</strong> ${block.totalVisibilityHours.toFixed(2)}h
             `
+            
+            return tooltip
           }
         },
         legend: {

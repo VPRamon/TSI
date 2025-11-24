@@ -76,6 +76,10 @@ struct ElevationConstraint {
 
 #[derive(Debug, serde::Deserialize)]
 struct Target {
+    #[serde(default, rename = "id_")]
+    id: Option<i64>,
+    #[serde(default)]
+    name: Option<String>,
     #[serde(rename = "position_")]
     position: Position,
 }
@@ -204,6 +208,8 @@ pub fn load_json(schedule_json: &str, visibility_json: Option<&str>) -> Result<V
                 .requested_duration_sec,
             fixed_start_time: fixed_start,
             fixed_stop_time: fixed_stop,
+            target_name: raw.target.name.clone(),
+            target_id: raw.target.id,
             dec_in_deg: raw.target.position.coord.celestial.dec_in_deg,
             ra_in_deg: raw.target.position.coord.celestial.ra_in_deg,
             min_azimuth_angle_in_deg: raw.scheduling_block_configuration

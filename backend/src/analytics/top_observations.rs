@@ -110,6 +110,8 @@ mod tests {
             requested_duration_sec: requested * 3600.0,
             fixed_start_time: None,
             fixed_stop_time: None,
+            target_name: None,
+            target_id: None,
             dec_in_deg: 0.0,
             ra_in_deg: 0.0,
             min_azimuth_angle_in_deg: 0.0,

@@ -2,6 +2,7 @@
  * Main stylesheet - imports all CSS modules
  */
 
+@import './tailwind.css';
 @import './tokens.css';
 @import './base.css';
 @import './utilities.css';
