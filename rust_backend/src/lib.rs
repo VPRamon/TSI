@@ -23,5 +23,13 @@ fn tsi_rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::load_schedule_from_json_str, m)?)?;
     m.add_function(wrap_pyfunction!(python::load_schedule_from_csv, m)?)?;
     
+    // Register preprocessing functions
+    m.add_function(wrap_pyfunction!(python::py_preprocess_schedule, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_preprocess_schedule_str, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_validate_schedule, m)?)?;
+    
+    // Register validation result class
+    m.add_class::<python::PyValidationResult>()?;
+    
     Ok(())
 }
