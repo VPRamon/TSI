@@ -35,6 +35,9 @@ fn tsi_rust(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_find_conflicts, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_greedy_schedule, m)?)?;
     
+    // Register transformation functions
+    python::transformations::register_transformation_functions(m)?;
+    
     // Register classes
     m.add_class::<python::PyValidationResult>()?;
     m.add_class::<python::PyAnalyticsSnapshot>()?;
