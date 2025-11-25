@@ -41,7 +41,11 @@ pub fn load_schedule_from_json(json_path: &str) -> PyResult<PyDataFrame> {
     let path = PathBuf::from(json_path);
     
     let result = ScheduleLoader::load_from_json(&path)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to load JSON: {}", e)))?;
+        .map_err(|e| {
+            // Format the full error chain for better debugging
+            let error_msg = format!("Failed to load JSON from {}:\n{:?}", json_path, e);
+            pyo3::exceptions::PyRuntimeError::new_err(error_msg)
+        })?;
     
     Ok(PyDataFrame(result.dataframe))
 }
@@ -56,7 +60,11 @@ pub fn load_schedule_from_json(json_path: &str) -> PyResult<PyDataFrame> {
 #[pyfunction]
 pub fn load_schedule_from_json_str(json_str: &str) -> PyResult<PyDataFrame> {
     let result = ScheduleLoader::load_from_json_str(json_str)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to parse JSON: {}", e)))?;
+        .map_err(|e| {
+            // Format the full error chain for better debugging
+            let error_msg = format!("Failed to parse JSON:\n{:?}", e);
+            pyo3::exceptions::PyRuntimeError::new_err(error_msg)
+        })?;
     
     Ok(PyDataFrame(result.dataframe))
 }

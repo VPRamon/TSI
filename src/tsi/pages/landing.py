@@ -175,7 +175,8 @@ def _load_data(
                 from tsi.services.rust_compat import load_schedule_rust
 
                 # Process JSON directly to DataFrame
-                raw_df = load_schedule_rust(file_or_path)
+                # Handle both file buffers (from st.file_uploader) and path strings
+                raw_df = load_schedule_rust(file_or_path, format="json")
 
                 # Convert visibility lists to strings for Streamlit caching compatibility
                 # Streamlit's cache_data uses pandas hashing which doesn't support list columns

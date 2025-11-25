@@ -97,9 +97,9 @@ struct TimeConstraint {
     #[serde(rename = "requestedDurationSec")]
     requested_duration_sec: f64,
     #[serde(rename = "fixedStartTime")]
-    fixed_start_time: Vec<f64>,  // Empty array if not fixed
+    fixed_start_time: Vec<TimeValue>,  // Array of TimeValue objects (can be empty)
     #[serde(rename = "fixedStopTime")]
-    fixed_stop_time: Vec<f64>,   // Empty array if not fixed
+    fixed_stop_time: Vec<TimeValue>,   // Array of TimeValue objects (can be empty)
 }
 
 /// Raw JSON structure for constraints
@@ -150,26 +150,63 @@ pub fn parse_schedule_json(json_path: &Path) -> Result<Vec<SchedulingBlock>> {
 
 /// Parse schedule JSON from a string
 pub fn parse_schedule_json_str(json_str: &str) -> Result<Vec<SchedulingBlock>> {
-    let schedule_json: ScheduleJson = serde_json::from_str(json_str)
+    // First validate that it's valid JSON
+    let json_value: serde_json::Value = serde_json::from_str(json_str)
         .with_context(|| {
-            // Try to get more detailed error info
-            let preview = if json_str.len() > 200 {
-                format!("{}...", &json_str[..200])
+            let preview = if json_str.len() > 500 {
+                format!("{}...", &json_str[..500])
             } else {
                 json_str.to_string()
             };
-            format!("Failed to parse schedule JSON. Preview: {}", preview)
+            format!("Invalid JSON syntax. First 500 chars: {}", preview)
+        })?;
+    
+    // Check if SchedulingBlock key exists
+    if !json_value.is_object() || !json_value.as_object().unwrap().contains_key("SchedulingBlock") {
+        anyhow::bail!(
+            "JSON must contain a 'SchedulingBlock' key. Found keys: {:?}",
+            json_value.as_object().map(|o| o.keys().collect::<Vec<_>>())
+        );
+    }
+    
+    // Now try to deserialize with detailed error handling
+    let schedule_json: ScheduleJson = serde_json::from_value(json_value.clone())
+        .map_err(|e| {
+            // Provide detailed error information
+            let error_msg = format!("JSON deserialization error: {}", e);
+            
+            // Try to identify which block is causing the issue
+            if let Some(blocks) = json_value.get("SchedulingBlock").and_then(|v| v.as_array()) {
+                // Try to deserialize blocks one by one to find the problematic one
+                for (idx, block) in blocks.iter().enumerate() {
+                    if let Err(block_err) = serde_json::from_value::<RawSchedulingBlock>(block.clone()) {
+                        return anyhow::anyhow!(
+                            "{}\nError in SchedulingBlock at index {}: {}\nBlock data: {}",
+                            error_msg,
+                            idx,
+                            block_err,
+                            serde_json::to_string_pretty(block).unwrap_or_else(|_| "cannot display".to_string())
+                        );
+                    }
+                }
+            }
+            
+            anyhow::anyhow!("{}", error_msg)
         })?;
     
     Ok(schedule_json
         .scheduling_blocks
         .into_iter()
-        .map(convert_raw_to_domain)
+        .enumerate()
+        .map(|(idx, raw)| {
+            // Wrap conversion to add context about which block failed
+            convert_raw_to_domain(raw, idx)
+        })
         .collect())
 }
 
 /// Convert raw JSON structure to domain model
-fn convert_raw_to_domain(raw: RawSchedulingBlock) -> SchedulingBlock {
+fn convert_raw_to_domain(raw: RawSchedulingBlock, _idx: usize) -> SchedulingBlock {
     use crate::core::domain::Period;
     use siderust::astro::ModifiedJulianDate;
     use siderust::coordinates::spherical::direction::ICRS;
@@ -186,9 +223,9 @@ fn convert_raw_to_domain(raw: RawSchedulingBlock) -> SchedulingBlock {
     let constraints = &raw.scheduling_block_configuration.constraints;
     let time_constraint = &constraints.time_constraint;
     
-    // Get fixed times if they exist
-    let fixed_start_time = time_constraint.fixed_start_time.first().copied();
-    let fixed_stop_time = time_constraint.fixed_stop_time.first().copied();
+    // Get fixed times if they exist - extract the .value from TimeValue
+    let fixed_start_time = time_constraint.fixed_start_time.first().map(|tv| tv.value);
+    let fixed_stop_time = time_constraint.fixed_stop_time.first().map(|tv| tv.value);
 
     SchedulingBlock {
         scheduling_block_id: raw.scheduling_block_id.to_string(),

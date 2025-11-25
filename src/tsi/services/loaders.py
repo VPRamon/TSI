@@ -83,7 +83,7 @@ def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
     """
     try:
         # Use Rust backend for loading (10x speedup)
-        df = load_schedule_rust(file_path_or_buffer)
+        df = load_schedule_rust(file_path_or_buffer, format="csv")
     except Exception as e:
         raise ValueError(f"Failed to read CSV: {e}")
 

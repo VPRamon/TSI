@@ -131,6 +131,9 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
     let mut scheduled_stops = Vec::with_capacity(n);
     let mut scheduled_flags = Vec::with_capacity(n);
     
+    let mut fixed_start_times = Vec::with_capacity(n);
+    let mut fixed_stop_times = Vec::with_capacity(n);
+    
     let mut num_vis_periods = Vec::with_capacity(n);
     let mut total_vis_hours = Vec::with_capacity(n);
     let mut requested_hours = Vec::with_capacity(n);
@@ -156,6 +159,9 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
         scheduled_stops.push(block.scheduled_period.as_ref().map(|p| p.stop.value()));
         scheduled_flags.push(block.is_scheduled());
         
+        fixed_start_times.push(block.fixed_time.as_ref().map(|p| p.start.value()));
+        fixed_stop_times.push(block.fixed_time.as_ref().map(|p| p.stop.value()));
+        
         num_vis_periods.push(block.num_visibility_periods() as u32);
         total_vis_hours.push(block.total_visibility_hours().value());
         requested_hours.push(block.requested_duration.value() / 3600.0); // Convert seconds to hours
@@ -169,6 +175,8 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
         "priority" => priorities,
         "requestedDurationSec" => requested_durations,
         "minObservationTimeInSec" => min_obs_times,
+        "fixedStartTime" => fixed_start_times,
+        "fixedStopTime" => fixed_stop_times,
         "raInDeg" => ras,
         "decInDeg" => decs,
         "minAzimuthAngleInDeg" => min_azs,
