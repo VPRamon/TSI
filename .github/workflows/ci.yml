@@ -10,11 +10,12 @@ on:
       - main
 
 env:
-  PYTHON_VERSION: "3.10"
+  DEV_IMAGE_TAG: tsi-dev:ci
+  DEV_CACHE_SCOPE: tsi-dev-ci
 
 jobs:
   python-quality:
-    name: Python quality gates
+    name: Python quality gates (Docker)
     runs-on: ubuntu-latest
 
     steps:
@@ -24,35 +25,33 @@ jobs:
           lfs: true
           submodules: recursive
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Cache pip
-        uses: actions/cache@v4
+      - name: Build dev image with cache
+        uses: docker/build-push-action@v5
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('pyproject.toml', 'requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-
+          context: .
+          target: dev
+          tags: ${{ env.DEV_IMAGE_TAG }}
+          load: true
+          cache-from: type=gha,scope=${{ env.DEV_CACHE_SCOPE }}
+          cache-to: type=gha,scope=${{ env.DEV_CACHE_SCOPE }},mode=max
 
-      - name: Install dependencies
+      - name: Run linters and type checks inside container
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Lint with ruff
-        run: ruff check src/ tests/
-
-      - name: Format check with black
-        run: black --check src/ tests/
-
-      - name: Type check with mypy
-        run: mypy src/
+          docker run --rm \
+            --env CI=1 \
+            "${DEV_IMAGE_TAG}" \
+            bash -lc '
+              set -euo pipefail
+              ruff check src/ tests/
+              black --check src/ tests/
+              mypy src/
+            '
 
   python-tests:
-    name: Python tests (${{ matrix.subset }})
+    name: Python tests (${{ matrix.subset }}) (Docker)
     runs-on: ubuntu-latest
     needs:
       - python-quality
@@ -73,46 +72,72 @@ jobs:
           lfs: true
           submodules: recursive
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build dev image with cache
+        uses: docker/build-push-action@v5
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          context: .
+          target: dev
+          tags: ${{ env.DEV_IMAGE_TAG }}
+          load: true
+          cache-from: type=gha,scope=${{ env.DEV_CACHE_SCOPE }}
+          cache-to: type=gha,scope=${{ env.DEV_CACHE_SCOPE }},mode=max
 
-      - name: Cache pip
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-${{ hashFiles('pyproject.toml', 'requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ env.PYTHON_VERSION }}-
-
-      - name: Install dependencies
+      - name: Run pytest subset inside container
+        env:
+          SUBSET: ${{ matrix.subset }}
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          CONTAINER="${SUBSET}-tests"
+          docker run \
+            --name "${CONTAINER}" \
+            --env CI=1 \
+            --env TEST_SUBSET="${SUBSET}" \
+            "${DEV_IMAGE_TAG}" \
+            bash -lc '
+              set -euo pipefail
+              case "${TEST_SUBSET}" in
+                unit)
+                  pytest -m unit --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing:skip-covered
+                  ;;
+                integration)
+                  pytest -m integration --no-cov
+                  ;;
+                e2e)
+                  pytest -m e2e --no-cov
+                  ;;
+                unmarked)
+                  pytest -m "not unit and not integration and not e2e" --no-cov
+                  ;;
+                bindings)
+                  pytest rust_backend/tests --no-cov
+                  ;;
+                *)
+                  echo "error: unknown subset ${TEST_SUBSET}" >&2
+                  exit 1
+                  ;;
+              esac
+            '
+          echo "${CONTAINER}" > container_name.txt
 
-      - name: Run pytest
-        run: |
-          case "${{ matrix.subset }}" in
-            unit)
-              pytest -m unit --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing:skip-covered
-              ;;
-            integration)
-              pytest -m integration --no-cov
-              ;;
-            e2e)
-              pytest -m e2e --no-cov
-              ;;
-            unmarked)
-              pytest -m "not unit and not integration and not e2e" --no-cov
-              ;;
-            bindings)
-              pytest rust_backend/tests --no-cov
-              ;;
-          esac
-
-      - name: Upload coverage artifact
+      - name: Copy coverage artifacts
         if: matrix.subset == 'unit'
+        run: |
+          CONTAINER="$(cat container_name.txt)"
+          docker cp "${CONTAINER}":/workspace/coverage.xml coverage.xml 2>/dev/null || true
+          docker cp "${CONTAINER}":/workspace/htmlcov htmlcov 2>/dev/null || true
+
+      - name: Remove test container
+        if: always()
+        run: |
+          if [[ -f container_name.txt ]]; then
+            CONTAINER="$(cat container_name.txt)"
+            docker rm "${CONTAINER}" || true
+          fi
+
+      - name: Upload unit coverage
+        if: matrix.subset == 'unit' && hashFiles('coverage.xml') != ''
         uses: actions/upload-artifact@v4
         with:
           name: unit-coverage
@@ -121,8 +146,10 @@ jobs:
             htmlcov/
 
   rust:
-    name: Rust checks
+    name: Rust checks (Docker)
     runs-on: ubuntu-latest
+    needs:
+      - python-quality
 
     steps:
       - name: Checkout repository
@@ -131,27 +158,27 @@ jobs:
           lfs: true
           submodules: recursive
 
-      - name: Set up Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build dev image with cache
+        uses: docker/build-push-action@v5
         with:
-          components: clippy, rustfmt
+          context: .
+          target: dev
+          tags: ${{ env.DEV_IMAGE_TAG }}
+          load: true
+          cache-from: type=gha,scope=${{ env.DEV_CACHE_SCOPE }}
+          cache-to: type=gha,scope=${{ env.DEV_CACHE_SCOPE }},mode=max
 
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
-      - name: Format check
-        run: cargo fmt --all --check
-
-      - name: Lint with clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run cargo tests
-        run: cargo test --all-features
+      - name: Run cargo fmt/clippy/test inside container
+        run: |
+          docker run --rm \
+            --env CI=1 \
+            "${DEV_IMAGE_TAG}" \
+            bash -lc '
+              set -euo pipefail
+              cargo fmt --all --check
+              cargo clippy --all-targets --all-features -- -D warnings
+              cargo test --all-features
+            '
