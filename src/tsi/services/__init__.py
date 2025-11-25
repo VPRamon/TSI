@@ -51,6 +51,11 @@ from tsi.services.timeline_processing import (
     prepare_display_dataframe,
     apply_search_filters,
 )
+from tsi.services.insights_filtering import (
+    check_filter_support,
+    compute_impossible_mask,
+    apply_insights_filter,
+)
 
 __all__ = [
     # loaders
@@ -94,4 +99,8 @@ __all__ = [
     "filter_dark_periods",
     "prepare_display_dataframe",
     "apply_search_filters",
+    # insights_filtering
+    "check_filter_support",
+    "compute_impossible_mask",
+    "apply_insights_filter",
 ]

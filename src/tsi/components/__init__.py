@@ -13,6 +13,14 @@ from tsi.components.visibility_controls import (
 from tsi.components.visibility_stats import render_chart_info, render_dataset_statistics
 from tsi.components.timeline_controls import render_search_filters
 from tsi.components.timeline_stats import render_key_metrics, render_download_button
+from tsi.components.insights_controls import render_filter_controls
+from tsi.components.insights_metrics import (
+    render_key_metrics as render_insights_key_metrics,
+    render_priority_analysis,
+)
+from tsi.components.insights_analysis import render_automated_insights, render_correlation_analysis
+from tsi.components.insights_tables import render_top_observations, render_integrity_checks
+from tsi.components.insights_reports import render_report_downloads
 
 __all__ = [
     # Sky Map components
@@ -33,4 +41,13 @@ __all__ = [
     "render_search_filters",
     "render_key_metrics",
     "render_download_button",
+    # Insights components
+    "render_filter_controls",
+    "render_insights_key_metrics",
+    "render_priority_analysis",
+    "render_automated_insights",
+    "render_correlation_analysis",
+    "render_top_observations",
+    "render_integrity_checks",
+    "render_report_downloads",
 ]
