@@ -18,18 +18,14 @@ pytestmark = pytest.mark.unit
 class AlwaysSatisfiedConstraint:
     """Mock constraint that is always satisfied."""
 
-    def is_satisfied(
-        self, indices: tuple[int, ...], observations: Sequence[Observation]
-    ) -> bool:
+    def is_satisfied(self, indices: tuple[int, ...], observations: Sequence[Observation]) -> bool:
         return True
 
 
 class NeverSatisfiedConstraint:
     """Mock constraint that is never satisfied."""
 
-    def is_satisfied(
-        self, indices: tuple[int, ...], observations: Sequence[Observation]
-    ) -> bool:
+    def is_satisfied(self, indices: tuple[int, ...], observations: Sequence[Observation]) -> bool:
         return False
 
 
@@ -39,9 +35,7 @@ class MaxCountConstraint:
     def __init__(self, max_count: int):
         self.max_count = max_count
 
-    def is_satisfied(
-        self, indices: tuple[int, ...], observations: Sequence[Observation]
-    ) -> bool:
+    def is_satisfied(self, indices: tuple[int, ...], observations: Sequence[Observation]) -> bool:
         return len(indices) <= self.max_count
 
 

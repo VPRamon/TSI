@@ -16,11 +16,11 @@ def test_compute_metrics_basic():
     metrics = tsi_rust.py_compute_metrics(df)
 
     # Check attributes
-    assert hasattr(metrics, 'total_observations')
-    assert hasattr(metrics, 'scheduled_count')
-    assert hasattr(metrics, 'unscheduled_count')
-    assert hasattr(metrics, 'scheduling_rate')
-    assert hasattr(metrics, 'mean_priority')
+    assert hasattr(metrics, "total_observations")
+    assert hasattr(metrics, "scheduled_count")
+    assert hasattr(metrics, "unscheduled_count")
+    assert hasattr(metrics, "scheduling_rate")
+    assert hasattr(metrics, "mean_priority")
 
     print("\n✓ Metrics computed:")
     print(f"  - Total observations: {metrics.total_observations}")
@@ -44,8 +44,8 @@ def test_compute_metrics_to_dict():
     metrics_dict = metrics.to_dict()
 
     assert isinstance(metrics_dict, dict)
-    assert 'total_observations' in metrics_dict
-    assert 'scheduling_rate' in metrics_dict
+    assert "total_observations" in metrics_dict
+    assert "scheduling_rate" in metrics_dict
 
     print("\n✓ Metrics dictionary:")
     for key, value in metrics_dict.items():
@@ -73,7 +73,7 @@ def test_get_top_observations():
         print(f"  - Lowest in top 10: {top_pandas['priority'].iloc[-1]}")
 
         # Check they're actually sorted descending
-        priorities = top_pandas['priority'].tolist()
+        priorities = top_pandas["priority"].tolist()
         assert priorities == sorted(priorities, reverse=True), "Should be sorted descending"
 
 
@@ -106,10 +106,10 @@ def test_greedy_schedule_basic():
     result = tsi_rust.py_greedy_schedule(priorities)
 
     # Check result
-    assert hasattr(result, 'solution')
-    assert hasattr(result, 'objective_value')
-    assert hasattr(result, 'iterations')
-    assert hasattr(result, 'converged')
+    assert hasattr(result, "solution")
+    assert hasattr(result, "objective_value")
+    assert hasattr(result, "iterations")
+    assert hasattr(result, "converged")
 
     print("\n✓ Greedy schedule:")
     print(f"  - Selected: {len(result.solution)} observations")
@@ -129,7 +129,7 @@ def test_greedy_schedule_with_real_data():
     df_pandas = df.to_pandas()
 
     # Get priorities
-    priorities = df_pandas['priority'].tolist()[:100]  # Use first 100 for speed
+    priorities = df_pandas["priority"].tolist()[:100]  # Use first 100 for speed
 
     # Run optimization
     result = tsi_rust.py_greedy_schedule(priorities, max_iterations=200)

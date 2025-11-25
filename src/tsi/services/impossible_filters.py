@@ -25,10 +25,7 @@ def check_filter_support(df: pd.DataFrame) -> bool:
     return has_visibility and has_duration_constraint
 
 
-def compute_impossible_mask(
-    df: pd.DataFrame,
-    tolerance_sec: float = 1.0
-) -> pd.Series | None:
+def compute_impossible_mask(df: pd.DataFrame, tolerance_sec: float = 1.0) -> pd.Series | None:
     """
     Compute mask for impossible observations.
 
@@ -74,9 +71,7 @@ def compute_impossible_mask(
 
 
 def filter_impossible_observations(
-    df: pd.DataFrame,
-    filter_mode: str,
-    tolerance_sec: float = 1.0
+    df: pd.DataFrame, filter_mode: str, tolerance_sec: float = 1.0
 ) -> pd.DataFrame:
     """
     Filter out impossible observations based on visibility constraints.

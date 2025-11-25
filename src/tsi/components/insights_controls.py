@@ -40,5 +40,3 @@ def render_filter_controls(filter_supported: bool) -> str:
         horizontal=False,
         label_visibility="collapsed",
     )
-
-

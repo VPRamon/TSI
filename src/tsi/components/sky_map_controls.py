@@ -155,8 +155,7 @@ def reset_sky_map_controls() -> None:
     """Clear widget-level state so defaults apply after reset."""
     # Delete all widget keys that start with 'sky_' to reset all sky map widgets
     keys_to_delete = [
-        key for key in st.session_state.keys()
-        if isinstance(key, str) and key.startswith("sky_")
+        key for key in st.session_state.keys() if isinstance(key, str) and key.startswith("sky_")
     ]
 
     for key in keys_to_delete:

@@ -234,13 +234,30 @@ def _add_observation_traces(
 
         if start_month != stop_month:
             _add_multi_month_observation(
-                fig, row, start_dt, stop_dt, start_month, stop_month,
-                month_to_position, normalized_priority, block_id, priority, duration_hours
+                fig,
+                row,
+                start_dt,
+                stop_dt,
+                start_month,
+                stop_month,
+                month_to_position,
+                normalized_priority,
+                block_id,
+                priority,
+                duration_hours,
             )
         else:
             _add_single_month_observation(
-                fig, row, start_dt, stop_dt, month_to_position,
-                normalized_priority, block_id, priority, duration_hours, month_label
+                fig,
+                row,
+                start_dt,
+                stop_dt,
+                month_to_position,
+                normalized_priority,
+                block_id,
+                priority,
+                duration_hours,
+                month_label,
             )
 
 

@@ -104,7 +104,9 @@ def compute_scheduling_changes(
     """
     # Ensure schedulingBlockId has the same type in both dataframes before merging
     current_subset = current_common[["schedulingBlockId", "scheduled_flag", "priority"]].copy()
-    comparison_subset = comparison_common[["schedulingBlockId", "scheduled_flag", "priority"]].copy()
+    comparison_subset = comparison_common[
+        ["schedulingBlockId", "scheduled_flag", "priority"]
+    ].copy()
 
     # Convert both to string for consistent merging (handles int64/object mismatch)
     current_subset["schedulingBlockId"] = current_subset["schedulingBlockId"].astype(str)

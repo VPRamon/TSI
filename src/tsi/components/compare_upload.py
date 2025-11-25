@@ -74,4 +74,3 @@ def render_file_upload() -> pd.DataFrame | None:
             return None
 
     return comparison_df
-

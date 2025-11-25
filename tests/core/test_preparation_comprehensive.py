@@ -62,14 +62,16 @@ class TestPrepareDataframe:
 
     def test_with_minimal_dataframe__returns_preparation_result(self) -> None:
         """Prepare minimal dataframe."""
-        df = pd.DataFrame({
-            "schedulingBlockId": ["SB001"],
-            "priority": [5.0],
-            "fixedStartTime": [None],
-            "fixedStopTime": [None],
-            "scheduled_period.start": [None],
-            "scheduled_period.stop": [None],
-        })
+        df = pd.DataFrame(
+            {
+                "schedulingBlockId": ["SB001"],
+                "priority": [5.0],
+                "fixedStartTime": [None],
+                "fixedStopTime": [None],
+                "scheduled_period.start": [None],
+                "scheduled_period.stop": [None],
+            }
+        )
         result = prepare_dataframe(df)
         assert isinstance(result, PreparationResult)
         assert isinstance(result.dataframe, pd.DataFrame)
@@ -250,26 +252,20 @@ class TestFilterDataframe:
 
     def test_with_scheduled_filter_all__returns_all_rows(self) -> None:
         """Return all rows when scheduled_filter is 'All'."""
-        df = pd.DataFrame(
-            {"priority": [5.0, 6.0, 7.0], "scheduled_flag": [True, False, True]}
-        )
+        df = pd.DataFrame({"priority": [5.0, 6.0, 7.0], "scheduled_flag": [True, False, True]})
         filtered = filter_dataframe(df, scheduled_filter="All")
         assert len(filtered) == 3
 
     def test_with_scheduled_filter_scheduled__returns_only_scheduled(self) -> None:
         """Return only scheduled observations."""
-        df = pd.DataFrame(
-            {"priority": [5.0, 6.0, 7.0], "scheduled_flag": [True, False, True]}
-        )
+        df = pd.DataFrame({"priority": [5.0, 6.0, 7.0], "scheduled_flag": [True, False, True]})
         filtered = filter_dataframe(df, scheduled_filter="Scheduled")
         assert len(filtered) == 2
         assert all(filtered["scheduled_flag"])
 
     def test_with_scheduled_filter_unscheduled__returns_only_unscheduled(self) -> None:
         """Return only unscheduled observations."""
-        df = pd.DataFrame(
-            {"priority": [5.0, 6.0, 7.0], "scheduled_flag": [True, False, True]}
-        )
+        df = pd.DataFrame({"priority": [5.0, 6.0, 7.0], "scheduled_flag": [True, False, True]})
         filtered = filter_dataframe(df, scheduled_filter="Unscheduled")
         assert len(filtered) == 1
         assert not any(filtered["scheduled_flag"])

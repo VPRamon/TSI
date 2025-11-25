@@ -40,7 +40,7 @@ def calculate_observation_gaps(df: pd.DataFrame) -> tuple[int, float, float]:
     next_starts = sorted_df["scheduled_start_dt"].iloc[1:].values
 
     # Calculate time differences in nanoseconds, then convert to hours
-    time_diffs = (next_starts - current_ends).astype('timedelta64[ns]')
+    time_diffs = (next_starts - current_ends).astype("timedelta64[ns]")
     gap_hours = time_diffs.astype(float) / (3600 * 1e9)  # Convert ns to hours
 
     # Only keep positive gaps (where next starts after current ends)
@@ -55,4 +55,3 @@ def calculate_observation_gaps(df: pd.DataFrame) -> tuple[int, float, float]:
     median_gap = float(np.median(positive_gaps))
 
     return num_gaps, mean_gap, median_gap
-

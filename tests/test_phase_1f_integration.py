@@ -11,19 +11,21 @@ from tsi_rust_api import TSIBackend, compute_metrics
 @pytest.fixture
 def sample_df():
     """Create a sample DataFrame for testing"""
-    return pl.DataFrame({
-        "schedulingBlockId": ["SB001", "SB002", "SB003", "SB004", "SB005"],
-        "priority": [5.0, 10.0, 15.0, 20.0, 25.0],
-        "scheduled_flag": [True, True, False, True, False],
-        "raInDeg": [120.0, 150.0, 180.0, 210.0, 240.0],
-        "decInDeg": [45.0, 30.0, -15.0, -30.0, -45.0],
-        "requestedDurationSec": [3600.0, 7200.0, 5400.0, 1800.0, 9000.0],
-        "requested_hours": [1.0, 2.0, 1.5, 0.5, 2.5],
-        "priority_bin": ["Low", "Medium", "High", "High", "Very High"],
-        "total_visibility_hours": [10.0, 15.0, 12.0, 8.0, 20.0],
-        "num_visibility_periods": [2, 3, 2, 1, 4],
-        "elevation_range_deg": [30.0, 40.0, 35.0, 25.0, 45.0],
-    })
+    return pl.DataFrame(
+        {
+            "schedulingBlockId": ["SB001", "SB002", "SB003", "SB004", "SB005"],
+            "priority": [5.0, 10.0, 15.0, 20.0, 25.0],
+            "scheduled_flag": [True, True, False, True, False],
+            "raInDeg": [120.0, 150.0, 180.0, 210.0, 240.0],
+            "decInDeg": [45.0, 30.0, -15.0, -30.0, -45.0],
+            "requestedDurationSec": [3600.0, 7200.0, 5400.0, 1800.0, 9000.0],
+            "requested_hours": [1.0, 2.0, 1.5, 0.5, 2.5],
+            "priority_bin": ["Low", "Medium", "High", "High", "Very High"],
+            "total_visibility_hours": [10.0, 15.0, 12.0, 8.0, 20.0],
+            "num_visibility_periods": [2, 3, 2, 1, 4],
+            "elevation_range_deg": [30.0, 40.0, 35.0, 25.0, 45.0],
+        }
+    )
 
 
 def test_backend_initialization():
@@ -49,7 +51,9 @@ def test_compute_metrics_wrapper(sample_df):
     assert "mean_priority" in metrics
     assert metrics["total_observations"] == 5
     assert metrics["scheduled_count"] == 3
-    print(f"✓ Compute metrics wrapper: {metrics['scheduled_count']}/{metrics['total_observations']} scheduled")
+    print(
+        f"✓ Compute metrics wrapper: {metrics['scheduled_count']}/{metrics['total_observations']} scheduled"
+    )
 
 
 def test_filter_by_priority_wrapper(sample_df):
@@ -115,11 +119,13 @@ def test_remove_missing_coordinates_wrapper():
     """Test remove_missing_coordinates with wrapper"""
     backend = TSIBackend(use_pandas=True)
 
-    df_with_nulls = pl.DataFrame({
-        "raInDeg": [120.0, None, 180.0],
-        "decInDeg": [45.0, 30.0, None],
-        "priority": [5.0, 10.0, 15.0],
-    })
+    df_with_nulls = pl.DataFrame(
+        {
+            "raInDeg": [120.0, None, 180.0],
+            "decInDeg": [45.0, 30.0, None],
+            "priority": [5.0, 10.0, 15.0],
+        }
+    )
     df_pandas = df_with_nulls.to_pandas()
 
     clean_df = backend.remove_missing_coordinates(df_pandas)
@@ -204,7 +210,7 @@ def test_filter_dataframe_complex(sample_df):
         priority_min=10.0,
         priority_max=20.0,
         scheduled_filter="All",
-        priority_bins=["Medium", "High"]
+        priority_bins=["Medium", "High"],
     )
 
     assert isinstance(filtered, pd.DataFrame)

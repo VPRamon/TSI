@@ -119,16 +119,15 @@ def _markdown_to_html_safe(markdown_text: str) -> str:
     # Try to use markdown library if available
     try:
         import markdown
+
         # Use safe mode with proper extensions
         return markdown.markdown(
-            markdown_text,
-            extensions=['tables', 'fenced_code', 'nl2br'],
-            output_format='html5'
+            markdown_text, extensions=["tables", "fenced_code", "nl2br"], output_format="html5"
         )
     except ImportError:
         logger.warning("markdown library not available, using simple fallback conversion")
         # Fallback: simple line-by-line conversion with HTML escaping
-        lines = markdown_text.split('\n')
+        lines = markdown_text.split("\n")
         html_lines = []
 
         for line in lines:
@@ -136,23 +135,23 @@ def _markdown_to_html_safe(markdown_text: str) -> str:
             safe_line = html.escape(line)
 
             # Convert markdown headers
-            if safe_line.startswith('# '):
-                safe_line = f'<h1>{safe_line[2:]}</h1>'
-            elif safe_line.startswith('## '):
-                safe_line = f'<h2>{safe_line[3:]}</h2>'
-            elif safe_line.startswith('### '):
-                safe_line = f'<h3>{safe_line[4:]}</h3>'
+            if safe_line.startswith("# "):
+                safe_line = f"<h1>{safe_line[2:]}</h1>"
+            elif safe_line.startswith("## "):
+                safe_line = f"<h2>{safe_line[3:]}</h2>"
+            elif safe_line.startswith("### "):
+                safe_line = f"<h3>{safe_line[4:]}</h3>"
             # Convert list items
-            elif safe_line.startswith('- '):
-                safe_line = f'<li>{safe_line[2:]}</li>'
+            elif safe_line.startswith("- "):
+                safe_line = f"<li>{safe_line[2:]}</li>"
             # Convert bold text (simple pattern)
-            elif '**' in safe_line:
+            elif "**" in safe_line:
                 # Already escaped, so replace the escaped pattern
-                safe_line = safe_line.replace('**', '<strong>', 1).replace('**', '</strong>', 1)
+                safe_line = safe_line.replace("**", "<strong>", 1).replace("**", "</strong>", 1)
 
             html_lines.append(safe_line)
 
-        return '\n'.join(html_lines)
+        return "\n".join(html_lines)
 
 
 def generate_html_report(

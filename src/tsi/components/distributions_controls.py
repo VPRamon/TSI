@@ -28,4 +28,3 @@ def render_filter_control(df: pd.DataFrame) -> tuple[str, bool]:
     filter_supported = check_filter_support(df)
 
     return filter_mode, filter_supported
-

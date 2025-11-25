@@ -73,8 +73,8 @@ def _display_comparison(
     st.header("🔍 Schedule Comparison")
 
     # Validate and display discrepancies
-    only_in_current, only_in_comparison, common_ids_current, common_ids_comparison = validate_and_display_discrepancies(
-        current_df, comparison_df, current_name, comparison_name
+    only_in_current, only_in_comparison, common_ids_current, common_ids_comparison = (
+        validate_and_display_discrepancies(current_df, comparison_df, current_name, comparison_name)
     )
 
     if len(common_ids_current) == 0:
@@ -83,14 +83,18 @@ def _display_comparison(
 
     # Filter to common blocks - use the appropriate ID set for each dataframe
     current_common = current_df[current_df["schedulingBlockId"].isin(common_ids_current)]
-    comparison_common = comparison_df[comparison_df["schedulingBlockId"].isin(common_ids_comparison)]
+    comparison_common = comparison_df[
+        comparison_df["schedulingBlockId"].isin(common_ids_comparison)
+    ]
 
     # Filter to scheduled blocks (handle both boolean and integer types)
     current_scheduled = current_common[current_common["scheduled_flag"].astype(bool)]
     comparison_scheduled = comparison_common[comparison_common["scheduled_flag"].astype(bool)]
 
     # Find scheduling changes
-    newly_scheduled, newly_unscheduled = compute_scheduling_changes(current_common, comparison_common)
+    newly_scheduled, newly_unscheduled = compute_scheduling_changes(
+        current_common, comparison_common
+    )
 
     # Display comparison tables
     render_comparison_tables(
@@ -170,4 +174,3 @@ def _display_comparison_plots(
             current_scheduled, comparison_scheduled, current_name, comparison_name
         )
         st.plotly_chart(fig_time, use_container_width=True)
-
