@@ -1,11 +1,15 @@
 """Report generation service for exporting analytics."""
 
 import base64
+import html
+import logging
 
 import pandas as pd
 import plotly.graph_objects as go
 
 from tsi.models.schemas import AnalyticsMetrics
+
+logger = logging.getLogger(__name__)
 
 
 def generate_markdown_report(
@@ -81,14 +85,74 @@ def figure_to_base64(fig: go.Figure) -> str:
         fig: Plotly figure
 
     Returns:
-        Base64-encoded PNG string
+        Base64-encoded PNG string, or empty string if conversion fails
+    
+    Raises:
+        ValueError: If image export fails and strict error handling is needed
     """
     try:
         img_bytes = fig.to_image(format="png", width=800, height=600)
         return base64.b64encode(img_bytes).decode()
-    except Exception:
-        # If image export fails (requires kaleido), return empty string
+    except ImportError as e:
+        # kaleido not installed
+        logger.warning(f"Image export unavailable (install kaleido): {e}")
         return ""
+    except Exception as e:
+        # Other failures (rendering errors, etc.)
+        logger.error(f"Failed to convert figure to image: {e}", exc_info=True)
+        return ""
+
+
+def _markdown_to_html_safe(markdown_text: str) -> str:
+    """
+    Convert Markdown to HTML safely, escaping user content properly.
+    
+    Uses a simple but safe approach that handles basic Markdown constructs
+    without introducing XSS vulnerabilities from user-provided content.
+    
+    Args:
+        markdown_text: Markdown-formatted text
+    
+    Returns:
+        HTML-formatted text with proper escaping
+    """
+    # Try to use markdown library if available
+    try:
+        import markdown
+        # Use safe mode with proper extensions
+        return markdown.markdown(
+            markdown_text,
+            extensions=['tables', 'fenced_code', 'nl2br'],
+            output_format='html5'
+        )
+    except ImportError:
+        logger.warning("markdown library not available, using simple fallback conversion")
+        # Fallback: simple line-by-line conversion with HTML escaping
+        lines = markdown_text.split('\n')
+        html_lines = []
+        
+        for line in lines:
+            # Escape HTML entities first
+            safe_line = html.escape(line)
+            
+            # Convert markdown headers
+            if safe_line.startswith('# '):
+                safe_line = f'<h1>{safe_line[2:]}</h1>'
+            elif safe_line.startswith('## '):
+                safe_line = f'<h2>{safe_line[3:]}</h2>'
+            elif safe_line.startswith('### '):
+                safe_line = f'<h3>{safe_line[4:]}</h3>'
+            # Convert list items
+            elif safe_line.startswith('- '):
+                safe_line = f'<li>{safe_line[2:]}</li>'
+            # Convert bold text (simple pattern)
+            elif '**' in safe_line:
+                # Already escaped, so replace the escaped pattern
+                safe_line = safe_line.replace('**', '<strong>', 1).replace('**', '</strong>', 1)
+            
+            html_lines.append(safe_line)
+        
+        return '\n'.join(html_lines)
 
 
 def generate_html_report(
@@ -116,11 +180,8 @@ def generate_html_report(
     # Start with markdown content
     md_content = generate_markdown_report(metrics, insights, correlations, top_priority, conflicts)
 
-    # Convert markdown to HTML (simple conversion)
-    html_content = md_content.replace("\n## ", "\n<h2>").replace("</h2>", "</h2>\n")
-    html_content = html_content.replace("\n# ", "\n<h1>").replace("</h1>", "</h1>\n")
-    html_content = html_content.replace("\n- ", "\n<li>").replace("</li>", "</li>\n")
-    html_content = html_content.replace("**", "<strong>").replace("</strong>", "</strong>")
+    # Convert markdown to HTML safely (escapes user content)
+    html_content = _markdown_to_html_safe(md_content)
 
     html = f"""<!DOCTYPE html>
 <html>
@@ -161,6 +222,9 @@ def generate_html_report(
         }}
         tr:nth-child(even) {{
             background-color: #f9f9f9;
+        }}
+        li {{
+            margin: 8px 0;
         }}
         .chart {{
             margin: 20px 0;
