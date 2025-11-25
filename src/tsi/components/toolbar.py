@@ -194,4 +194,3 @@ def render_reset_filters_button() -> bool:
         True if button was clicked
     """
     return st.button("Reset Filters", type="secondary")
-

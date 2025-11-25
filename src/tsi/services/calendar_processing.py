@@ -118,19 +118,21 @@ def compute_calendar_bins(
                             hits[str(inst)] = hits.get(str(inst), 0) + 1
                 conflict = any(cnt > 1 for cnt in hits.values())
 
-            rows.append({
-                "y_start": y0,
-                "y_label": (
-                    y0.strftime("%Y-%m-%d") if y_unit != "months" else y0.strftime("%Y-%m")
-                ),
-                "x_start": x0,
-                "x_stop": x1,
-                "duration_s": duration,
-                "occupied_s": occ_seconds,
-                "occupancy": occupancy_fraction,
-                "overlaps": overlaps,
-                "conflict": conflict,
-            })
+            rows.append(
+                {
+                    "y_start": y0,
+                    "y_label": (
+                        y0.strftime("%Y-%m-%d") if y_unit != "months" else y0.strftime("%Y-%m")
+                    ),
+                    "x_start": x0,
+                    "x_stop": x1,
+                    "duration_s": duration,
+                    "occupied_s": occ_seconds,
+                    "occupancy": occupancy_fraction,
+                    "overlaps": overlaps,
+                    "conflict": conflict,
+                }
+            )
 
             x0 = x1
 
@@ -160,9 +162,7 @@ def _generate_y_bins(
             )
         return y_starts_base
     elif y_unit == "weeks":
-        return pd.date_range(
-            start=range_start.normalize(), end=range_end, freq="W-MON", tz="UTC"
-        )
+        return pd.date_range(start=range_start.normalize(), end=range_end, freq="W-MON", tz="UTC")
     else:
         return pd.date_range(start=range_start.normalize(), end=range_end, freq="D", tz="UTC")
 

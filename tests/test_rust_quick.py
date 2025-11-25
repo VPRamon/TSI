@@ -4,7 +4,7 @@ Quick test of the Rust backend - FASE 1A
 """
 import sys
 
-sys.path.insert(0, '/tmp/tsi_test')
+sys.path.insert(0, "/tmp/tsi_test")
 
 import time
 from datetime import datetime, timezone
@@ -80,7 +80,7 @@ for mjd_val in mjd_values:
     _ = tsi_rust.mjd_to_datetime(mjd_val)
 elapsed = time.time() - start_time
 
-conversions_per_sec = n / elapsed if elapsed > 0 else float('inf')
+conversions_per_sec = n / elapsed if elapsed > 0 else float("inf")
 print(f"   Converted {n:,} MJD values in {elapsed:.3f}s")
 print(f"   Performance: {conversions_per_sec:,.0f} conversions/sec")
 assert elapsed < 1.0, f"Too slow: {elapsed:.3f}s for {n} conversions"
@@ -96,7 +96,7 @@ for vis_str in vis_strings:
     _ = tsi_rust.parse_visibility_periods(vis_str)
 elapsed = time.time() - start_time
 
-parses_per_sec = n_parse / elapsed if elapsed > 0 else float('inf')
+parses_per_sec = n_parse / elapsed if elapsed > 0 else float("inf")
 print(f"   Parsed {n_parse:,} visibility strings in {elapsed:.3f}s")
 print(f"   Performance: {parses_per_sec:,.0f} parses/sec")
 print("   ✓ Passed")

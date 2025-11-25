@@ -33,4 +33,3 @@ def filter_impossible_observations(df: pd.DataFrame, filter_mode: str) -> pd.Dat
         Filtered DataFrame (view if no filtering, copy if filtered)
     """
     return _filter_impossible_observations(df, filter_mode)
-

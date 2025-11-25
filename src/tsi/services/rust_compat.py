@@ -49,6 +49,7 @@ _RUST_ERROR = None
 
 try:
     from tsi_rust_api import TSIBackend, load_dark_periods, load_schedule
+
     _RUST_AVAILABLE = True
 except ImportError as e:
     _RUST_ERROR = str(e)
@@ -88,6 +89,7 @@ if _RUST_AVAILABLE:
 # =============================================================================
 # Helper Functions
 # =============================================================================
+
 
 def _ensure_rust_backend() -> None:
     """
@@ -138,6 +140,7 @@ def get_rust_status() -> dict[str, Any]:
 # Data Loading
 # =============================================================================
 
+
 def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
     """
     Load schedule from JSON or CSV using Rust backend (10-30x faster than Python).
@@ -174,12 +177,12 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
     _ensure_rust_backend()
 
     # Handle file buffers (e.g., from Streamlit file_uploader)
-    if hasattr(path, 'read'):
+    if hasattr(path, "read"):
         content = path.read()
         if isinstance(content, bytes):
-            content = content.decode('utf-8')
+            content = content.decode("utf-8")
         # Reset file pointer if possible
-        if hasattr(path, 'seek'):
+        if hasattr(path, "seek"):
             path.seek(0)
 
         # For JSON, use Rust backend with string loading
@@ -188,6 +191,7 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
         # For CSV, fall back to pandas (Rust backend doesn't support CSV string loading yet)
         elif format == "csv":
             import io
+
             return pd.read_csv(io.StringIO(content))
         else:
             raise ValueError(f"Format must be specified for file buffers, got: {format}")
@@ -199,6 +203,7 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
 # =============================================================================
 # Analytics & Metrics
 # =============================================================================
+
 
 def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
     """
@@ -226,11 +231,7 @@ def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
     return AnalyticsMetrics(**rust_metrics)
 
 
-def get_top_observations(
-    df: pd.DataFrame,
-    by: str = "priority",
-    n: int = 10
-) -> pd.DataFrame:
+def get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) -> pd.DataFrame:
     """
     Get top N observations sorted by specified column using Rust backend (10x faster).
 
@@ -283,10 +284,9 @@ def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
 # Filtering & Transformations
 # =============================================================================
 
+
 def filter_by_priority(
-    df: pd.DataFrame,
-    min_priority: float = 0.0,
-    max_priority: float = 10.0
+    df: pd.DataFrame, min_priority: float = 0.0, max_priority: float = 10.0
 ) -> pd.DataFrame:
     """
     Filter DataFrame by priority range using Rust backend (10x faster).
@@ -310,10 +310,7 @@ def filter_by_priority(
     return _BACKEND.filter_by_priority(df, min_priority, max_priority)
 
 
-def filter_by_scheduled(
-    df: pd.DataFrame,
-    filter_type: str = "all"
-) -> pd.DataFrame:
+def filter_by_scheduled(df: pd.DataFrame, filter_type: str = "all") -> pd.DataFrame:
     """
     Filter DataFrame by scheduled status using Rust backend (10x faster).
 
@@ -336,10 +333,7 @@ def filter_by_scheduled(
 
 
 def filter_by_range(
-    df: pd.DataFrame,
-    column: str,
-    min_value: float,
-    max_value: float
+    df: pd.DataFrame, column: str, min_value: float, max_value: float
 ) -> pd.DataFrame:
     """
     Filter DataFrame by numeric range using Rust backend (10x faster).
@@ -368,10 +362,9 @@ def filter_by_range(
 # Data Cleaning
 # =============================================================================
 
+
 def remove_duplicates(
-    df: pd.DataFrame,
-    subset: list[str] | None = None,
-    keep: str = "first"
+    df: pd.DataFrame, subset: list[str] | None = None, keep: str = "first"
 ) -> pd.DataFrame:
     """
     Remove duplicate rows using Rust backend (10x faster).
@@ -420,6 +413,7 @@ def remove_missing_coordinates(df: pd.DataFrame) -> pd.DataFrame:
 # Validation
 # =============================================================================
 
+
 def validate_dataframe_rust(df: pd.DataFrame) -> tuple[bool, list[str]]:
     """
     Validate DataFrame structure and data quality using Rust backend.
@@ -457,6 +451,7 @@ def validate_dataframe_rust(df: pd.DataFrame) -> tuple[bool, list[str]]:
 # =============================================================================
 # Time Conversions
 # =============================================================================
+
 
 def mjd_to_datetime_rust(mjd: float):
     """
@@ -533,6 +528,7 @@ def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[Any, Any]]:
 # Dark Periods Loading
 # =============================================================================
 
+
 def load_dark_periods_rust(path: str | Path) -> pd.DataFrame:
     """
     Load dark periods from JSON file using Rust backend (10x faster).
@@ -568,6 +564,7 @@ def load_dark_periods_rust(path: str | Path) -> pd.DataFrame:
 # Convenience Functions
 # =============================================================================
 
+
 def get_backend() -> TSIBackend:
     """
     Get the singleton TSIBackend instance.
@@ -593,35 +590,27 @@ __all__ = [
     # Health check
     "is_rust_available",
     "get_rust_status",
-
     # Loading
     "load_schedule_rust",
-
     # Analytics
     "compute_metrics",
     "get_top_observations",
     "find_conflicts",
-
     # Filtering
     "filter_by_priority",
     "filter_by_scheduled",
     "filter_by_range",
-
     # Cleaning
     "remove_duplicates",
     "remove_missing_coordinates",
-
     # Validation
     "validate_dataframe_rust",
-
     # Time
     "mjd_to_datetime_rust",
     "datetime_to_mjd_rust",
     "parse_visibility_periods_rust",
-
     # Dark Periods
     "load_dark_periods_rust",
-
     # Backend access
     "get_backend",
 ]

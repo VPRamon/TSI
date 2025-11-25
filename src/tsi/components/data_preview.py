@@ -1,6 +1,5 @@
 """Data preview and table components."""
 
-
 import pandas as pd
 import streamlit as st
 

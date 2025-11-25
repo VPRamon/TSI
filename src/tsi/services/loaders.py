@@ -29,6 +29,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 # Streamlit Adapter Layer
 # =============================================================================
 
+
 def _identity_cache(func: F | None = None, **_: Any) -> F | Callable[[F], F]:
     """Fallback decorator used when Streamlit caching is unavailable."""
 
@@ -43,8 +44,11 @@ def _identity_cache(func: F | None = None, **_: Any) -> F | Callable[[F], F]:
 # Streamlit integration (optional - gracefully degrades if unavailable)
 _streamlit_available = False
 _cache_decorator = _identity_cache
+
+
 def _warning_handler(msg: str) -> None:
     return logger.warning(msg)
+
 
 try:  # pragma: no cover
     import streamlit as st
@@ -102,6 +106,7 @@ def cache_data(**kwargs):
 # =============================================================================
 # Core Loading Functions (Streamlit-agnostic)
 # =============================================================================
+
 
 def _load_csv_core(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
     """

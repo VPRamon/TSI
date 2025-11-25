@@ -88,9 +88,7 @@ SB001,5.0
 class TestLoadScheduleFromJson:
     """Test load_schedule_from_json function."""
 
-    def test_with_dict_input__loads_successfully(
-        self, minimal_schedule_data: dict
-    ) -> None:
+    def test_with_dict_input__loads_successfully(self, minimal_schedule_data: dict) -> None:
         """Load from parsed JSON dict."""
         result = load_schedule_from_json(minimal_schedule_data)
         assert isinstance(result, ScheduleLoadResult)
@@ -124,9 +122,7 @@ class TestLoadScheduleFromJson:
         with pytest.raises(FileNotFoundError, match="Schedule file not found"):
             load_schedule_from_json(nonexistent)
 
-    def test_with_file_like_object__loads_successfully(
-        self, minimal_schedule_data: dict
-    ) -> None:
+    def test_with_file_like_object__loads_successfully(self, minimal_schedule_data: dict) -> None:
         """Load from file-like object (StringIO)."""
         file_obj = io.StringIO(json.dumps(minimal_schedule_data))
         result = load_schedule_from_json(file_obj)
@@ -134,9 +130,7 @@ class TestLoadScheduleFromJson:
         # File pointer should be reset
         assert file_obj.tell() == 0
 
-    def test_with_bytes_file_like__loads_successfully(
-        self, minimal_schedule_data: dict
-    ) -> None:
+    def test_with_bytes_file_like__loads_successfully(self, minimal_schedule_data: dict) -> None:
         """Load from bytes file-like object (BytesIO)."""
         file_obj = io.BytesIO(json.dumps(minimal_schedule_data).encode("utf-8"))
         result = load_schedule_from_json(file_obj)
@@ -186,17 +180,13 @@ class TestLoadScheduleFromJson:
         with pytest.raises(json.JSONDecodeError):
             load_schedule_from_json(malformed_file)
 
-    def test_with_validate_false__skips_validation(
-        self, minimal_schedule_data: dict
-    ) -> None:
+    def test_with_validate_false__skips_validation(self, minimal_schedule_data: dict) -> None:
         """Skip validation when validate=False."""
         result = load_schedule_from_json(minimal_schedule_data, validate=False)
         assert result.validation.is_valid is True
         assert result.validation.errors == []
 
-    def test_with_validate_true__performs_validation(
-        self, minimal_schedule_data: dict
-    ) -> None:
+    def test_with_validate_true__performs_validation(self, minimal_schedule_data: dict) -> None:
         """Perform validation when validate=True."""
         result = load_schedule_from_json(minimal_schedule_data, validate=True)
         assert isinstance(result.validation.is_valid, bool)
@@ -272,9 +262,7 @@ class TestLoadScheduleFromCsv:
         assert result.source_type == "csv"
         assert len(result.dataframe) == 2
 
-    def test_with_file_like_object__loads_successfully(
-        self, valid_csv_content: str
-    ) -> None:
+    def test_with_file_like_object__loads_successfully(self, valid_csv_content: str) -> None:
         """Load from file-like object."""
         csv_obj = io.StringIO(valid_csv_content)
         result = load_schedule_from_csv(csv_obj)
@@ -302,9 +290,7 @@ class TestLoadScheduleFromCsv:
         first_vis = df.iloc[0]["visibility"]
         assert isinstance(first_vis, list)
 
-    def test_with_invalid_visibility_string__returns_empty_list(
-        self, tmp_path: Path
-    ) -> None:
+    def test_with_invalid_visibility_string__returns_empty_list(self, tmp_path: Path) -> None:
         """Handle invalid visibility string gracefully."""
         csv_content = """schedulingBlockId,priority,requestedDurationSec,scheduled_period.start,scheduled_period.stop,scheduled_flag,visibility
 SB001,5.0,3600.0,,,False,"invalid{string"
@@ -437,9 +423,7 @@ class TestLoadScheduleFromIteration:
         result = load_schedule_from_iteration(tmp_path)
         assert len(result.dataframe) > 0
 
-    def test_with_legacy_visibility_structure__enriches_dataframe(
-        self, tmp_path: Path
-    ) -> None:
+    def test_with_legacy_visibility_structure__enriches_dataframe(self, tmp_path: Path) -> None:
         """Load visibility from legacy structure."""
         schedule_data = {
             "SchedulingBlock": [
@@ -464,17 +448,13 @@ class TestLoadScheduleFromIteration:
         result = load_schedule_from_iteration(tmp_path)
         assert len(result.dataframe) > 0
 
-    def test_with_nonexistent_directory__raises_file_not_found(
-        self, tmp_path: Path
-    ) -> None:
+    def test_with_nonexistent_directory__raises_file_not_found(self, tmp_path: Path) -> None:
         """Raise FileNotFoundError for missing directory."""
         nonexistent = tmp_path / "nonexistent"
         with pytest.raises(FileNotFoundError, match="Data directory not found"):
             load_schedule_from_iteration(nonexistent)
 
-    def test_with_missing_schedule_json__raises_file_not_found(
-        self, tmp_path: Path
-    ) -> None:
+    def test_with_missing_schedule_json__raises_file_not_found(self, tmp_path: Path) -> None:
         """Raise FileNotFoundError when schedule.json missing."""
         # Create directory but no schedule.json
         with pytest.raises(FileNotFoundError, match="Schedule file not found"):
@@ -507,7 +487,5 @@ class TestScheduleLoadResult:
         from core.preprocessing import ValidationResult
 
         validation = ValidationResult(is_valid=True, errors=[], warnings=[], stats={})
-        result = ScheduleLoadResult(
-            dataframe=df, validation=validation, source_type="json"
-        )
+        result = ScheduleLoadResult(dataframe=df, validation=validation, source_type="json")
         assert result.source_path is None

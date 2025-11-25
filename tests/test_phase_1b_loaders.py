@@ -22,10 +22,10 @@ def test_import_tsi_rust():
 
 def test_load_schedule_has_functions():
     """Test that load_schedule functions are available"""
-    assert hasattr(tsi_rust, 'load_schedule')
-    assert hasattr(tsi_rust, 'load_schedule_from_json')
-    assert hasattr(tsi_rust, 'load_schedule_from_csv')
-    assert hasattr(tsi_rust, 'load_schedule_from_json_str')
+    assert hasattr(tsi_rust, "load_schedule")
+    assert hasattr(tsi_rust, "load_schedule_from_json")
+    assert hasattr(tsi_rust, "load_schedule_from_csv")
+    assert hasattr(tsi_rust, "load_schedule_from_json_str")
 
 
 @pytest.mark.skipif(not SCHEDULE_JSON.exists(), reason="schedule.json not found")

@@ -61,10 +61,7 @@ def filter_scheduled_data(
     Returns:
         Filtered DataFrame
     """
-    filtered_df = df[
-        (df["priority"] >= priority_range[0])
-        & (df["priority"] <= priority_range[1])
-    ]
+    filtered_df = df[(df["priority"] >= priority_range[0]) & (df["priority"] <= priority_range[1])]
 
     if selected_months:
         filtered_df = filtered_df[filtered_df["scheduled_month_label"].isin(selected_months)]

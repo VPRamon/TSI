@@ -113,6 +113,7 @@ def render() -> None:
                     filename=settings.sample_dataset.name,
                 )
 
+
 def _try_auto_load_dark_periods() -> None:
     """Try to auto-load dark periods from the local data directory if available."""
     try:
@@ -173,9 +174,7 @@ def _load_data(
 
                 # Load with visibility data if provided
                 result = load_schedule_from_json(
-                    schedule_json=file_or_path,
-                    visibility_json=visibility_file,
-                    validate=True
+                    schedule_json=file_or_path, visibility_json=visibility_file, validate=True
                 )
 
                 raw_df = result.dataframe

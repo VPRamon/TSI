@@ -231,7 +231,9 @@ def _build_time_metrics_table(
 
     comp_total_time = comparison_scheduled["requested_hours"].sum() if comparison_count > 0 else 0
     comp_mean_time = comparison_scheduled["requested_hours"].mean() if comparison_count > 0 else 0
-    comp_median_time = comparison_scheduled["requested_hours"].median() if comparison_count > 0 else 0
+    comp_median_time = (
+        comparison_scheduled["requested_hours"].median() if comparison_count > 0 else 0
+    )
 
     # Calculate gaps
     current_gaps_count, current_mean_gap, current_median_gap = calculate_observation_gaps(
@@ -270,7 +272,9 @@ def _build_time_metrics_table(
             _format_with_delta(f"{comp_total_time:.2f}", delta_total_time),
             _format_with_delta(f"{comp_mean_time:.2f}", delta_mean_time),
             _format_with_delta(f"{comp_median_time:.2f}", delta_median_time),
-            _format_with_delta(f"{comp_gaps_count:,}", delta_gaps, is_count=True, inverse_colors=True),
+            _format_with_delta(
+                f"{comp_gaps_count:,}", delta_gaps, is_count=True, inverse_colors=True
+            ),
             _format_with_delta(f"{comp_mean_gap:.2f}", delta_mean_gap),
             _format_with_delta(f"{comp_median_gap:.2f}", delta_median_gap),
         ],
@@ -304,7 +308,9 @@ def _render_change_details(
                 ].copy()
 
                 # Ensure ID types match for merge
-                comparison_info["schedulingBlockId"] = comparison_info["schedulingBlockId"].astype(str)
+                comparison_info["schedulingBlockId"] = comparison_info["schedulingBlockId"].astype(
+                    str
+                )
 
                 display_df = display_df.merge(comparison_info, on="schedulingBlockId", how="left")
                 display_df = display_df.rename(columns={"priority_current": "priority"})
@@ -329,7 +335,9 @@ def _render_change_details(
                     "scheduled_period.start": "Start (MJD)",
                     "scheduled_period.stop": "Stop (MJD)",
                 }
-                display_df = display_df.rename(columns={k: v for k, v in rename_dict.items() if k in display_df.columns})
+                display_df = display_df.rename(
+                    columns={k: v for k, v in rename_dict.items() if k in display_df.columns}
+                )
 
                 st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
         else:
@@ -370,7 +378,9 @@ def _render_change_details(
                     "targetName": "Target Name",
                     "priority": "Priority",
                 }
-                display_df = display_df.rename(columns={k: v for k, v in rename_dict.items() if k in display_df.columns})
+                display_df = display_df.rename(
+                    columns={k: v for k, v in rename_dict.items() if k in display_df.columns}
+                )
 
                 st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
         else:
