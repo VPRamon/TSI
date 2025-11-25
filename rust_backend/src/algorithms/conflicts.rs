@@ -38,7 +38,7 @@ pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsE
     
     // Get required columns
     let scheduled_flag = df.column("scheduled_flag")?.bool()?;
-    let ids = df.column("schedulingBlockId")?.str()?;
+    let id_column = df.column("schedulingBlockId")?;
     let priorities = df.column("priority")?.f64()?;
     
     // Optional columns for conflict detection
@@ -55,7 +55,14 @@ pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsE
             continue;
         }
         
-        let id = ids.get(i).unwrap_or("unknown").to_string();
+        // Handle schedulingBlockId as either int or string
+        let id = if let Ok(ids_str) = id_column.str() {
+            ids_str.get(i).unwrap_or("unknown").to_string()
+        } else if let Ok(ids_i64) = id_column.i64() {
+            ids_i64.get(i).map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string())
+        } else {
+            "unknown".to_string()
+        };
         let priority = priorities.get(i).unwrap_or(0.0);
         
         let mut reasons = Vec::new();
