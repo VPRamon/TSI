@@ -68,8 +68,8 @@ pub fn parse_visibility_periods(py: Python, visibility_str: &str) -> PyResult<Py
     use chrono::Datelike;
     use chrono::Timelike;
 
-    let periods = parse_visibility_string(visibility_str)
-        .map_err(pyo3::exceptions::PyValueError::new_err)?;
+    let periods =
+        parse_visibility_string(visibility_str).map_err(pyo3::exceptions::PyValueError::new_err)?;
 
     let datetime_module = py.import("datetime")?;
     let datetime_cls = datetime_module.getattr("datetime")?;
