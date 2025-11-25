@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.6
 
 ARG DEBIAN_VERSION=12
-ARG RUST_VERSION=1.74.1
+ARG RUST_VERSION=nightly
 ARG APP_USER=app
 
 #############################
@@ -84,15 +84,14 @@ COPY pyproject.toml README.md ./
 COPY requirements.base.txt requirements.base.txt
 COPY rust_backend rust_backend
 
-RUN python3 -m pip install --upgrade pip \
-    && pip install --no-cache-dir maturin==1.6.0
+RUN python3 -m pip install --upgrade pip --break-system-packages \
+    && pip install --no-cache-dir maturin==1.6.0 --break-system-packages
 RUN maturin build \
         --manifest-path rust_backend/Cargo.toml \
         --release \
         --locked \
         --out /artifacts \
-        --skip-auditwheel \
-        --no-sdist
+        --skip-auditwheel
 
 #############################
 # Python dependency builder (creates reusable virtualenv)
@@ -134,6 +133,7 @@ CMD ["streamlit", "run", "src/tsi/app.py", "--server.address=0.0.0.0", "--server
 # Developer shell image with toolchains + dev deps
 #############################
 FROM rust-base AS dev
+ARG APP_USER=app
 ENV VIRTUAL_ENV=/opt/venv \
     PATH=/opt/venv/bin:/opt/cargo/bin:$PATH \
     PYTHONPATH=/workspace/src
