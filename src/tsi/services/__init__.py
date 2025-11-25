@@ -43,7 +43,14 @@ from tsi.services.visibility_processing import (
     get_all_block_ids,
     get_priority_range as get_visibility_priority_range,
 )
-from tsi.services.timeline_processing import prepare_timeline_data, apply_search_filter
+from tsi.services.timeline_processing import (
+    prepare_scheduled_data,
+    get_priority_range as get_timeline_priority_range,
+    filter_scheduled_data,
+    filter_dark_periods,
+    prepare_display_dataframe,
+    apply_search_filters,
+)
 
 __all__ = [
     # loaders
@@ -81,6 +88,10 @@ __all__ = [
     "get_all_block_ids",
     "get_visibility_priority_range",
     # timeline_processing
-    "prepare_timeline_data",
-    "apply_search_filter",
+    "prepare_scheduled_data",
+    "get_timeline_priority_range",
+    "filter_scheduled_data",
+    "filter_dark_periods",
+    "prepare_display_dataframe",
+    "apply_search_filters",
 ]
