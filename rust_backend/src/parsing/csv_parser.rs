@@ -13,6 +13,48 @@ pub fn parse_schedule_csv(csv_path: &Path) -> Result<DataFrame> {
         .finish()
         .context("Failed to parse CSV into DataFrame")?;
     
+    // Get existing column names
+    let column_names: Vec<String> = df.get_column_names()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    
+    // Cast columns to expected types if they were inferred incorrectly
+    let mut lazy_df = df.lazy();
+    
+    // schedulingBlockId should be String (may be inferred as i64)
+    if column_names.contains(&"schedulingBlockId".to_string()) {
+        lazy_df = lazy_df.with_column(col("schedulingBlockId").cast(DataType::String));
+    }
+    
+    // Numeric columns that should be Float64 (may be inferred as i64 if no decimal point)
+    let float_columns = [
+        "priority",
+        "requestedDurationSec",
+        "minObservationTimeInSec",
+        "raInDeg",
+        "decInDeg",
+        "minAzimuthAngleInDeg",
+        "maxAzimuthAngleInDeg",
+        "minElevationAngleInDeg",
+        "maxElevationAngleInDeg",
+        "scheduled_period.start",
+        "scheduled_period.stop",
+    ];
+    
+    for col_name in float_columns {
+        if column_names.contains(&col_name.to_string()) {
+            lazy_df = lazy_df.with_column(
+                when(col(col_name).is_not_null())
+                    .then(col(col_name).cast(DataType::Float64))
+                    .otherwise(lit(NULL).cast(DataType::Float64))
+                    .alias(col_name)
+            );
+        }
+    }
+    
+    let df = lazy_df.collect().context("Failed to cast columns to expected types")?;
+    
     Ok(df)
 }
 

@@ -1,9 +1,39 @@
+//! Schedule validation with detailed error and warning reporting.
+//!
+//! This module validates scheduling block data for completeness, consistency,
+//! and correctness. It checks for missing required fields, invalid values,
+//! duplicate IDs, and other data quality issues.
+
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::core::domain::SchedulingBlock;
 
-/// Validation result containing errors, warnings and statistics
+/// Comprehensive validation result with categorized issues and statistics.
+///
+/// Contains validation status, lists of errors and warnings, and summary
+/// statistics about the validated dataset. Errors make `is_valid` false,
+/// while warnings are informational but don't fail validation.
+///
+/// # Fields
+///
+/// * `is_valid` - `false` if any errors were found, `true` otherwise
+/// * `errors` - Critical issues that prevent processing (e.g., missing required fields)
+/// * `warnings` - Non-critical issues that should be reviewed (e.g., unusual priority values)
+/// * `stats` - Summary statistics about the validated data
+///
+/// # Examples
+///
+/// ```
+/// use tsi_rust::preprocessing::validator::{ValidationResult, ScheduleValidator};
+///
+/// let mut result = ValidationResult::new();
+/// assert!(result.is_valid);
+///
+/// result.add_error("Missing required field".to_string());
+/// assert!(!result.is_valid);
+/// assert_eq!(result.errors.len(), 1);
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationResult {
     pub is_valid: bool,
@@ -12,7 +42,21 @@ pub struct ValidationResult {
     pub stats: ValidationStats,
 }
 
-/// Statistics about the validated data
+/// Summary statistics computed during validation.
+///
+/// Provides counts of various data characteristics and quality metrics,
+/// including scheduling status, missing data, and detected issues.
+///
+/// # Fields
+///
+/// * `total_blocks` - Total number of scheduling blocks validated
+/// * `scheduled_blocks` - Count of blocks with assigned observation times
+/// * `unscheduled_blocks` - Count of blocks without assigned times
+/// * `missing_coordinates` - Count of blocks lacking target coordinates
+/// * `missing_constraints` - Count of blocks missing elevation/azimuth constraints
+/// * `duplicate_ids` - Number of duplicate scheduling block IDs found
+/// * `invalid_priorities` - Count of priorities outside the valid range
+/// * `invalid_durations` - Count of non-positive durations
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationStats {
     pub total_blocks: usize,
@@ -26,6 +70,17 @@ pub struct ValidationStats {
 }
 
 impl ValidationResult {
+    /// Creates a new validation result with valid status and empty error/warning lists.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tsi_rust::preprocessing::validator::ValidationResult;
+    ///
+    /// let result = ValidationResult::new();
+    /// assert!(result.is_valid);
+    /// assert!(result.errors.is_empty());
+    /// ```
     pub fn new() -> Self {
         Self {
             is_valid: true,
@@ -35,11 +90,47 @@ impl ValidationResult {
         }
     }
     
+    /// Adds a critical error and marks the result as invalid.
+    ///
+    /// After calling this method, `is_valid` will be `false`.
+    ///
+    /// # Arguments
+    ///
+    /// * `error` - Error message describing the validation failure
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tsi_rust::preprocessing::validator::ValidationResult;
+    ///
+    /// let mut result = ValidationResult::new();
+    /// result.add_error("Missing schedulingBlockId".to_string());
+    /// assert!(!result.is_valid);
+    /// ```
     pub fn add_error(&mut self, error: String) {
         self.is_valid = false;
         self.errors.push(error);
     }
     
+    /// Adds a non-critical warning without invalidating the result.
+    ///
+    /// Warnings indicate potential issues that don't prevent processing
+    /// but should be reviewed.
+    ///
+    /// # Arguments
+    ///
+    /// * `warning` - Warning message describing the potential issue
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tsi_rust::preprocessing::validator::ValidationResult;
+    ///
+    /// let mut result = ValidationResult::new();
+    /// result.add_warning("Unusual priority value: 25.0".to_string());
+    /// assert!(result.is_valid);  // Still valid despite warning
+    /// assert_eq!(result.warnings.len(), 1);
+    /// ```
     pub fn add_warning(&mut self, warning: String) {
         self.warnings.push(warning);
     }
@@ -60,11 +151,73 @@ impl Default for ValidationStats {
     }
 }
 
-/// Validator for scheduling data
+/// Validator for telescope scheduling data.
+///
+/// `ScheduleValidator` provides validation logic for both structured
+/// `SchedulingBlock` collections and Polars DataFrames. It checks data
+/// completeness, value ranges, uniqueness constraints, and schema requirements.
+///
+/// # Examples
+///
+/// ```no_run
+/// use tsi_rust::preprocessing::validator::ScheduleValidator;
+/// use tsi_rust::core::domain::SchedulingBlock;
+///
+/// # fn example(blocks: &[SchedulingBlock]) {
+/// let result = ScheduleValidator::validate_blocks(blocks);
+/// if !result.is_valid {
+///     eprintln!("Validation failed: {:?}", result.errors);
+/// }
+/// println!("Validated {} blocks", result.stats.total_blocks);
+/// # }
+/// ```
 pub struct ScheduleValidator;
 
 impl ScheduleValidator {
-    /// Validate a list of scheduling blocks
+    /// Validates a collection of scheduling blocks.
+    ///
+    /// Performs comprehensive validation including:
+    /// - Duplicate ID detection
+    /// - Priority range checks (0-20)
+    /// - Duration positivity checks
+    /// - Missing coordinates detection
+    /// - Missing constraints detection
+    ///
+    /// # Arguments
+    ///
+    /// * `blocks` - Slice of scheduling blocks to validate
+    ///
+    /// # Returns
+    ///
+    /// `ValidationResult` containing all errors, warnings, and statistics.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tsi_rust::preprocessing::validator::ScheduleValidator;
+    /// use tsi_rust::core::domain::SchedulingBlock;
+    /// use siderust::units::time::Seconds;
+    ///
+    /// let blocks = vec![
+    ///     SchedulingBlock {
+    ///         scheduling_block_id: "SB001".to_string(),
+    ///         priority: 10.0,
+    ///         requested_duration: Seconds::new(3600.0),
+    ///         min_observation_time: Seconds::new(1800.0),
+    ///         coordinates: None,
+    ///         fixed_time: None,
+    ///         min_azimuth_angle: None,
+    ///         max_azimuth_angle: None,
+    ///         min_elevation_angle: None,
+    ///         max_elevation_angle: None,
+    ///         scheduled_period: None,
+    ///         visibility_periods: vec![],
+    ///     }
+    /// ];
+    ///
+    /// let result = ScheduleValidator::validate_blocks(&blocks);
+    /// assert_eq!(result.stats.total_blocks, 1);
+    /// ```
     pub fn validate_blocks(blocks: &[SchedulingBlock]) -> ValidationResult {
         let mut result = ValidationResult::new();
         
@@ -81,7 +234,41 @@ impl ScheduleValidator {
         result
     }
     
-    /// Validate a Polars DataFrame
+    /// Validates a Polars DataFrame containing schedule data.
+    ///
+    /// Checks DataFrame schema, column presence, value ranges, and data quality.
+    /// Requires columns: `schedulingBlockId`, `priority`, `requestedDurationSec`.
+    ///
+    /// # Arguments
+    ///
+    /// * `df` - DataFrame to validate
+    ///
+    /// # Returns
+    ///
+    /// `ValidationResult` with errors if schema is invalid or data has quality issues.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use tsi_rust::preprocessing::validator::ScheduleValidator;
+    /// use polars::prelude::*;
+    ///
+    /// # fn example(df: &DataFrame) {
+    /// let result = ScheduleValidator::validate_dataframe(df);
+    /// if !result.is_valid {
+    ///     for error in &result.errors {
+    ///         eprintln!("Error: {}", error);
+    ///     }
+    /// }
+    /// # }
+    /// ```
+    ///
+    /// # Error Conditions
+    ///
+    /// - Missing required columns
+    /// - Duplicate scheduling block IDs
+    /// - Invalid priorities (< 0 or > 20)
+    /// - Non-positive durations
     pub fn validate_dataframe(df: &DataFrame) -> ValidationResult {
         let mut result = ValidationResult::new();
         

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from tsi_rust_api import TSIBackend
 from core.time import format_datetime_utc
 
 
@@ -38,31 +39,14 @@ class CandidatePlacement:
     conflicts: tuple[str, ...]
 
 
+_BACKEND = TSIBackend(use_pandas=True)
+
+
 def compute_metrics(df: pd.DataFrame) -> AnalyticsSnapshot:
-    """Compute dataset-level summary statistics."""
+    """Compute dataset-level summary statistics via the Rust backend."""
 
-    total_obs = len(df)
-    scheduled = int(df["scheduled_flag"].sum())
-    unscheduled = int(total_obs - scheduled)
-    scheduled_df = df[df["scheduled_flag"]]
-    unscheduled_df = df[~df["scheduled_flag"]]
-
-    return AnalyticsSnapshot(
-        total_observations=total_obs,
-        scheduled_count=scheduled,
-        unscheduled_count=unscheduled,
-        scheduling_rate=(scheduled / total_obs) if total_obs else 0.0,
-        mean_priority=float(df["priority"].mean()),
-        median_priority=float(df["priority"].median()),
-        mean_priority_scheduled=(
-            float(scheduled_df["priority"].mean()) if not scheduled_df.empty else 0.0
-        ),
-        mean_priority_unscheduled=(
-            float(unscheduled_df["priority"].mean()) if not unscheduled_df.empty else 0.0
-        ),
-        total_visibility_hours=float(df["total_visibility_hours"].sum()),
-        mean_requested_hours=float(df["requested_hours"].mean()),
-    )
+    rust_metrics = _BACKEND.compute_metrics(df)
+    return AnalyticsSnapshot(**rust_metrics)
 
 
 def compute_correlations(df: pd.DataFrame, *, columns: Sequence[str]) -> pd.DataFrame:
@@ -76,69 +60,15 @@ def compute_correlations(df: pd.DataFrame, *, columns: Sequence[str]) -> pd.Data
 
 
 def get_top_observations(df: pd.DataFrame, *, by: str, n: int = 10) -> pd.DataFrame:
-    """Return the top *n* rows ordered by *by*."""
+    """Return the top *n* rows ordered by *by* using the Rust backend."""
 
-    if by not in df.columns or n <= 0:
-        return pd.DataFrame()
-
-    columns = [
-        "schedulingBlockId",
-        "priority",
-        "requested_hours",
-        "total_visibility_hours",
-        "scheduled_flag",
-        "priority_bin",
-    ]
-    existing_columns = [col for col in columns if col in df.columns]
-
-    return df.nlargest(n, by)[existing_columns].reset_index(drop=True)
+    return _BACKEND.get_top_observations(df, by=by, n=n)
 
 
 def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
-    """Detect scheduling conflicts by comparing scheduled periods vs constraints."""
+    """Detect scheduling conflicts using the Rust backend."""
 
-    conflicts: list[dict[str, object]] = []
-
-    for _, row in df.iterrows():
-        if not row.get("scheduled_flag"):
-            continue
-
-        scheduled_start = row.get("scheduled_start_dt")
-        scheduled_stop = row.get("scheduled_stop_dt")
-
-        if pd.isna(scheduled_start) or pd.isna(scheduled_stop):
-            continue
-
-        reasons: list[str] = []
-
-        visibility_periods = row.get("visibility_periods_parsed") or []
-        if visibility_periods:
-            in_visibility = any(
-                scheduled_start >= vis_start and scheduled_stop <= vis_stop
-                for vis_start, vis_stop in visibility_periods
-            )
-            if not in_visibility:
-                reasons.append("Scheduled outside visibility windows")
-
-        fixed_start = row.get("fixed_start_dt")
-        fixed_stop = row.get("fixed_stop_dt")
-        if pd.notna(fixed_start) and scheduled_start < fixed_start:
-            reasons.append(f"Scheduled before fixed start ({fixed_start})")
-        if pd.notna(fixed_stop) and scheduled_stop > fixed_stop:
-            reasons.append(f"Scheduled after fixed stop ({fixed_stop})")
-
-        if reasons:
-            conflicts.append(
-                {
-                    "schedulingBlockId": row.get("schedulingBlockId"),
-                    "priority": row.get("priority"),
-                    "scheduled_start": scheduled_start,
-                    "scheduled_stop": scheduled_stop,
-                    "conflict_reasons": "; ".join(reasons),
-                }
-            )
-
-    return pd.DataFrame(conflicts)
+    return _BACKEND.find_conflicts(df)
 
 
 def _get_duration_timedelta(row: pd.Series) -> pd.Timedelta | None:

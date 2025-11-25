@@ -172,4 +172,29 @@ mod tests {
         let _result = find_conflicts(&df);
         // Should handle empty DataFrame
     }
+
+    #[test]
+    fn test_conflict_detection_and_candidates() {
+        let df = df!(
+            "schedulingBlockId" => &["id-1"],
+            "priority" => &[5.0],
+            "scheduled_flag" => &[true],
+            "scheduled_start_dt" => &[Some("2024-01-01")],
+            "scheduled_stop_dt" => &[Some("2024-01-02")],
+            "fixed_start_dt" => &[Some("2024-01-03")],
+            "fixed_stop_dt" => &[Some("2024-01-04")],
+            "requested_hours" => &[2.0],
+        ).unwrap();
+
+        let conflicts = find_conflicts(&df).unwrap();
+        assert_eq!(conflicts.len(), 1);
+        assert!(conflicts[0].conflict_reasons.contains("before fixed start"));
+
+        // Candidate placements fall back to empty when missing data
+        let empty_candidates = suggest_candidate_positions(&df, 5).unwrap();
+        assert!(empty_candidates.is_empty());
+
+        let missing_visibility = suggest_candidate_positions(&df, 0).unwrap();
+        assert!(missing_visibility.is_empty());
+    }
 }
