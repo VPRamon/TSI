@@ -56,6 +56,10 @@ from tsi.services.insights_filtering import (
     compute_impossible_mask,
     apply_insights_filter,
 )
+from tsi.services.trends_processing import (
+    validate_required_columns,
+    apply_trends_filters,
+)
 
 __all__ = [
     # loaders
@@ -103,4 +107,7 @@ __all__ = [
     "check_filter_support",
     "compute_impossible_mask",
     "apply_insights_filter",
+    # trends_processing
+    "validate_required_columns",
+    "apply_trends_filters",
 ]

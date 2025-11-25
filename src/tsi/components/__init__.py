@@ -21,6 +21,16 @@ from tsi.components.insights_metrics import (
 from tsi.components.insights_analysis import render_automated_insights, render_correlation_analysis
 from tsi.components.insights_tables import render_top_observations, render_integrity_checks
 from tsi.components.insights_reports import render_report_downloads
+from tsi.components.trends_controls import render_sidebar_controls as render_trends_sidebar_controls
+from tsi.components.trends_metrics import render_overview_metrics
+from tsi.components.trends_empirical import render_empirical_proportions
+from tsi.components.trends_smoothed import render_smoothed_trends
+from tsi.components.trends_heatmap import render_heatmap_section
+from tsi.components.trends_model import (
+    render_model_metrics,
+    render_prediction_plot,
+    render_model_information,
+)
 
 __all__ = [
     # Sky Map components
@@ -50,4 +60,13 @@ __all__ = [
     "render_top_observations",
     "render_integrity_checks",
     "render_report_downloads",
+    # Trends components
+    "render_trends_sidebar_controls",
+    "render_overview_metrics",
+    "render_empirical_proportions",
+    "render_smoothed_trends",
+    "render_heatmap_section",
+    "render_model_metrics",
+    "render_prediction_plot",
+    "render_model_information",
 ]
