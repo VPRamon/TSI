@@ -25,7 +25,11 @@ from tsi.config import CORRELATION_COLUMNS
 from tsi.models.schemas import AnalyticsMetrics
 from tsi.services.rust_compat import (
     compute_metrics as rust_compute_metrics,
+)
+from tsi.services.rust_compat import (
     find_conflicts as rust_find_conflicts,
+)
+from tsi.services.rust_compat import (
     get_top_observations as rust_get_top_observations,
 )
 

@@ -17,11 +17,17 @@ from tsi.services import (
 )
 from tsi.services.rust_compat import (
     compute_metrics as rust_compute_metrics,
+)
+from tsi.services.rust_compat import (
     filter_by_priority,
     filter_by_scheduled,
-    find_conflicts as rust_find_conflicts,
-    get_top_observations as rust_get_top_observations,
     load_schedule_rust,
+)
+from tsi.services.rust_compat import (
+    find_conflicts as rust_find_conflicts,
+)
+from tsi.services.rust_compat import (
+    get_top_observations as rust_get_top_observations,
 )
 
 
@@ -40,12 +46,12 @@ class TestRustIntegrationE2E:
         """Test that compute_metrics uses Rust backend and returns Pydantic model."""
         df = load_csv("data/schedule.csv")
         metrics = compute_metrics(df)
-        
+
         # Check it's a Pydantic model (has model_dump method)
         assert hasattr(metrics, "model_dump")
         assert hasattr(metrics, "total_observations")
         assert hasattr(metrics, "avg_priority")
-        
+
         # Verify values are sensible
         assert metrics.total_observations == len(df)
         assert 0 <= metrics.avg_priority <= 10
@@ -54,10 +60,10 @@ class TestRustIntegrationE2E:
         """Test that get_top_observations uses Rust backend."""
         df = load_csv("data/schedule.csv")
         top_10 = get_top_observations(df, by="priority", n=10)
-        
+
         assert isinstance(top_10, pd.DataFrame)
         assert len(top_10) == 10
-        
+
         # Verify they're sorted by priority descending
         priorities = top_10["priority"].tolist()
         assert priorities == sorted(priorities, reverse=True)
@@ -66,7 +72,7 @@ class TestRustIntegrationE2E:
         """Test that find_conflicts uses Rust backend."""
         df = load_csv("data/schedule.csv")
         conflicts = find_conflicts(df)
-        
+
         assert isinstance(conflicts, pd.DataFrame)
         # May or may not have conflicts, but should return a DataFrame
         assert "schedulingBlockId" in conflicts.columns or len(conflicts) == 0
@@ -75,7 +81,7 @@ class TestRustIntegrationE2E:
         """Test that validate_dataframe uses Rust backend for data validation."""
         df = load_csv("data/schedule.csv")
         is_valid, errors = validate_dataframe(df)
-        
+
         assert isinstance(is_valid, bool)
         assert isinstance(errors, list)
         # Our test data should be valid
@@ -84,13 +90,13 @@ class TestRustIntegrationE2E:
     def test_filter_by_priority_integration(self):
         """Test priority filtering through services layer."""
         df = load_csv("data/schedule.csv")
-        
+
         # Filter for high priority (8-10)
         high_priority = filter_by_priority(df, min_priority=8.0, max_priority=10.0)
-        
+
         assert isinstance(high_priority, pd.DataFrame)
         assert len(high_priority) <= len(df)
-        
+
         # Verify all priorities are in range
         if len(high_priority) > 0:
             assert high_priority["priority"].min() >= 8.0
@@ -99,13 +105,13 @@ class TestRustIntegrationE2E:
     def test_filter_by_scheduled_integration(self):
         """Test scheduled filtering through services layer."""
         df = load_csv("data/schedule.csv")
-        
+
         # Filter for scheduled only
         scheduled = filter_by_scheduled(df, filter_type="scheduled")
-        
+
         assert isinstance(scheduled, pd.DataFrame)
         assert len(scheduled) <= len(df)
-        
+
         # Verify all are scheduled
         if len(scheduled) > 0:
             assert scheduled["scheduled_flag"].all()
@@ -113,11 +119,11 @@ class TestRustIntegrationE2E:
     def test_rust_backend_consistency(self):
         """Test that Rust backend produces consistent results."""
         df = load_csv("data/schedule.csv")
-        
+
         # Compute metrics twice
         metrics1 = rust_compute_metrics(df)
         metrics2 = rust_compute_metrics(df)
-        
+
         # Should be identical
         assert metrics1["total_observations"] == metrics2["total_observations"]
         assert abs(metrics1["avg_priority"] - metrics2["avg_priority"]) < 1e-10
@@ -144,22 +150,22 @@ class TestRustIntegrationE2E:
     def test_performance_comparison_metrics(self, benchmark):
         """Benchmark metrics computation (optional - requires pytest-benchmark)."""
         df = load_csv("data/schedule.csv")
-        
+
         # Benchmark Rust implementation
         result = benchmark(rust_compute_metrics, df)
-        
+
         assert result is not None
         assert "total_observations" in result
 
     def test_top_observations_ordering(self):
         """Test that top observations maintain proper ordering."""
         df = load_csv("data/schedule.csv")
-        
+
         # Get top 20 by priority
         top_20 = rust_get_top_observations(df, by="priority", n=20)
-        
+
         assert len(top_20) == min(20, len(df))
-        
+
         # Verify strict descending order
         priorities = top_20["priority"].tolist()
         for i in range(len(priorities) - 1):
@@ -169,7 +175,7 @@ class TestRustIntegrationE2E:
         """Test conflict detection returns valid results."""
         df = load_csv("data/schedule.csv")
         conflicts = rust_find_conflicts(df)
-        
+
         # If conflicts exist, they should have required columns
         if len(conflicts) > 0:
             assert "schedulingBlockId" in conflicts.columns
@@ -186,7 +192,7 @@ class TestBackwardCompatibility:
         """Test that metrics schema is compatible with existing code."""
         df = load_csv("data/schedule.csv")
         metrics = compute_metrics(df)
-        
+
         # Check Pydantic model has expected fields
         data = metrics.model_dump()
         expected_fields = [
@@ -197,14 +203,14 @@ class TestBackwardCompatibility:
             "total_requested_hours",
             "total_planned_hours",
         ]
-        
+
         for field in expected_fields:
             assert field in data, f"Missing field: {field}"
 
     def test_dataframe_structure_unchanged(self):
         """Test that DataFrames have expected structure after loading."""
         df = load_csv("data/schedule.csv")
-        
+
         # Check required columns exist
         required_cols = [
             "schedulingBlockId",
@@ -212,18 +218,18 @@ class TestBackwardCompatibility:
             "requested_hours",
             "scheduled_flag",
         ]
-        
+
         for col in required_cols:
             assert col in df.columns, f"Missing column: {col}"
 
     def test_filter_functions_signature_compatible(self):
         """Test that filter functions maintain compatible signatures."""
         df = load_csv("data/schedule.csv")
-        
+
         # These should all work with named arguments
         result1 = filter_by_priority(df, min_priority=0.0, max_priority=10.0)
         result2 = filter_by_scheduled(df, filter_type="all")
-        
+
         assert isinstance(result1, pd.DataFrame)
         assert isinstance(result2, pd.DataFrame)
 

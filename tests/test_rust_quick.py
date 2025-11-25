@@ -3,11 +3,13 @@
 Quick test of the Rust backend - FASE 1A
 """
 import sys
+
 sys.path.insert(0, '/tmp/tsi_test')
 
-import tsi_rust
 import time
 from datetime import datetime, timezone
+
+import tsi_rust
 
 print("=" * 70)
 print("🦀 TSI Rust Backend - FASE 1A Tests")

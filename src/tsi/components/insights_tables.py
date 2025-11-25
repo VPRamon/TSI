@@ -20,9 +20,9 @@ def render_top_observations(
         top_visibility: Top observations by visibility hours
     """
     st.header("🏆 Top Observations")
-    
+
     tab1, tab2 = st.tabs(["By Priority", "By Visibility Hours"])
-    
+
     with tab1:
         if not top_priority.empty:
             render_data_preview(
@@ -32,7 +32,7 @@ def render_top_observations(
             )
         else:
             st.info("No data available")
-    
+
     with tab2:
         if not top_visibility.empty:
             render_data_preview(
@@ -52,9 +52,9 @@ def render_integrity_checks(conflicts: pd.DataFrame) -> None:
         conflicts: DataFrame with detected conflicts
     """
     st.header("🔎 Scheduling Integrity")
-    
+
     render_conflicts_table(conflicts)
-    
+
     if not conflicts.empty:
         st.warning(
             """

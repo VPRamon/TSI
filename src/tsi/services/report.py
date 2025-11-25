@@ -130,11 +130,11 @@ def _markdown_to_html_safe(markdown_text: str) -> str:
         # Fallback: simple line-by-line conversion with HTML escaping
         lines = markdown_text.split('\n')
         html_lines = []
-        
+
         for line in lines:
             # Escape HTML entities first
             safe_line = html.escape(line)
-            
+
             # Convert markdown headers
             if safe_line.startswith('# '):
                 safe_line = f'<h1>{safe_line[2:]}</h1>'
@@ -149,9 +149,9 @@ def _markdown_to_html_safe(markdown_text: str) -> str:
             elif '**' in safe_line:
                 # Already escaped, so replace the escaped pattern
                 safe_line = safe_line.replace('**', '<strong>', 1).replace('**', '</strong>', 1)
-            
+
             html_lines.append(safe_line)
-        
+
         return '\n'.join(html_lines)
 
 

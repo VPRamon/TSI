@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import pandas as pd
 
-from core.domain.priority import get_priority_range
-
 
 def get_all_block_ids(df: pd.DataFrame) -> list:
     """

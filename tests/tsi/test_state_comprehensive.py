@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from typing import Any
 from unittest.mock import MagicMock
 
 import pandas as pd
@@ -25,8 +24,8 @@ from tsi.state import (
     KEY_DIST_FILTER_MODE,
     KEY_INSIGHTS_FILTER_MODE,
     KEY_PRIORITY_RANGE,
-    KEY_SCHEDULED_FILTER,
     KEY_SCHEDULE_WINDOW,
+    KEY_SCHEDULED_FILTER,
     KEY_SELECTED_BINS,
     KEY_SELECTED_BLOCK_IDS,
     get_comparison_schedule,
@@ -45,7 +44,6 @@ from tsi.state import (
     set_data_filename,
     set_prepared_data,
     set_priority_range,
-    set_scheduled_filter,
 )
 
 pytestmark = pytest.mark.unit

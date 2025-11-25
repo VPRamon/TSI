@@ -21,12 +21,12 @@ def check_filter_support(df: pd.DataFrame) -> bool:
     has_duration_constraint = (
         "minObservationTimeInSec" in df.columns or "requested_hours" in df.columns
     )
-    
+
     return has_visibility and has_duration_constraint
 
 
 def compute_impossible_mask(
-    df: pd.DataFrame, 
+    df: pd.DataFrame,
     tolerance_sec: float = 1.0
 ) -> pd.Series | None:
     """
@@ -44,37 +44,37 @@ def compute_impossible_mask(
     """
     if not check_filter_support(df):
         return None
-    
+
     visibility_secs = df["total_visibility_hours"] * 3600.0
     impossible_conditions = []
-    
+
     # Check minimum observation time constraint
     if "minObservationTimeInSec" in df.columns:
         min_duration_secs = df["minObservationTimeInSec"].fillna(0)
         impossible_conditions.append(
             (min_duration_secs - tolerance_sec > visibility_secs).fillna(False)
         )
-    
+
     # Check requested duration constraint
     if "requested_hours" in df.columns:
         requested_secs = df["requested_hours"] * 3600.0
         impossible_conditions.append(
             (requested_secs - tolerance_sec > visibility_secs).fillna(False)
         )
-    
+
     # An observation is impossible if ANY of the conditions is true
     if not impossible_conditions:
         return None
-    
+
     impossible_mask = impossible_conditions[0]
     for condition in impossible_conditions[1:]:
         impossible_mask = impossible_mask | condition
-    
+
     return impossible_mask
 
 
 def filter_impossible_observations(
-    df: pd.DataFrame, 
+    df: pd.DataFrame,
     filter_mode: str,
     tolerance_sec: float = 1.0
 ) -> pd.DataFrame:
@@ -95,12 +95,12 @@ def filter_impossible_observations(
     """
     if filter_mode == "all":
         return df
-    
+
     impossible_mask = compute_impossible_mask(df, tolerance_sec)
-    
+
     if impossible_mask is None:
         return df
-    
+
     # Return filtered copy
     return df[~impossible_mask].copy()
 
@@ -125,12 +125,12 @@ def apply_insights_filter(
     """
     if filter_mode == "all":
         return df
-    
+
     if filter_mode == "exclude_impossible":
         if impossible_mask is None:
             impossible_mask = compute_impossible_mask(df, tolerance_sec)
-        
+
         if impossible_mask is not None:
             return df[~impossible_mask].copy()
-    
+
     return df

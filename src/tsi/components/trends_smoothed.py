@@ -34,12 +34,12 @@ def render_smoothed_trends(
         "📈 Smoothed trends using weighted moving average (similar to LOESS). "
         "Shows how the scheduling rate varies with visibility and requested time."
     )
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.markdown("**Visibility → Scheduling rate**")
-        
+
         if error_vis:
             st.warning(f"⚠️ {error_vis}")
         elif smooth_vis is not None:
@@ -50,15 +50,15 @@ def render_smoothed_trends(
                 x_label="Visibility (hours)",
                 y_label="Scheduling rate",
             )
-            
+
             if plot_library == "altair":
                 st.altair_chart(cast("Chart", fig_vis), use_container_width=True)
             else:
                 st.plotly_chart(fig_vis, use_container_width=True)
-    
+
     with col2:
         st.markdown("**Requested time → Scheduling rate**")
-        
+
         if error_time:
             st.warning(f"⚠️ {error_time}")
         elif smooth_time is not None:
@@ -69,7 +69,7 @@ def render_smoothed_trends(
                 x_label="Requested time (hours)",
                 y_label="Scheduling rate",
             )
-            
+
             if plot_library == "altair":
                 st.altair_chart(cast("Chart", fig_time), use_container_width=True)
             else:

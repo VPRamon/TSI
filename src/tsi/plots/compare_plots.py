@@ -28,11 +28,11 @@ def create_priority_distribution_plot(
         Plotly Figure
     """
     fig = go.Figure()
-    
+
     # Determine which dataset has fewer items to plot it on top
     current_count = len(current_scheduled)
     comparison_count = len(comparison_scheduled)
-    
+
     trace_current = go.Histogram(
         x=current_scheduled["priority"],
         name=current_name,
@@ -40,7 +40,7 @@ def create_priority_distribution_plot(
         marker=dict(color="#1f77b4", line=dict(color="#0d5a9e", width=2)),
         nbinsx=30,
     )
-    
+
     trace_comparison = go.Histogram(
         x=comparison_scheduled["priority"],
         name=comparison_name,
@@ -48,7 +48,7 @@ def create_priority_distribution_plot(
         marker=dict(color="#ff7f0e", line=dict(color="#cc6600", width=2)),
         nbinsx=30,
     )
-    
+
     # Add larger dataset first, then smaller on top
     if current_count >= comparison_count:
         fig.add_trace(trace_current)
@@ -56,7 +56,7 @@ def create_priority_distribution_plot(
     else:
         fig.add_trace(trace_comparison)
         fig.add_trace(trace_current)
-    
+
     fig.update_layout(
         barmode="overlay",
         xaxis_title="Priority",
@@ -76,7 +76,7 @@ def create_priority_distribution_plot(
         plot_bgcolor="rgba(14, 17, 23, 0.3)",
         paper_bgcolor="rgba(0, 0, 0, 0)",
     )
-    
+
     return fig
 
 
@@ -100,12 +100,12 @@ def create_scheduling_status_plot(
     """
     current_scheduled = (current_common["scheduled_flag"] == 1).sum()
     current_unscheduled = (current_common["scheduled_flag"] == 0).sum()
-    
+
     comp_scheduled = (comparison_common["scheduled_flag"] == 1).sum()
     comp_unscheduled = (comparison_common["scheduled_flag"] == 0).sum()
-    
+
     fig = go.Figure()
-    
+
     fig.add_trace(
         go.Bar(
             name=current_name,
@@ -122,7 +122,7 @@ def create_scheduling_status_plot(
             opacity=1.0,
         )
     )
-    
+
     fig.add_trace(
         go.Bar(
             name=comparison_name,
@@ -139,7 +139,7 @@ def create_scheduling_status_plot(
             opacity=1.0,
         )
     )
-    
+
     fig.update_layout(
         barmode="group",
         yaxis_title="Number of Blocks",
@@ -158,7 +158,7 @@ def create_scheduling_status_plot(
         plot_bgcolor="rgba(14, 17, 23, 0.3)",
         paper_bgcolor="rgba(0, 0, 0, 0)",
     )
-    
+
     return fig
 
 
@@ -182,7 +182,7 @@ def create_changes_plot(
         subplot_titles=("Newly Scheduled Blocks", "Newly Unscheduled Blocks"),
         specs=[[{"type": "histogram"}, {"type": "histogram"}]],
     )
-    
+
     fig.add_trace(
         go.Histogram(
             x=newly_scheduled["priority_current"] if len(newly_scheduled) > 0 else [],
@@ -195,7 +195,7 @@ def create_changes_plot(
         row=1,
         col=1,
     )
-    
+
     fig.add_trace(
         go.Histogram(
             x=newly_unscheduled["priority_current"] if len(newly_unscheduled) > 0 else [],
@@ -208,20 +208,20 @@ def create_changes_plot(
         row=1,
         col=2,
     )
-    
+
     fig.update_xaxes(title_text="Priority", row=1, col=1)
     fig.update_xaxes(title_text="Priority", row=1, col=2)
     fig.update_yaxes(title_text="Count", row=1, col=1)
     fig.update_yaxes(title_text="Count", row=1, col=2)
-    
+
     fig.update_annotations(font=dict(size=14, color="white"))
-    
+
     fig.update_layout(
         height=PLOT_HEIGHT - 100,
         plot_bgcolor="rgba(14, 17, 23, 0.3)",
         paper_bgcolor="rgba(0, 0, 0, 0)",
     )
-    
+
     return fig
 
 
@@ -244,11 +244,11 @@ def create_time_distribution_plot(
         Plotly Figure
     """
     fig = go.Figure()
-    
+
     # Determine which dataset has fewer items to plot it on top
     current_count = len(current_scheduled)
     comparison_count = len(comparison_scheduled)
-    
+
     trace_current = go.Box(
         y=current_scheduled["requested_hours"],
         name=current_name,
@@ -258,7 +258,7 @@ def create_time_distribution_plot(
         boxmean="sd",
         opacity=1.0,
     )
-    
+
     trace_comparison = go.Box(
         y=comparison_scheduled["requested_hours"],
         name=comparison_name,
@@ -268,7 +268,7 @@ def create_time_distribution_plot(
         boxmean="sd",
         opacity=1.0,
     )
-    
+
     # Add larger dataset first, then smaller on top
     if current_count >= comparison_count:
         fig.add_trace(trace_current)
@@ -276,7 +276,7 @@ def create_time_distribution_plot(
     else:
         fig.add_trace(trace_comparison)
         fig.add_trace(trace_current)
-    
+
     fig.update_layout(
         yaxis_title="Requested Hours",
         height=PLOT_HEIGHT - 150,
@@ -295,5 +295,5 @@ def create_time_distribution_plot(
         plot_bgcolor="rgba(14, 17, 23, 0.3)",
         paper_bgcolor="rgba(0, 0, 0, 0)",
     )
-    
+
     return fig

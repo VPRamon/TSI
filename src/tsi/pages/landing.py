@@ -8,11 +8,9 @@ from typing import Any
 import streamlit as st
 
 from app_config import get_settings
-from core.time import format_datetime_utc
 from tsi import state
-from tsi.components.data_preview import render_data_preview
-from tsi.services.rust_compat import load_dark_periods_rust
 from tsi.services.loaders import load_csv, prepare_dataframe, validate_dataframe
+from tsi.services.rust_compat import load_dark_periods_rust
 from tsi.theme import add_vertical_space, render_landing_title
 
 
@@ -172,16 +170,16 @@ def _load_data(
             if file_type == "json":
                 # Use the core loader which supports visibility data merging
                 from core.loaders import load_schedule_from_json
-                
+
                 # Load with visibility data if provided
                 result = load_schedule_from_json(
                     schedule_json=file_or_path,
                     visibility_json=visibility_file,
                     validate=True
                 )
-                
+
                 raw_df = result.dataframe
-                
+
                 # Show validation warnings if any
                 if result.validation.warnings:
                     st.warning(f"⚠️ {len(result.validation.warnings)} data warnings found")

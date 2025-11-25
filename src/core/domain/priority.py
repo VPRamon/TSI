@@ -27,17 +27,17 @@ def get_priority_range(df: pd.DataFrame) -> tuple[float, float]:
     """
     if "priority" not in df.columns:
         return 0.0, 10.0
-    
+
     priority_values = df["priority"].dropna()
-    
+
     if priority_values.empty:
         return 0.0, 10.0
-    
+
     priority_min = float(priority_values.min())
     priority_max = float(priority_values.max())
-    
+
     # Prevent zero-width range
     if priority_min == priority_max:
         priority_max = priority_min + 1.0
-    
+
     return priority_min, priority_max

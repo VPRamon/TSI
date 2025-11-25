@@ -29,18 +29,18 @@ def render_empirical_proportions(
         "📊 Shows the **empirical rate** of scheduling for each priority level. "
         "The tooltip includes the number of observations (n)."
     )
-    
+
     try:
         fig_priority = bar_rate_by_priority(
             empirical.by_priority,
             library=plot_library,
             title="Scheduling rate by priority",
         )
-        
+
         if plot_library == "altair":
             st.altair_chart(cast("Chart", fig_priority), use_container_width=True)
         else:
             st.plotly_chart(fig_priority, use_container_width=True)
-    
+
     except Exception as e:
         st.error(f"❌ Error computing empirical rates: {e}")

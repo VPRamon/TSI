@@ -32,7 +32,6 @@ Requirements:
 
 from __future__ import annotations
 
-import logging
 import warnings
 from pathlib import Path
 from typing import Any
@@ -49,7 +48,7 @@ _RUST_AVAILABLE = False
 _RUST_ERROR = None
 
 try:
-    from tsi_rust_api import TSIBackend, load_schedule, load_dark_periods
+    from tsi_rust_api import TSIBackend, load_dark_periods, load_schedule
     _RUST_AVAILABLE = True
 except ImportError as e:
     _RUST_ERROR = str(e)
@@ -173,7 +172,7 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
         SchedulingBlock index and field is causing issues if parsing fails.
     """
     _ensure_rust_backend()
-    
+
     # Handle file buffers (e.g., from Streamlit file_uploader)
     if hasattr(path, 'read'):
         content = path.read()
@@ -182,7 +181,7 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
         # Reset file pointer if possible
         if hasattr(path, 'seek'):
             path.seek(0)
-        
+
         # For JSON, use Rust backend with string loading
         if format == "json":
             return _BACKEND.load_schedule_from_string(content, format="json")
@@ -192,7 +191,7 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
             return pd.read_csv(io.StringIO(content))
         else:
             raise ValueError(f"Format must be specified for file buffers, got: {format}")
-    
+
     # Handle regular file paths - trust the Rust implementation
     return load_schedule(str(path), format=format)
 
@@ -222,7 +221,7 @@ def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
     _ensure_rust_backend()
     # Call Rust backend (returns dict)
     rust_metrics = _BACKEND.compute_metrics(df)
-    
+
     # Convert to Pydantic model for type safety and compatibility
     return AnalyticsMetrics(**rust_metrics)
 
@@ -594,35 +593,35 @@ __all__ = [
     # Health check
     "is_rust_available",
     "get_rust_status",
-    
+
     # Loading
     "load_schedule_rust",
-    
+
     # Analytics
     "compute_metrics",
     "get_top_observations",
     "find_conflicts",
-    
+
     # Filtering
     "filter_by_priority",
     "filter_by_scheduled",
     "filter_by_range",
-    
+
     # Cleaning
     "remove_duplicates",
     "remove_missing_coordinates",
-    
+
     # Validation
     "validate_dataframe_rust",
-    
+
     # Time
     "mjd_to_datetime_rust",
     "datetime_to_mjd_rust",
     "parse_visibility_periods_rust",
-    
+
     # Dark Periods
     "load_dark_periods_rust",
-    
+
     # Backend access
     "get_backend",
 ]

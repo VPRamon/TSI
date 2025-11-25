@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -49,7 +48,7 @@ def render_sidebar_controls(
             key="sky_priority_range",
         )
         state.set_priority_range(priority_range)
-        
+
         schedule_window = _render_schedule_window_control(df)
 
         st.markdown("---")
@@ -144,7 +143,7 @@ def _render_schedule_window_control(df: pd.DataFrame) -> tuple[datetime, datetim
 def _ts_to_datetime(ts: pd.Timestamp) -> datetime:
     """Convert pandas Timestamp to naive datetime preserving UTC."""
     from typing import cast
-    
+
     # Floor to seconds to avoid nanoseconds warning
     ts = ts.floor("s")
     if ts.tzinfo is not None:
@@ -156,7 +155,7 @@ def reset_sky_map_controls() -> None:
     """Clear widget-level state so defaults apply after reset."""
     # Delete all widget keys that start with 'sky_' to reset all sky map widgets
     keys_to_delete = [
-        key for key in st.session_state.keys() 
+        key for key in st.session_state.keys()
         if isinstance(key, str) and key.startswith("sky_")
     ]
 

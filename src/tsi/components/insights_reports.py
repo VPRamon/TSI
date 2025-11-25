@@ -27,9 +27,9 @@ def render_report_downloads(
         conflicts: Detected conflicts
     """
     st.header("📥 Download Report")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         # Markdown report
         md_report = generate_markdown_report(
@@ -39,7 +39,7 @@ def render_report_downloads(
             top_priority=top_priority,
             conflicts=conflicts,
         )
-        
+
         st.download_button(
             label="📄 Download Markdown Report",
             data=md_report,
@@ -47,7 +47,7 @@ def render_report_downloads(
             mime="text/markdown",
             use_container_width=True,
         )
-    
+
     with col2:
         # HTML report
         html_report = generate_html_report(
@@ -57,7 +57,7 @@ def render_report_downloads(
             top_priority=top_priority,
             conflicts=conflicts,
         )
-        
+
         st.download_button(
             label="🌐 Download HTML Report",
             data=html_report,
@@ -65,5 +65,5 @@ def render_report_downloads(
             mime="text/html",
             use_container_width=True,
         )
-    
+
     st.caption("Reports contain all key metrics, insights, correlations, and conflict information.")

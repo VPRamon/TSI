@@ -19,19 +19,19 @@ def render_filter_controls(filter_supported: bool) -> str:
     """
     if state.KEY_INSIGHTS_FILTER_MODE not in st.session_state:
         st.session_state[state.KEY_INSIGHTS_FILTER_MODE] = "all"
-    
+
     if not filter_supported:
         st.session_state[state.KEY_INSIGHTS_FILTER_MODE] = "all"
         return "all"
-    
+
     st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
-    
+
     filter_options = ("all", "exclude_impossible")
     filter_labels = {
         "all": "📋 All blocks",
         "exclude_impossible": "✅ Filter invalid requests",
     }
-    
+
     return st.radio(
         "Filtrar:",
         options=filter_options,

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 
 def render_sidebar_controls(df: pd.DataFrame) -> dict:
@@ -18,13 +18,13 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
     """
     with st.sidebar:
         st.header("⚙️ Configuration")
-        
+
         st.subheader("Data Filters")
-        
+
         # Visibility range
         vis_min = float(df["total_visibility_hours"].min())
         vis_max = float(df["total_visibility_hours"].max())
-        
+
         # Handle edge case where min == max
         if vis_min == vis_max:
             st.info(f"All observations have visibility = {vis_min:.1f} hours")
@@ -37,11 +37,11 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
                 value=(vis_min, vis_max),
                 key="vis_range",
             )
-        
+
         # Requested time range
         time_min = float(df["requested_hours"].min())
         time_max = float(df["requested_hours"].max())
-        
+
         # Handle edge case where min == max
         if time_min == time_max:
             st.info(f"All observations have requested time = {time_min:.1f} hours")
@@ -54,7 +54,7 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
                 value=(time_min, time_max),
                 key="time_range",
             )
-        
+
         # Priority level selector
         priority_levels = sorted(df["priority"].dropna().unique())
         selected_priorities = st.multiselect(
@@ -63,11 +63,11 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
             default=priority_levels,
             key="selected_priorities",
         )
-        
+
         st.divider()
-        
+
         st.subheader("Plot Configuration")
-        
+
         # Library selector
         plot_library = st.selectbox(
             "Plot library",
@@ -75,7 +75,7 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
             index=0,
             key="plot_library",
         )
-        
+
         # Number of bins
         n_bins = st.slider(
             "Number of bins",
@@ -84,7 +84,7 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
             value=10,
             key="n_bins",
         )
-        
+
         # Bandwidth for smoothing
         bandwidth = st.slider(
             "Bandwidth (smoothing)",
@@ -94,11 +94,11 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
             step=0.05,
             key="bandwidth",
         )
-        
+
         st.divider()
-        
+
         st.subheader("Logistic Model")
-        
+
         # Exclude visibility = 0
         exclude_zero_vis = st.checkbox(
             "Exclude visibility = 0 for model",
@@ -106,7 +106,7 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
             help="If enabled, the model is trained only with observations that have visibility > 0",
             key="exclude_zero_vis",
         )
-        
+
         # Class weight
         class_weight_option = st.selectbox(
             "Class weighting",
@@ -115,7 +115,7 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
             help="'balanced' adjusts weights inversely proportional to class frequencies",
             key="class_weight",
         )
-        
+
         # Fixed time for prediction
         if time_min == time_max:
             fixed_time = time_min
@@ -128,7 +128,7 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
                 value=(time_min + time_max) / 2,
                 key="fixed_time",
             )
-    
+
     return {
         "vis_range": vis_range,
         "time_range": time_range,

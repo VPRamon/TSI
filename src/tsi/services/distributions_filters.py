@@ -8,8 +8,6 @@ import pandas as pd
 
 # Import from consolidated module
 from tsi.services.impossible_filters import (
-    check_filter_support,
-    compute_impossible_mask,
     filter_impossible_observations as _filter_impossible_observations,
 )
 

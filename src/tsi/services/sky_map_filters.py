@@ -7,8 +7,6 @@ from datetime import datetime
 
 import pandas as pd
 
-from core.domain.priority import get_priority_range
-
 
 def filter_dataframe(
     df: pd.DataFrame,

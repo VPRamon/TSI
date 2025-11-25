@@ -41,7 +41,7 @@ def render() -> None:
 
     # Prepare scheduled data
     scheduled_df = prepare_scheduled_data(df)
-    
+
     if scheduled_df is None:
         st.warning("There are no scheduled observations with valid dates.")
         return
