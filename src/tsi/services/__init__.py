@@ -38,6 +38,11 @@ from tsi.services.distributions_filters import (
     compute_impossible_mask,
     filter_impossible_observations,
 )
+from tsi.services.visibility_processing import (
+    compute_effective_priority_range,
+    get_all_block_ids,
+    get_priority_range as get_visibility_priority_range,
+)
 
 __all__ = [
     # loaders
@@ -70,4 +75,8 @@ __all__ = [
     "filter_impossible_observations",
     "compute_impossible_mask",
     "check_filter_support",
+    # visibility_processing
+    "compute_effective_priority_range",
+    "get_all_block_ids",
+    "get_visibility_priority_range",
 ]
