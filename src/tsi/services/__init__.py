@@ -33,6 +33,11 @@ from tsi.services.sky_map_filters import (
     prepare_priority_bins,
     to_utc_timestamp,
 )
+from tsi.services.distributions_filters import (
+    check_filter_support,
+    compute_impossible_mask,
+    filter_impossible_observations,
+)
 
 __all__ = [
     # loaders
@@ -61,4 +66,8 @@ __all__ = [
     "get_priority_range",
     "build_palette",
     "to_utc_timestamp",
+    # distributions_filters
+    "filter_impossible_observations",
+    "compute_impossible_mask",
+    "check_filter_support",
 ]
