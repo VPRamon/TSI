@@ -17,7 +17,7 @@ from tsi.plots.trends import pred_curve_vs_visibility
 def render_model_metrics(model_result: LogisticModelResult) -> None:
     """
     Display logistic model training metrics.
-    
+
     Args:
         model_result: Trained model results
     """
@@ -55,7 +55,7 @@ def render_prediction_plot(
 ) -> None:
     """
     Display prediction plot showing probability vs visibility.
-    
+
     Args:
         df: Filtered DataFrame
         model_result: Trained model results
@@ -123,7 +123,7 @@ def render_model_information(
 ) -> None:
     """
     Display model information in an expander.
-    
+
     Args:
         model_result: Trained model results
         class_weight: Class weighting option used

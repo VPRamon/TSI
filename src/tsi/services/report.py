@@ -86,7 +86,7 @@ def figure_to_base64(fig: go.Figure) -> str:
 
     Returns:
         Base64-encoded PNG string, or empty string if conversion fails
-    
+
     Raises:
         ValueError: If image export fails and strict error handling is needed
     """
@@ -106,13 +106,13 @@ def figure_to_base64(fig: go.Figure) -> str:
 def _markdown_to_html_safe(markdown_text: str) -> str:
     """
     Convert Markdown to HTML safely, escaping user content properly.
-    
+
     Uses a simple but safe approach that handles basic Markdown constructs
     without introducing XSS vulnerabilities from user-provided content.
-    
+
     Args:
         markdown_text: Markdown-formatted text
-    
+
     Returns:
         HTML-formatted text with proper escaping
     """

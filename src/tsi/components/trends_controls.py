@@ -9,10 +9,10 @@ import streamlit as st
 def render_sidebar_controls(df: pd.DataFrame) -> dict:
     """
     Render sidebar configuration controls for scheduling trends analysis.
-    
+
     Args:
         df: Source DataFrame
-        
+
     Returns:
         Dictionary with all control values
     """

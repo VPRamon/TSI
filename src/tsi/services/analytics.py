@@ -53,7 +53,7 @@ def get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) ->
 def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     """
     Find scheduling integrity issues (using Rust backend - 16x faster).
-    
+
     Note: Falls back to empty DataFrame if datetime conversion issues occur.
     """
     try:

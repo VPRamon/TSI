@@ -12,7 +12,7 @@ from tsi.services.loaders import load_schedule_rust, prepare_dataframe
 def render_file_upload() -> pd.DataFrame | None:
     """
     Render file upload UI and process comparison schedule.
-    
+
     Returns:
         Comparison DataFrame if loaded successfully, None otherwise
     """

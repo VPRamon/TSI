@@ -18,7 +18,7 @@ def render_report_downloads(
 ) -> None:
     """
     Display report download buttons.
-    
+
     Args:
         metrics: Computed metrics object
         insights: List of insight strings

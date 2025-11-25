@@ -9,12 +9,12 @@ import pandas as pd
 def calculate_observation_gaps(df: pd.DataFrame) -> tuple[int, float, float]:
     """
     Calculate gaps statistics between scheduled observations (vectorized).
-    
+
     A gap is defined as any time period between consecutive scheduled observations.
-    
+
     Args:
         df: DataFrame with scheduled observations containing scheduled_start_dt and scheduled_stop_dt
-        
+
     Returns:
         Tuple of (num_gaps, mean_gap_hours, median_gap_hours)
     """

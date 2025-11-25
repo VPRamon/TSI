@@ -127,7 +127,7 @@ def test_load_schedule_from_json_str():
     assert len(pandas_df) == 1
     assert pandas_df.iloc[0]["schedulingBlockId"] == "test-001"
     assert pandas_df.iloc[0]["priority"] == 10.0
-    assert pandas_df.iloc[0]["scheduled_flag"] == True
+    assert pandas_df.iloc[0]["scheduled_flag"]
     assert pandas_df.iloc[0]["requested_hours"] == 1.0  # 3600 sec = 1 hour
 
     print("✅ Loaded scheduling block from JSON string")

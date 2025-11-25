@@ -187,7 +187,7 @@ class TestValidateDataframe:
         assert is_valid is True
         assert issues == []
 
-    def test_with_missing_schedulingBlockId__reports_issue(self) -> None:
+    def test_with_missing_scheduling_block_id__reports_issue(self) -> None:
         """Report missing schedulingBlockId."""
         df = pd.DataFrame({"schedulingBlockId": ["SB001", None, "SB003"]})
         is_valid, issues = validate_dataframe(df)

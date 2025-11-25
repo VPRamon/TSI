@@ -12,7 +12,7 @@ from tsi.services.analytics import generate_correlation_insights
 def render_automated_insights(insights: list[str]) -> None:
     """
     Display automated insights as a bulleted list.
-    
+
     Args:
         insights: List of insight strings
     """
@@ -25,7 +25,7 @@ def render_automated_insights(insights: list[str]) -> None:
 def render_correlation_analysis(correlations: pd.DataFrame) -> None:
     """
     Display correlation analysis with heatmap and interpretation.
-    
+
     Args:
         correlations: DataFrame with correlation data
     """

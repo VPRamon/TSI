@@ -59,15 +59,15 @@ def render_priority_range_control(
 ) -> tuple[float, float]:
     """
     Render priority range slider with state handling.
-    
+
     Handles default range logic consistently across pages.
-    
+
     Args:
         min_value: Minimum priority in dataset
         max_value: Maximum priority in dataset
         stored_range: Previously stored range from state
         key: Session state key
-    
+
     Returns:
         Selected priority range tuple
     """
@@ -102,15 +102,15 @@ def render_impossible_filter_control(
 ) -> str:
     """
     Render impossible observation filter control.
-    
+
     Provides radio buttons to filter out observations where required duration
     exceeds total visibility hours.
-    
+
     Args:
         df: Source DataFrame
         key: Session state key
         label_visible: Whether to show the label (default: collapsed)
-    
+
     Returns:
         Selected filter mode ('all' or 'exclude_impossible')
     """

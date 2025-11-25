@@ -43,7 +43,8 @@ def _identity_cache(func: F | None = None, **_: Any) -> F | Callable[[F], F]:
 # Streamlit integration (optional - gracefully degrades if unavailable)
 _streamlit_available = False
 _cache_decorator = _identity_cache
-_warning_handler: Callable[[str], None] = lambda msg: logger.warning(msg)
+def _warning_handler(msg: str) -> None:
+    return logger.warning(msg)
 
 try:  # pragma: no cover
     import streamlit as st
@@ -74,9 +75,9 @@ except Exception as e:
 def emit_warning(message: str) -> None:
     """
     Emit a warning through the appropriate channel.
-    
+
     Uses Streamlit UI if available, otherwise logs as warning.
-    
+
     Args:
         message: Warning message to display
     """
@@ -86,12 +87,12 @@ def emit_warning(message: str) -> None:
 def cache_data(**kwargs):
     """
     Apply caching decorator appropriate for the runtime context.
-    
+
     Uses Streamlit cache_data if available, otherwise no-op.
-    
+
     Args:
         **kwargs: Cache configuration parameters (passed to Streamlit if available)
-    
+
     Returns:
         Caching decorator function
     """
@@ -134,7 +135,7 @@ def _load_csv_core(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
 def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
     """
     Load CSV file using Rust backend (10x faster than pandas).
-    
+
     Streamlit-aware version with caching when available.
 
     Args:
@@ -153,10 +154,10 @@ def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
 def _prepare_dataframe_core(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     """
     Core DataFrame preparation logic without Streamlit dependencies.
-    
+
     Args:
         df: Raw DataFrame to prepare
-    
+
     Returns:
         Tuple of (prepared DataFrame, list of warnings)
     """
@@ -171,7 +172,7 @@ def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     Assumes the CSV has been pre-processed with all derived columns.
     Only performs lightweight operations like type conversion and datetime parsing.
-    
+
     Streamlit-aware version with caching and warning display.
     """
     prepared_df, warnings = _prepare_dataframe_core(df)

@@ -8,18 +8,18 @@ import pandas as pd
 def get_priority_range(df: pd.DataFrame) -> tuple[float, float]:
     """
     Calculate the priority range from a DataFrame.
-    
+
     Extracts min and max priority values, handling edge cases:
     - Missing priority column → returns (0.0, 10.0)
     - Empty priority values → returns (0.0, 10.0)
     - Single priority value → returns (value, value + 1.0)
-    
+
     Args:
         df: DataFrame containing a 'priority' column
-    
+
     Returns:
         Tuple of (min_priority, max_priority)
-    
+
     Example:
         >>> df = pd.DataFrame({'priority': [1.0, 5.0, 9.0]})
         >>> get_priority_range(df)

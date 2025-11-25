@@ -21,7 +21,7 @@ def render_comparison_tables(
 ) -> None:
     """
     Display compact comparison tables for metrics.
-    
+
     Args:
         current_scheduled: Current schedule's scheduled observations
         comparison_scheduled: Comparison schedule's scheduled observations
@@ -127,13 +127,13 @@ def _format_with_delta(
 ) -> str:
     """
     Format a value with a colored delta percentage label.
-    
+
     Args:
         value: The value to display
         delta: The change from the previous value
         is_count: Whether this is a count metric
         inverse_colors: If True, positive changes are red (bad)
-        
+
     Returns:
         HTML formatted string with delta badge
     """

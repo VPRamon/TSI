@@ -20,7 +20,7 @@ def render_heatmap_section(
 ) -> None:
     """
     Display 2D heatmap of visibility × priority.
-    
+
     Args:
         df: Filtered DataFrame
         plot_library: Plotting library to use ('altair' or 'plotly')

@@ -22,13 +22,13 @@ warnings.warn(
 def filter_impossible_observations(df: pd.DataFrame, filter_mode: str) -> pd.DataFrame:
     """
     Filter out impossible observations based on visibility constraints.
-    
+
     **DEPRECATED**: Use `impossible_filters.filter_impossible_observations` instead.
-    
+
     Args:
         df: Source DataFrame
         filter_mode: One of "all" or "exclude_impossible"
-    
+
     Returns:
         Filtered DataFrame (view if no filtering, copy if filtered)
     """

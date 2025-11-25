@@ -17,13 +17,13 @@ def create_priority_distribution_plot(
 ) -> go.Figure:
     """
     Create overlaid histogram of priority distributions.
-    
+
     Args:
         current_scheduled: Current schedule's scheduled observations
         comparison_scheduled: Comparison schedule's scheduled observations
         current_name: Name of current schedule
         comparison_name: Name of comparison schedule
-        
+
     Returns:
         Plotly Figure
     """
@@ -88,13 +88,13 @@ def create_scheduling_status_plot(
 ) -> go.Figure:
     """
     Create grouped bar chart of scheduling status.
-    
+
     Args:
         current_common: Current schedule with common blocks
         comparison_common: Comparison schedule with common blocks
         current_name: Name of current schedule
         comparison_name: Name of comparison schedule
-        
+
     Returns:
         Plotly Figure
     """
@@ -168,11 +168,11 @@ def create_changes_plot(
 ) -> go.Figure:
     """
     Create visualization of scheduling changes.
-    
+
     Args:
         newly_scheduled: Newly scheduled blocks
         newly_unscheduled: Newly unscheduled blocks
-        
+
     Returns:
         Plotly Figure with subplots
     """
@@ -233,13 +233,13 @@ def create_time_distribution_plot(
 ) -> go.Figure:
     """
     Create box plot comparison of requested time distributions.
-    
+
     Args:
         current_scheduled: Current schedule's scheduled observations
         comparison_scheduled: Comparison schedule's scheduled observations
         current_name: Name of current schedule
         comparison_name: Name of comparison schedule
-        
+
     Returns:
         Plotly Figure
     """
