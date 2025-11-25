@@ -102,35 +102,9 @@ def set_priority_range(range_vals: tuple[float, float]) -> None:
     st.session_state[KEY_PRIORITY_RANGE] = range_vals
 
 
-def get_scheduled_filter() -> str:
-    """Get the scheduled/unscheduled filter."""
-    result = st.session_state.get(KEY_SCHEDULED_FILTER, "All")
-    return str(result)
-
-
 def set_scheduled_filter(filter_val: str) -> None:
     """Set the scheduled/unscheduled filter."""
     st.session_state[KEY_SCHEDULED_FILTER] = filter_val
-
-
-def get_selected_bins() -> Any:
-    """Get selected priority bins."""
-    return st.session_state.get(KEY_SELECTED_BINS)
-
-
-def set_selected_bins(values: Any) -> None:
-    """Set selected priority bins."""
-    st.session_state[KEY_SELECTED_BINS] = values
-
-
-def get_selected_block_ids() -> Any:
-    """Get selected block IDs."""
-    return st.session_state.get(KEY_SELECTED_BLOCK_IDS)
-
-
-def set_selected_block_ids(values: Any) -> None:
-    """Set selected block IDs."""
-    st.session_state[KEY_SELECTED_BLOCK_IDS] = values
 
 
 def reset_filters() -> None:
@@ -143,17 +117,6 @@ def reset_filters() -> None:
     st.session_state[KEY_SCHEDULE_WINDOW] = None
     st.session_state[KEY_DIST_FILTER_MODE] = "all"
     st.session_state[KEY_INSIGHTS_FILTER_MODE] = "all"
-
-
-def clear_data() -> None:
-    """Clear all data from session state."""
-    st.session_state[KEY_DATA_RAW] = None
-    st.session_state[KEY_DATA_PREPARED] = None
-    st.session_state[KEY_DATA_SOURCE] = None
-    st.session_state[KEY_DATA_FILENAME] = None
-    st.session_state[KEY_CURRENT_PAGE] = None
-    st.session_state[KEY_DARK_PERIODS] = None
-    reset_filters()
 
 
 def get_dark_periods() -> Any:
@@ -171,11 +134,6 @@ def set_dark_periods(df: Any | None) -> None:
 def get_schedule_window() -> Any:
     """Get selected scheduled time window."""
     return st.session_state.get(KEY_SCHEDULE_WINDOW)
-
-
-def set_schedule_window(window: Any) -> None:
-    """Persist scheduled time window filter."""
-    st.session_state[KEY_SCHEDULE_WINDOW] = window
 
 
 def get_data_filename() -> str | None:

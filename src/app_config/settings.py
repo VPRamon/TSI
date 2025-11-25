@@ -14,7 +14,6 @@ class Settings(BaseSettings):
     data_root: Path = Path("data")
     sample_dataset: Path = Path("data") / "schedule.csv"
     artifacts_dir: Path = Path("src/tsi/modeling/artifacts")
-    cache_ttl_seconds: int = 600
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

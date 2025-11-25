@@ -48,60 +48,6 @@ def render_priority_filter(
     return priority_range
 
 
-def render_scheduled_filter(key: str = "scheduled_filter") -> str:
-    """
-    Render scheduled/unscheduled filter.
-
-    Args:
-        key: Session state key
-
-    Returns:
-        Filter value: "All", "Scheduled", or "Unscheduled"
-    """
-    scheduled_filter = st.radio(
-        "Scheduling Status",
-        options=["All", "Scheduled", "Unscheduled"],
-        horizontal=True,
-        key=key,
-        help="Filter by scheduling status",
-    )
-    return scheduled_filter
-
-
-def render_bin_selector(
-    priority_bins: list[str],
-    key: str = "bin_selector",
-    default: list[str] | None = None,
-) -> list[str] | None:
-    """
-    Render priority bin checkboxes.
-
-    Args:
-        priority_bins: Available priority bins
-        key: Session state key
-        default: Optional default selection
-
-    Returns:
-        Selected bins or None for all
-    """
-    if not priority_bins:
-        return None
-
-    st.markdown("**Priority Bins**")
-    st.caption("Activa o desactiva las etiquetas originales que quieres visualizar.")
-
-    default_selection = set(default or priority_bins)
-    selected: list[str] = []
-
-    for idx, option in enumerate(priority_bins):
-        checkbox_key = f"{key}_{idx}"
-        checked = st.checkbox(option, value=option in default_selection, key=checkbox_key)
-        if checked:
-            selected.append(option)
-
-    return selected if selected else None
-
-
 def render_toggle(label: str, default: bool = True, key: str | None = None) -> bool:
     """
     Render a simple toggle checkbox.

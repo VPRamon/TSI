@@ -23,13 +23,11 @@ except ImportError:
     alt = None  # type: ignore[assignment]
 
 try:
-    import plotly.express as px
     import plotly.graph_objects as go
 
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
-    px = None  # type: ignore[assignment]
     go = None  # type: ignore[assignment]
 
 
