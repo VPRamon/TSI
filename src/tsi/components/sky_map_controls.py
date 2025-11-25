@@ -9,7 +9,11 @@ import pandas as pd
 import streamlit as st
 
 from tsi import state
-from tsi.components.toolbar import render_reset_filters_button, render_toggle
+from tsi.components.toolbar import (
+    render_priority_range_control,
+    render_reset_filters_button,
+    render_toggle,
+)
 
 
 def render_sidebar_controls(
@@ -32,19 +36,24 @@ def render_sidebar_controls(
     """
     st.markdown("### 🎛️ Settings")
     with st.container(border=True):
-        # Status and color selectors
         scheduled_filter = _render_status_selector()
         color_column = _render_color_selector()
 
         st.markdown("---")
 
-        # Sliders
-        priority_range = _render_priority_slider(priority_min, priority_max)
+        stored_range = state.get_priority_range()
+        priority_range = render_priority_range_control(
+            priority_min,
+            priority_max,
+            stored_range,
+            key="sky_priority_range",
+        )
+        state.set_priority_range(priority_range)
+        
         schedule_window = _render_schedule_window_control(df)
 
         st.markdown("---")
 
-        # Toggles
         flip_ra = render_toggle(
             "Invertir eje RA",
             default=True,
@@ -59,7 +68,7 @@ def render_sidebar_controls(
         "scheduled_filter": scheduled_filter,
         "color_column": color_column,
         "priority_range": priority_range,
-        "selected_bins": priority_bins,  # Using all bins
+        "selected_bins": priority_bins,
         "schedule_window": schedule_window,
         "flip_ra": flip_ra,
     }
@@ -90,36 +99,6 @@ def _render_color_selector() -> str:
         key="sky_color_choice",
     )
     return color_options[color_choice]
-
-
-def _render_priority_slider(priority_min: float, priority_max: float) -> tuple[float, float]:
-    """Render priority range slider."""
-    stored_range = state.get_priority_range()
-    
-    # Determine default range
-    if (
-        stored_range is None
-        or stored_range[0] < priority_min
-        or stored_range[1] > priority_max
-        or stored_range == (0.0, 10.0)
-    ):
-        default_range = (priority_min, priority_max)
-    else:
-        default_range = (
-            max(priority_min, stored_range[0]),
-            min(priority_max, stored_range[1]),
-        )
-
-    priority_range = st.slider(
-        "Priority Range",
-        min_value=priority_min,
-        max_value=priority_max,
-        value=default_range,
-        step=0.1,
-        key="sky_priority_range",
-    )
-    state.set_priority_range(priority_range)
-    return priority_range
 
 
 def _render_schedule_window_control(df: pd.DataFrame) -> tuple[datetime, datetime] | None:
