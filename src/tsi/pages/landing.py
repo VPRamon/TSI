@@ -11,7 +11,6 @@ from app_config import get_settings
 from core.time import format_datetime_utc
 from tsi import state
 from tsi.components.data_preview import render_data_preview
-from tsi.components.metrics import render_kpi_cards
 from tsi.services.rust_compat import load_dark_periods_rust
 from tsi.services.loaders import load_csv, prepare_dataframe, validate_dataframe
 from tsi.theme import add_vertical_space, render_landing_title

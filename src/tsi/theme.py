@@ -21,25 +21,6 @@ def apply_page_config() -> None:
     )
 
 
-def render_metric_card(label: str, value: str | int | float) -> None:
-    """
-    Render a styled metric card.
-
-    Args:
-        label: Metric label
-        value: Metric value
-    """
-    st.markdown(
-        f"""
-        <div class="metric-card">
-            <div class="metric-value">{value}</div>
-            <div class="metric-label">{label}</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def render_landing_title(title: str) -> None:
     """
     Render the landing page title.

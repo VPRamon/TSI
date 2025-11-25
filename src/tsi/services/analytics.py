@@ -105,25 +105,6 @@ def generate_correlation_insights(correlations: pd.DataFrame) -> list[str]:
     MODERATE_THRESHOLD = 0.4
     WEAK_THRESHOLD = 0.2
 
-    def interpret_strength(value: float) -> str:
-        """Interpret correlation strength."""
-        abs_value = abs(value)
-        if abs_value >= STRONG_THRESHOLD:
-            return "strong"
-        elif abs_value >= MODERATE_THRESHOLD:
-            return "moderate"
-        elif abs_value >= WEAK_THRESHOLD:
-            return "weak"
-        else:
-            return "very weak"
-
-    def interpret_direction(value: float) -> str:
-        """Interpret correlation direction."""
-        if value > 0:
-            return "positive"
-        else:
-            return "negative"
-
     # Extract all correlations (excluding diagonal)
     correlations_list: list[dict[str, Any]] = []
     for i in range(len(correlations.columns)):
