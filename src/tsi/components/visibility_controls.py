@@ -7,7 +7,7 @@ import streamlit as st
 from tsi import state
 from tsi.components.toolbar import (
     render_number_input,
-    render_priority_filter,
+    render_priority_range_control,
     render_reset_filters_button,
 )
 
@@ -28,25 +28,13 @@ def render_sidebar_controls(
     """
     st.header("Visibility Histogram Controls")
 
-    # Priority filter
     stored_range = state.get_priority_range()
     
-    # Determine default range
-    if (
-        stored_range is None
-        or stored_range[0] < priority_min
-        or stored_range[1] > priority_max
-        or stored_range == (0.0, 10.0)
-    ):
-        default_range = (priority_min, priority_max)
-    else:
-        default_range = stored_range
-
-    priority_range = render_priority_filter(
-        "timeline_priority_range",
-        min_value=priority_min,
-        max_value=priority_max,
-        default=default_range,
+    priority_range = render_priority_range_control(
+        priority_min,
+        priority_max,
+        stored_range,
+        key="timeline_priority_range",
     )
     state.set_priority_range(priority_range)
 
@@ -56,7 +44,6 @@ def render_sidebar_controls(
 
     if render_reset_filters_button():
         state.reset_filters()
-        # Clear histogram generation flag so it doesn't auto-generate on reset
         st.session_state.pop("visibility_histogram_generated", None)
 
     return priority_range

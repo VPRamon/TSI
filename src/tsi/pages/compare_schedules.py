@@ -73,21 +73,21 @@ def _display_comparison(
     st.header("🔍 Schedule Comparison")
 
     # Validate and display discrepancies
-    only_in_current, only_in_comparison, common_ids = validate_and_display_discrepancies(
+    only_in_current, only_in_comparison, common_ids_current, common_ids_comparison = validate_and_display_discrepancies(
         current_df, comparison_df, current_name, comparison_name
     )
 
-    if len(common_ids) == 0:
+    if len(common_ids_current) == 0:
         st.error("❌ No common blocks found. Cannot perform comparison.")
         return
 
-    # Filter to common blocks
-    current_common = current_df[current_df["schedulingBlockId"].isin(common_ids)]
-    comparison_common = comparison_df[comparison_df["schedulingBlockId"].isin(common_ids)]
+    # Filter to common blocks - use the appropriate ID set for each dataframe
+    current_common = current_df[current_df["schedulingBlockId"].isin(common_ids_current)]
+    comparison_common = comparison_df[comparison_df["schedulingBlockId"].isin(common_ids_comparison)]
 
-    # Filter to scheduled blocks
-    current_scheduled = current_common[current_common["scheduled_flag"] == 1]
-    comparison_scheduled = comparison_common[comparison_common["scheduled_flag"] == 1]
+    # Filter to scheduled blocks (handle both boolean and integer types)
+    current_scheduled = current_common[current_common["scheduled_flag"].astype(bool)]
+    comparison_scheduled = comparison_common[comparison_common["scheduled_flag"].astype(bool)]
 
     # Find scheduling changes
     newly_scheduled, newly_unscheduled = compute_scheduling_changes(current_common, comparison_common)

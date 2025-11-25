@@ -293,24 +293,43 @@ def _render_change_details(
             with st.expander(f"📋 View {len(newly_scheduled)} newly scheduled blocks"):
                 display_df = newly_scheduled[["schedulingBlockId", "priority_current"]].copy()
                 
+                # Build list of columns to include
+                columns_to_include = ["schedulingBlockId"]
+                if "targetName" in comparison_common.columns:
+                    columns_to_include.append("targetName")
+                columns_to_include.extend(["scheduled_period.start", "scheduled_period.stop"])
+                
                 comparison_info = comparison_common[
-                    ["schedulingBlockId", "targetName", "scheduled_period.start", "scheduled_period.stop"]
+                    [col for col in columns_to_include if col in comparison_common.columns]
                 ].copy()
+                
+                # Ensure ID types match for merge
+                comparison_info["schedulingBlockId"] = comparison_info["schedulingBlockId"].astype(str)
                 
                 display_df = display_df.merge(comparison_info, on="schedulingBlockId", how="left")
                 display_df = display_df.rename(columns={"priority_current": "priority"})
-                display_df = display_df[[
-                    "schedulingBlockId", "targetName", "priority",
-                    "scheduled_period.start", "scheduled_period.stop"
-                ]]
                 
-                display_df = display_df.rename(columns={
+                # Build final column list
+                final_columns = ["schedulingBlockId"]
+                if "targetName" in display_df.columns:
+                    final_columns.append("targetName")
+                final_columns.append("priority")
+                if "scheduled_period.start" in display_df.columns:
+                    final_columns.append("scheduled_period.start")
+                if "scheduled_period.stop" in display_df.columns:
+                    final_columns.append("scheduled_period.stop")
+                
+                display_df = display_df[final_columns]
+                
+                # Rename columns for display
+                rename_dict = {
                     "schedulingBlockId": "Block ID",
                     "targetName": "Target Name",
                     "priority": "Priority",
                     "scheduled_period.start": "Start (MJD)",
                     "scheduled_period.stop": "Stop (MJD)",
-                })
+                }
+                display_df = display_df.rename(columns={k: v for k, v in rename_dict.items() if k in display_df.columns})
                 
                 st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
         else:
@@ -322,17 +341,36 @@ def _render_change_details(
             with st.expander(f"📋 View {len(newly_unscheduled)} newly unscheduled blocks"):
                 display_df = newly_unscheduled[["schedulingBlockId", "priority_current"]].copy()
                 
-                current_info = current_common[["schedulingBlockId", "targetName"]].copy()
+                # Build list of columns to include
+                columns_to_include = ["schedulingBlockId"]
+                if "targetName" in current_common.columns:
+                    columns_to_include.append("targetName")
+                
+                current_info = current_common[
+                    [col for col in columns_to_include if col in current_common.columns]
+                ].copy()
+                
+                # Ensure ID types match for merge
+                current_info["schedulingBlockId"] = current_info["schedulingBlockId"].astype(str)
                 
                 display_df = display_df.merge(current_info, on="schedulingBlockId", how="left")
                 display_df = display_df.rename(columns={"priority_current": "priority"})
-                display_df = display_df[["schedulingBlockId", "targetName", "priority"]]
                 
-                display_df = display_df.rename(columns={
+                # Build final column list
+                final_columns = ["schedulingBlockId"]
+                if "targetName" in display_df.columns:
+                    final_columns.append("targetName")
+                final_columns.append("priority")
+                
+                display_df = display_df[final_columns]
+                
+                # Rename columns for display
+                rename_dict = {
                     "schedulingBlockId": "Block ID",
                     "targetName": "Target Name",
                     "priority": "Priority",
-                })
+                }
+                display_df = display_df.rename(columns={k: v for k, v in rename_dict.items() if k in display_df.columns})
                 
                 st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
         else:

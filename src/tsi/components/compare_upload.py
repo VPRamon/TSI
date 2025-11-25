@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 
 from tsi import state
-from tsi.services import prepare_dataframe
+from tsi.services.loaders import load_schedule_rust, prepare_dataframe
 
 
 def render_file_upload() -> pd.DataFrame | None:
@@ -23,7 +23,6 @@ def render_file_upload() -> pd.DataFrame | None:
         key="comparison_json_uploader",
     )
     
-    # Optional visibility file for comparison schedule
     with st.expander("🔍 Add visibility data for comparison schedule (optional)", expanded=False):
         uploaded_visibility = st.file_uploader(
             "Choose possible_periods.json (optional)",
@@ -35,10 +34,8 @@ def render_file_upload() -> pd.DataFrame | None:
     if uploaded_json is None:
         return None
     
-    # Get comparison schedule from session state if already processed
     comparison_df = state.get_comparison_schedule()
     
-    # Track if we need to reprocess - include visibility file in token
     vis_token = ""
     if uploaded_visibility is not None:
         vis_token = f":{uploaded_visibility.name}:{uploaded_visibility.size}"
@@ -46,45 +43,25 @@ def render_file_upload() -> pd.DataFrame | None:
     last_token = st.session_state.get("comparison_file_token")
     
     if comparison_df is None or last_token != file_token:
-        # Load and process the comparison schedule
         try:
-            with st.spinner("Loading and processing comparison schedule (with visibility data)..."):
-                # Use the core loader which supports visibility data merging
-                from core.loaders import load_schedule_from_json
+            with st.spinner("Loading and processing comparison schedule..."):
+                comparison_df = load_schedule_rust(uploaded_json, format="json")
                 
-                # Load with visibility data if provided
-                result = load_schedule_from_json(
-                    schedule_json=uploaded_json,
-                    visibility_json=uploaded_visibility if uploaded_visibility is not None else None,
-                    validate=True
-                )
+                if uploaded_visibility is not None:
+                    try:
+                        visibility_df = load_schedule_rust(uploaded_visibility, format="json")
+                        if "schedulingBlockId" in visibility_df.columns:
+                            comparison_df = comparison_df.merge(
+                                visibility_df,
+                                on="schedulingBlockId",
+                                how="left",
+                                suffixes=("", "_vis"),
+                            )
+                    except Exception as vis_err:
+                        st.warning(f"⚠️ Could not load visibility data: {vis_err}")
                 
-                comparison_df = result.dataframe
-                
-                # Show validation warnings if any
-                if result.validation.warnings:
-                    st.warning(f"⚠️ {len(result.validation.warnings)} data warnings found")
-                    with st.expander("View warnings", expanded=False):
-                        for warning in result.validation.warnings[:10]:
-                            st.warning(f"  - {warning}")
-                        if len(result.validation.warnings) > 10:
-                            st.info(f"... and {len(result.validation.warnings) - 10} more")
-                
-                # Convert any list columns to strings BEFORE prepare_dataframe
-                for col in comparison_df.columns:
-                    if comparison_df[col].dtype == object and len(comparison_df) > 0:
-                        sample_val = (
-                            comparison_df[col].dropna().iloc[0]
-                            if len(comparison_df[col].dropna()) > 0
-                            else None
-                        )
-                        if isinstance(sample_val, list):
-                            comparison_df[col] = comparison_df[col].apply(str)
-                
-                # Apply the same preparation transformations
                 comparison_df = prepare_dataframe(comparison_df)
                 
-                # Store in session state
                 state.set_comparison_schedule(comparison_df)
                 st.session_state["comparison_file_token"] = file_token
                 st.session_state["comparison_filename"] = uploaded_json.name.replace(".json", "")
@@ -97,3 +74,4 @@ def render_file_upload() -> pd.DataFrame | None:
             return None
     
     return comparison_df
+
