@@ -8,12 +8,12 @@ import pandas as pd
 def check_filter_support(df: pd.DataFrame) -> bool:
     """
     Check if impossible observation filtering is supported.
-    
+
     Requires visibility hours and at least one duration constraint column.
-    
+
     Args:
         df: Source DataFrame
-    
+
     Returns:
         True if filtering is supported, False otherwise
     """
@@ -31,14 +31,14 @@ def compute_impossible_mask(
 ) -> pd.Series | None:
     """
     Compute mask for impossible observations.
-    
+
     An observation is impossible if its required duration exceeds total visibility.
     Checks both minimum observation time and requested duration.
-    
+
     Args:
         df: Source DataFrame
         tolerance_sec: Tolerance in seconds for comparison (default: 1 second)
-    
+
     Returns:
         Boolean Series marking impossible observations, or None if not supported
     """
@@ -80,16 +80,16 @@ def filter_impossible_observations(
 ) -> pd.DataFrame:
     """
     Filter out impossible observations based on visibility constraints.
-    
+
     An observation is considered impossible if either:
     - Minimum observation time exceeds total visibility hours
     - Requested duration exceeds total visibility hours
-    
+
     Args:
         df: Source DataFrame
         filter_mode: One of "all" or "exclude_impossible"
         tolerance_sec: Tolerance in seconds for comparison
-    
+
     Returns:
         Filtered DataFrame (view if no filtering, copy if filtered)
     """
@@ -113,13 +113,13 @@ def apply_insights_filter(
 ) -> pd.DataFrame:
     """
     Apply filtering based on user selection.
-    
+
     Args:
         df: Source DataFrame
         filter_mode: Filter mode ('all' or 'exclude_impossible')
         impossible_mask: Pre-computed impossible observation mask (optional)
         tolerance_sec: Tolerance in seconds for comparison
-    
+
     Returns:
         Filtered DataFrame
     """

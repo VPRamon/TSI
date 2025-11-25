@@ -6,18 +6,18 @@ Provides ergonomic wrappers and automatic type conversions between Rust and Pyth
 
 Example:
     >>> from tsi_rust_api import TSIBackend
-    >>> 
+    >>>
     >>> # Initialize backend
     >>> backend = TSIBackend()
-    >>> 
+    >>>
     >>> # Load schedule data
     >>> df = backend.load_schedule("data/schedule.csv")
     >>> print(f"Loaded {len(df)} observations")
-    >>> 
+    >>>
     >>> # Compute analytics
     >>> metrics = backend.compute_metrics(df)
     >>> print(f"Scheduled: {metrics.scheduled_count}/{metrics.total_observations}")
-    >>> 
+    >>>
     >>> # Filter data
     >>> high_priority = backend.filter_by_priority(df, min_priority=15.0)
     >>> print(f"High priority observations: {len(high_priority)}")
@@ -43,10 +43,10 @@ except ImportError:
 class TSIBackend:
     """
     High-level Python interface to the TSI Rust backend.
-    
+
     Provides ergonomic methods for loading, processing, and analyzing
     telescope scheduling data with automatic type conversions.
-    
+
     Example:
         >>> backend = TSIBackend()
         >>> df = backend.load_schedule("data/schedule.csv")
@@ -56,7 +56,7 @@ class TSIBackend:
     def __init__(self, use_pandas: bool = True):
         """
         Initialize TSI backend.
-        
+
         Args:
             use_pandas: If True, return pandas DataFrames. If False, return Polars DataFrames.
         """
@@ -71,14 +71,14 @@ class TSIBackend:
     ) -> pd.DataFrame | pl.DataFrame:
         """
         Load schedule data from CSV or JSON file.
-        
+
         Args:
             path: Path to the schedule file
             format: File format ('auto', 'csv', or 'json'). Auto-detects from extension.
-        
+
         Returns:
             DataFrame with scheduling blocks and derived columns
-        
+
         Example:
             >>> df = backend.load_schedule("data/schedule.csv")
             >>> print(df.columns)
@@ -104,14 +104,14 @@ class TSIBackend:
     ) -> pd.DataFrame | pl.DataFrame:
         """
         Load schedule data from string content.
-        
+
         Args:
             content: JSON or CSV string content
             format: Format of the content ('csv' or 'json')
-        
+
         Returns:
             DataFrame with scheduling blocks
-        
+
         Example:
             >>> json_str = '{"schedulingBlocks": [...]}'
             >>> df = backend.load_schedule_from_string(json_str, format="json")
@@ -128,13 +128,13 @@ class TSIBackend:
     def validate_schedule(self, df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
         """
         Validate schedule data structure and quality.
-        
+
         Args:
             df: DataFrame to validate
-        
+
         Returns:
             Dictionary with validation results (is_valid, warnings, errors)
-        
+
         Example:
             >>> result = backend.validate_schedule(df)
             >>> if not result['is_valid']:
@@ -149,14 +149,14 @@ class TSIBackend:
     def compute_metrics(self, df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
         """
         Compute comprehensive scheduling metrics.
-        
+
         Args:
             df: DataFrame with scheduling data
-        
+
         Returns:
-            Dictionary with metrics (total_observations, scheduled_count, 
+            Dictionary with metrics (total_observations, scheduled_count,
             mean_priority, median_priority, etc.)
-        
+
         Example:
             >>> metrics = backend.compute_metrics(df)
             >>> print(f"Scheduled: {metrics['scheduled_percentage']:.1f}%")
@@ -173,15 +173,15 @@ class TSIBackend:
     ) -> pd.DataFrame | pl.DataFrame:
         """
         Get top N observations sorted by specified column.
-        
+
         Args:
             df: DataFrame with scheduling data
             n: Number of top observations to return
             by: Column to sort by (default: 'priority')
-        
+
         Returns:
             DataFrame with top N observations
-        
+
         Example:
             >>> top_10 = backend.get_top_observations(df, n=10)
             >>> print(top_10[['schedulingBlockId', 'priority']])
@@ -196,13 +196,13 @@ class TSIBackend:
     ) -> pd.DataFrame | pl.DataFrame:
         """
         Find scheduling conflicts (overlapping observations).
-        
+
         Args:
             df: DataFrame with scheduling data
-        
+
         Returns:
             DataFrame with conflicts (observation pairs with overlaps)
-        
+
         Example:
             >>> conflicts = backend.find_conflicts(df)
             >>> print(f"Found {len(conflicts)} conflicts")
@@ -218,15 +218,15 @@ class TSIBackend:
     ) -> dict[str, Any]:
         """
         Run greedy scheduling optimization.
-        
+
         Args:
             df: DataFrame with observations to schedule
             max_iterations: Maximum optimization iterations
-        
+
         Returns:
-            Dictionary with optimization results (selected_observations, 
+            Dictionary with optimization results (selected_observations,
             total_duration, iterations_run, etc.)
-        
+
         Example:
             >>> result = backend.greedy_schedule(df, max_iterations=500)
             >>> print(f"Selected {len(result['selected_ids'])} observations")
@@ -245,15 +245,15 @@ class TSIBackend:
     ) -> pd.DataFrame | pl.DataFrame:
         """
         Filter observations by priority range.
-        
+
         Args:
             df: DataFrame to filter
             min_priority: Minimum priority (inclusive)
             max_priority: Maximum priority (inclusive)
-        
+
         Returns:
             Filtered DataFrame
-        
+
         Example:
             >>> high_priority = backend.filter_by_priority(df, min_priority=15.0)
         """
@@ -268,14 +268,14 @@ class TSIBackend:
     ) -> pd.DataFrame | pl.DataFrame:
         """
         Filter observations by scheduling status.
-        
+
         Args:
             df: DataFrame to filter
             filter_type: 'All', 'Scheduled', or 'Unscheduled'
-        
+
         Returns:
             Filtered DataFrame
-        
+
         Example:
             >>> unscheduled = backend.filter_by_scheduled(df, "Unscheduled")
             >>> print(f"Unscheduled: {len(unscheduled)}")
@@ -295,7 +295,7 @@ class TSIBackend:
     ) -> pd.DataFrame | pl.DataFrame:
         """
         Apply multiple filters to DataFrame.
-        
+
         Args:
             df: DataFrame to filter
             priority_min: Minimum priority
@@ -303,10 +303,10 @@ class TSIBackend:
             scheduled_filter: Scheduling status filter
             priority_bins: List of priority bins to include
             block_ids: List of scheduling block IDs to include
-        
+
         Returns:
             Filtered DataFrame
-        
+
         Example:
             >>> filtered = backend.filter_dataframe(
             ...     df,
@@ -335,15 +335,15 @@ class TSIBackend:
     ) -> pd.DataFrame | pl.DataFrame:
         """
         Remove duplicate rows from DataFrame.
-        
+
         Args:
             df: DataFrame to clean
             subset: Column names to consider for duplicates (None = all columns)
             keep: Which duplicates to keep ('first', 'last', 'none')
-        
+
         Returns:
             DataFrame with duplicates removed
-        
+
         Example:
             >>> clean_df = backend.remove_duplicates(df, subset=["schedulingBlockId"])
         """
@@ -357,13 +357,13 @@ class TSIBackend:
     ) -> pd.DataFrame | pl.DataFrame:
         """
         Remove observations with missing RA or Dec coordinates.
-        
+
         Args:
             df: DataFrame to clean
-        
+
         Returns:
             DataFrame with complete coordinates only
-        
+
         Example:
             >>> valid_coords = backend.remove_missing_coordinates(df)
         """
@@ -377,13 +377,13 @@ class TSIBackend:
     ) -> tuple[bool, list[str]]:
         """
         Validate DataFrame data quality (coordinates, priorities, etc.).
-        
+
         Args:
             df: DataFrame to validate
-        
+
         Returns:
             Tuple of (is_valid, list of issues)
-        
+
         Example:
             >>> is_valid, issues = backend.validate_dataframe(df)
             >>> if not is_valid:
@@ -399,13 +399,13 @@ class TSIBackend:
     def mjd_to_datetime(mjd: float):
         """
         Convert Modified Julian Date to Python datetime object.
-        
+
         Args:
             mjd: Modified Julian Date value
-        
+
         Returns:
             Python datetime object with UTC timezone
-        
+
         Example:
             >>> dt = TSIBackend.mjd_to_datetime(59580.5)
             >>> print(dt)  # 2022-01-01 12:00:00+00:00
@@ -416,13 +416,13 @@ class TSIBackend:
     def datetime_to_mjd(dt) -> float:
         """
         Convert Python datetime object to Modified Julian Date.
-        
+
         Args:
             dt: Python datetime object (must have timezone info)
-        
+
         Returns:
             Modified Julian Date value
-        
+
         Example:
             >>> from datetime import datetime, timezone
             >>> dt = datetime(2022, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
@@ -453,14 +453,14 @@ def load_schedule(path: str | Path, **kwargs) -> pd.DataFrame:
 def load_dark_periods(path: str | Path) -> pd.DataFrame:
     """
     Quick function to load dark periods data.
-    
+
     Args:
         path: Path to dark_periods.json file
-    
+
     Returns:
-        pandas DataFrame with columns: start_dt, stop_dt, start_mjd, stop_mjd, 
+        pandas DataFrame with columns: start_dt, stop_dt, start_mjd, stop_mjd,
         duration_hours, months
-    
+
     Example:
         >>> from tsi_rust_api import load_dark_periods
         >>> df = load_dark_periods("data/dark_periods.json")

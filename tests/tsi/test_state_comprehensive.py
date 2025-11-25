@@ -13,7 +13,7 @@ streamlit_mock = MagicMock()
 streamlit_mock.session_state = {}
 sys.modules["streamlit"] = streamlit_mock
 
-from tsi.state import (
+from tsi.state import (  # noqa: E402
     KEY_COMPARISON_SCHEDULE,
     KEY_CURRENT_PAGE,
     KEY_DARK_PERIODS,

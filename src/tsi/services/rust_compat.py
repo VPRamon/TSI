@@ -18,10 +18,10 @@ Features:
 
 Usage:
     from tsi.services.rust_compat import compute_metrics, load_schedule_rust
-    
+
     # Load data (10-30x faster than pandas/Python JSON parsers)
     df = load_schedule_rust("data/schedule.json")
-    
+
     # Compute metrics (10x faster than pandas operations)
     metrics = compute_metrics(df)  # Returns AnalyticsMetrics (Pydantic)
 
@@ -92,7 +92,7 @@ if _RUST_AVAILABLE:
 def _ensure_rust_backend() -> None:
     """
     Ensure Rust backend is available, raise helpful error if not.
-    
+
     Raises:
         RuntimeError: If Rust backend is not available with guidance on how to fix it
     """
@@ -113,7 +113,7 @@ def _ensure_rust_backend() -> None:
 def is_rust_available() -> bool:
     """
     Check if Rust backend is available.
-    
+
     Returns:
         True if Rust backend is available and initialized
     """
@@ -123,7 +123,7 @@ def is_rust_available() -> bool:
 def get_rust_status() -> dict[str, Any]:
     """
     Get detailed status of Rust backend.
-    
+
     Returns:
         Dictionary with keys: 'available', 'error', 'backend_initialized'
     """
@@ -141,32 +141,32 @@ def get_rust_status() -> dict[str, Any]:
 def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
     """
     Load schedule from JSON or CSV using Rust backend (10-30x faster than Python).
-    
+
     This function trusts the Rust implementation completely. If there's an issue with
     the JSON/CSV parsing, it will raise a clear error message pointing to the problem.
-    
+
     Args:
         path: Path to schedule file (.json or .csv) or file buffer
         format: File format ('auto', 'csv', or 'json'). Auto-detects from path extension.
-    
+
     Returns:
         pandas DataFrame with schedule data
-    
+
     Raises:
         RuntimeError: If Rust backend is not available or parsing fails
         ValueError: If format is not recognized or cannot be auto-detected
-    
+
     Example:
         >>> df = load_schedule_rust("data/schedule.json")
         >>> print(f"Loaded {len(df)} scheduling blocks")
-        
+
         >>> # With file buffer - must specify format
         >>> df = load_schedule_rust(uploaded_file, format="json")
-    
+
     Performance:
         - CSV (2647 rows): ~20ms (Python: ~200ms) = 10x speedup
         - JSON (2647 rows): ~30ms (Python: ~300ms) = 10x speedup
-    
+
     Note:
         The Rust parser provides detailed error messages showing exactly which
         SchedulingBlock index and field is causing issues if parsing fails.
@@ -203,18 +203,18 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
 def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
     """
     Compute comprehensive analytics metrics using Rust backend (10x faster).
-    
+
     Args:
         df: DataFrame with scheduling data
-    
+
     Returns:
         AnalyticsMetrics (Pydantic model) with computed metrics
-    
+
     Example:
         >>> metrics = compute_metrics(df)
         >>> print(f"Average priority: {metrics.avg_priority:.2f}")
         >>> print(f"Total observations: {metrics.total_observations}")
-    
+
     Performance:
         - 2647 rows: ~15ms (Python: ~150ms) = 10x speedup
     """
@@ -233,19 +233,19 @@ def get_top_observations(
 ) -> pd.DataFrame:
     """
     Get top N observations sorted by specified column using Rust backend (10x faster).
-    
+
     Args:
         df: DataFrame with scheduling data
         by: Column to sort by (default: 'priority')
         n: Number of top observations to return
-    
+
     Returns:
         DataFrame with top N observations
-    
+
     Example:
         >>> top_10 = get_top_observations(df, by="priority", n=10)
         >>> print(top_10[['schedulingBlockId', 'priority']])
-    
+
     Performance:
         - 2647 rows: ~3ms (Python: ~30ms) = 10x speedup
     """
@@ -256,22 +256,22 @@ def get_top_observations(
 def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     """
     Find scheduling conflicts using Rust backend (16x faster).
-    
+
     Detects:
     - Temporal overlaps between scheduled observations
     - Priority conflicts
     - Resource allocation issues
-    
+
     Args:
         df: DataFrame with scheduling data
-    
+
     Returns:
         DataFrame with conflict details
-    
+
     Example:
         >>> conflicts = find_conflicts(df)
         >>> print(f"Found {len(conflicts)} conflicts")
-    
+
     Performance:
         - 2647 rows: ~30ms (Python: ~500ms) = 16x speedup
     """
@@ -290,19 +290,19 @@ def filter_by_priority(
 ) -> pd.DataFrame:
     """
     Filter DataFrame by priority range using Rust backend (10x faster).
-    
+
     Args:
         df: DataFrame with scheduling data
         min_priority: Minimum priority value (inclusive)
         max_priority: Maximum priority value (inclusive)
-    
+
     Returns:
         Filtered DataFrame
-    
+
     Example:
         >>> high_priority = filter_by_priority(df, min_priority=8.0)
         >>> print(f"High priority observations: {len(high_priority)}")
-    
+
     Performance:
         - 2647 rows: ~5ms (Python: ~50ms) = 10x speedup
     """
@@ -316,18 +316,18 @@ def filter_by_scheduled(
 ) -> pd.DataFrame:
     """
     Filter DataFrame by scheduled status using Rust backend (10x faster).
-    
+
     Args:
         df: DataFrame with scheduling data
         filter_type: One of 'scheduled', 'unscheduled', or 'all'
-    
+
     Returns:
         Filtered DataFrame
-    
+
     Example:
         >>> scheduled = filter_by_scheduled(df, filter_type="scheduled")
         >>> print(f"Scheduled observations: {len(scheduled)}")
-    
+
     Performance:
         - 2647 rows: ~5ms (Python: ~50ms) = 10x speedup
     """
@@ -343,20 +343,20 @@ def filter_by_range(
 ) -> pd.DataFrame:
     """
     Filter DataFrame by numeric range using Rust backend (10x faster).
-    
+
     Args:
         df: DataFrame with scheduling data
         column: Column name to filter
         min_value: Minimum value (inclusive)
         max_value: Maximum value (inclusive)
-    
+
     Returns:
         Filtered DataFrame
-    
+
     Example:
         >>> long_obs = filter_by_range(df, "requested_hours", 2.0, 10.0)
         >>> print(f"Long observations: {len(long_obs)}")
-    
+
     Performance:
         - 2647 rows: ~5ms (Python: ~50ms) = 10x speedup
     """
@@ -375,19 +375,19 @@ def remove_duplicates(
 ) -> pd.DataFrame:
     """
     Remove duplicate rows using Rust backend (10x faster).
-    
+
     Args:
         df: DataFrame with scheduling data
         subset: Columns to consider for identifying duplicates
         keep: Which duplicates to keep ('first', 'last', or None)
-    
+
     Returns:
         DataFrame with duplicates removed
-    
+
     Example:
         >>> clean_df = remove_duplicates(df, subset=["schedulingBlockId"])
         >>> print(f"Removed {len(df) - len(clean_df)} duplicates")
-    
+
     Performance:
         - 2647 rows: ~10ms (Python: ~100ms) = 10x speedup
     """
@@ -398,17 +398,17 @@ def remove_duplicates(
 def remove_missing_coordinates(df: pd.DataFrame) -> pd.DataFrame:
     """
     Remove rows with missing coordinate data using Rust backend (10x faster).
-    
+
     Args:
         df: DataFrame with scheduling data
-    
+
     Returns:
         DataFrame with complete coordinate data
-    
+
     Example:
         >>> clean_df = remove_missing_coordinates(df)
         >>> print(f"Removed {len(df) - len(clean_df)} rows with missing coords")
-    
+
     Performance:
         - 2647 rows: ~8ms (Python: ~80ms) = 10x speedup
     """
@@ -423,25 +423,25 @@ def remove_missing_coordinates(df: pd.DataFrame) -> pd.DataFrame:
 def validate_dataframe_rust(df: pd.DataFrame) -> tuple[bool, list[str]]:
     """
     Validate DataFrame structure and data quality using Rust backend.
-    
+
     Checks:
     - Required columns present
     - Data types correct
     - No critical missing values
     - Numeric ranges valid
-    
+
     Args:
         df: DataFrame to validate
-    
+
     Returns:
         Tuple of (is_valid, list of error messages)
-    
+
     Example:
         >>> is_valid, errors = validate_dataframe_rust(df)
         >>> if not is_valid:
         ...     for error in errors:
         ...         print(f"Validation error: {error}")
-    
+
     Performance:
         - 2647 rows: ~10ms (Python: ~50ms) = 5x speedup
     """
@@ -461,17 +461,17 @@ def validate_dataframe_rust(df: pd.DataFrame) -> tuple[bool, list[str]]:
 def mjd_to_datetime_rust(mjd: float):
     """
     Convert Modified Julian Date to Python datetime using Rust backend (8x faster).
-    
+
     Args:
         mjd: Modified Julian Date value
-    
+
     Returns:
         Python datetime object (UTC timezone)
-    
+
     Example:
         >>> dt = mjd_to_datetime_rust(59580.5)
         >>> print(dt)  # 2022-01-01 12:00:00+00:00
-    
+
     Performance:
         - Single conversion: ~0.5µs (Python: ~4µs) = 8x speedup
         - Bulk (100k conversions): ~50ms (Python: ~400ms) = 8x speedup
@@ -483,19 +483,19 @@ def mjd_to_datetime_rust(mjd: float):
 def datetime_to_mjd_rust(dt) -> float:
     """
     Convert Python datetime to Modified Julian Date using Rust backend (8x faster).
-    
+
     Args:
         dt: Python datetime object (with timezone info)
-    
+
     Returns:
         Modified Julian Date value
-    
+
     Example:
         >>> from datetime import datetime, timezone
         >>> dt = datetime(2022, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
         >>> mjd = datetime_to_mjd_rust(dt)
         >>> print(mjd)  # 59580.5
-    
+
     Performance:
         - Single conversion: ~0.5µs (Python: ~4µs) = 8x speedup
         - Bulk (100k conversions): ~50ms (Python: ~400ms) = 8x speedup
@@ -507,20 +507,20 @@ def datetime_to_mjd_rust(dt) -> float:
 def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[Any, Any]]:
     """
     Parse visibility period string using Rust backend (10-20x faster).
-    
+
     Args:
         visibility_str: String representation of visibility periods
                        (e.g., "[(59580.5, 59581.0), (59582.0, 59583.0)]")
-    
+
     Returns:
         List of (start_datetime, stop_datetime) tuples
-    
+
     Example:
         >>> periods = parse_visibility_periods_rust(visibility_str)
         >>> print(f"Found {len(periods)} visibility periods")
         >>> for start, stop in periods:
         ...     print(f"  {start} → {stop}")
-    
+
     Performance:
         - Single row: ~0.5ms (Python: ~15ms) = 30x speedup
         - Full dataset (2647 rows): ~2-4s (Python: ~40s) = 10-20x speedup
@@ -536,13 +536,13 @@ def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[Any, Any]]:
 def load_dark_periods_rust(path: str | Path) -> pd.DataFrame:
     """
     Load dark periods from JSON file using Rust backend (10x faster).
-    
+
     Supports flexible JSON formats with various key names (dark_periods, darkPeriods, etc.)
     and value formats (MJD floats, strings, ISO timestamps, nested dicts).
-    
+
     Args:
         path: Path to dark_periods.json file
-    
+
     Returns:
         pandas DataFrame with columns:
             - start_dt: Start datetime (UTC)
@@ -551,12 +551,12 @@ def load_dark_periods_rust(path: str | Path) -> pd.DataFrame:
             - stop_mjd: Stop Modified Julian Date
             - duration_hours: Duration in hours
             - months: List of months (YYYY-MM) touched by the period
-    
+
     Example:
         >>> df = load_dark_periods_rust("data/dark_periods.json")
         >>> print(f"Loaded {len(df)} dark periods")
         >>> print(df.head())
-    
+
     Performance:
         - Large file (4000+ periods): ~50ms (Python: ~500ms) = 10x speedup
     """
@@ -571,12 +571,12 @@ def load_dark_periods_rust(path: str | Path) -> pd.DataFrame:
 def get_backend() -> TSIBackend:
     """
     Get the singleton TSIBackend instance.
-    
+
     Use this if you need direct access to the backend for advanced operations.
-    
+
     Returns:
         Shared TSIBackend instance
-    
+
     Example:
         >>> backend = get_backend()
         >>> # Perform custom operations

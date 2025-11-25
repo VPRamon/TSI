@@ -8,10 +8,10 @@ import pandas as pd
 def validate_required_columns(df: pd.DataFrame) -> tuple[bool, list[str]]:
     """
     Validate that required columns exist for trends analysis.
-    
+
     Args:
         df: Source DataFrame
-        
+
     Returns:
         Tuple of (is_valid, missing_columns)
     """
@@ -29,13 +29,13 @@ def apply_trends_filters(
 ) -> pd.DataFrame:
     """
     Apply filters to DataFrame for trends analysis.
-    
+
     Args:
         df: Source DataFrame
         vis_range: (min, max) visibility range in hours
         time_range: (min, max) requested time range in hours
         selected_priorities: List of priority values to include
-        
+
     Returns:
         Filtered DataFrame
     """

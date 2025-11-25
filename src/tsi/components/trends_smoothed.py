@@ -21,7 +21,7 @@ def render_smoothed_trends(
 ) -> None:
     """
     Display smoothed trends section with visibility and requested time curves.
-    
+
     Args:
         smooth_vis: Smoothed visibility trend data
         error_vis: Error message for visibility trend

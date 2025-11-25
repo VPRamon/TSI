@@ -10,10 +10,10 @@ from tsi import state
 def render_filter_controls(filter_supported: bool) -> str:
     """
     Render filter controls for insights page.
-    
+
     Args:
         filter_supported: Whether filtering is supported (requires visibility columns)
-        
+
     Returns:
         Selected filter mode ('all' or 'exclude_impossible')
     """

@@ -14,7 +14,7 @@ def render_top_observations(
 ) -> None:
     """
     Display top observations in tabbed layout.
-    
+
     Args:
         top_priority: Top observations by priority
         top_visibility: Top observations by visibility hours
@@ -47,7 +47,7 @@ def render_top_observations(
 def render_integrity_checks(conflicts: pd.DataFrame) -> None:
     """
     Display scheduling integrity checks and conflict information.
-    
+
     Args:
         conflicts: DataFrame with detected conflicts
     """

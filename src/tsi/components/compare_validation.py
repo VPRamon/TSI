@@ -16,13 +16,13 @@ def validate_and_display_discrepancies(
 ) -> tuple[set, set, set, set]:
     """
     Validate that both schedules have the same blocks and display discrepancies.
-    
+
     Args:
         current_df: Current schedule DataFrame
         comparison_df: Comparison schedule DataFrame
         current_name: Name of current schedule
         comparison_name: Name of comparison schedule
-        
+
     Returns:
         Tuple of (only_in_current, only_in_comparison, common_ids_current, common_ids_comparison)
         where common_ids_current uses current df's ID types and common_ids_comparison uses comparison df's ID types
@@ -94,11 +94,11 @@ def compute_scheduling_changes(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Compute blocks with changed scheduling status.
-    
+
     Args:
         current_common: Current schedule with common blocks
         comparison_common: Comparison schedule with common blocks
-        
+
     Returns:
         Tuple of (newly_scheduled, newly_unscheduled) DataFrames
     """

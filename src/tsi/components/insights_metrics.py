@@ -11,7 +11,7 @@ from tsi.models.schemas import AnalyticsMetrics
 def render_key_metrics(metrics: AnalyticsMetrics) -> None:
     """
     Display key metrics in a three-column layout.
-    
+
     Args:
         metrics: Computed metrics object
     """
@@ -43,7 +43,7 @@ def render_key_metrics(metrics: AnalyticsMetrics) -> None:
 def render_priority_analysis(metrics: AnalyticsMetrics) -> None:
     """
     Display priority comparison between scheduled and unscheduled observations.
-    
+
     Args:
         metrics: Computed metrics object
     """

@@ -62,7 +62,7 @@ def test_impute_missing_constant():
 
     # Note: Current implementation has a bug - fill_value not used correctly
     # This test documents the current behavior
-    result = tsi_rust.py_impute_missing(df, "value", "constant", 99.0)
+    tsi_rust.py_impute_missing(df, "value", "constant", 99.0)
     # Implementation currently uses forward fill instead of constant
     print("✓ Impute missing (constant): Attempted to fill with constant=99.0 (implementation needs fix)")
 

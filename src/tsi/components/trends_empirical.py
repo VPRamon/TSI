@@ -19,7 +19,7 @@ def render_empirical_proportions(
 ) -> None:
     """
     Display empirical proportions by priority section.
-    
+
     Args:
         empirical: Computed empirical rates
         plot_library: Plotting library to use ('altair' or 'plotly')

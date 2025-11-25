@@ -9,7 +9,7 @@ import streamlit as st
 def render_overview_metrics(df: pd.DataFrame) -> None:
     """
     Display overview metrics for scheduling trends analysis.
-    
+
     Args:
         df: Filtered DataFrame
     """
