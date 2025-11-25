@@ -11,6 +11,8 @@ from tsi.components.visibility_controls import (
     render_sidebar_controls as render_visibility_sidebar_controls,
 )
 from tsi.components.visibility_stats import render_chart_info, render_dataset_statistics
+from tsi.components.timeline_controls import render_timeline_controls
+from tsi.components.timeline_stats import render_key_metrics, render_download_button
 
 __all__ = [
     # Sky Map components
@@ -27,4 +29,8 @@ __all__ = [
     "render_generate_button",
     "render_dataset_statistics",
     "render_chart_info",
+    # Timeline components
+    "render_timeline_controls",
+    "render_key_metrics",
+    "render_download_button",
 ]

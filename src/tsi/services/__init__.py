@@ -43,6 +43,7 @@ from tsi.services.visibility_processing import (
     get_all_block_ids,
     get_priority_range as get_visibility_priority_range,
 )
+from tsi.services.timeline_processing import prepare_timeline_data, apply_search_filter
 
 __all__ = [
     # loaders
@@ -79,4 +80,7 @@ __all__ = [
     "compute_effective_priority_range",
     "get_all_block_ids",
     "get_visibility_priority_range",
+    # timeline_processing
+    "prepare_timeline_data",
+    "apply_search_filter",
 ]
