@@ -1,3 +1,62 @@
+//! # TSI Rust Backend
+//!
+//! High-performance telescope scheduling analysis engine with Python bindings.
+//!
+//! This crate provides a Rust-based backend for the Telescope Scheduling Intelligence (TSI)
+//! system, offering efficient parsing, preprocessing, validation, and analysis of astronomical
+//! observation schedules. The core functionality is exposed to Python via PyO3 bindings.
+//!
+//! ## Features
+//!
+//! - **Data Loading**: Parse observation schedules from JSON and CSV formats
+//! - **Preprocessing**: Validate, enrich, and transform scheduling data
+//! - **Analysis**: Compute metrics, correlations, and identify scheduling conflicts
+//! - **Optimization**: Greedy scheduling algorithms for observation planning
+//! - **Time Handling**: Modified Julian Date (MJD) conversions and time period management
+//! - **Visibility Computation**: Integration with visibility period data
+//!
+//! ## Architecture
+//!
+//! The crate is organized into several logical modules:
+//!
+//! - [`core`]: Domain models for scheduling blocks and time periods
+//! - [`parsing`]: JSON/CSV parsers and visibility period handling
+//! - [`preprocessing`]: Data validation, enrichment, and pipeline orchestration
+//! - [`algorithms`]: Analytics, conflict detection, and optimization routines
+//! - [`transformations`]: Data transformation utilities
+//! - [`io`]: High-level loaders combining parsing and domain logic
+//! - [`python`]: PyO3 bindings exposing Rust functionality to Python
+//!
+//! ## Python API Example
+//!
+//! ```python
+//! import tsi_rust
+//!
+//! # Load and preprocess schedule data
+//! df, validation = tsi_rust.py_preprocess_schedule(
+//!     "data/schedule.json",
+//!     "data/possible_periods.json",
+//!     validate=True
+//! )
+//!
+//! # Convert MJD to datetime
+//! dt = tsi_rust.mjd_to_datetime(59000.0)
+//!
+//! # Compute analytics
+//! metrics = tsi_rust.py_compute_metrics(df)
+//! print(f"Scheduling rate: {metrics.scheduling_rate:.2%}")
+//! ```
+//!
+//! ## Performance
+//!
+//! This Rust backend is designed for high-performance batch processing of large
+//! observation schedules. Key optimizations include:
+//!
+//! - Zero-copy parsing where possible
+//! - Polars DataFrames for columnar data processing
+//! - Parallel batch operations
+//! - Minimal allocations in hot paths
+
 use pyo3::prelude::*;
 
 pub mod core;
@@ -8,7 +67,52 @@ pub mod transformations;
 pub mod io;
 pub mod python;
 
-/// TSI Rust Backend - High-performance telescope scheduling analysis
+/// Python module entry point for TSI Rust Backend.
+///
+/// This function initializes the `tsi_rust` Python module, registering all functions
+/// and classes that form the Python API. The module provides high-performance
+/// telescope scheduling operations to Python applications.
+///
+/// # Module Contents
+///
+/// ## Time Conversion Functions
+/// - `mjd_to_datetime`: Convert Modified Julian Date to Python datetime
+/// - `datetime_to_mjd`: Convert Python datetime to Modified Julian Date
+/// - `parse_visibility_periods`: Parse visibility period strings
+///
+/// ## Data Loading Functions
+/// - `load_schedule`: Auto-detect and load schedule from JSON or CSV
+/// - `load_schedule_from_json`: Load schedule from JSON file
+/// - `load_schedule_from_json_str`: Load schedule from JSON string
+/// - `load_schedule_from_csv`: Load schedule from CSV file
+/// - `load_dark_periods`: Load dark period constraints
+///
+/// ## Preprocessing Functions
+/// - `py_preprocess_schedule`: Comprehensive schedule preprocessing pipeline
+/// - `py_preprocess_schedule_str`: Preprocess schedule from JSON string
+/// - `py_validate_schedule`: Validate schedule data without enrichment
+///
+/// ## Analysis Functions
+/// - `py_compute_metrics`: Compute dataset-level summary statistics
+/// - `py_compute_correlations`: Compute correlation matrices
+/// - `py_get_top_observations`: Get top N observations by criteria
+/// - `py_find_conflicts`: Detect scheduling conflicts
+/// - `py_greedy_schedule`: Run greedy scheduling optimization
+///
+/// ## Classes
+/// - `PyValidationResult`: Validation results with errors and warnings
+/// - `PyAnalyticsSnapshot`: Dataset-level analytics summary
+/// - `PySchedulingConflict`: Detected scheduling conflict information
+/// - `PyOptimizationResult`: Results from scheduling optimization
+///
+/// # Example
+///
+/// ```python
+/// import tsi_rust
+///
+/// # The module is automatically initialized when imported
+/// df = tsi_rust.load_schedule("schedule.json")
+/// ```
 #[pymodule]
 fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Register time conversion functions

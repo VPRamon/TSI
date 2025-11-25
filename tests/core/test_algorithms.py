@@ -5,6 +5,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+pytest.importorskip("tsi_rust")
+
 from core.algorithms import compute_metrics, greedy_schedule
 from core.domain import Observation
 

@@ -15,6 +15,7 @@ pub enum ScheduleSourceType {
 }
 
 /// Result of loading schedule data
+#[derive(Debug)]
 pub struct ScheduleLoadResult {
     pub dataframe: DataFrame,
     pub source_type: ScheduleSourceType,

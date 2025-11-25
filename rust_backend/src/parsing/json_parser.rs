@@ -1,10 +1,50 @@
+//! JSON parser for telescope scheduling block files.
+//!
+//! This module parses schedule.json files containing observation scheduling blocks
+//! with their constraints, target coordinates, and timing information. The parser
+//! handles flexible JSON structures with robust error reporting.
+//!
+//! # Format
+//!
+//! Expected JSON structure:
+//! ```json
+//! {
+//!   "SchedulingBlock": [
+//!     {
+//!       "schedulingBlockId": 12345,
+//!       "priority": 10.5,
+//!       "target": {
+//!         "position_": {
+//!           "coord": {
+//!             "celestial": {
+//!               "raInDeg": 123.45,
+//!               "decInDeg": -23.45
+//!             }
+//!           }
+//!         }
+//!       },
+//!       "schedulingBlockConfiguration_": {
+//!         "constraints_": {
+//!           "timeConstraint_": { ... },
+//!           "elevationConstraint_": { ... },
+//!           "azimuthConstraint_": { ... }
+//!         }
+//!       }
+//!     }
+//!   ]
+//! }
+//! ```
+
 use anyhow::{Context, Result};
 use serde::{Deserialize, Deserializer};
 use std::path::Path;
 
 use crate::core::domain::SchedulingBlock;
 
-/// Custom deserializer that accepts either string or integer for scheduling block ID
+/// Custom deserializer that accepts either string or integer for scheduling block ID.
+///
+/// This flexibility handles variations in JSON generation where IDs might be
+/// represented as either strings or integers.
 fn deserialize_scheduling_block_id<'de, D>(deserializer: D) -> Result<i64, D::Error>
 where
     D: Deserializer<'de>,
@@ -140,7 +180,39 @@ struct ScheduleJson {
     scheduling_blocks: Vec<RawSchedulingBlock>,
 }
 
-/// Parse schedule.json file into SchedulingBlock structures
+/// Parses a schedule.json file into a vector of `SchedulingBlock` structures.
+///
+/// Reads a JSON file from disk and deserializes it into the internal domain model.
+/// Provides detailed error messages indicating which scheduling block caused parse failures.
+///
+/// # Arguments
+///
+/// * `json_path` - Path to the schedule.json file
+///
+/// # Returns
+///
+/// * `Ok(Vec<SchedulingBlock>)` - Successfully parsed scheduling blocks
+/// * `Err(anyhow::Error)` - File I/O error, JSON syntax error, or deserialization error
+///
+/// # Errors
+///
+/// This function returns an error if:
+/// - The file cannot be read (permissions, file not found, etc.)
+/// - The file contains invalid JSON syntax
+/// - The JSON structure doesn't match the expected schema
+/// - Required fields are missing or have invalid values
+/// - The "SchedulingBlock" top-level key is missing
+///
+/// # Examples
+///
+/// ```no_run
+/// use tsi_rust::parsing::json_parser::parse_schedule_json;
+/// use std::path::Path;
+///
+/// let blocks = parse_schedule_json(Path::new("data/schedule.json"))
+///     .expect("Failed to parse schedule");
+/// println!("Loaded {} scheduling blocks", blocks.len());
+/// ```
 pub fn parse_schedule_json(json_path: &Path) -> Result<Vec<SchedulingBlock>> {
     let json_content = std::fs::read_to_string(json_path)
         .with_context(|| format!("Failed to read JSON file: {}", json_path.display()))?;
@@ -148,7 +220,79 @@ pub fn parse_schedule_json(json_path: &Path) -> Result<Vec<SchedulingBlock>> {
     parse_schedule_json_str(&json_content)
 }
 
-/// Parse schedule JSON from a string
+/// Parses schedule JSON from a string into `SchedulingBlock` structures.
+///
+/// This function is useful for parsing JSON data from memory, network responses,
+/// or embedded strings without requiring file I/O.
+///
+/// # Arguments
+///
+/// * `json_str` - JSON string containing schedule data
+///
+/// # Returns
+///
+/// * `Ok(Vec<SchedulingBlock>)` - Successfully parsed scheduling blocks
+/// * `Err(anyhow::Error)` - JSON syntax error or deserialization error with detailed context
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The string is not valid JSON
+/// - The JSON structure is missing the "SchedulingBlock" key
+/// - Any scheduling block fails to deserialize (pinpoints which block and field)
+/// - Required fields are missing or have the wrong type
+///
+/// Error messages include:
+/// - A preview of the JSON (first 500 characters) for syntax errors
+/// - The index of the problematic scheduling block
+/// - The specific deserialization error and field name
+/// - The full JSON representation of the failing block
+///
+/// # Examples
+///
+/// ```
+/// use tsi_rust::parsing::json_parser::parse_schedule_json_str;
+///
+/// let json = r#"{
+///   "SchedulingBlock": [
+///     {
+///       "schedulingBlockId": 1,
+///       "priority": 10.0,
+///       "target": {
+///         "position_": {
+///           "coord": {
+///             "celestial": {
+///               "raInDeg": 180.0,
+///               "decInDeg": 45.0
+///             }
+///           }
+///         }
+///       },
+///       "schedulingBlockConfiguration_": {
+///         "constraints_": {
+///           "timeConstraint_": {
+///             "requestedDurationSec": 3600.0,
+///             "fixedStartTime": [],
+///             "fixedStopTime": []
+///           },
+///           "elevationConstraint_": {
+///             "minElevationAngleInDeg": 30.0,
+///             "maxElevationAngleInDeg": 80.0
+///           },
+///           "azimuthConstraint_": {
+///             "minAzimuthAngleInDeg": 0.0,
+///             "maxAzimuthAngleInDeg": 360.0
+///           }
+///         }
+///       }
+///     }
+///   ]
+/// }"#;
+///
+/// let blocks = parse_schedule_json_str(json)
+///     .expect("Failed to parse");
+/// assert_eq!(blocks.len(), 1);
+/// ```
 pub fn parse_schedule_json_str(json_str: &str) -> Result<Vec<SchedulingBlock>> {
     // First validate that it's valid JSON
     let json_value: serde_json::Value = serde_json::from_str(json_str)

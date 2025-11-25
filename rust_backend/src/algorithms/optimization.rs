@@ -204,13 +204,21 @@ pub fn greedy_schedule_parallel(
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // Test helper: a constraint that is always satisfied
     struct AlwaysSatisfied;
     
     impl Constraint for AlwaysSatisfied {
         fn is_satisfied(&self, _indices: &[usize], _observations: &[Observation]) -> bool {
             true
+        }
+    }
+
+    struct LimitOne;
+
+    impl Constraint for LimitOne {
+        fn is_satisfied(&self, indices: &[usize], _observations: &[Observation]) -> bool {
+            indices.len() <= 1
         }
     }
     
@@ -260,5 +268,18 @@ mod tests {
         
         assert_eq!(result.solution.len(), 3);
         assert_eq!(result.objective_value, 9.0);
+    }
+
+    #[test]
+    fn test_greedy_schedule_respects_constraints_and_iterations() {
+        let observations = vec![
+            Observation { index: 0, priority: 5.0 },
+            Observation { index: 1, priority: 4.0 },
+        ];
+        let constraints: Vec<Box<dyn Constraint>> = vec![Box::new(LimitOne)];
+
+        let result = greedy_schedule(&observations, &constraints, 3);
+        assert_eq!(result.solution.len(), 1);
+        assert!(result.converged); // iterations < max_iterations
     }
 }

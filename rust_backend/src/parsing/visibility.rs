@@ -1,16 +1,36 @@
 use crate::core::domain::Period;
 use siderust::astro::ModifiedJulianDate;
 
-/// Parse a Python list of visibility periods (as string) into Period structs
-/// 
-/// Expected format: "[(start_mjd, stop_mjd), ...]"
-/// where start_mjd and stop_mjd are MJD floats
-/// 
+/// Parses a Python-style list of visibility periods into structured `Period` objects.
+///
+/// Accepts string representations of period tuples in the format:
+/// `"[(start_mjd, stop_mjd), (start_mjd, stop_mjd), ...]"` where each MJD is a floating-point number.
+///
 /// # Arguments
+///
 /// * `visibility_str` - String representation of visibility periods
-/// 
+///
 /// # Returns
-/// * `Vec<Period>` - Parsed visibility periods
+///
+/// * `Ok(Vec<Period>)` - Successfully parsed visibility periods
+/// * `Err(String)` - Parse error description (currently not used; malformed tuples are silently ignored)
+///
+/// # Examples
+///
+/// ```
+/// use tsi_rust::parsing::visibility::parse_visibility_string;
+///
+/// let periods = parse_visibility_string("[(59000.0, 59000.5), (59001.0, 59002.0)]")
+///     .expect("Parse failed");
+/// assert_eq!(periods.len(), 2);
+/// assert_eq!(periods[0].duration_hours(), 12.0);
+/// ```
+///
+/// # Edge Cases
+///
+/// - Empty strings and `"[]"` return an empty vector
+/// - Malformed tuples (unparseable floats, wrong number of elements) are silently skipped
+/// - Handles nested parentheses correctly
 pub fn parse_visibility_string(visibility_str: &str) -> Result<Vec<Period>, String> {
     if visibility_str.trim().is_empty() || visibility_str == "[]" {
         return Ok(Vec::new());
@@ -67,19 +87,121 @@ pub fn parse_visibility_string(visibility_str: &str) -> Result<Vec<Period>, Stri
     Ok(periods)
 }
 
-/// High-performance visibility parser optimized for batch processing
+/// High-performance visibility period parser optimized for batch processing.
+///
+/// `VisibilityParser` provides both single and batch parsing capabilities for
+/// visibility period strings, enabling efficient processing of large datasets.
+///
+/// # Examples
+///
+/// ```
+/// use tsi_rust::parsing::VisibilityParser;
+///
+/// // Single parse
+/// let periods = VisibilityParser::parse("[(59000.0, 59000.5)]")
+///     .expect("Parse failed");
+/// assert_eq!(periods.len(), 1);
+///
+/// // Batch parse
+/// let inputs = vec!["[(59000.0, 59001.0)]", "[(59002.0, 59003.0)]"];
+/// let results = VisibilityParser::parse_batch(&inputs);
+/// assert_eq!(results.len(), 2);
+/// ```
 pub struct VisibilityParser;
 
 impl VisibilityParser {
+    /// Parses a single visibility string.
+    ///
+    /// This is a convenience wrapper around [`parse_visibility_string`].
+    ///
+    /// # Arguments
+    ///
+    /// * `visibility_str` - String representation of visibility periods
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Vec<Period>)` - Successfully parsed periods
+    /// * `Err(String)` - Parse error description
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tsi_rust::parsing::VisibilityParser;
+    ///
+    /// let result = VisibilityParser::parse("[(59000.0, 59000.25)]")
+    ///     .expect("Parse failed");
+    /// assert_eq!(result[0].duration_hours(), 6.0);
+    /// ```
     pub fn parse(visibility_str: &str) -> Result<Vec<Period>, String> {
         parse_visibility_string(visibility_str)
     }
     
-    /// Parse multiple visibility strings in parallel (for batch processing)
+    /// Parses multiple visibility strings in parallel for batch processing.
+    ///
+    /// Processes an array of visibility strings and returns results for each,
+    /// allowing some parses to fail without affecting others.
+    ///
+    /// # Arguments
+    ///
+    /// * `visibility_strings` - Slice of string references to parse
+    ///
+    /// # Returns
+    ///
+    /// A vector of `Result<Vec<Period>, String>` with one entry per input string.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use tsi_rust::parsing::VisibilityParser;
+    ///
+    /// let inputs = vec![
+    ///     "[(59000.0, 59001.0)]",
+    ///     "[(59002.0, 59003.0)]",
+    ///     "[]"  // Empty is valid
+    /// ];
+    /// let results = VisibilityParser::parse_batch(&inputs);
+    ///
+    /// assert_eq!(results.len(), 3);
+    /// assert!(results[0].is_ok());
+    /// assert!(results[2].as_ref().unwrap().is_empty());
+    /// ```
+    ///
+    /// # Performance
+    ///
+    /// This method uses iterator mapping which can be parallelized by the compiler.
+    /// For very large batches, consider using `rayon` for explicit parallelization.
     pub fn parse_batch(visibility_strings: &[&str]) -> Vec<Result<Vec<Period>, String>> {
         visibility_strings
             .iter()
             .map(|s| parse_visibility_string(s))
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_visibility_string_variants() {
+        assert!(parse_visibility_string("").unwrap().is_empty());
+
+        let parsed = parse_visibility_string("[(1.0, 2.0), (3.5,4.5)]").unwrap();
+        assert_eq!(parsed.len(), 2);
+        assert_eq!(parsed[0].duration_hours(), 24.0);
+
+        // Malformed tuple should be ignored gracefully
+        let parsed_mixed = parse_visibility_string("[(1.0, 2.0), (bad, data)]").unwrap();
+        assert_eq!(parsed_mixed.len(), 1);
+    }
+
+    #[test]
+    fn visibility_parser_batch() {
+        let inputs = vec!["[]", "[(0.0,1.0)]"];
+        let results = VisibilityParser::parse_batch(&inputs);
+
+        assert_eq!(results.len(), 2);
+        assert!(results[0].as_ref().unwrap().is_empty());
+        assert_eq!(results[1].as_ref().unwrap()[0].duration_hours(), 24.0);
     }
 }
