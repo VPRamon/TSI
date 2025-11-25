@@ -22,3 +22,7 @@ htmlcov/
 # Local data caches and notebooks
 *.ipynb_checkpoints
 notebooks/
+
+# Rust build artifacts
+target/
+rust_backend/target/

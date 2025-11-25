@@ -106,6 +106,42 @@ python scripts/preprocess_schedules.py \
 
 Examples: see `examples/example_data_loading.py` and `examples/example_preprocessing.py`.
 
+## Dockerized development & builds
+
+The repository ships with a Debian 12 multi-stage `Dockerfile` tailored for reproducible builds of both the Streamlit frontend and the Rust backend. Highlights:
+
+- `cargo-chef` stages (`cargo-planner`, `cargo-builder`) cache Rust dependencies and produce a Python wheel via `maturin`.
+- `python-builder` prepares a reusable virtual environment with all Python dependencies pre-installed (minus the editable package).
+- `runtime` is a slim image that only contains the venv, app sources, and runtime assets.
+- `dev` target keeps the full Rust toolchain, venv, and Python dev dependencies for an ergonomic shell inside the container.
+
+### Build & run the runtime image
+
+```bash
+# Build (produces the slim runtime image by default)
+docker build -t tsi-app .
+
+# Run Streamlit (mount local data if you want live edits)
+docker run --rm -p 8501:8501 \
+  -v "$(pwd)/data:/app/data" \
+  tsi-app
+```
+
+### Development shell with Rust + Python tools
+
+```bash
+# Build the dev image (carries rustup, cargo, pip, pytest, etc.)
+docker build -t tsi-dev --target dev .
+
+# Drop into a shell with source + venv + cargo
+docker run --rm -it \
+  -p 8501:8501 \
+  -v "$(pwd):/workspace" \
+  tsi-dev
+```
+
+Inside the dev container the working directory is `/workspace`, the Python virtual environment is already active (`/opt/venv`), and `PYTHONPATH` points at `src`. Rebuilding the Rust extension is as simple as `pip install -e .` or `maturin develop --release`.
+
 ## Data schema (CSV expected by the app)
 
 Required columns (from `src/tsi/config.py`):
@@ -157,21 +193,6 @@ ruff check src/ tests/
 black --check src/ tests/
 mypy src/
 ```
-
-## Docker
-
-```bash
-# Build
-docker build -t tsi-app .
-
-# Run dashboard (http://localhost:8501)
-docker run --rm -p 8501:8501 tsi-app
-
-# Run tests inside the same image
-docker run --rm tsi-app pytest
-```
-
-The image defaults to launching the dashboard; overriding the command lets you reuse it for CI.
 
 ## Development notes
 

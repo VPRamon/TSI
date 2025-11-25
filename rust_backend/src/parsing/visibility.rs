@@ -35,21 +35,21 @@ pub fn parse_visibility_string(visibility_str: &str) -> Result<Vec<Period>, Stri
     if visibility_str.trim().is_empty() || visibility_str == "[]" {
         return Ok(Vec::new());
     }
-    
+
     // Parse string like "[(mjd1, mjd2), (mjd3, mjd4)]"
     let cleaned = visibility_str
         .trim()
         .trim_start_matches('[')
         .trim_end_matches(']');
-    
+
     if cleaned.is_empty() {
         return Ok(Vec::new());
     }
-    
+
     let mut periods = Vec::new();
     let mut current_tuple = String::new();
     let mut paren_depth = 0;
-    
+
     for ch in cleaned.chars() {
         match ch {
             '(' => {
@@ -83,7 +83,7 @@ pub fn parse_visibility_string(visibility_str: &str) -> Result<Vec<Period>, Stri
             }
         }
     }
-    
+
     Ok(periods)
 }
 
@@ -135,7 +135,7 @@ impl VisibilityParser {
     pub fn parse(visibility_str: &str) -> Result<Vec<Period>, String> {
         parse_visibility_string(visibility_str)
     }
-    
+
     /// Parses multiple visibility strings in parallel for batch processing.
     ///
     /// Processes an array of visibility strings and returns results for each,

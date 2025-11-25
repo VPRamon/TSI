@@ -4,11 +4,8 @@
 //! including time periods, visibility windows, and scheduling constraints.
 
 use siderust::astro::ModifiedJulianDate;
-use siderust::units::{
-    time::*,
-    angular::Degrees,
-};
 use siderust::coordinates::spherical::direction::ICRS;
+use siderust::units::{angular::Degrees, time::*};
 
 /// Represents a single time period with start and stop times.
 ///
@@ -271,7 +268,8 @@ impl SchedulingBlock {
     /// assert_eq!(block.total_visibility_hours(), Hours::new(18.0));
     /// ```
     pub fn total_visibility_hours(&self) -> Hours {
-        let total_days = self.visibility_periods
+        let total_days = self
+            .visibility_periods
             .iter()
             .fold(Days::new(0.0), |acc, p| acc + p.duration());
         total_days.to::<Hour>()

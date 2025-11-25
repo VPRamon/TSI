@@ -43,7 +43,7 @@ pub fn greedy_schedule(
             converged: true,
         };
     }
-    
+
     if observations.is_empty() {
         return OptimizationResult {
             solution: vec![],
@@ -52,14 +52,14 @@ pub fn greedy_schedule(
             converged: true,
         };
     }
-    
+
     let mut selected: Vec<usize> = Vec::new();
     let mut available: Vec<usize> = (0..observations.len()).collect();
     let mut iterations = 0;
-    
+
     while !available.is_empty() && iterations < max_iterations {
         iterations += 1;
-        
+
         // Find observation with highest priority
         let best_idx_in_available = available
             .iter()
@@ -71,36 +71,33 @@ pub fn greedy_schedule(
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .map(|(idx, _)| idx);
-        
+
         if let Some(best_idx) = best_idx_in_available {
             let obs_idx = available[best_idx];
-            
+
             // Create candidate solution
             let mut candidate = selected.clone();
             candidate.push(obs_idx);
-            
+
             // Check all constraints
             let satisfies_all = constraints
                 .iter()
                 .all(|constraint| constraint.is_satisfied(&candidate, observations));
-            
+
             if satisfies_all {
                 selected.push(obs_idx);
             }
-            
+
             // Remove from available regardless
             available.remove(best_idx);
         } else {
             break;
         }
     }
-    
+
     // Calculate objective value (sum of priorities)
-    let objective_value: f64 = selected
-        .iter()
-        .map(|&idx| observations[idx].priority)
-        .sum();
-    
+    let objective_value: f64 = selected.iter().map(|&idx| observations[idx].priority).sum();
+
     OptimizationResult {
         solution: selected,
         objective_value,
@@ -113,7 +110,7 @@ pub fn greedy_schedule(
 ///
 /// This version can evaluate multiple candidates in parallel
 /// Useful for large datasets where constraint checking is expensive
-/// 
+///
 /// Note: Requires rayon feature to be enabled in Cargo.toml
 #[allow(dead_code)]
 pub fn greedy_schedule_parallel(
@@ -128,10 +125,10 @@ pub fn greedy_schedule_parallel(
         iterations: 0,
         converged: false,
     }
-    
+
     /* Original parallel implementation - requires rayon feature:
     use rayon::prelude::*;
-    
+
     if observations.is_empty() || max_iterations == 0 {
         return OptimizationResult {
             solution: vec![],
@@ -140,29 +137,29 @@ pub fn greedy_schedule_parallel(
             converged: true,
         };
     }
-    
+
     let mut selected: Vec<usize> = Vec::new();
     let mut available: Vec<usize> = (0..observations.len()).collect();
     let mut iterations = 0;
-    
+
     while !available.is_empty() && iterations < max_iterations {
         iterations += 1;
-        
+
         // Evaluate all available options in parallel
         let evaluations: Vec<_> = available
             .par_iter()
             .map(|&obs_idx| {
                 let mut candidate = selected.clone();
                 candidate.push(obs_idx);
-                
+
                 let satisfies = constraints
                     .iter()
                     .all(|c| c.is_satisfied(&candidate, observations));
-                
+
                 (obs_idx, observations[obs_idx].priority, satisfies)
             })
             .collect();
-        
+
         // Find best satisfying candidate
         let best = evaluations
             .iter()
@@ -170,7 +167,7 @@ pub fn greedy_schedule_parallel(
             .max_by(|(_, p1, _), (_, p2, _)| {
                 p1.partial_cmp(p2).unwrap_or(std::cmp::Ordering::Equal)
             });
-        
+
         if let Some((obs_idx, _, _)) = best {
             selected.push(*obs_idx);
             available.retain(|&x| x != *obs_idx);
@@ -186,12 +183,12 @@ pub fn greedy_schedule_parallel(
             }
         }
     }
-    
+
     let objective_value: f64 = selected
         .iter()
         .map(|&idx| observations[idx].priority)
         .sum();
-    
+
     OptimizationResult {
         solution: selected,
         objective_value,
@@ -207,7 +204,7 @@ mod tests {
 
     // Test helper: a constraint that is always satisfied
     struct AlwaysSatisfied;
-    
+
     impl Constraint for AlwaysSatisfied {
         fn is_satisfied(&self, _indices: &[usize], _observations: &[Observation]) -> bool {
             true
@@ -221,18 +218,18 @@ mod tests {
             indices.len() <= 1
         }
     }
-    
+
     #[test]
     fn test_greedy_schedule_empty() {
         let observations = vec![];
         let constraints: Vec<Box<dyn Constraint>> = vec![];
         let result = greedy_schedule(&observations, &constraints, 100);
-        
+
         assert_eq!(result.solution.len(), 0);
         assert_eq!(result.objective_value, 0.0);
         assert!(result.converged);
     }
-    
+
     #[test]
     fn test_greedy_schedule_single() {
         let observations = vec![Observation {
@@ -241,12 +238,12 @@ mod tests {
         }];
         let constraints: Vec<Box<dyn Constraint>> = vec![Box::new(AlwaysSatisfied)];
         let result = greedy_schedule(&observations, &constraints, 100);
-        
+
         assert_eq!(result.solution.len(), 1);
         assert_eq!(result.solution[0], 0);
         assert_eq!(result.objective_value, 5.0);
     }
-    
+
     #[test]
     fn test_greedy_schedule_multiple() {
         let observations = vec![
@@ -265,7 +262,7 @@ mod tests {
         ];
         let constraints: Vec<Box<dyn Constraint>> = vec![Box::new(AlwaysSatisfied)];
         let result = greedy_schedule(&observations, &constraints, 100);
-        
+
         assert_eq!(result.solution.len(), 3);
         assert_eq!(result.objective_value, 9.0);
     }
@@ -273,8 +270,14 @@ mod tests {
     #[test]
     fn test_greedy_schedule_respects_constraints_and_iterations() {
         let observations = vec![
-            Observation { index: 0, priority: 5.0 },
-            Observation { index: 1, priority: 4.0 },
+            Observation {
+                index: 0,
+                priority: 5.0,
+            },
+            Observation {
+                index: 1,
+                priority: 4.0,
+            },
         ];
         let constraints: Vec<Box<dyn Constraint>> = vec![Box::new(LimitOne)];
 

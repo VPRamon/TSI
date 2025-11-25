@@ -1,6 +1,6 @@
 #[cfg(test)]
-mod json_parser_tests {
-    use crate::parsing::json_parser::{parse_schedule_json_str, parse_schedule_json};
+mod tests {
+    use crate::parsing::json_parser::{parse_schedule_json, parse_schedule_json_str};
     use std::io::Write;
     use tempfile::NamedTempFile;
 
@@ -47,7 +47,11 @@ mod json_parser_tests {
         }"#;
 
         let result = parse_schedule_json_str(json);
-        assert!(result.is_ok(), "Should parse string IDs: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Should parse string IDs: {:?}",
+            result.err()
+        );
         let blocks = result.unwrap();
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].scheduling_block_id, "1000004990");
@@ -96,7 +100,11 @@ mod json_parser_tests {
         }"#;
 
         let result = parse_schedule_json_str(json);
-        assert!(result.is_ok(), "Should parse integer IDs: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Should parse integer IDs: {:?}",
+            result.err()
+        );
         let blocks = result.unwrap();
         assert_eq!(blocks.len(), 1);
         assert_eq!(blocks[0].scheduling_block_id, "1000004990");
@@ -112,7 +120,11 @@ mod json_parser_tests {
         let result = parse_schedule_json_str(json);
         assert!(result.is_err(), "Should fail without SchedulingBlock key");
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("SchedulingBlock"), "Error should mention missing key: {}", error_msg);
+        assert!(
+            error_msg.contains("SchedulingBlock"),
+            "Error should mention missing key: {}",
+            error_msg
+        );
     }
 
     /// Test parsing JSON with missing required fields
@@ -159,8 +171,11 @@ mod json_parser_tests {
         let result = parse_schedule_json_str(json);
         assert!(result.is_err(), "Should fail with missing priority");
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("priority") || error_msg.contains("missing field"), 
-                "Error should mention missing field: {}", error_msg);
+        assert!(
+            error_msg.contains("priority") || error_msg.contains("missing field"),
+            "Error should mention missing field: {}",
+            error_msg
+        );
     }
 
     /// Test parsing JSON with malformed constraints
@@ -207,8 +222,11 @@ mod json_parser_tests {
         let result = parse_schedule_json_str(json);
         assert!(result.is_err(), "Should fail with malformed constraint");
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("index 0") || error_msg.contains("SchedulingBlock"), 
-                "Error should include context about which block failed: {}", error_msg);
+        assert!(
+            error_msg.contains("index 0") || error_msg.contains("SchedulingBlock"),
+            "Error should include context about which block failed: {}",
+            error_msg
+        );
     }
 
     /// Test parsing JSON with fixed time windows
@@ -254,10 +272,17 @@ mod json_parser_tests {
         }"#;
 
         let result = parse_schedule_json_str(json);
-        assert!(result.is_ok(), "Should parse fixed time windows: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Should parse fixed time windows: {:?}",
+            result.err()
+        );
         let blocks = result.unwrap();
         assert_eq!(blocks.len(), 1);
-        assert!(blocks[0].fixed_time.is_some(), "Should have fixed_time populated");
+        assert!(
+            blocks[0].fixed_time.is_some(),
+            "Should have fixed_time populated"
+        );
         let fixed_time = blocks[0].fixed_time.as_ref().unwrap();
         assert_eq!(fixed_time.start.value(), 61894.0);
         assert_eq!(fixed_time.stop.value(), 61894.5);
@@ -310,9 +335,16 @@ mod json_parser_tests {
         }"#;
 
         let result = parse_schedule_json_str(json);
-        assert!(result.is_ok(), "Should parse scheduled period: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Should parse scheduled period: {:?}",
+            result.err()
+        );
         let blocks = result.unwrap();
-        assert!(blocks[0].scheduled_period.is_some(), "Should have scheduled_period");
+        assert!(
+            blocks[0].scheduled_period.is_some(),
+            "Should have scheduled_period"
+        );
         assert!(blocks[0].is_scheduled(), "Should be marked as scheduled");
     }
 
@@ -332,8 +364,11 @@ mod json_parser_tests {
         let result = parse_schedule_json_str(json);
         assert!(result.is_err(), "Should fail with invalid JSON syntax");
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("Invalid JSON") || error_msg.contains("syntax"), 
-                "Error should mention JSON syntax error: {}", error_msg);
+        assert!(
+            error_msg.contains("Invalid JSON") || error_msg.contains("syntax"),
+            "Error should mention JSON syntax error: {}",
+            error_msg
+        );
     }
 
     /// Test parsing JSON file (integration with file system)
@@ -380,9 +415,13 @@ mod json_parser_tests {
 
         let mut temp_file = NamedTempFile::new().unwrap();
         write!(temp_file, "{}", json_content).unwrap();
-        
+
         let result = parse_schedule_json(temp_file.path());
-        assert!(result.is_ok(), "Should parse JSON from file: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Should parse JSON from file: {:?}",
+            result.err()
+        );
         let blocks = result.unwrap();
         assert_eq!(blocks.len(), 1);
     }
@@ -393,8 +432,11 @@ mod json_parser_tests {
         let result = parse_schedule_json(std::path::Path::new("/nonexistent/file.json"));
         assert!(result.is_err(), "Should fail for nonexistent file");
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("Failed to read") || error_msg.contains("No such file"), 
-                "Error should mention file read failure: {}", error_msg);
+        assert!(
+            error_msg.contains("Failed to read") || error_msg.contains("No such file"),
+            "Error should mention file read failure: {}",
+            error_msg
+        );
     }
 
     /// Test parsing multiple blocks
@@ -470,7 +512,11 @@ mod json_parser_tests {
         }"#;
 
         let result = parse_schedule_json_str(json);
-        assert!(result.is_ok(), "Should parse multiple blocks: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Should parse multiple blocks: {:?}",
+            result.err()
+        );
         let blocks = result.unwrap();
         assert_eq!(blocks.len(), 2);
         assert_eq!(blocks[0].scheduling_block_id, "1000004990");
@@ -487,7 +533,11 @@ mod json_parser_tests {
         }"#;
 
         let result = parse_schedule_json_str(json);
-        assert!(result.is_ok(), "Should parse empty array: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Should parse empty array: {:?}",
+            result.err()
+        );
         let blocks = result.unwrap();
         assert_eq!(blocks.len(), 0);
     }
@@ -529,8 +579,11 @@ mod json_parser_tests {
         let result = parse_schedule_json_str(json);
         assert!(result.is_err(), "Should fail with missing timeConstraint_");
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("timeConstraint") || error_msg.contains("missing field"), 
-                "Error should mention missing constraint: {}", error_msg);
+        assert!(
+            error_msg.contains("timeConstraint") || error_msg.contains("missing field"),
+            "Error should mention missing constraint: {}",
+            error_msg
+        );
     }
 
     /// Test that error context includes block index
@@ -606,9 +659,15 @@ mod json_parser_tests {
         }"#;
 
         let result = parse_schedule_json_str(json);
-        assert!(result.is_err(), "Should fail with invalid priority in second block");
+        assert!(
+            result.is_err(),
+            "Should fail with invalid priority in second block"
+        );
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("index 1") || error_msg.contains("SchedulingBlock"), 
-                "Error should indicate which block failed: {}", error_msg);
+        assert!(
+            error_msg.contains("index 1") || error_msg.contains("SchedulingBlock"),
+            "Error should indicate which block failed: {}",
+            error_msg
+        );
     }
 }

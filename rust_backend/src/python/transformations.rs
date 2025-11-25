@@ -41,14 +41,14 @@ pub fn py_impute_missing(
         .column(column)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     let series = col.as_materialized_series().clone();
-    
+
     let imputed = cleaning::impute_missing(&series, strategy, fill_value)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    
+
     dataframe
         .replace(column, imputed)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    
+
     Ok(PyDataFrame(dataframe))
 }
 
@@ -61,7 +61,7 @@ pub fn py_validate_schema(
     expected_dtypes: Option<Vec<(String, String)>>,
 ) -> PyResult<(bool, Vec<String>)> {
     let dataframe = &df.0;
-    
+
     // Convert string dtypes to Polars DataType if provided
     let polars_dtypes = expected_dtypes.map(|dtypes| {
         dtypes
@@ -78,8 +78,8 @@ pub fn py_validate_schema(
             })
             .collect()
     });
-    
-    cleaning::validate_schema(&dataframe, required_columns, polars_dtypes)
+
+    cleaning::validate_schema(dataframe, required_columns, polars_dtypes)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
 }
 

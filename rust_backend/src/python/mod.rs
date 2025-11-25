@@ -16,14 +16,14 @@
 //! All functions are available in the `tsi_rust` Python module after installation.
 //! See individual module documentation for usage examples.
 
+pub mod algorithms;
 pub mod loaders;
 pub mod preprocessing;
-pub mod algorithms;
-pub mod transformations;
 pub mod time_bindings;
+pub mod transformations;
 
+pub use algorithms::*;
 pub use loaders::*;
 pub use preprocessing::*;
-pub use algorithms::*;
-pub use transformations::*;
 pub use time_bindings::*;
+pub use transformations::*;

@@ -35,16 +35,16 @@ pub struct CandidatePlacement {
 /// List of conflicts found
 pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsError> {
     let mut conflicts = Vec::new();
-    
+
     // Get required columns
     let scheduled_flag = df.column("scheduled_flag")?.bool()?;
     let id_column = df.column("schedulingBlockId")?;
     let priorities = df.column("priority")?.f64()?;
-    
+
     // Optional columns for conflict detection
     let scheduled_start = df.column("scheduled_start_dt").ok();
     let scheduled_stop = df.column("scheduled_stop_dt").ok();
-    
+
     for i in 0..df.height() {
         // Only check scheduled observations
         if let Some(is_scheduled) = scheduled_flag.get(i) {
@@ -54,39 +54,42 @@ pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsE
         } else {
             continue;
         }
-        
+
         // Handle schedulingBlockId as either int or string
         let id = if let Ok(ids_str) = id_column.str() {
             ids_str.get(i).unwrap_or("unknown").to_string()
         } else if let Ok(ids_i64) = id_column.i64() {
-            ids_i64.get(i).map(|v| v.to_string()).unwrap_or_else(|| "unknown".to_string())
+            ids_i64
+                .get(i)
+                .map(|v| v.to_string())
+                .unwrap_or_else(|| "unknown".to_string())
         } else {
             "unknown".to_string()
         };
         let priority = priorities.get(i).unwrap_or(0.0);
-        
+
         let mut reasons = Vec::new();
-        
+
         // Check if scheduled_start/stop exist and are valid
         let start_str = if let Some(col) = scheduled_start {
             col.str()?.get(i).map(|s| s.to_string())
         } else {
             None
         };
-        
+
         let stop_str = if let Some(col) = scheduled_stop {
             col.str()?.get(i).map(|s| s.to_string())
         } else {
             None
         };
-        
+
         if start_str.is_none() || stop_str.is_none() {
             continue;
         }
-        
+
         // Check visibility windows (simplified - would need parsed periods)
         // This is a placeholder for the actual visibility check logic
-        
+
         // Check fixed times
         if let Ok(fixed_start_col) = df.column("fixed_start_dt") {
             if let Ok(fixed_start_str) = fixed_start_col.str() {
@@ -96,7 +99,7 @@ pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsE
                 }
             }
         }
-        
+
         if let Ok(fixed_stop_col) = df.column("fixed_stop_dt") {
             if let Ok(fixed_stop_str) = fixed_stop_col.str() {
                 if let Some(_fixed_stop) = fixed_stop_str.get(i) {
@@ -105,7 +108,7 @@ pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsE
                 }
             }
         }
-        
+
         if !reasons.is_empty() {
             conflicts.push(SchedulingConflict {
                 scheduling_block_id: id,
@@ -116,7 +119,7 @@ pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsE
             });
         }
     }
-    
+
     Ok(conflicts)
 }
 
@@ -133,32 +136,32 @@ pub fn suggest_candidate_positions(
     row_index: usize,
 ) -> Result<Vec<CandidatePlacement>, PolarsError> {
     let candidates = Vec::new();
-    
+
     if row_index >= df.height() {
         return Ok(candidates);
     }
-    
+
     // Get visibility periods for this observation (simplified)
     // In reality, would parse the visibility_periods_parsed column
-    
+
     // Get requested duration
     let requested_hours = if let Ok(col) = df.column("requested_hours") {
         col.f64()?.get(row_index).unwrap_or(0.0)
     } else {
         return Ok(candidates);
     };
-    
+
     if requested_hours <= 0.0 {
         return Ok(candidates);
     }
-    
+
     // This is a simplified placeholder
     // Real implementation would:
     // 1. Parse visibility windows
     // 2. Check for overlaps with scheduled observations
     // 3. Generate candidate positions at start, middle, end of each window
     // 4. Validate constraints for each candidate
-    
+
     Ok(candidates)
 }
 
@@ -184,7 +187,8 @@ mod tests {
             "fixed_start_dt" => &[Some("2024-01-03")],
             "fixed_stop_dt" => &[Some("2024-01-04")],
             "requested_hours" => &[2.0],
-        ).unwrap();
+        )
+        .unwrap();
 
         let conflicts = find_conflicts(&df).unwrap();
         assert_eq!(conflicts.len(), 1);

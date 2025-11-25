@@ -20,4 +20,4 @@ pub mod loaders;
 #[cfg(test)]
 mod loaders_tests;
 
-pub use loaders::{ScheduleLoader, ScheduleLoadResult, ScheduleSourceType};
+pub use loaders::{ScheduleLoadResult, ScheduleLoader, ScheduleSourceType};

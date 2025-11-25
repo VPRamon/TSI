@@ -3,7 +3,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::core::domain::{SchedulingBlock, Period};
+use crate::core::domain::{Period, SchedulingBlock};
 use siderust::astro::ModifiedJulianDate;
 
 /// Raw structure for visibility period from JSON
@@ -17,7 +17,7 @@ struct RawVisibilityPeriod {
 
 #[derive(Debug, Deserialize)]
 struct TimeValue {
-    value: f64,  // MJD
+    value: f64, // MJD
 }
 
 /// Container for visibility JSON file
@@ -39,7 +39,7 @@ impl ScheduleEnricher {
             visibility_data: None,
         }
     }
-    
+
     /// Create an enricher with visibility data from a file
     pub fn with_visibility_file(path: &Path) -> Result<Self> {
         let visibility_data = Self::load_visibility_file(path)?;
@@ -47,7 +47,7 @@ impl ScheduleEnricher {
             visibility_data: Some(visibility_data),
         })
     }
-    
+
     /// Create an enricher with visibility data from a JSON string
     pub fn with_visibility_str(json_str: &str) -> Result<Self> {
         let visibility_data = Self::parse_visibility_json(json_str)?;
@@ -55,22 +55,22 @@ impl ScheduleEnricher {
             visibility_data: Some(visibility_data),
         })
     }
-    
+
     /// Load visibility data from a JSON file
     fn load_visibility_file(path: &Path) -> Result<HashMap<String, Vec<Period>>> {
         let json_content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read visibility file: {}", path.display()))?;
-        
+
         Self::parse_visibility_json(&json_content)
     }
-    
+
     /// Parse visibility JSON into a HashMap
     fn parse_visibility_json(json_str: &str) -> Result<HashMap<String, Vec<Period>>> {
-        let visibility_json: VisibilityJson = serde_json::from_str(json_str)
-            .context("Failed to parse visibility JSON")?;
-        
+        let visibility_json: VisibilityJson =
+            serde_json::from_str(json_str).context("Failed to parse visibility JSON")?;
+
         let mut result = HashMap::new();
-        
+
         for (sb_id, raw_periods) in visibility_json.scheduling_blocks {
             let periods: Vec<Period> = raw_periods
                 .into_iter()
@@ -80,13 +80,13 @@ impl ScheduleEnricher {
                     Period::new(start, stop)
                 })
                 .collect();
-            
+
             result.insert(sb_id, periods);
         }
-        
+
         Ok(result)
     }
-    
+
     /// Enrich a single scheduling block with visibility data
     pub fn enrich_block(&self, block: &mut SchedulingBlock) {
         if let Some(ref visibility_data) = self.visibility_data {
@@ -95,14 +95,14 @@ impl ScheduleEnricher {
             }
         }
     }
-    
+
     /// Enrich multiple scheduling blocks with visibility data
     pub fn enrich_blocks(&self, blocks: &mut [SchedulingBlock]) {
         for block in blocks.iter_mut() {
             self.enrich_block(block);
         }
     }
-    
+
     /// Get the number of blocks with visibility data
     pub fn visibility_block_count(&self) -> usize {
         self.visibility_data
@@ -147,22 +147,22 @@ mod tests {
 
         let enricher = ScheduleEnricher::with_visibility_str(json).unwrap();
         assert_eq!(enricher.visibility_block_count(), 2);
-        
+
         // Check that the data was parsed correctly
         if let Some(ref vis_data) = enricher.visibility_data {
             let periods_1 = vis_data.get("1000004990").unwrap();
             assert_eq!(periods_1.len(), 2);
-            
+
             let periods_2 = vis_data.get("1000004991").unwrap();
             assert_eq!(periods_2.len(), 1);
         }
     }
-    
+
     #[test]
     fn test_enrich_block() {
         use siderust::coordinates::spherical::direction::ICRS;
-        use siderust::units::{time::*, angular::Degrees};
-        
+        use siderust::units::{angular::Degrees, time::*};
+
         let json = r#"{
             "SchedulingBlock": {
                 "test-001": [
@@ -175,7 +175,7 @@ mod tests {
         }"#;
 
         let enricher = ScheduleEnricher::with_visibility_str(json).unwrap();
-        
+
         let mut block = SchedulingBlock {
             scheduling_block_id: "test-001".to_string(),
             priority: 10.0,
@@ -190,11 +190,11 @@ mod tests {
             scheduled_period: None,
             visibility_periods: vec![],
         };
-        
+
         assert_eq!(block.visibility_periods.len(), 0);
-        
+
         enricher.enrich_block(&mut block);
-        
+
         assert_eq!(block.visibility_periods.len(), 1);
         assert!(block.total_visibility_hours().value() > 0.0);
     }
