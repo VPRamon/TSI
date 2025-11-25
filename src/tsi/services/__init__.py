@@ -26,6 +26,13 @@ from tsi.services.loaders import (
     prepare_dataframe,
     validate_dataframe,
 )
+from tsi.services.sky_map_filters import (
+    build_palette,
+    filter_dataframe,
+    get_priority_range,
+    prepare_priority_bins,
+    to_utc_timestamp,
+)
 
 __all__ = [
     # loaders
@@ -48,4 +55,10 @@ __all__ = [
     "find_conflicts",
     "compute_distribution_stats",
     "generate_insights",
+    # sky_map_filters
+    "filter_dataframe",
+    "prepare_priority_bins",
+    "get_priority_range",
+    "build_palette",
+    "to_utc_timestamp",
 ]
