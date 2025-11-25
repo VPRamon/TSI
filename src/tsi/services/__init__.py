@@ -60,6 +60,7 @@ from tsi.services.trends_processing import (
     validate_required_columns,
     apply_trends_filters,
 )
+from tsi.services.compare_processing import calculate_observation_gaps
 
 __all__ = [
     # loaders
@@ -110,4 +111,6 @@ __all__ = [
     # trends_processing
     "validate_required_columns",
     "apply_trends_filters",
+    # compare_processing
+    "calculate_observation_gaps",
 ]

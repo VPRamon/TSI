@@ -24,24 +24,36 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
         # Visibility range
         vis_min = float(df["total_visibility_hours"].min())
         vis_max = float(df["total_visibility_hours"].max())
-        vis_range = st.slider(
-            "Visibility range (hours)",
-            min_value=vis_min,
-            max_value=vis_max,
-            value=(vis_min, vis_max),
-            key="vis_range",
-        )
+        
+        # Handle edge case where min == max
+        if vis_min == vis_max:
+            st.info(f"All observations have visibility = {vis_min:.1f} hours")
+            vis_range = (vis_min, vis_max)
+        else:
+            vis_range = st.slider(
+                "Visibility range (hours)",
+                min_value=vis_min,
+                max_value=vis_max,
+                value=(vis_min, vis_max),
+                key="vis_range",
+            )
         
         # Requested time range
         time_min = float(df["requested_hours"].min())
         time_max = float(df["requested_hours"].max())
-        time_range = st.slider(
-            "Requested time range (hours)",
-            min_value=time_min,
-            max_value=time_max,
-            value=(time_min, time_max),
-            key="time_range",
-        )
+        
+        # Handle edge case where min == max
+        if time_min == time_max:
+            st.info(f"All observations have requested time = {time_min:.1f} hours")
+            time_range = (time_min, time_max)
+        else:
+            time_range = st.slider(
+                "Requested time range (hours)",
+                min_value=time_min,
+                max_value=time_max,
+                value=(time_min, time_max),
+                key="time_range",
+            )
         
         # Priority level selector
         priority_levels = sorted(df["priority"].dropna().unique())
@@ -105,13 +117,17 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
         )
         
         # Fixed time for prediction
-        fixed_time = st.slider(
-            "Fixed requested time (for prediction)",
-            min_value=time_min,
-            max_value=time_max,
-            value=(time_min + time_max) / 2,
-            key="fixed_time",
-        )
+        if time_min == time_max:
+            fixed_time = time_min
+            st.info(f"Fixed requested time: {fixed_time:.1f} hours")
+        else:
+            fixed_time = st.slider(
+                "Fixed requested time (for prediction)",
+                min_value=time_min,
+                max_value=time_max,
+                value=(time_min + time_max) / 2,
+                key="fixed_time",
+            )
     
     return {
         "vis_range": vis_range,

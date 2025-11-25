@@ -31,6 +31,12 @@ from tsi.components.trends_model import (
     render_prediction_plot,
     render_model_information,
 )
+from tsi.components.compare_upload import render_file_upload
+from tsi.components.compare_validation import (
+    validate_and_display_discrepancies,
+    compute_scheduling_changes,
+)
+from tsi.components.compare_tables import render_comparison_tables
 
 __all__ = [
     # Sky Map components
@@ -69,4 +75,9 @@ __all__ = [
     "render_model_metrics",
     "render_prediction_plot",
     "render_model_information",
+    # Compare components
+    "render_file_upload",
+    "validate_and_display_discrepancies",
+    "compute_scheduling_changes",
+    "render_comparison_tables",
 ]

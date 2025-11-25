@@ -81,14 +81,13 @@ def render() -> None:
                 )
 
             if st.button("Load JSON File", type="primary", width="stretch"):
-                visibility_file = st.session_state.get("uploaded_visibility_file", None)
+                # Pass the uploaded visibility file if it exists
+                visibility_file = uploaded_visibility if uploaded_visibility is not None else None
                 _load_data(
                     uploaded_json,
                     source="uploaded_json",
                     file_type="json",
-                    visibility_file=(
-                        uploaded_visibility if "uploaded_visibility" in locals() else None
-                    ),
+                    visibility_file=visibility_file,
                     filename=uploaded_json.name,
                 )
 
@@ -172,11 +171,26 @@ def _load_data(
     try:
         with st.spinner("Loading and processing data..."):
             if file_type == "json":
-                from tsi.services.rust_compat import load_schedule_rust
-
-                # Process JSON directly to DataFrame
-                # Handle both file buffers (from st.file_uploader) and path strings
-                raw_df = load_schedule_rust(file_or_path, format="json")
+                # Use the core loader which supports visibility data merging
+                from core.loaders import load_schedule_from_json
+                
+                # Load with visibility data if provided
+                result = load_schedule_from_json(
+                    schedule_json=file_or_path,
+                    visibility_json=visibility_file,
+                    validate=True
+                )
+                
+                raw_df = result.dataframe
+                
+                # Show validation warnings if any
+                if result.validation.warnings:
+                    st.warning(f"⚠️ {len(result.validation.warnings)} data warnings found")
+                    with st.expander("View warnings", expanded=False):
+                        for warning in result.validation.warnings[:10]:
+                            st.warning(f"  - {warning}")
+                        if len(result.validation.warnings) > 10:
+                            st.info(f"... and {len(result.validation.warnings) - 10} more")
 
                 # Convert visibility lists to strings for Streamlit caching compatibility
                 # Streamlit's cache_data uses pandas hashing which doesn't support list columns
@@ -187,12 +201,13 @@ def _load_data(
                 # Load raw CSV (uses Rust backend - 10x faster)
                 raw_df = load_csv(file_or_path)
 
-            # Validate
-            is_valid, issues = validate_dataframe(raw_df)
-            if not is_valid:
-                st.warning("⚠️ Data validation warnings:")
-                for issue in issues:
-                    st.warning(f"  - {issue}")
+            # For CSV files, perform additional validation
+            if file_type == "csv":
+                is_valid, issues = validate_dataframe(raw_df)
+                if not is_valid and issues:
+                    st.warning("⚠️ Additional data validation warnings:")
+                    for issue in issues:
+                        st.warning(f"  - {issue}")
 
             # Prepare and enrich
             prepared_df = prepare_dataframe(raw_df)
