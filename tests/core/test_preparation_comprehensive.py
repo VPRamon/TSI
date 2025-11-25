@@ -91,12 +91,20 @@ class TestPrepareDataframe:
             }
         )
         result = prepare_dataframe(df)
-        assert result.dataframe["priority"].dtype in [float, "float64"]
-        assert result.dataframe["requestedDurationSec"].dtype in [float, "float64"]
+        assert pd.api.types.is_numeric_dtype(result.dataframe["priority"])
+        assert pd.api.types.is_numeric_dtype(result.dataframe["requestedDurationSec"])
 
     def test_with_invalid_numeric_values__coerces_to_nan(self) -> None:
         """Convert invalid numeric values to NaN."""
-        df = pd.DataFrame({"priority": ["invalid", "5.0", "6.0"]})
+        df = pd.DataFrame(
+            {
+                "priority": ["invalid", "5.0", "6.0"],
+                "fixedStartTime": [None, None, None],
+                "fixedStopTime": [None, None, None],
+                "scheduled_period.start": [None, None, None],
+                "scheduled_period.stop": [None, None, None],
+            }
+        )
         result = prepare_dataframe(df)
         assert pd.isna(result.dataframe["priority"].iloc[0])
         assert result.dataframe["priority"].iloc[1] == 5.0
