@@ -49,25 +49,19 @@ const STOP_KEYS: &[&str] = &[
 /// Enumerate all months (YYYY-MM format) touched by a period
 fn enumerate_months(period: &Period) -> Vec<String> {
     let mut months = Vec::new();
-    
+
     let start_dt = period.start.to_utc().expect("Valid start date");
     let stop_dt = period.stop.to_utc().expect("Valid stop date");
-    
-    let mut current = NaiveDate::from_ymd_opt(
-        start_dt.year(),
-        start_dt.month(),
-        1
-    ).expect("Valid date");
-    
-    let end_month = NaiveDate::from_ymd_opt(
-        stop_dt.year(),
-        stop_dt.month(),
-        1
-    ).expect("Valid date");
-    
+
+    let mut current =
+        NaiveDate::from_ymd_opt(start_dt.year(), start_dt.month(), 1).expect("Valid date");
+
+    let end_month =
+        NaiveDate::from_ymd_opt(stop_dt.year(), stop_dt.month(), 1).expect("Valid date");
+
     while current <= end_month {
         months.push(format!("{:04}-{:02}", current.year(), current.month()));
-        
+
         // Advance one month
         current = if current.month() == 12 {
             NaiveDate::from_ymd_opt(current.year() + 1, 1, 1).expect("Valid date")
@@ -75,7 +69,7 @@ fn enumerate_months(period: &Period) -> Vec<String> {
             NaiveDate::from_ymd_opt(current.year(), current.month() + 1, 1).expect("Valid date")
         };
     }
-    
+
     months
 }
 
@@ -83,25 +77,25 @@ fn enumerate_months(period: &Period) -> Vec<String> {
 pub fn parse_dark_periods_file(path: &Path) -> Result<Vec<Period>> {
     let json_content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read dark periods file: {}", path.display()))?;
-    
+
     parse_dark_periods_str(&json_content)
 }
 
 /// Parse dark periods from JSON string
 pub fn parse_dark_periods_str(json_str: &str) -> Result<Vec<Period>> {
-    let value: Value = serde_json::from_str(json_str)
-        .context("Failed to parse dark periods JSON")?;
-    
+    let value: Value =
+        serde_json::from_str(json_str).context("Failed to parse dark periods JSON")?;
+
     extract_periods(&value)
 }
 
 /// Extract periods from a JSON value
 fn extract_periods(payload: &Value) -> Result<Vec<Period>> {
-    let raw_periods = find_periods_array(payload)
-        .context("Could not find dark periods array in JSON")?;
-    
+    let raw_periods =
+        find_periods_array(payload).context("Could not find dark periods array in JSON")?;
+
     let mut periods = Vec::new();
-    
+
     for period_value in raw_periods {
         if let Some(period) = parse_period(period_value) {
             // Validate: stop must be after start
@@ -110,7 +104,7 @@ fn extract_periods(payload: &Value) -> Result<Vec<Period>> {
             }
         }
     }
-    
+
     Ok(periods)
 }
 
@@ -126,7 +120,7 @@ fn find_periods_array(payload: &Value) -> Option<&Vec<Value>> {
                 }
             }
         }
-        
+
         // Fallback: find the first array value in the object
         for value in obj.values() {
             if let Some(arr) = value.as_array() {
@@ -134,12 +128,12 @@ fn find_periods_array(payload: &Value) -> Option<&Vec<Value>> {
             }
         }
     }
-    
+
     // If payload is already an array
     if let Some(arr) = payload.as_array() {
         return Some(arr);
     }
-    
+
     None
 }
 
@@ -149,10 +143,10 @@ fn parse_period(period: &Value) -> Option<Period> {
         // Object format: {"start": ..., "stop": ...}
         let start_value = find_value_by_keys(obj, START_KEYS)?;
         let stop_value = find_value_by_keys(obj, STOP_KEYS)?;
-        
+
         let start = parse_time_value(start_value)?;
         let stop = parse_time_value(stop_value)?;
-        
+
         (start, stop)
     } else if let Some(arr) = period.as_array() {
         // Array format: [start, stop]
@@ -166,20 +160,23 @@ fn parse_period(period: &Value) -> Option<Period> {
     } else {
         return None;
     };
-    
+
     // Convert MJD values to ModifiedJulianDate
     let start_epoch = ModifiedJulianDate::new(start_mjd);
     let stop_epoch = ModifiedJulianDate::new(stop_mjd);
-    
+
     // Validate that we can convert to UTC (basic validation)
     start_epoch.to_utc()?;
     stop_epoch.to_utc()?;
-    
+
     Some(Period::new(start_epoch, stop_epoch))
 }
 
 /// Find a value in an object by trying multiple keys
-fn find_value_by_keys<'a>(obj: &'a serde_json::Map<String, Value>, keys: &[&str]) -> Option<&'a Value> {
+fn find_value_by_keys<'a>(
+    obj: &'a serde_json::Map<String, Value>,
+    keys: &[&str],
+) -> Option<&'a Value> {
     for key in keys {
         if let Some(value) = obj.get(*key) {
             return Some(value);
@@ -201,42 +198,40 @@ fn parse_time_value(value: &Value) -> Option<f64> {
         }
         return None;
     }
-    
+
     // Handle numeric values (MJD as float or int)
     if let Some(num) = value.as_f64() {
         return Some(num);
     }
-    
+
     // Handle string values
     if let Some(s) = value.as_str() {
         let trimmed = s.trim();
         if trimmed.is_empty() {
             return None;
         }
-        
+
         // Try parsing as MJD float
         if let Ok(mjd) = trimmed.parse::<f64>() {
             return Some(mjd);
         }
-        
+
         // Try parsing as ISO timestamp
         if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(trimmed) {
             let utc_dt = dt.with_timezone(&chrono::Utc);
             let epoch = ModifiedJulianDate::from_utc(utc_dt);
             return Some(epoch.value());
         }
-        
+
         // Try pandas-compatible ISO format without timezone
         if let Ok(naive_dt) = chrono::NaiveDateTime::parse_from_str(trimmed, "%Y-%m-%d %H:%M:%S") {
-            let utc_dt = chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(
-                naive_dt,
-                chrono::Utc,
-            );
+            let utc_dt =
+                chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive_dt, chrono::Utc);
             let epoch = ModifiedJulianDate::from_utc(utc_dt);
             return Some(epoch.value());
         }
     }
-    
+
     None
 }
 
@@ -250,16 +245,16 @@ pub fn periods_to_dataframe(periods: Vec<Period>) -> Result<DataFrame> {
         let stop_mjds: Vec<f64> = vec![];
         let duration_hours: Vec<f64> = vec![];
         let months_list: Vec<Series> = vec![];
-        
+
         // Create datetime series with UTC timezone
         let start_dt_series = Int64Chunked::from_vec("start_dt".into(), start_dts)
             .into_datetime(TimeUnit::Microseconds, Some(TimeZone::UTC))
             .into_series();
-        
+
         let stop_dt_series = Int64Chunked::from_vec("stop_dt".into(), stop_dts)
             .into_datetime(TimeUnit::Microseconds, Some(TimeZone::UTC))
             .into_series();
-        
+
         let df = df! {
             "start_dt" => start_dt_series,
             "stop_dt" => stop_dt_series,
@@ -268,12 +263,12 @@ pub fn periods_to_dataframe(periods: Vec<Period>) -> Result<DataFrame> {
             "duration_hours" => duration_hours,
             "months" => months_list,
         }?;
-        
+
         return Ok(df);
     }
-    
+
     let n = periods.len();
-    
+
     // Collect data
     let mut start_dts = Vec::with_capacity(n);
     let mut stop_dts = Vec::with_capacity(n);
@@ -281,32 +276,32 @@ pub fn periods_to_dataframe(periods: Vec<Period>) -> Result<DataFrame> {
     let mut stop_mjds = Vec::with_capacity(n);
     let mut duration_hours = Vec::with_capacity(n);
     let mut months_list = Vec::with_capacity(n);
-    
+
     for period in periods {
         let start_dt = period.start.to_utc().expect("Valid start datetime");
         let stop_dt = period.stop.to_utc().expect("Valid stop datetime");
-        
+
         // Convert to microseconds since epoch for Polars datetime
         start_dts.push(start_dt.timestamp_micros());
         stop_dts.push(stop_dt.timestamp_micros());
         start_mjds.push(period.start.value());
         stop_mjds.push(period.stop.value());
         duration_hours.push(period.duration_hours());
-        
+
         // Convert months vec to Series for list column
         let months = enumerate_months(&period);
         months_list.push(Series::from_iter(months));
     }
-    
+
     // Create datetime series with UTC timezone
     let start_dt_series = Int64Chunked::from_vec("start_dt".into(), start_dts)
         .into_datetime(TimeUnit::Microseconds, Some(TimeZone::UTC))
         .into_series();
-    
+
     let stop_dt_series = Int64Chunked::from_vec("stop_dt".into(), stop_dts)
         .into_datetime(TimeUnit::Microseconds, Some(TimeZone::UTC))
         .into_series();
-    
+
     let df = df! {
         "start_dt" => start_dt_series,
         "stop_dt" => stop_dt_series,
@@ -315,7 +310,7 @@ pub fn periods_to_dataframe(periods: Vec<Period>) -> Result<DataFrame> {
         "duration_hours" => duration_hours,
         "months" => months_list,
     }?;
-    
+
     Ok(df)
 }
 
@@ -386,7 +381,7 @@ mod tests {
 
         let periods = parse_dark_periods_str(json).unwrap();
         let months = enumerate_months(&periods[0]);
-        
+
         // MJD 61771.0 = 2028-01-01, MJD 61802.0 = 2028-02-01
         // Should cover January through February 2028
         assert!(months.contains(&"2028-01".to_string()));

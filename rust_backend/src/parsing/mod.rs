@@ -20,16 +20,16 @@
 //!     .expect(\"Failed to parse schedule\");
 //! ```
 
-pub mod visibility;
-pub mod json_parser;
 pub mod csv_parser;
 pub mod dark_periods_parser;
+pub mod json_parser;
+pub mod visibility;
 
-#[cfg(test)]
-mod json_parser_tests;
 #[cfg(test)]
 mod csv_parser_tests;
 #[cfg(test)]
 mod dark_periods_parser_tests;
+#[cfg(test)]
+mod json_parser_tests;
 
 pub use visibility::VisibilityParser;

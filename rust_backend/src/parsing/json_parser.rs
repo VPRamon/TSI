@@ -50,14 +50,14 @@ where
     D: Deserializer<'de>,
 {
     use serde::de::Error;
-    
+
     #[derive(Deserialize)]
     #[serde(untagged)]
     enum StringOrInt {
         String(String),
         Int(i64),
     }
-    
+
     match StringOrInt::deserialize(deserializer)? {
         StringOrInt::String(s) => s.parse::<i64>().map_err(D::Error::custom),
         StringOrInt::Int(i) => Ok(i),
@@ -67,7 +67,7 @@ where
 /// Raw JSON structure for time values
 #[derive(Debug, Deserialize)]
 struct TimeValue {
-    value: f64,  // MJD value
+    value: f64, // MJD value
 }
 
 /// Raw JSON structure for a scheduled period
@@ -137,9 +137,9 @@ struct TimeConstraint {
     #[serde(rename = "requestedDurationSec")]
     requested_duration_sec: f64,
     #[serde(rename = "fixedStartTime")]
-    fixed_start_time: Vec<TimeValue>,  // Array of TimeValue objects (can be empty)
+    fixed_start_time: Vec<TimeValue>, // Array of TimeValue objects (can be empty)
     #[serde(rename = "fixedStopTime")]
-    fixed_stop_time: Vec<TimeValue>,   // Array of TimeValue objects (can be empty)
+    fixed_stop_time: Vec<TimeValue>, // Array of TimeValue objects (can be empty)
 }
 
 /// Raw JSON structure for constraints
@@ -163,7 +163,10 @@ struct SchedulingBlockConfiguration {
 /// Raw JSON structure as it comes from schedule.json
 #[derive(Debug, Deserialize)]
 struct RawSchedulingBlock {
-    #[serde(rename = "schedulingBlockId", deserialize_with = "deserialize_scheduling_block_id")]
+    #[serde(
+        rename = "schedulingBlockId",
+        deserialize_with = "deserialize_scheduling_block_id"
+    )]
     scheduling_block_id: i64,
     priority: f64,
     #[serde(rename = "scheduled_period")]
@@ -216,7 +219,7 @@ struct ScheduleJson {
 pub fn parse_schedule_json(json_path: &Path) -> Result<Vec<SchedulingBlock>> {
     let json_content = std::fs::read_to_string(json_path)
         .with_context(|| format!("Failed to read JSON file: {}", json_path.display()))?;
-    
+
     parse_schedule_json_str(&json_content)
 }
 
@@ -295,49 +298,54 @@ pub fn parse_schedule_json(json_path: &Path) -> Result<Vec<SchedulingBlock>> {
 /// ```
 pub fn parse_schedule_json_str(json_str: &str) -> Result<Vec<SchedulingBlock>> {
     // First validate that it's valid JSON
-    let json_value: serde_json::Value = serde_json::from_str(json_str)
-        .with_context(|| {
-            let preview = if json_str.len() > 500 {
-                format!("{}...", &json_str[..500])
-            } else {
-                json_str.to_string()
-            };
-            format!("Invalid JSON syntax. First 500 chars: {}", preview)
-        })?;
-    
+    let json_value: serde_json::Value = serde_json::from_str(json_str).with_context(|| {
+        let preview = if json_str.len() > 500 {
+            format!("{}...", &json_str[..500])
+        } else {
+            json_str.to_string()
+        };
+        format!("Invalid JSON syntax. First 500 chars: {}", preview)
+    })?;
+
     // Check if SchedulingBlock key exists
-    if !json_value.is_object() || !json_value.as_object().unwrap().contains_key("SchedulingBlock") {
+    if !json_value.is_object()
+        || !json_value
+            .as_object()
+            .unwrap()
+            .contains_key("SchedulingBlock")
+    {
         anyhow::bail!(
             "JSON must contain a 'SchedulingBlock' key. Found keys: {:?}",
             json_value.as_object().map(|o| o.keys().collect::<Vec<_>>())
         );
     }
-    
+
     // Now try to deserialize with detailed error handling
-    let schedule_json: ScheduleJson = serde_json::from_value(json_value.clone())
-        .map_err(|e| {
-            // Provide detailed error information
-            let error_msg = format!("JSON deserialization error: {}", e);
-            
-            // Try to identify which block is causing the issue
-            if let Some(blocks) = json_value.get("SchedulingBlock").and_then(|v| v.as_array()) {
-                // Try to deserialize blocks one by one to find the problematic one
-                for (idx, block) in blocks.iter().enumerate() {
-                    if let Err(block_err) = serde_json::from_value::<RawSchedulingBlock>(block.clone()) {
-                        return anyhow::anyhow!(
-                            "{}\nError in SchedulingBlock at index {}: {}\nBlock data: {}",
-                            error_msg,
-                            idx,
-                            block_err,
-                            serde_json::to_string_pretty(block).unwrap_or_else(|_| "cannot display".to_string())
-                        );
-                    }
+    let schedule_json: ScheduleJson = serde_json::from_value(json_value.clone()).map_err(|e| {
+        // Provide detailed error information
+        let error_msg = format!("JSON deserialization error: {}", e);
+
+        // Try to identify which block is causing the issue
+        if let Some(blocks) = json_value.get("SchedulingBlock").and_then(|v| v.as_array()) {
+            // Try to deserialize blocks one by one to find the problematic one
+            for (idx, block) in blocks.iter().enumerate() {
+                if let Err(block_err) = serde_json::from_value::<RawSchedulingBlock>(block.clone())
+                {
+                    return anyhow::anyhow!(
+                        "{}\nError in SchedulingBlock at index {}: {}\nBlock data: {}",
+                        error_msg,
+                        idx,
+                        block_err,
+                        serde_json::to_string_pretty(block)
+                            .unwrap_or_else(|_| "cannot display".to_string())
+                    );
                 }
             }
-            
-            anyhow::anyhow!("{}", error_msg)
-        })?;
-    
+        }
+
+        anyhow::anyhow!("{}", error_msg)
+    })?;
+
     Ok(schedule_json
         .scheduling_blocks
         .into_iter()
@@ -354,19 +362,16 @@ fn convert_raw_to_domain(raw: RawSchedulingBlock, _idx: usize) -> SchedulingBloc
     use crate::core::domain::Period;
     use siderust::astro::ModifiedJulianDate;
     use siderust::coordinates::spherical::direction::ICRS;
-    use siderust::units::{
-        time::*,
-        angular::Degrees,
-    };
+    use siderust::units::{angular::Degrees, time::*};
 
     let (scheduled_start, scheduled_stop) = raw
         .scheduled_period
         .map(|p| (Some(p.start_time.value), Some(p.stop_time.value)))
         .unwrap_or((None, None));
-    
+
     let constraints = &raw.scheduling_block_configuration.constraints;
     let time_constraint = &constraints.time_constraint;
-    
+
     // Get fixed times if they exist - extract the .value from TimeValue
     let fixed_start_time = time_constraint.fixed_start_time.first().map(|tv| tv.value);
     let fixed_stop_time = time_constraint.fixed_stop_time.first().map(|tv| tv.value);
@@ -375,7 +380,9 @@ fn convert_raw_to_domain(raw: RawSchedulingBlock, _idx: usize) -> SchedulingBloc
         scheduling_block_id: raw.scheduling_block_id.to_string(),
         priority: raw.priority,
         requested_duration: Seconds::new(time_constraint.requested_duration_sec),
-        min_observation_time: Seconds::new(time_constraint.min_observation_time_in_sec.unwrap_or(0.0)),
+        min_observation_time: Seconds::new(
+            time_constraint.min_observation_time_in_sec.unwrap_or(0.0),
+        ),
         fixed_time: match (fixed_start_time, fixed_stop_time) {
             (Some(start), Some(stop)) => Some(Period::new(
                 ModifiedJulianDate::new(start),
@@ -387,10 +394,18 @@ fn convert_raw_to_domain(raw: RawSchedulingBlock, _idx: usize) -> SchedulingBloc
             Degrees::new(raw.target.position.coord.celestial.ra_in_deg),
             Degrees::new(raw.target.position.coord.celestial.dec_in_deg),
         )),
-        min_azimuth_angle: Some(Degrees::new(constraints.azimuth_constraint.min_azimuth_angle_in_deg)),
-        max_azimuth_angle: Some(Degrees::new(constraints.azimuth_constraint.max_azimuth_angle_in_deg)),
-        min_elevation_angle: Some(Degrees::new(constraints.elevation_constraint.min_elevation_angle_in_deg)),
-        max_elevation_angle: Some(Degrees::new(constraints.elevation_constraint.max_elevation_angle_in_deg)),
+        min_azimuth_angle: Some(Degrees::new(
+            constraints.azimuth_constraint.min_azimuth_angle_in_deg,
+        )),
+        max_azimuth_angle: Some(Degrees::new(
+            constraints.azimuth_constraint.max_azimuth_angle_in_deg,
+        )),
+        min_elevation_angle: Some(Degrees::new(
+            constraints.elevation_constraint.min_elevation_angle_in_deg,
+        )),
+        max_elevation_angle: Some(Degrees::new(
+            constraints.elevation_constraint.max_elevation_angle_in_deg,
+        )),
         scheduled_period: match (scheduled_start, scheduled_stop) {
             (Some(start), Some(stop)) => Some(Period::new(
                 ModifiedJulianDate::new(start),

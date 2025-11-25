@@ -27,7 +27,7 @@ impl PyValidationResult {
             self.warnings.len()
         )
     }
-    
+
     /// Get statistics as a Python dict
     fn get_stats(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
@@ -63,20 +63,18 @@ pub fn py_preprocess_schedule(
 ) -> PyResult<(PyDataFrame, PyValidationResult)> {
     let schedule_path_buf = PathBuf::from(schedule_path);
     let visibility_path_buf = visibility_path.map(PathBuf::from);
-    
-    let result = preprocess_schedule(
-        &schedule_path_buf,
-        visibility_path_buf.as_deref(),
-        validate,
-    )
-    .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Preprocessing failed: {}", e)))?;
-    
+
+    let result = preprocess_schedule(&schedule_path_buf, visibility_path_buf.as_deref(), validate)
+        .map_err(|e| {
+            pyo3::exceptions::PyRuntimeError::new_err(format!("Preprocessing failed: {}", e))
+        })?;
+
     let py_validation = PyValidationResult {
         is_valid: result.validation.is_valid,
         errors: result.validation.errors,
         warnings: result.validation.warnings,
     };
-    
+
     Ok((PyDataFrame(result.dataframe), py_validation))
 }
 
@@ -100,18 +98,20 @@ pub fn py_preprocess_schedule_str(
         validate,
         enrich_visibility: visibility_json.is_some(),
     };
-    
+
     let pipeline = PreprocessPipeline::with_config(config);
     let result = pipeline
         .process_json_str(schedule_json, visibility_json)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Preprocessing failed: {}", e)))?;
-    
+        .map_err(|e| {
+            pyo3::exceptions::PyRuntimeError::new_err(format!("Preprocessing failed: {}", e))
+        })?;
+
     let py_validation = PyValidationResult {
         is_valid: result.validation.is_valid,
         errors: result.validation.errors,
         warnings: result.validation.warnings,
     };
-    
+
     Ok((PyDataFrame(result.dataframe), py_validation))
 }
 
@@ -125,9 +125,9 @@ pub fn py_preprocess_schedule_str(
 #[pyfunction]
 pub fn py_validate_schedule(df: PyDataFrame) -> PyResult<PyValidationResult> {
     use crate::preprocessing::ScheduleValidator;
-    
+
     let validation = ScheduleValidator::validate_dataframe(&df.0);
-    
+
     Ok(PyValidationResult {
         is_valid: validation.is_valid,
         errors: validation.errors,

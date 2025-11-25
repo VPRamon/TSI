@@ -2,10 +2,7 @@ use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use pyo3_polars::PyDataFrame;
 
-use crate::algorithms::{
-    analysis, conflicts, optimization, AnalyticsSnapshot,
-    SchedulingConflict,
-};
+use crate::algorithms::{analysis, conflicts, optimization, AnalyticsSnapshot, SchedulingConflict};
 
 /// Python wrapper for AnalyticsSnapshot
 #[pyclass]
@@ -43,7 +40,7 @@ impl PyAnalyticsSnapshot {
             self.scheduling_rate * 100.0
         )
     }
-    
+
     fn to_dict(&self, py: Python) -> PyResult<Py<PyAny>> {
         let dict = PyDict::new(py);
         dict.set_item("total_observations", self.total_observations)?;
@@ -90,9 +87,10 @@ impl From<AnalyticsSnapshot> for PyAnalyticsSnapshot {
 ///     >>> print(f"Scheduling rate: {metrics.scheduling_rate:.1%}")
 #[pyfunction]
 pub fn py_compute_metrics(df: PyDataFrame) -> PyResult<PyAnalyticsSnapshot> {
-    let snapshot = analysis::compute_metrics(&df.0)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to compute metrics: {}", e)))?;
-    
+    let snapshot = analysis::compute_metrics(&df.0).map_err(|e| {
+        pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to compute metrics: {}", e))
+    })?;
+
     Ok(snapshot.into())
 }
 
@@ -110,9 +108,10 @@ pub fn py_compute_metrics(df: PyDataFrame) -> PyResult<PyAnalyticsSnapshot> {
 ///     >>> print(corr.to_pandas())
 #[pyfunction]
 pub fn py_compute_correlations(df: PyDataFrame, columns: Vec<String>) -> PyResult<PyDataFrame> {
-    let corr_df = analysis::compute_correlations(&df.0, &columns)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to compute correlations: {}", e)))?;
-    
+    let corr_df = analysis::compute_correlations(&df.0, &columns).map_err(|e| {
+        pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to compute correlations: {}", e))
+    })?;
+
     Ok(PyDataFrame(corr_df))
 }
 
@@ -132,9 +131,10 @@ pub fn py_compute_correlations(df: PyDataFrame, columns: Vec<String>) -> PyResul
 #[pyfunction]
 #[pyo3(signature = (df, by, n=10))]
 pub fn py_get_top_observations(df: PyDataFrame, by: &str, n: usize) -> PyResult<PyDataFrame> {
-    let top_df = analysis::get_top_observations(&df.0, by, n)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to get top observations: {}", e)))?;
-    
+    let top_df = analysis::get_top_observations(&df.0, by, n).map_err(|e| {
+        pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to get top observations: {}", e))
+    })?;
+
     Ok(PyDataFrame(top_df))
 }
 
@@ -190,9 +190,10 @@ impl From<SchedulingConflict> for PySchedulingConflict {
 ///     ...     print(f"{c.scheduling_block_id}: {c.conflict_reasons}")
 #[pyfunction]
 pub fn py_find_conflicts(df: PyDataFrame) -> PyResult<Vec<PySchedulingConflict>> {
-    let conflicts_vec = conflicts::find_conflicts(&df.0)
-        .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to find conflicts: {}", e)))?;
-    
+    let conflicts_vec = conflicts::find_conflicts(&df.0).map_err(|e| {
+        pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to find conflicts: {}", e))
+    })?;
+
     Ok(conflicts_vec.into_iter().map(|c| c.into()).collect())
 }
 
@@ -250,20 +251,20 @@ impl From<optimization::OptimizationResult> for PyOptimizationResult {
 ///     >>> print(f"Total priority: {result.objective_value}")
 #[pyfunction]
 #[pyo3(signature = (priorities, max_iterations=1000))]
-pub fn py_greedy_schedule(priorities: Vec<f64>, max_iterations: usize) -> PyResult<PyOptimizationResult> {
+pub fn py_greedy_schedule(
+    priorities: Vec<f64>,
+    max_iterations: usize,
+) -> PyResult<PyOptimizationResult> {
     // Convert priorities to Observation objects
     let observations: Vec<optimization::Observation> = priorities
         .into_iter()
         .enumerate()
-        .map(|(i, priority)| optimization::Observation {
-            index: i,
-            priority,
-        })
+        .map(|(i, priority)| optimization::Observation { index: i, priority })
         .collect();
-    
+
     // Run optimization with no constraints (baseline)
     let constraints: Vec<Box<dyn optimization::Constraint>> = vec![];
     let result = optimization::greedy_schedule(&observations, &constraints, max_iterations);
-    
+
     Ok(result.into())
 }

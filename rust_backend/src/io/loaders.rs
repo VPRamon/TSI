@@ -4,8 +4,8 @@ use std::path::Path;
 
 use crate::core::domain::SchedulingBlock;
 use crate::parsing::csv_parser;
-use crate::parsing::json_parser;
 use crate::parsing::dark_periods_parser;
+use crate::parsing::json_parser;
 
 /// Represents the source type of schedule data
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,49 +43,48 @@ impl ScheduleLoader {
             .extension()
             .and_then(|ext| ext.to_str())
             .context("File has no extension")?;
-        
+
         match extension.to_lowercase().as_str() {
             "json" => Self::load_from_json(path),
             "csv" => Self::load_from_csv(path),
             _ => anyhow::bail!("Unsupported file format: {}", extension),
         }
     }
-    
+
     /// Load schedule data from a JSON file
     pub fn load_from_json(json_path: &Path) -> Result<ScheduleLoadResult> {
-        let blocks = json_parser::parse_schedule_json(json_path)
-            .context("Failed to parse JSON file")?;
-        
+        let blocks =
+            json_parser::parse_schedule_json(json_path).context("Failed to parse JSON file")?;
+
         let df = csv_parser::blocks_to_dataframe(&blocks)
             .context("Failed to convert blocks to DataFrame")?;
-        
+
         Ok(ScheduleLoadResult::new(df, ScheduleSourceType::Json))
     }
-    
+
     /// Load schedule data from a JSON string
     pub fn load_from_json_str(json_str: &str) -> Result<ScheduleLoadResult> {
         let blocks = json_parser::parse_schedule_json_str(json_str)
             .context("Failed to parse JSON string")?;
-        
+
         let df = csv_parser::blocks_to_dataframe(&blocks)
             .context("Failed to convert blocks to DataFrame")?;
-        
+
         Ok(ScheduleLoadResult::new(df, ScheduleSourceType::Json))
     }
-    
+
     /// Load schedule data from a CSV file
     pub fn load_from_csv(csv_path: &Path) -> Result<ScheduleLoadResult> {
-        let df = csv_parser::parse_schedule_csv(csv_path)
-            .context("Failed to parse CSV file")?;
-        
+        let df = csv_parser::parse_schedule_csv(csv_path).context("Failed to parse CSV file")?;
+
         Ok(ScheduleLoadResult::new(df, ScheduleSourceType::Csv))
     }
-    
+
     /// Load schedule data from CSV and convert to SchedulingBlock structures
     pub fn load_blocks_from_csv(csv_path: &Path) -> Result<Vec<SchedulingBlock>> {
         csv_parser::parse_schedule_csv_to_blocks(csv_path)
     }
-    
+
     /// Load schedule data from JSON and get SchedulingBlock structures
     pub fn load_blocks_from_json(json_path: &Path) -> Result<Vec<SchedulingBlock>> {
         json_parser::parse_schedule_json(json_path)
@@ -100,16 +99,16 @@ impl DarkPeriodsLoader {
     pub fn load_from_file(path: &Path) -> Result<DataFrame> {
         let periods = dark_periods_parser::parse_dark_periods_file(path)
             .context("Failed to parse dark periods file")?;
-        
+
         dark_periods_parser::periods_to_dataframe(periods)
             .context("Failed to convert dark periods to DataFrame")
     }
-    
+
     /// Load dark periods from a JSON string and return a Polars DataFrame
     pub fn load_from_str(json_str: &str) -> Result<DataFrame> {
         let periods = dark_periods_parser::parse_dark_periods_str(json_str)
             .context("Failed to parse dark periods string")?;
-        
+
         dark_periods_parser::periods_to_dataframe(periods)
             .context("Failed to convert dark periods to DataFrame")
     }
@@ -180,7 +179,7 @@ mod tests {
         assert_eq!(result.source_type, ScheduleSourceType::Json);
         assert_eq!(result.num_blocks, 1);
         assert_eq!(result.dataframe.height(), 1);
-        
+
         // Verify some columns exist
         let col_names = result.dataframe.get_column_names();
         assert!(col_names.iter().any(|s| s.as_str() == "schedulingBlockId"));

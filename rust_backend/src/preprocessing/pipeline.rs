@@ -42,12 +42,12 @@ impl PreprocessPipeline {
             config: PreprocessConfig::default(),
         }
     }
-    
+
     /// Create a pipeline with custom configuration
     pub fn with_config(config: PreprocessConfig) -> Self {
         Self { config }
     }
-    
+
     /// Process a schedule file (JSON or CSV) into a validated DataFrame
     ///
     /// # Arguments
@@ -63,29 +63,29 @@ impl PreprocessPipeline {
     ) -> Result<PreprocessResult> {
         // Step 1: Load schedule data
         let mut blocks = self.load_schedule(schedule_path)?;
-        
+
         // Step 2: Enrich with visibility data (if requested)
         if self.config.enrich_visibility {
             if let Some(vis_path) = visibility_path {
                 self.enrich_with_visibility(&mut blocks, vis_path)?;
             }
         }
-        
+
         // Step 3: Convert to DataFrame
         let df = csv_parser::blocks_to_dataframe(&blocks)
             .context("Failed to convert blocks to DataFrame")?;
-        
+
         // Step 4: Validate (if requested)
         let validation = if self.config.validate {
             ScheduleValidator::validate_dataframe(&df)
         } else {
             ValidationResult::new()
         };
-        
+
         // Step 5: Collect statistics
         let total_blocks = blocks.len();
         let scheduled_blocks = blocks.iter().filter(|b| b.is_scheduled()).count();
-        
+
         Ok(PreprocessResult {
             dataframe: df,
             validation,
@@ -93,7 +93,7 @@ impl PreprocessPipeline {
             scheduled_blocks,
         })
     }
-    
+
     /// Process from JSON string (useful for testing or API usage)
     pub fn process_json_str(
         &self,
@@ -103,7 +103,7 @@ impl PreprocessPipeline {
         // Step 1: Parse JSON
         let mut blocks = crate::parsing::json_parser::parse_schedule_json_str(json_str)
             .context("Failed to parse schedule JSON")?;
-        
+
         // Step 2: Enrich with visibility (if provided)
         if self.config.enrich_visibility {
             if let Some(vis_json) = visibility_json {
@@ -111,22 +111,22 @@ impl PreprocessPipeline {
                 enricher.enrich_blocks(&mut blocks);
             }
         }
-        
+
         // Step 3: Convert to DataFrame
         let df = csv_parser::blocks_to_dataframe(&blocks)
             .context("Failed to convert blocks to DataFrame")?;
-        
+
         // Step 4: Validate
         let validation = if self.config.validate {
             ScheduleValidator::validate_dataframe(&df)
         } else {
             ValidationResult::new()
         };
-        
+
         // Step 5: Statistics
         let total_blocks = blocks.len();
         let scheduled_blocks = blocks.iter().filter(|b| b.is_scheduled()).count();
-        
+
         Ok(PreprocessResult {
             dataframe: df,
             validation,
@@ -134,27 +134,23 @@ impl PreprocessPipeline {
             scheduled_blocks,
         })
     }
-    
+
     /// Load schedule from file
     fn load_schedule(&self, path: &Path) -> Result<Vec<SchedulingBlock>> {
         let extension = path
             .extension()
             .and_then(|ext| ext.to_str())
             .context("File has no extension")?;
-        
+
         match extension.to_lowercase().as_str() {
-            "json" => {
-                crate::parsing::json_parser::parse_schedule_json(path)
-                    .context("Failed to parse JSON file")
-            }
-            "csv" => {
-                crate::parsing::csv_parser::parse_schedule_csv_to_blocks(path)
-                    .context("Failed to parse CSV file")
-            }
+            "json" => crate::parsing::json_parser::parse_schedule_json(path)
+                .context("Failed to parse JSON file"),
+            "csv" => crate::parsing::csv_parser::parse_schedule_csv_to_blocks(path)
+                .context("Failed to parse CSV file"),
             _ => anyhow::bail!("Unsupported file format: {}", extension),
         }
     }
-    
+
     /// Enrich blocks with visibility data
     fn enrich_with_visibility(
         &self,
@@ -183,7 +179,7 @@ pub fn preprocess_schedule(
         validate,
         enrich_visibility: visibility_path.is_some(),
     };
-    
+
     let pipeline = PreprocessPipeline::with_config(config);
     pipeline.process(schedule_path, visibility_path)
 }
@@ -251,13 +247,13 @@ mod tests {
 
         let pipeline = PreprocessPipeline::new();
         let result = pipeline.process_json_str(json, None).unwrap();
-        
+
         assert_eq!(result.total_blocks, 1);
         assert_eq!(result.scheduled_blocks, 1);
         assert!(result.validation.is_valid);
         assert_eq!(result.dataframe.height(), 1);
     }
-    
+
     #[test]
     fn test_process_with_validation() {
         let json = r#"{
@@ -305,8 +301,8 @@ mod tests {
 
         let pipeline = PreprocessPipeline::new();
         let result = pipeline.process_json_str(json, None).unwrap();
-        
+
         // Should have warnings about invalid priority
-        assert!(result.validation.warnings.len() > 0);
+        assert!(!result.validation.warnings.is_empty());
     }
 }
