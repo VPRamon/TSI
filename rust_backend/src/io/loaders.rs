@@ -123,7 +123,7 @@ mod tests {
         let json = r#"{
             "SchedulingBlock": [
                 {
-                    "schedulingBlockId": "1000004990",
+                    "schedulingBlockId": 1000004990,
                     "priority": 8.5,
                     "scheduled_period": {
                         "durationInSec": 1200.0,
