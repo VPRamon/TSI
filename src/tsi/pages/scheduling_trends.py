@@ -10,21 +10,21 @@ import streamlit as st
 
 from tsi import state
 from tsi.components.trends_controls import render_sidebar_controls
-from tsi.components.trends_metrics import render_overview_metrics
 from tsi.components.trends_empirical import render_empirical_proportions
-from tsi.components.trends_smoothed import render_smoothed_trends
 from tsi.components.trends_heatmap import render_heatmap_section
+from tsi.components.trends_metrics import render_overview_metrics
 from tsi.components.trends_model import (
+    render_model_information,
     render_model_metrics,
     render_prediction_plot,
-    render_model_information,
 )
-from tsi.services.trends_processing import validate_required_columns, apply_trends_filters
+from tsi.components.trends_smoothed import render_smoothed_trends
 from tsi.modeling.trends import (
     compute_empirical_rates,
-    smooth_trend,
     fit_logistic_with_interactions,
+    smooth_trend,
 )
+from tsi.services.trends_processing import apply_trends_filters, validate_required_columns
 
 
 @st.cache_resource(show_spinner="Computing empirical rates...")

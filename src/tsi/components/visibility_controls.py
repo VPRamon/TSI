@@ -29,7 +29,7 @@ def render_sidebar_controls(
     st.header("Visibility Histogram Controls")
 
     stored_range = state.get_priority_range()
-    
+
     priority_range = render_priority_range_control(
         priority_min,
         priority_max,
@@ -66,7 +66,7 @@ def render_histogram_settings(
         Dictionary containing all settings
     """
     settings_container = st.expander("Histogram Settings", expanded=True)
-    
+
     with settings_container:
         st.markdown(
             "Customize the bin width and apply additional filters without opening the sidebar."
@@ -114,7 +114,7 @@ def _render_priority_filter_section(
 def _render_block_id_filter_section(all_block_ids: list) -> list | None:
     """Render block ID filter section."""
     st.subheader("🔢 Block ID Filter")
-    
+
     enable_block_filter = st.checkbox(
         "Filter by specific Block IDs",
         value=False,
@@ -142,7 +142,7 @@ def _render_block_id_filter_section(all_block_ids: list) -> list | None:
 def _render_bin_configuration_section() -> tuple[int | None, float | None]:
     """Render bin configuration section."""
     st.subheader("📊 Bin Configuration")
-    
+
     bin_mode = st.radio(
         "Bin Size Mode",
         options=["Number of bins", "Fixed duration"],

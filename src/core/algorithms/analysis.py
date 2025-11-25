@@ -7,8 +7,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from tsi_rust_api import TSIBackend
 from core.time import format_datetime_utc
+from tsi_rust_api import TSIBackend
 
 
 @dataclass(frozen=True)

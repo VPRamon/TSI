@@ -5,12 +5,12 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi import state
+from tsi.components.compare_tables import render_comparison_tables
 from tsi.components.compare_upload import render_file_upload
 from tsi.components.compare_validation import (
-    validate_and_display_discrepancies,
     compute_scheduling_changes,
+    validate_and_display_discrepancies,
 )
-from tsi.components.compare_tables import render_comparison_tables
 from tsi.plots.compare_plots import (
     create_changes_plot,
     create_priority_distribution_plot,

@@ -17,7 +17,7 @@ def render_automated_insights(insights: list[str]) -> None:
         insights: List of insight strings
     """
     st.header("✨ Automated Insights")
-    
+
     for insight in insights:
         st.markdown(f"- {insight}")
 
@@ -30,23 +30,23 @@ def render_correlation_analysis(correlations: pd.DataFrame) -> None:
         correlations: DataFrame with correlation data
     """
     st.header("📊 Correlation Analysis")
-    
+
     if correlations.empty:
         st.info("Insufficient data for correlation analysis")
         return
-    
+
     # Generate correlation insights
     correlation_insights = generate_correlation_insights(correlations)
-    
+
     col1, col2 = st.columns([1, 2])
-    
+
     with col1:
         st.markdown("**Correlation Interpretation**")
         st.markdown("---")
         for insight in correlation_insights:
             st.markdown(insight)
             st.markdown("")  # Add spacing
-        
+
         st.caption(
             """
             **Technical note:** Spearman correlation values (ρ) range from -1 to +1:
@@ -59,7 +59,7 @@ def render_correlation_analysis(correlations: pd.DataFrame) -> None:
             Spearman correlation is robust to outliers and does not assume linearity.
             """
         )
-    
+
     with col2:
         fig = build_correlation_heatmap(correlations)
         st.plotly_chart(fig, use_container_width=True)

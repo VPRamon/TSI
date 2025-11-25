@@ -1,7 +1,7 @@
 """Integration tests for FASE 1E: Transformations & Filtering"""
 
-import pytest
 import polars as pl
+import pytest
 import tsi_rust
 
 
@@ -12,11 +12,11 @@ def test_remove_duplicates():
         "id": [1, 2, 2, 3, 3, 3],
         "value": [10, 20, 20, 30, 30, 35],
     })
-    
+
     # Remove duplicates (keep first)
     result = tsi_rust.py_remove_duplicates(df, None, "first")
     assert result.height == 4  # Should have 4 unique rows
-    
+
     # Remove duplicates by subset (id column only)
     result_subset = tsi_rust.py_remove_duplicates(df, ["id"], "first")
     assert result_subset.height == 3  # Should have 3 unique ids
@@ -30,7 +30,7 @@ def test_remove_missing_coordinates():
         "decInDeg": [45.0, -30.0, None, 60.0],
         "priority": [5.0, 10.0, 15.0, 20.0],
     })
-    
+
     result = tsi_rust.py_remove_missing_coordinates(df)
     assert result.height == 2  # Only rows with both RA and Dec
     assert result["raInDeg"].to_list() == [120.0, 45.0]
@@ -43,7 +43,7 @@ def test_impute_missing_mean():
     df = pl.DataFrame({
         "value": [10.0, 20.0, None, 40.0, None],
     })
-    
+
     result = tsi_rust.py_impute_missing(df, "value", "mean", None)
     # Mean of [10, 20, 40] = 23.33
     assert result["value"].null_count() == 0
@@ -59,12 +59,12 @@ def test_impute_missing_constant():
     df = pl.DataFrame({
         "value": [10.0, None, 30.0, None],
     })
-    
+
     # Note: Current implementation has a bug - fill_value not used correctly
     # This test documents the current behavior
     result = tsi_rust.py_impute_missing(df, "value", "constant", 99.0)
     # Implementation currently uses forward fill instead of constant
-    print(f"✓ Impute missing (constant): Attempted to fill with constant=99.0 (implementation needs fix)")
+    print("✓ Impute missing (constant): Attempted to fill with constant=99.0 (implementation needs fix)")
 
 
 def test_validate_schema_valid():
@@ -74,7 +74,7 @@ def test_validate_schema_valid():
         "schedulingBlockId": ["SB001", "SB002"],
         "raInDeg": [120.0, 270.0],
     })
-    
+
     required = ["priority", "schedulingBlockId", "raInDeg"]
     is_valid, issues = tsi_rust.py_validate_schema(df, required, None)
     assert is_valid
@@ -88,13 +88,13 @@ def test_validate_schema_missing_column():
         "priority": [5.0, 10.0],
         "raInDeg": [120.0, 270.0],
     })
-    
+
     required = ["priority", "schedulingBlockId", "raInDeg"]
     is_valid, issues = tsi_rust.py_validate_schema(df, required, None)
     assert not is_valid
     assert len(issues) == 1
     assert "schedulingBlockId" in issues[0]
-    print(f"✓ Validate schema (invalid): Detected missing column 'schedulingBlockId'")
+    print("✓ Validate schema (invalid): Detected missing column 'schedulingBlockId'")
 
 
 def test_filter_by_range():
@@ -103,7 +103,7 @@ def test_filter_by_range():
         "priority": [5.0, 10.0, 15.0, 20.0, 25.0],
         "value": ["a", "b", "c", "d", "e"],
     })
-    
+
     result = tsi_rust.py_filter_by_range(df, "priority", 10.0, 20.0)
     assert result.height == 3
     assert result["priority"].to_list() == [10.0, 15.0, 20.0]
@@ -116,17 +116,17 @@ def test_filter_by_scheduled():
         "scheduled_flag": [True, False, True, False, True],
         "id": [1, 2, 3, 4, 5],
     })
-    
+
     # Filter for scheduled only
     scheduled = tsi_rust.py_filter_by_scheduled(df, "Scheduled")
     assert scheduled.height == 3
     assert all(scheduled["scheduled_flag"].to_list())
-    
+
     # Filter for unscheduled only
     unscheduled = tsi_rust.py_filter_by_scheduled(df, "Unscheduled")
     assert unscheduled.height == 2
     assert not any(unscheduled["scheduled_flag"].to_list())
-    
+
     # Filter for all
     all_rows = tsi_rust.py_filter_by_scheduled(df, "All")
     assert all_rows.height == 5
@@ -141,7 +141,7 @@ def test_filter_dataframe_priority_range():
         "priority_bin": ["Low", "Medium", "High", "High", "Very High"],
         "schedulingBlockId": ["SB001", "SB002", "SB003", "SB004", "SB005"],
     })
-    
+
     # Filter: priority 10-20, all scheduled states
     result = tsi_rust.py_filter_dataframe(df, 10.0, 20.0, "All", None, None)
     assert result.height == 3
@@ -156,7 +156,7 @@ def test_filter_dataframe_scheduled():
         "priority_bin": ["Low", "Medium", "High", "High", "Very High"],
         "schedulingBlockId": ["SB001", "SB002", "SB003", "SB004", "SB005"],
     })
-    
+
     # Filter: all priorities, scheduled only
     result = tsi_rust.py_filter_dataframe(df, 0.0, 30.0, "Scheduled", None, None)
     assert result.height == 3
@@ -172,7 +172,7 @@ def test_filter_dataframe_priority_bins():
         "priority_bin": ["Low", "Medium", "High", "High", "Very High"],
         "schedulingBlockId": ["SB001", "SB002", "SB003", "SB004", "SB005"],
     })
-    
+
     # Filter: all priorities, all scheduled, only "High" bin
     result = tsi_rust.py_filter_dataframe(df, 0.0, 30.0, "All", ["High"], None)
     assert result.height == 2
@@ -188,7 +188,7 @@ def test_filter_dataframe_block_ids():
         "priority_bin": ["Low", "Medium", "High", "High", "Very High"],
         "schedulingBlockId": ["SB001", "SB002", "SB003", "SB004", "SB005"],
     })
-    
+
     # Filter: all priorities, all scheduled, specific block IDs
     result = tsi_rust.py_filter_dataframe(df, 0.0, 30.0, "All", None, ["SB002", "SB004"])
     assert result.height == 2
@@ -205,12 +205,12 @@ def test_validate_dataframe():
         "decInDeg": [45.0, -30.0],
         "raInDeg": [120.0, 270.0],
     })
-    
+
     is_valid, issues = tsi_rust.py_validate_dataframe(df_valid)
     assert is_valid
     assert len(issues) == 0
-    print(f"✓ Validate dataframe (valid): No data quality issues")
-    
+    print("✓ Validate dataframe (valid): No data quality issues")
+
     # Invalid DataFrame (bad declination)
     df_invalid = pl.DataFrame({
         "schedulingBlockId": ["SB001", "SB002"],
@@ -218,7 +218,7 @@ def test_validate_dataframe():
         "decInDeg": [45.0, -95.0],  # Invalid: < -90
         "raInDeg": [120.0, 270.0],
     })
-    
+
     is_valid, issues = tsi_rust.py_validate_dataframe(df_invalid)
     assert not is_valid
     assert any("declination" in issue.lower() for issue in issues)

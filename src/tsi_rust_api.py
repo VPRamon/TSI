@@ -28,8 +28,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
-import polars as pl
 import pandas as pd
+import polars as pl
 
 try:
     import tsi_rust
@@ -52,7 +52,7 @@ class TSIBackend:
         >>> df = backend.load_schedule("data/schedule.csv")
         >>> metrics = backend.compute_metrics(df)
     """
-    
+
     def __init__(self, use_pandas: bool = True):
         """
         Initialize TSI backend.
@@ -61,9 +61,9 @@ class TSIBackend:
             use_pandas: If True, return pandas DataFrames. If False, return Polars DataFrames.
         """
         self.use_pandas = use_pandas
-    
+
     # ===== Data Loading =====
-    
+
     def load_schedule(
         self,
         path: str | Path,
@@ -84,19 +84,19 @@ class TSIBackend:
             >>> print(df.columns)
         """
         path = Path(path)
-        
+
         if format == "auto":
             format = "json" if path.suffix == ".json" else "csv"
-        
+
         if format == "csv":
             df_polars = tsi_rust.load_schedule_from_csv(str(path))
         elif format == "json":
             df_polars = tsi_rust.load_schedule_from_json(str(path))
         else:
             raise ValueError(f"Unknown format: {format}")
-        
+
         return df_polars.to_pandas() if self.use_pandas else df_polars
-    
+
     def load_schedule_from_string(
         self,
         content: str,
@@ -120,11 +120,11 @@ class TSIBackend:
             df_polars = tsi_rust.load_schedule_from_json_str(content)
         else:
             raise ValueError(f"Format {format} not supported for string loading")
-        
+
         return df_polars.to_pandas() if self.use_pandas else df_polars
-    
+
     # ===== Preprocessing =====
-    
+
     def validate_schedule(self, df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
         """
         Validate schedule data structure and quality.
@@ -143,9 +143,9 @@ class TSIBackend:
         df_polars = self._to_polars(df)
         validation_result = tsi_rust.py_validate_schedule(df_polars)
         return validation_result.to_dict()
-    
+
     # ===== Analytics & Algorithms =====
-    
+
     def compute_metrics(self, df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
         """
         Compute comprehensive scheduling metrics.
@@ -164,7 +164,7 @@ class TSIBackend:
         df_polars = self._to_polars(df)
         analytics = tsi_rust.py_compute_metrics(df_polars)
         return analytics.to_dict()
-    
+
     def get_top_observations(
         self,
         df: pd.DataFrame | pl.DataFrame,
@@ -189,7 +189,7 @@ class TSIBackend:
         df_polars = self._to_polars(df)
         result = tsi_rust.py_get_top_observations(df_polars, by, n)  # Correct order: df, by, n
         return result.to_pandas() if self.use_pandas else result
-    
+
     def find_conflicts(
         self,
         df: pd.DataFrame | pl.DataFrame
@@ -210,7 +210,7 @@ class TSIBackend:
         df_polars = self._to_polars(df)
         result = tsi_rust.py_find_conflicts(df_polars)
         return result.to_pandas() if self.use_pandas else result
-    
+
     def greedy_schedule(
         self,
         df: pd.DataFrame | pl.DataFrame,
@@ -234,9 +234,9 @@ class TSIBackend:
         df_polars = self._to_polars(df)
         opt_result = tsi_rust.py_greedy_schedule(df_polars, max_iterations)
         return opt_result.to_dict()
-    
+
     # ===== Transformations & Filtering =====
-    
+
     def filter_by_priority(
         self,
         df: pd.DataFrame | pl.DataFrame,
@@ -260,7 +260,7 @@ class TSIBackend:
         df_polars = self._to_polars(df)
         result = tsi_rust.py_filter_by_range(df_polars, "priority", min_priority, max_priority)
         return result.to_pandas() if self.use_pandas else result
-    
+
     def filter_by_scheduled(
         self,
         df: pd.DataFrame | pl.DataFrame,
@@ -283,7 +283,7 @@ class TSIBackend:
         df_polars = self._to_polars(df)
         result = tsi_rust.py_filter_by_scheduled(df_polars, filter_type)
         return result.to_pandas() if self.use_pandas else result
-    
+
     def filter_dataframe(
         self,
         df: pd.DataFrame | pl.DataFrame,
@@ -326,7 +326,7 @@ class TSIBackend:
             block_ids
         )
         return result.to_pandas() if self.use_pandas else result
-    
+
     def remove_duplicates(
         self,
         df: pd.DataFrame | pl.DataFrame,
@@ -350,7 +350,7 @@ class TSIBackend:
         df_polars = self._to_polars(df)
         result = tsi_rust.py_remove_duplicates(df_polars, subset, keep)
         return result.to_pandas() if self.use_pandas else result
-    
+
     def remove_missing_coordinates(
         self,
         df: pd.DataFrame | pl.DataFrame
@@ -370,7 +370,7 @@ class TSIBackend:
         df_polars = self._to_polars(df)
         result = tsi_rust.py_remove_missing_coordinates(df_polars)
         return result.to_pandas() if self.use_pandas else result
-    
+
     def validate_dataframe(
         self,
         df: pd.DataFrame | pl.DataFrame
@@ -392,9 +392,9 @@ class TSIBackend:
         """
         df_polars = self._to_polars(df)
         return tsi_rust.py_validate_dataframe(df_polars)
-    
+
     # ===== Time Conversions =====
-    
+
     @staticmethod
     def mjd_to_datetime(mjd: float):
         """
@@ -411,7 +411,7 @@ class TSIBackend:
             >>> print(dt)  # 2022-01-01 12:00:00+00:00
         """
         return tsi_rust.mjd_to_datetime(mjd)
-    
+
     @staticmethod
     def datetime_to_mjd(dt) -> float:
         """
@@ -430,15 +430,15 @@ class TSIBackend:
             >>> print(mjd)  # 59580.5
         """
         return tsi_rust.datetime_to_mjd(dt)
-    
+
     # ===== Utilities =====
-    
+
     def _to_polars(self, df: pd.DataFrame | pl.DataFrame) -> pl.DataFrame:
         """Convert DataFrame to Polars format if needed."""
         if isinstance(df, pd.DataFrame):
             return pl.from_pandas(df)
         return df
-    
+
     def __repr__(self) -> str:
         return f"TSIBackend(use_pandas={self.use_pandas})"
 

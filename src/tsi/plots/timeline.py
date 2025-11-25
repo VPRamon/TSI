@@ -1,14 +1,11 @@
 """Timeline (Gantt-style) plotting for visibility and scheduling."""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-
-from core.time import format_datetime_utc
-from tsi.services.visibility_cache import parse_subset_lazy
 
 
 @st.cache_data(show_spinner=False, ttl=3600)

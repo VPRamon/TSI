@@ -15,7 +15,7 @@ def render_dataset_statistics(df: pd.DataFrame, filtered_df: pd.DataFrame) -> No
         filtered_df: Filtered DataFrame
     """
     st.subheader("📊 Dataset Statistics")
-    
+
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:

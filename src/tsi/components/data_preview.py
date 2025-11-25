@@ -1,6 +1,5 @@
 """Data preview and table components."""
 
-from typing import Any
 
 import pandas as pd
 import streamlit as st

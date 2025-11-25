@@ -83,7 +83,7 @@ def render_priority_range_control(
             max(min_value, stored_range[0]),
             min(max_value, stored_range[1]),
         )
-    
+
     return st.slider(
         "Priority Range",
         min_value=min_value,
@@ -116,21 +116,21 @@ def render_impossible_filter_control(
     """
     if key not in st.session_state:
         st.session_state[key] = "all"
-    
+
     filter_supported = check_filter_support(df)
-    
+
     if not filter_supported:
         st.session_state[key] = "all"
         return "all"
-    
+
     filter_options = ("all", "exclude_impossible")
     filter_labels = {
         "all": "📋 All blocks",
         "exclude_impossible": "✅ Filter invalid requests",
     }
-    
+
     st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
-    
+
     return st.radio(
         "Filtrar:",
         options=filter_options,

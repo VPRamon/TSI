@@ -33,7 +33,7 @@ def render_comparison_tables(
         comparison_name: Name of comparison schedule
     """
     st.subheader("📊 Summary Tables")
-    
+
     # Add custom styling for the tables
     table_style = """
     <style>
@@ -61,7 +61,7 @@ def render_comparison_tables(
     </style>
     """
     st.markdown(table_style, unsafe_allow_html=True)
-    
+
     # Build metrics table
     metrics_df = _build_metrics_table(
         current_scheduled,
@@ -71,13 +71,13 @@ def render_comparison_tables(
         current_name,
         comparison_name,
     )
-    
+
     # Build time metrics table if available
     has_time_data = (
         "requested_hours" in current_scheduled.columns
         and "requested_hours" in comparison_scheduled.columns
     )
-    
+
     if has_time_data:
         time_df = _build_time_metrics_table(
             current_scheduled,
@@ -85,17 +85,17 @@ def render_comparison_tables(
             current_name,
             comparison_name,
         )
-        
+
         # Display both tables side by side
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.markdown("**Priority & Scheduling Metrics**")
             st.markdown(
                 metrics_df.to_html(escape=False, index=False, classes="comparison-table"),
                 unsafe_allow_html=True,
             )
-        
+
         with col2:
             st.markdown("**Time Metrics**")
             st.markdown(
@@ -108,7 +108,7 @@ def render_comparison_tables(
             metrics_df.to_html(escape=False, index=False, classes="comparison-table"),
             unsafe_allow_html=True,
         )
-    
+
     # Show expandable details for changes
     add_vertical_space(1)
     _render_change_details(
@@ -139,23 +139,23 @@ def _format_with_delta(
     """
     if delta == 0:
         return value
-    
+
     # Calculate percentage change
     base_value = float(value.replace(",", ""))
     if base_value == 0:
         pct_change = 0.0
     else:
         pct_change = (delta / base_value) * 100
-    
+
     # Choose color based on sign
     if inverse_colors:
         color = "#d62728" if delta > 0 else "#2ca02c"
     else:
         color = "#2ca02c" if delta > 0 else "#d62728"
     sign = "+" if delta > 0 else ""
-    
+
     delta_label = f'<span style="background-color: {color}; color: white; padding: 2px 6px; border-radius: 3px; margin-left: 8px; font-size: 0.85em; font-weight: bold;">{sign}{pct_change:.1f}%</span>'
-    
+
     return f"{value} {delta_label}"
 
 
@@ -170,21 +170,21 @@ def _build_metrics_table(
     """Build priority and scheduling metrics table."""
     current_count = len(current_scheduled)
     comparison_count = len(comparison_scheduled)
-    
+
     current_total_priority = current_scheduled["priority"].sum() if current_count > 0 else 0
     current_mean_priority = current_scheduled["priority"].mean() if current_count > 0 else 0
     current_median_priority = current_scheduled["priority"].median() if current_count > 0 else 0
-    
+
     comp_total_priority = comparison_scheduled["priority"].sum() if comparison_count > 0 else 0
     comp_mean_priority = comparison_scheduled["priority"].mean() if comparison_count > 0 else 0
     comp_median_priority = comparison_scheduled["priority"].median() if comparison_count > 0 else 0
-    
+
     # Calculate deltas
     delta_count = comparison_count - current_count
     delta_total_priority = comp_total_priority - current_total_priority
     delta_mean_priority = comp_mean_priority - current_mean_priority
     delta_median_priority = comp_median_priority - current_median_priority
-    
+
     metrics_data = {
         "Metric": [
             "Scheduled Blocks",
@@ -211,7 +211,7 @@ def _build_metrics_table(
             f"{len(newly_unscheduled):,}",
         ],
     }
-    
+
     return pd.DataFrame(metrics_data)
 
 
@@ -224,15 +224,15 @@ def _build_time_metrics_table(
     """Build time metrics table with gap statistics."""
     current_count = len(current_scheduled)
     comparison_count = len(comparison_scheduled)
-    
+
     current_total_time = current_scheduled["requested_hours"].sum() if current_count > 0 else 0
     current_mean_time = current_scheduled["requested_hours"].mean() if current_count > 0 else 0
     current_median_time = current_scheduled["requested_hours"].median() if current_count > 0 else 0
-    
+
     comp_total_time = comparison_scheduled["requested_hours"].sum() if comparison_count > 0 else 0
     comp_mean_time = comparison_scheduled["requested_hours"].mean() if comparison_count > 0 else 0
     comp_median_time = comparison_scheduled["requested_hours"].median() if comparison_count > 0 else 0
-    
+
     # Calculate gaps
     current_gaps_count, current_mean_gap, current_median_gap = calculate_observation_gaps(
         current_scheduled
@@ -240,7 +240,7 @@ def _build_time_metrics_table(
     comp_gaps_count, comp_mean_gap, comp_median_gap = calculate_observation_gaps(
         comparison_scheduled
     )
-    
+
     # Calculate deltas
     delta_total_time = comp_total_time - current_total_time
     delta_mean_time = comp_mean_time - current_mean_time
@@ -248,7 +248,7 @@ def _build_time_metrics_table(
     delta_gaps = comp_gaps_count - current_gaps_count
     delta_mean_gap = comp_mean_gap - current_mean_gap
     delta_median_gap = comp_median_gap - current_median_gap
-    
+
     time_data = {
         "Metric": [
             "Total Planned Time (hrs)",
@@ -275,7 +275,7 @@ def _build_time_metrics_table(
             _format_with_delta(f"{comp_median_gap:.2f}", delta_median_gap),
         ],
     }
-    
+
     return pd.DataFrame(time_data)
 
 
@@ -287,28 +287,28 @@ def _render_change_details(
 ) -> None:
     """Render expandable details for scheduling changes."""
     col1, col2 = st.columns(2)
-    
+
     with col1:
         if len(newly_scheduled) > 0:
             with st.expander(f"📋 View {len(newly_scheduled)} newly scheduled blocks"):
                 display_df = newly_scheduled[["schedulingBlockId", "priority_current"]].copy()
-                
+
                 # Build list of columns to include
                 columns_to_include = ["schedulingBlockId"]
                 if "targetName" in comparison_common.columns:
                     columns_to_include.append("targetName")
                 columns_to_include.extend(["scheduled_period.start", "scheduled_period.stop"])
-                
+
                 comparison_info = comparison_common[
                     [col for col in columns_to_include if col in comparison_common.columns]
                 ].copy()
-                
+
                 # Ensure ID types match for merge
                 comparison_info["schedulingBlockId"] = comparison_info["schedulingBlockId"].astype(str)
-                
+
                 display_df = display_df.merge(comparison_info, on="schedulingBlockId", how="left")
                 display_df = display_df.rename(columns={"priority_current": "priority"})
-                
+
                 # Build final column list
                 final_columns = ["schedulingBlockId"]
                 if "targetName" in display_df.columns:
@@ -318,9 +318,9 @@ def _render_change_details(
                     final_columns.append("scheduled_period.start")
                 if "scheduled_period.stop" in display_df.columns:
                     final_columns.append("scheduled_period.stop")
-                
+
                 display_df = display_df[final_columns]
-                
+
                 # Rename columns for display
                 rename_dict = {
                     "schedulingBlockId": "Block ID",
@@ -330,40 +330,40 @@ def _render_change_details(
                     "scheduled_period.stop": "Stop (MJD)",
                 }
                 display_df = display_df.rename(columns={k: v for k, v in rename_dict.items() if k in display_df.columns})
-                
+
                 st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
         else:
             with st.expander("📋 View 0 newly scheduled blocks", expanded=False):
                 st.info("No blocks were newly scheduled in the comparison schedule.")
-    
+
     with col2:
         if len(newly_unscheduled) > 0:
             with st.expander(f"📋 View {len(newly_unscheduled)} newly unscheduled blocks"):
                 display_df = newly_unscheduled[["schedulingBlockId", "priority_current"]].copy()
-                
+
                 # Build list of columns to include
                 columns_to_include = ["schedulingBlockId"]
                 if "targetName" in current_common.columns:
                     columns_to_include.append("targetName")
-                
+
                 current_info = current_common[
                     [col for col in columns_to_include if col in current_common.columns]
                 ].copy()
-                
+
                 # Ensure ID types match for merge
                 current_info["schedulingBlockId"] = current_info["schedulingBlockId"].astype(str)
-                
+
                 display_df = display_df.merge(current_info, on="schedulingBlockId", how="left")
                 display_df = display_df.rename(columns={"priority_current": "priority"})
-                
+
                 # Build final column list
                 final_columns = ["schedulingBlockId"]
                 if "targetName" in display_df.columns:
                     final_columns.append("targetName")
                 final_columns.append("priority")
-                
+
                 display_df = display_df[final_columns]
-                
+
                 # Rename columns for display
                 rename_dict = {
                     "schedulingBlockId": "Block ID",
@@ -371,7 +371,7 @@ def _render_change_details(
                     "priority": "Priority",
                 }
                 display_df = display_df.rename(columns={k: v for k, v in rename_dict.items() if k in display_df.columns})
-                
+
                 st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
         else:
             with st.expander("📋 View 0 newly unscheduled blocks", expanded=False):

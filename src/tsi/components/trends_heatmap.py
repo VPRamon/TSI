@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-import streamlit as st
 import pandas as pd
+import streamlit as st
 
 if TYPE_CHECKING:
     from altair import Chart
@@ -31,7 +31,7 @@ def render_heatmap_section(
         "🔥 2D heatmap showing the **mean empirical rate** of scheduling "
         "as a function of visibility (X) and priority (Y)."
     )
-    
+
     try:
         fig_heatmap = heatmap_visibility_priority(
             df,
@@ -39,11 +39,11 @@ def render_heatmap_section(
             n_bins_vis=n_bins,
             n_bins_priority=n_bins,
         )
-        
+
         if plot_library == "altair":
             st.altair_chart(cast("Chart", fig_heatmap), use_container_width=True)
         else:
             st.plotly_chart(fig_heatmap, use_container_width=True)
-    
+
     except Exception as e:
         st.error(f"❌ Error generating heatmap: {e}")

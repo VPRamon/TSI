@@ -135,7 +135,7 @@ def compute_calendar_bins(
             x0 = x1
 
     bins_df = pd.DataFrame(rows)
-    
+
     if pending_duration and pending_duration.total_seconds() > 0 and not bins_df.empty:
         bins_df["suitable_for_pending"] = _compute_suitable_bins(
             bins_df, pending_duration.total_seconds()
@@ -181,21 +181,21 @@ def _compute_suitable_bins(bins_df: pd.DataFrame, needed_seconds: float) -> pd.S
     """Compute which bins are suitable for a pending observation duration."""
     x_labels = sorted(bins_df["x_start"].unique())
     y_labels = bins_df["y_label"].unique()
-    
+
     occupancy_matrix = np.zeros((len(y_labels), len(x_labels)), dtype=float)
     duration_matrix = np.zeros((len(y_labels), len(x_labels)), dtype=float)
-    
+
     x_index = {x: i for i, x in enumerate(x_labels)}
     y_index = {y: i for i, y in enumerate(y_labels)}
-    
+
     for _, row in bins_df.iterrows():
         xi = x_index[row["x_start"]]
         yi = y_index[row["y_label"]]
         occupancy_matrix[yi, xi] = row["occupancy"]
         duration_matrix[yi, xi] = row["duration_s"]
-    
+
     free_matrix = (1.0 - occupancy_matrix) * duration_matrix
-    
+
     suitable_coords = set()
     for yi in range(free_matrix.shape[0]):
         seq_sum = 0.0
@@ -212,11 +212,11 @@ def _compute_suitable_bins(bins_df: pd.DataFrame, needed_seconds: float) -> pd.S
                     suitable_coords.add((yi, xj))
                 seq_sum = 0.0
                 seq_start = xi + 1
-    
+
     suitable = []
     for _, row in bins_df.iterrows():
         xi = x_index[row["x_start"]]
         yi = y_index[row["y_label"]]
         suitable.append((yi, xi) in suitable_coords)
-    
+
     return pd.Series(suitable, index=bins_df.index)

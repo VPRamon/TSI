@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-
 import pandas as pd
 import pytest
 
@@ -11,7 +9,6 @@ pytest.importorskip("tsi_rust")
 
 from core.algorithms.analysis import (
     AnalyticsSnapshot,
-    CandidatePlacement,
     _build_conflicts,
     _get_duration_timedelta,
     compute_correlations,

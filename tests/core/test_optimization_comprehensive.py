@@ -7,7 +7,6 @@ from collections.abc import Sequence
 import pytest
 
 from core.algorithms.optimization import (
-    Constraint,
     OptimizationResult,
     greedy_schedule,
 )

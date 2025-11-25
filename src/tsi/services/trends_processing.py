@@ -17,7 +17,7 @@ def validate_required_columns(df: pd.DataFrame) -> tuple[bool, list[str]]:
     """
     required_cols = ["priority", "total_visibility_hours", "requested_hours", "scheduled_flag"]
     missing_cols = [col for col in required_cols if col not in df.columns]
-    
+
     return len(missing_cols) == 0, missing_cols
 
 

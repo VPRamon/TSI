@@ -3,22 +3,22 @@
 import streamlit as st
 
 from tsi import state
+from tsi.components.insights_analysis import render_automated_insights, render_correlation_analysis
 from tsi.components.insights_controls import render_filter_controls
 from tsi.components.insights_metrics import render_key_metrics, render_priority_analysis
-from tsi.components.insights_analysis import render_automated_insights, render_correlation_analysis
-from tsi.components.insights_tables import render_top_observations, render_integrity_checks
 from tsi.components.insights_reports import render_report_downloads
-from tsi.services.insights_filtering import (
-    check_filter_support,
-    compute_impossible_mask,
-    apply_insights_filter,
-)
+from tsi.components.insights_tables import render_integrity_checks, render_top_observations
 from tsi.services.analytics import (
     compute_correlations,
     compute_metrics,
     find_conflicts,
-    get_top_observations,
     generate_insights,
+    get_top_observations,
+)
+from tsi.services.insights_filtering import (
+    apply_insights_filter,
+    check_filter_support,
+    compute_impossible_mask,
 )
 
 

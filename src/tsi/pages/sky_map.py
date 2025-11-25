@@ -32,7 +32,7 @@ def render() -> None:
     # Prepare data
     priority_min, priority_max = get_priority_range(df)
     df, priority_bins = prepare_priority_bins(df)
-    
+
     if not priority_bins:
         st.warning("No original priority bins available in the dataset.")
         return
