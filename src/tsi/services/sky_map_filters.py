@@ -7,6 +7,8 @@ from datetime import datetime
 
 import pandas as pd
 
+from core.domain.priority import get_priority_range
+
 
 def filter_dataframe(
     df: pd.DataFrame,
@@ -80,26 +82,6 @@ def prepare_priority_bins(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
 
     priority_bins = df["priority_bin"].dropna().unique().tolist()
     return df, priority_bins
-
-
-def get_priority_range(df: pd.DataFrame) -> tuple[float, float]:
-    """
-    Calculate the priority range from the dataframe.
-
-    Args:
-        df: Source DataFrame
-
-    Returns:
-        Tuple of (min_priority, max_priority)
-    """
-    priority_values = df["priority"]
-    priority_min = float(priority_values.min())
-    priority_max = float(priority_values.max())
-    
-    if priority_min == priority_max:
-        priority_max = priority_min + 1.0
-    
-    return priority_min, priority_max
 
 
 def build_palette(labels: Sequence[str]) -> dict:

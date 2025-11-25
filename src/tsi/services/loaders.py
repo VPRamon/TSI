@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TypeVar
@@ -20,8 +21,14 @@ from tsi.services.rust_compat import (
     validate_dataframe_rust,
 )
 
+logger = logging.getLogger(__name__)
+
 F = TypeVar("F", bound=Callable[..., Any])
 
+
+# =============================================================================
+# Streamlit Adapter Layer
+# =============================================================================
 
 def _identity_cache(func: F | None = None, **_: Any) -> F | Callable[[F], F]:
     """Fallback decorator used when Streamlit caching is unavailable."""
@@ -34,12 +41,17 @@ def _identity_cache(func: F | None = None, **_: Any) -> F | Callable[[F], F]:
     return decorator(func)
 
 
-try:  # pragma: no cover - exercised indirectly in tests
+# Streamlit integration (optional - gracefully degrades if unavailable)
+_streamlit_available = False
+_cache_decorator = _identity_cache
+_warning_handler: Callable[[str], None] = lambda msg: logger.warning(msg)
+
+try:  # pragma: no cover
     import streamlit as st
 
     try:
         from streamlit import runtime
-    except Exception:  # runtime module missing (older versions)
+    except Exception:
         runtime = None  # type: ignore[assignment]
 
     if (
@@ -48,26 +60,50 @@ try:  # pragma: no cover - exercised indirectly in tests
         and callable(getattr(runtime, "exists", None))
     ):
         if runtime.exists():  # type: ignore[union-attr]
-            cache_data = st.cache_data
-
-            def emit_warning(message: str) -> None:
-                st.warning(message)
-
+            _streamlit_available = True
+            _cache_decorator = st.cache_data
+            _warning_handler = st.warning
         else:
-            raise RuntimeError("Streamlit runtime not initialized")
+            logger.info("Streamlit runtime not initialized")
     else:
-        raise RuntimeError("Streamlit caching unavailable")
+        logger.info("Streamlit caching unavailable")
 
-except Exception:  # pragma: no cover - triggered in test environment
-    st = None  # type: ignore[assignment]
-    cache_data = _identity_cache  # type: ignore[assignment]
-
-    def emit_warning(message: str) -> None:
-        return None
+except Exception as e:
+    logger.debug(f"Streamlit not available: {e}")
 
 
-@cache_data(ttl=3600, show_spinner="Loading data...")
-def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
+def emit_warning(message: str) -> None:
+    """
+    Emit a warning through the appropriate channel.
+    
+    Uses Streamlit UI if available, otherwise logs as warning.
+    
+    Args:
+        message: Warning message to display
+    """
+    _warning_handler(message)
+
+
+def cache_data(**kwargs):
+    """
+    Apply caching decorator appropriate for the runtime context.
+    
+    Uses Streamlit cache_data if available, otherwise no-op.
+    
+    Args:
+        **kwargs: Cache configuration parameters (passed to Streamlit if available)
+    
+    Returns:
+        Caching decorator function
+    """
+    return _cache_decorator(**kwargs)
+
+
+# =============================================================================
+# Core Loading Functions (Streamlit-agnostic)
+# =============================================================================
+
+def _load_csv_core(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
     """
     Load CSV file using Rust backend (10x faster than pandas).
 
@@ -95,6 +131,40 @@ def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
     return df
 
 
+@cache_data(ttl=3600, show_spinner="Loading data...")
+def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
+    """
+    Load CSV file using Rust backend (10x faster than pandas).
+    
+    Streamlit-aware version with caching when available.
+
+    Args:
+        file_path_or_buffer: Path to CSV file or file-like buffer
+
+    Returns:
+        Raw DataFrame from CSV
+
+    Raises:
+        FileNotFoundError: If file doesn't exist
+        ValueError: If required columns are missing
+    """
+    return _load_csv_core(file_path_or_buffer)
+
+
+def _prepare_dataframe_core(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
+    """
+    Core DataFrame preparation logic without Streamlit dependencies.
+    
+    Args:
+        df: Raw DataFrame to prepare
+    
+    Returns:
+        Tuple of (prepared DataFrame, list of warnings)
+    """
+    result: PreparationResult = core_prepare_dataframe(df)
+    return result.dataframe, result.warnings  # type: ignore[return-value]
+
+
 @cache_data(ttl=3600, show_spinner="Preparing data...")
 def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -102,11 +172,13 @@ def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
     Assumes the CSV has been pre-processed with all derived columns.
     Only performs lightweight operations like type conversion and datetime parsing.
+    
+    Streamlit-aware version with caching and warning display.
     """
-    result: PreparationResult = core_prepare_dataframe(df)
-    for warning in result.warnings:
+    prepared_df, warnings = _prepare_dataframe_core(df)
+    for warning in warnings:
         emit_warning(f"⚠️ {warning}")
-    return result.dataframe  # type: ignore[return-value,no-any-return]
+    return prepared_df
 
 
 def get_filtered_dataframe(

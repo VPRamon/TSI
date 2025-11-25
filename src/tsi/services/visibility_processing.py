@@ -4,30 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-
-def get_priority_range(df: pd.DataFrame) -> tuple[float, float]:
-    """
-    Calculate the priority range from the dataframe.
-
-    Args:
-        df: Source DataFrame
-
-    Returns:
-        Tuple of (min_priority, max_priority)
-    """
-    if "priority" in df.columns:
-        priority_values = df["priority"].dropna()
-        if not priority_values.empty:
-            priority_min = float(priority_values.min())
-            priority_max = float(priority_values.max())
-            if priority_min == priority_max:
-                priority_max = priority_min + 1.0
-        else:
-            priority_min, priority_max = 0.0, 10.0
-    else:
-        priority_min, priority_max = 0.0, 10.0
-
-    return priority_min, priority_max
+from core.domain.priority import get_priority_range
 
 
 def get_all_block_ids(df: pd.DataFrame) -> list:

@@ -32,21 +32,107 @@ Requirements:
 
 from __future__ import annotations
 
+import logging
+import warnings
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from tsi.models.schemas import AnalyticsMetrics
-from tsi_rust_api import TSIBackend, load_schedule, load_dark_periods
+
+# =============================================================================
+# Rust Backend Health Check
+# =============================================================================
+
+_RUST_AVAILABLE = False
+_RUST_ERROR = None
+
+try:
+    from tsi_rust_api import TSIBackend, load_schedule, load_dark_periods
+    _RUST_AVAILABLE = True
+except ImportError as e:
+    _RUST_ERROR = str(e)
+    warnings.warn(
+        f"⚠️  Rust backend not available: {e}\n"
+        "Some high-performance operations will be unavailable.\n"
+        "To enable Rust backend, run: ./build_rust.sh",
+        ImportWarning,
+        stacklevel=2,
+    )
+except Exception as e:
+    _RUST_ERROR = str(e)
+    warnings.warn(
+        f"⚠️  Failed to initialize Rust backend: {e}\n"
+        "Check that the Rust library is properly compiled.",
+        ImportWarning,
+        stacklevel=2,
+    )
 
 # =============================================================================
 # Singleton Backend Instance
 # =============================================================================
 
-# Create a single backend instance configured for pandas DataFrames
-# This avoids overhead of creating new backends for each operation
-_BACKEND = TSIBackend(use_pandas=True)
+_BACKEND = None
+
+if _RUST_AVAILABLE:
+    try:
+        # Create a single backend instance configured for pandas DataFrames
+        # This avoids overhead of creating new backends for each operation
+        _BACKEND = TSIBackend(use_pandas=True)
+    except Exception as e:
+        _RUST_AVAILABLE = False
+        _RUST_ERROR = f"Backend initialization failed: {e}"
+        warnings.warn(f"⚠️  {_RUST_ERROR}", ImportWarning, stacklevel=2)
+
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+def _ensure_rust_backend() -> None:
+    """
+    Ensure Rust backend is available, raise helpful error if not.
+    
+    Raises:
+        RuntimeError: If Rust backend is not available with guidance on how to fix it
+    """
+    if not _RUST_AVAILABLE:
+        error_msg = (
+            "Rust backend is not available. "
+            "This operation requires the compiled Rust library.\n\n"
+            "To fix this:\n"
+            "1. Run: ./build_rust.sh\n"
+            "2. Verify the build completed successfully\n"
+            "3. Restart your Python environment\n"
+        )
+        if _RUST_ERROR:
+            error_msg += f"\nOriginal error: {_RUST_ERROR}"
+        raise RuntimeError(error_msg)
+
+
+def is_rust_available() -> bool:
+    """
+    Check if Rust backend is available.
+    
+    Returns:
+        True if Rust backend is available and initialized
+    """
+    return _RUST_AVAILABLE
+
+
+def get_rust_status() -> dict[str, Any]:
+    """
+    Get detailed status of Rust backend.
+    
+    Returns:
+        Dictionary with keys: 'available', 'error', 'backend_initialized'
+    """
+    return {
+        "available": _RUST_AVAILABLE,
+        "error": _RUST_ERROR,
+        "backend_initialized": _BACKEND is not None,
+    }
 
 
 # =============================================================================
@@ -68,7 +154,7 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
         pandas DataFrame with schedule data
     
     Raises:
-        RuntimeError: If JSON/CSV parsing fails (with detailed error about which block/field failed)
+        RuntimeError: If Rust backend is not available or parsing fails
         ValueError: If format is not recognized or cannot be auto-detected
     
     Example:
@@ -86,6 +172,8 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
         The Rust parser provides detailed error messages showing exactly which
         SchedulingBlock index and field is causing issues if parsing fails.
     """
+    _ensure_rust_backend()
+    
     # Handle file buffers (e.g., from Streamlit file_uploader)
     if hasattr(path, 'read'):
         content = path.read()
@@ -131,6 +219,7 @@ def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
     Performance:
         - 2647 rows: ~15ms (Python: ~150ms) = 10x speedup
     """
+    _ensure_rust_backend()
     # Call Rust backend (returns dict)
     rust_metrics = _BACKEND.compute_metrics(df)
     
@@ -161,6 +250,7 @@ def get_top_observations(
     Performance:
         - 2647 rows: ~3ms (Python: ~30ms) = 10x speedup
     """
+    _ensure_rust_backend()
     return _BACKEND.get_top_observations(df, n=n, by=by)
 
 
@@ -186,6 +276,7 @@ def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     Performance:
         - 2647 rows: ~30ms (Python: ~500ms) = 16x speedup
     """
+    _ensure_rust_backend()
     return _BACKEND.find_conflicts(df)
 
 
@@ -216,6 +307,7 @@ def filter_by_priority(
     Performance:
         - 2647 rows: ~5ms (Python: ~50ms) = 10x speedup
     """
+    _ensure_rust_backend()
     return _BACKEND.filter_by_priority(df, min_priority, max_priority)
 
 
@@ -240,6 +332,7 @@ def filter_by_scheduled(
     Performance:
         - 2647 rows: ~5ms (Python: ~50ms) = 10x speedup
     """
+    _ensure_rust_backend()
     return _BACKEND.filter_by_scheduled(df, filter_type)
 
 
@@ -268,6 +361,7 @@ def filter_by_range(
     Performance:
         - 2647 rows: ~5ms (Python: ~50ms) = 10x speedup
     """
+    _ensure_rust_backend()
     return _BACKEND.filter_by_range(df, column, min_value, max_value)
 
 
@@ -298,6 +392,7 @@ def remove_duplicates(
     Performance:
         - 2647 rows: ~10ms (Python: ~100ms) = 10x speedup
     """
+    _ensure_rust_backend()
     return _BACKEND.remove_duplicates(df, subset, keep)
 
 
@@ -318,6 +413,7 @@ def remove_missing_coordinates(df: pd.DataFrame) -> pd.DataFrame:
     Performance:
         - 2647 rows: ~8ms (Python: ~80ms) = 10x speedup
     """
+    _ensure_rust_backend()
     return _BACKEND.remove_missing_coordinates(df)
 
 
@@ -350,6 +446,7 @@ def validate_dataframe_rust(df: pd.DataFrame) -> tuple[bool, list[str]]:
     Performance:
         - 2647 rows: ~10ms (Python: ~50ms) = 5x speedup
     """
+    _ensure_rust_backend()
     try:
         result = _BACKEND.validate_dataframe(df)
         # Rust returns dict with 'valid' and 'errors' keys
@@ -380,6 +477,7 @@ def mjd_to_datetime_rust(mjd: float):
         - Single conversion: ~0.5µs (Python: ~4µs) = 8x speedup
         - Bulk (100k conversions): ~50ms (Python: ~400ms) = 8x speedup
     """
+    _ensure_rust_backend()
     return TSIBackend.mjd_to_datetime(mjd)
 
 
@@ -403,6 +501,7 @@ def datetime_to_mjd_rust(dt) -> float:
         - Single conversion: ~0.5µs (Python: ~4µs) = 8x speedup
         - Bulk (100k conversions): ~50ms (Python: ~400ms) = 8x speedup
     """
+    _ensure_rust_backend()
     return TSIBackend.datetime_to_mjd(dt)
 
 
@@ -427,6 +526,7 @@ def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[Any, Any]]:
         - Single row: ~0.5ms (Python: ~15ms) = 30x speedup
         - Full dataset (2647 rows): ~2-4s (Python: ~40s) = 10-20x speedup
     """
+    _ensure_rust_backend()
     return TSIBackend.parse_visibility_periods(visibility_str)
 
 
@@ -461,6 +561,7 @@ def load_dark_periods_rust(path: str | Path) -> pd.DataFrame:
     Performance:
         - Large file (4000+ periods): ~50ms (Python: ~500ms) = 10x speedup
     """
+    _ensure_rust_backend()
     return load_dark_periods(str(path))
 
 
@@ -490,6 +591,10 @@ def get_backend() -> TSIBackend:
 # =============================================================================
 
 __all__ = [
+    # Health check
+    "is_rust_available",
+    "get_rust_status",
+    
     # Loading
     "load_schedule_rust",
     

@@ -5,6 +5,7 @@ from core.time import (
     get_time_range,
     parse_optional_mjd,
 )
+from core.domain.priority import get_priority_range
 # Time conversions now use Rust backend (8x faster)
 from tsi.services.rust_compat import (
     datetime_to_mjd_rust as datetime_to_mjd,
@@ -29,32 +30,26 @@ from tsi.services.loaders import (
 from tsi.services.sky_map_filters import (
     build_palette,
     filter_dataframe,
-    get_priority_range,
     prepare_priority_bins,
     to_utc_timestamp,
 )
-from tsi.services.distributions_filters import (
+# Consolidated impossible observation filtering
+from tsi.services.impossible_filters import (
     check_filter_support,
     compute_impossible_mask,
     filter_impossible_observations,
+    apply_insights_filter,
 )
 from tsi.services.visibility_processing import (
     compute_effective_priority_range,
     get_all_block_ids,
-    get_priority_range as get_visibility_priority_range,
 )
 from tsi.services.timeline_processing import (
     prepare_scheduled_data,
-    get_priority_range as get_timeline_priority_range,
     filter_scheduled_data,
     filter_dark_periods,
     prepare_display_dataframe,
     apply_search_filters,
-)
-from tsi.services.insights_filtering import (
-    check_filter_support,
-    compute_impossible_mask,
-    apply_insights_filter,
 )
 from tsi.services.trends_processing import (
     validate_required_columns,
@@ -83,31 +78,27 @@ __all__ = [
     "find_conflicts",
     "compute_distribution_stats",
     "generate_insights",
+    # priority
+    "get_priority_range",
     # sky_map_filters
     "filter_dataframe",
     "prepare_priority_bins",
-    "get_priority_range",
     "build_palette",
     "to_utc_timestamp",
-    # distributions_filters
+    # impossible_filters (consolidated)
     "filter_impossible_observations",
     "compute_impossible_mask",
     "check_filter_support",
+    "apply_insights_filter",
     # visibility_processing
     "compute_effective_priority_range",
     "get_all_block_ids",
-    "get_visibility_priority_range",
     # timeline_processing
     "prepare_scheduled_data",
-    "get_timeline_priority_range",
     "filter_scheduled_data",
     "filter_dark_periods",
     "prepare_display_dataframe",
     "apply_search_filters",
-    # insights_filtering
-    "check_filter_support",
-    "compute_impossible_mask",
-    "apply_insights_filter",
     # trends_processing
     "validate_required_columns",
     "apply_trends_filters",
