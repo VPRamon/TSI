@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import cast
 
 import pandas as pd
 
@@ -62,13 +63,13 @@ def compute_correlations(df: pd.DataFrame, *, columns: Sequence[str]) -> pd.Data
 def get_top_observations(df: pd.DataFrame, *, by: str, n: int = 10) -> pd.DataFrame:
     """Return the top *n* rows ordered by *by* using the Rust backend."""
 
-    return _BACKEND.get_top_observations(df, by=by, n=n)
+    return cast(pd.DataFrame, _BACKEND.get_top_observations(df, by=by, n=n))
 
 
 def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     """Detect scheduling conflicts using the Rust backend."""
 
-    return _BACKEND.find_conflicts(df)
+    return cast(pd.DataFrame, _BACKEND.find_conflicts(df))
 
 
 def _get_duration_timedelta(row: pd.Series) -> pd.Timedelta | None:

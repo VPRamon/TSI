@@ -9,7 +9,7 @@ Handles all compute-heavy operations for calendar heatmap visualization:
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 import pandas as pd
@@ -157,8 +157,11 @@ def _generate_y_bins(
             start=range_start.normalize(), end=range_end, freq="MS", tz="UTC"
         )
         if y_starts_base[-1] < range_end:
-            return y_starts_base.union(
-                pd.DatetimeIndex([y_starts_base[-1] + pd.offsets.MonthBegin()])
+            return cast(
+                pd.DatetimeIndex,
+                y_starts_base.union(
+                    pd.DatetimeIndex([y_starts_base[-1] + pd.offsets.MonthBegin()])
+                ),
             )
         return y_starts_base
     elif y_unit == "weeks":

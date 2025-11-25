@@ -36,8 +36,8 @@ def calculate_observation_gaps(df: pd.DataFrame) -> tuple[int, float, float]:
 
     # Vectorized gap calculation:
     # Gap exists when next observation starts after current one ends
-    current_ends = sorted_df["scheduled_stop_dt"].iloc[:-1].values
-    next_starts = sorted_df["scheduled_start_dt"].iloc[1:].values
+    current_ends = sorted_df["scheduled_stop_dt"].iloc[:-1].to_numpy()
+    next_starts = sorted_df["scheduled_start_dt"].iloc[1:].to_numpy()
 
     # Calculate time differences in nanoseconds, then convert to hours
     time_diffs = (next_starts - current_ends).astype("timedelta64[ns]")

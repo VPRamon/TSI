@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 
-def render_search_filters(filtered_df) -> dict:
+def render_search_filters(filtered_df: pd.DataFrame) -> dict:
     """
     Render search and filter controls for the observation table.
 

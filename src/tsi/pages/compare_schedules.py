@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pandas as pd
 import streamlit as st
 
 from tsi import state
@@ -56,8 +57,8 @@ def render() -> None:
 
 
 def _display_comparison(
-    current_df,
-    comparison_df,
+    current_df: pd.DataFrame,
+    comparison_df: pd.DataFrame,
     current_name: str,
     comparison_name: str,
 ) -> None:
@@ -125,12 +126,12 @@ def _display_comparison(
 
 
 def _display_comparison_plots(
-    current_scheduled,
-    comparison_scheduled,
-    current_common,
-    comparison_common,
-    newly_scheduled,
-    newly_unscheduled,
+    current_scheduled: pd.DataFrame,
+    comparison_scheduled: pd.DataFrame,
+    current_common: pd.DataFrame,
+    comparison_common: pd.DataFrame,
+    newly_scheduled: pd.DataFrame,
+    newly_unscheduled: pd.DataFrame,
     current_name: str,
     comparison_name: str,
 ) -> None:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import streamlit as st
 
 from tsi import state
@@ -46,7 +48,7 @@ def render_sidebar_controls(
         state.reset_filters()
         st.session_state.pop("visibility_histogram_generated", None)
 
-    return priority_range
+    return cast(tuple[float, float], priority_range)
 
 
 def render_histogram_settings(

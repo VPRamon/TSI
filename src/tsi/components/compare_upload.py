@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pandas as pd
 import streamlit as st
 
@@ -73,4 +75,4 @@ def render_file_upload() -> pd.DataFrame | None:
             st.exception(e)
             return None
 
-    return comparison_df
+    return cast(pd.DataFrame | None, comparison_df)

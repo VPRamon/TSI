@@ -6,6 +6,8 @@ and interactive visualizations.
 
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 from tsi import state
@@ -28,14 +30,14 @@ from tsi.services.trends_processing import apply_trends_filters, validate_requir
 
 
 @st.cache_resource(show_spinner="Computing empirical rates...")
-def _compute_empirical_cached(df_hash: int, n_bins: int):
+def _compute_empirical_cached(df_hash: int, n_bins: int) -> Any:
     """Compute empirical rates with cache."""
     df = state.get_prepared_data()
     return compute_empirical_rates(df, n_bins=n_bins)
 
 
 @st.cache_data(show_spinner="Computing smoothed trend...")
-def _smooth_trend_cached(df_hash: int, x_col: str, bandwidth: float):
+def _smooth_trend_cached(df_hash: int, x_col: str, bandwidth: float) -> tuple[Any, str | None]:
     """Compute smoothed trend with cache."""
     df = state.get_prepared_data()
     try:
@@ -46,7 +48,9 @@ def _smooth_trend_cached(df_hash: int, x_col: str, bandwidth: float):
 
 
 @st.cache_resource(show_spinner="Training logistic model...")
-def _fit_model_cached(df_hash: int, exclude_zero_visibility: bool, class_weight: str):
+def _fit_model_cached(
+    df_hash: int, exclude_zero_visibility: bool, class_weight: str
+) -> tuple[Any, str | None]:
     """Train logistic model with cache."""
     df = state.get_prepared_data()
     try:
