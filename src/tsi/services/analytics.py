@@ -36,18 +36,18 @@ from tsi.services.rust_compat import (
 
 def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
     """Compute comprehensive analytics metrics from the dataset (using Rust backend - 10x faster)."""
-    return rust_compute_metrics(df)
+    return cast(AnalyticsMetrics, rust_compute_metrics(df))
 
 
 def compute_correlations(df: pd.DataFrame) -> pd.DataFrame:
     """Compute a Spearman correlation matrix for key numeric features."""
     result: pd.DataFrame = core_compute_correlations(df, columns=CORRELATION_COLUMNS)
-    return result
+    return cast(pd.DataFrame, result)  # type: ignore[no-any-return]
 
 
 def get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) -> pd.DataFrame:
     """Get top N observations by a specified metric (using Rust backend - 10x faster)."""
-    return rust_get_top_observations(df, by=by, n=n)
+    return cast(pd.DataFrame, rust_get_top_observations(df, by=by, n=n))
 
 
 def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
@@ -57,7 +57,7 @@ def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     Note: Falls back to empty DataFrame if datetime conversion issues occur.
     """
     try:
-        return rust_find_conflicts(df)
+        return cast(pd.DataFrame, rust_find_conflicts(df))
     except RuntimeError as e:
         # Handle Rust backend datetime conversion issues
         if "datetime" in str(e).lower() or "dtype" in str(e).lower():

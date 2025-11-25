@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 import pandas as pd
 
@@ -42,12 +42,13 @@ def _identity_cache(func: F | None = None, **_: Any) -> F | Callable[[F], F]:
 
 
 # Streamlit integration (optional - gracefully degrades if unavailable)
+def _default_warning_handler(msg: str) -> None:
+    logger.warning(msg)
+
+
 _streamlit_available = False
-_cache_decorator = _identity_cache
-
-
-def _warning_handler(msg: str) -> None:
-    return logger.warning(msg)
+_cache_decorator: Any = _identity_cache
+_warning_handler: Any = _default_warning_handler
 
 
 try:  # pragma: no cover
@@ -88,7 +89,7 @@ def emit_warning(message: str) -> None:
     _warning_handler(message)
 
 
-def cache_data(**kwargs):
+def cache_data(**kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Apply caching decorator appropriate for the runtime context.
 
@@ -100,7 +101,10 @@ def cache_data(**kwargs):
     Returns:
         Caching decorator function
     """
-    return _cache_decorator(**kwargs)
+    return cast(
+        Callable[[Callable[..., Any]], Callable[..., Any]],
+        _cache_decorator(**kwargs),
+    )
 
 
 # =============================================================================
@@ -133,11 +137,11 @@ def _load_csv_core(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
     if missing_cols:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
-    return df
+    return cast(pd.DataFrame, df)
 
 
 @cache_data(ttl=3600, show_spinner="Loading data...")
-def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
+def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:  # type: ignore[no-any-return]
     """
     Load CSV file using Rust backend (10x faster than pandas).
 
@@ -153,7 +157,7 @@ def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
         FileNotFoundError: If file doesn't exist
         ValueError: If required columns are missing
     """
-    return _load_csv_core(file_path_or_buffer)
+    return cast(pd.DataFrame, _load_csv_core(file_path_or_buffer))  # type: ignore[no-any-return]
 
 
 def _prepare_dataframe_core(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
@@ -183,7 +187,7 @@ def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     prepared_df, warnings = _prepare_dataframe_core(df)
     for warning in warnings:
         emit_warning(f"⚠️ {warning}")
-    return prepared_df
+    return cast(pd.DataFrame, prepared_df)  # type: ignore[no-any-return]
 
 
 def get_filtered_dataframe(

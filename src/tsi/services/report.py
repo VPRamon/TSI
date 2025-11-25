@@ -122,7 +122,7 @@ def _markdown_to_html_safe(markdown_text: str) -> str:
 
         # Use safe mode with proper extensions
         return markdown.markdown(
-            markdown_text, extensions=["tables", "fenced_code", "nl2br"], output_format="html5"
+            markdown_text, extensions=["tables", "fenced_code", "nl2br"], output_format="html"
         )
     except ImportError:
         logger.warning("markdown library not available, using simple fallback conversion")

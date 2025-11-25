@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import cast
 
 import pandas as pd
 
@@ -32,4 +33,4 @@ def filter_impossible_observations(df: pd.DataFrame, filter_mode: str) -> pd.Dat
     Returns:
         Filtered DataFrame (view if no filtering, copy if filtered)
     """
-    return _filter_impossible_observations(df, filter_mode)
+    return cast(pd.DataFrame, _filter_impossible_observations(df, filter_mode))

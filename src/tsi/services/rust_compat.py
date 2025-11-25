@@ -33,8 +33,9 @@ Requirements:
 from __future__ import annotations
 
 import warnings
+from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -187,7 +188,8 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
 
         # For JSON, use Rust backend with string loading
         if format == "json":
-            return _BACKEND.load_schedule_from_string(content, format="json")
+            assert _BACKEND is not None
+            return cast(pd.DataFrame, _BACKEND.load_schedule_from_string(content, format="json"))
         # For CSV, fall back to pandas (Rust backend doesn't support CSV string loading yet)
         elif format == "csv":
             import io
@@ -197,7 +199,7 @@ def load_schedule_rust(path: str | Path, format: str = "auto") -> pd.DataFrame:
             raise ValueError(f"Format must be specified for file buffers, got: {format}")
 
     # Handle regular file paths - trust the Rust implementation
-    return load_schedule(str(path), format=format)
+    return cast(pd.DataFrame, load_schedule(str(path), format=format))
 
 
 # =============================================================================
@@ -224,6 +226,7 @@ def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
         - 2647 rows: ~15ms (Python: ~150ms) = 10x speedup
     """
     _ensure_rust_backend()
+    assert _BACKEND is not None
     # Call Rust backend (returns dict)
     rust_metrics = _BACKEND.compute_metrics(df)
 
@@ -251,7 +254,8 @@ def get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) ->
         - 2647 rows: ~3ms (Python: ~30ms) = 10x speedup
     """
     _ensure_rust_backend()
-    return _BACKEND.get_top_observations(df, n=n, by=by)
+    assert _BACKEND is not None
+    return cast(pd.DataFrame, _BACKEND.get_top_observations(df, n=n, by=by))
 
 
 def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
@@ -277,7 +281,8 @@ def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
         - 2647 rows: ~30ms (Python: ~500ms) = 16x speedup
     """
     _ensure_rust_backend()
-    return _BACKEND.find_conflicts(df)
+    assert _BACKEND is not None
+    return cast(pd.DataFrame, _BACKEND.find_conflicts(df))
 
 
 # =============================================================================
@@ -307,7 +312,8 @@ def filter_by_priority(
         - 2647 rows: ~5ms (Python: ~50ms) = 10x speedup
     """
     _ensure_rust_backend()
-    return _BACKEND.filter_by_priority(df, min_priority, max_priority)
+    assert _BACKEND is not None
+    return cast(pd.DataFrame, _BACKEND.filter_by_priority(df, min_priority, max_priority))
 
 
 def filter_by_scheduled(df: pd.DataFrame, filter_type: str = "all") -> pd.DataFrame:
@@ -329,7 +335,8 @@ def filter_by_scheduled(df: pd.DataFrame, filter_type: str = "all") -> pd.DataFr
         - 2647 rows: ~5ms (Python: ~50ms) = 10x speedup
     """
     _ensure_rust_backend()
-    return _BACKEND.filter_by_scheduled(df, filter_type)
+    assert _BACKEND is not None
+    return cast(pd.DataFrame, _BACKEND.filter_by_scheduled(df, filter_type))
 
 
 def filter_by_range(
@@ -355,7 +362,8 @@ def filter_by_range(
         - 2647 rows: ~5ms (Python: ~50ms) = 10x speedup
     """
     _ensure_rust_backend()
-    return _BACKEND.filter_by_range(df, column, min_value, max_value)
+    assert _BACKEND is not None
+    return cast(pd.DataFrame, _BACKEND.filter_by_range(df, column, min_value, max_value))
 
 
 # =============================================================================
@@ -385,7 +393,8 @@ def remove_duplicates(
         - 2647 rows: ~10ms (Python: ~100ms) = 10x speedup
     """
     _ensure_rust_backend()
-    return _BACKEND.remove_duplicates(df, subset, keep)
+    assert _BACKEND is not None
+    return cast(pd.DataFrame, _BACKEND.remove_duplicates(df, subset, keep))
 
 
 def remove_missing_coordinates(df: pd.DataFrame) -> pd.DataFrame:
@@ -406,7 +415,8 @@ def remove_missing_coordinates(df: pd.DataFrame) -> pd.DataFrame:
         - 2647 rows: ~8ms (Python: ~80ms) = 10x speedup
     """
     _ensure_rust_backend()
-    return _BACKEND.remove_missing_coordinates(df)
+    assert _BACKEND is not None
+    return cast(pd.DataFrame, _BACKEND.remove_missing_coordinates(df))
 
 
 # =============================================================================
@@ -440,6 +450,7 @@ def validate_dataframe_rust(df: pd.DataFrame) -> tuple[bool, list[str]]:
         - 2647 rows: ~10ms (Python: ~50ms) = 5x speedup
     """
     _ensure_rust_backend()
+    assert _BACKEND is not None
     try:
         result = _BACKEND.validate_dataframe(df)
         # Rust returns dict with 'valid' and 'errors' keys
@@ -453,7 +464,7 @@ def validate_dataframe_rust(df: pd.DataFrame) -> tuple[bool, list[str]]:
 # =============================================================================
 
 
-def mjd_to_datetime_rust(mjd: float):
+def mjd_to_datetime_rust(mjd: float) -> datetime:
     """
     Convert Modified Julian Date to Python datetime using Rust backend (8x faster).
 
@@ -472,10 +483,10 @@ def mjd_to_datetime_rust(mjd: float):
         - Bulk (100k conversions): ~50ms (Python: ~400ms) = 8x speedup
     """
     _ensure_rust_backend()
-    return TSIBackend.mjd_to_datetime(mjd)
+    return cast(datetime, TSIBackend.mjd_to_datetime(mjd))
 
 
-def datetime_to_mjd_rust(dt) -> float:
+def datetime_to_mjd_rust(dt: datetime) -> float:
     """
     Convert Python datetime to Modified Julian Date using Rust backend (8x faster).
 
@@ -496,7 +507,7 @@ def datetime_to_mjd_rust(dt) -> float:
         - Bulk (100k conversions): ~50ms (Python: ~400ms) = 8x speedup
     """
     _ensure_rust_backend()
-    return TSIBackend.datetime_to_mjd(dt)
+    return cast(float, TSIBackend.datetime_to_mjd(dt))
 
 
 def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[Any, Any]]:
@@ -521,7 +532,7 @@ def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[Any, Any]]:
         - Full dataset (2647 rows): ~2-4s (Python: ~40s) = 10-20x speedup
     """
     _ensure_rust_backend()
-    return TSIBackend.parse_visibility_periods(visibility_str)
+    return cast(list[tuple[Any, Any]], TSIBackend.parse_visibility_periods(visibility_str))
 
 
 # =============================================================================
@@ -557,7 +568,7 @@ def load_dark_periods_rust(path: str | Path) -> pd.DataFrame:
         - Large file (4000+ periods): ~50ms (Python: ~500ms) = 10x speedup
     """
     _ensure_rust_backend()
-    return load_dark_periods(str(path))
+    return cast(pd.DataFrame, load_dark_periods(str(path)))
 
 
 # =============================================================================
