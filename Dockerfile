@@ -5,9 +5,9 @@ ARG RUST_VERSION=nightly
 ARG APP_USER=app
 
 #############################
-# Base image with Python runtime
+# Minimal runtime base (no dev packages)
 #############################
-FROM debian:${DEBIAN_VERSION}-slim AS base
+FROM debian:${DEBIAN_VERSION}-slim AS runtime-base
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -22,14 +22,23 @@ RUN apt-get update \
         python3 \
         python3-venv \
         python3-pip \
-        python3-dev \
         tini \
+    && rm -rf /var/lib/apt/lists/*
+
+#############################
+# Build base with development packages
+#############################
+FROM runtime-base AS build-base
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 #############################
 # Build dependencies (C toolchain, git, curl)
 #############################
-FROM base AS build-deps
+FROM build-base AS build-deps
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
@@ -66,9 +75,6 @@ FROM rust-base AS cargo-planner
 WORKDIR /workspace
 COPY Cargo.toml Cargo.lock ./
 COPY rust_backend/Cargo.toml rust_backend/Cargo.toml
-COPY rust_backend/src rust_backend/src
-COPY rust_backend/siderust rust_backend/siderust
-COPY rust_backend/tests rust_backend/tests
 RUN cargo chef prepare --recipe-path recipe.json
 
 #############################
@@ -106,17 +112,28 @@ RUN pip install --upgrade pip wheel \
     && pip install --no-cache-dir -r requirements.base.txt
 COPY --from=cargo-builder /artifacts /tmp/artifacts
 RUN pip install --no-cache-dir /tmp/artifacts/*.whl \
-    && rm -rf /tmp/artifacts
+    && rm -rf /tmp/artifacts \
+    && find /opt/venv -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true \
+    && find /opt/venv -type f -name "*.pyc" -delete \
+    && find /opt/venv -type f -name "*.pyo" -delete
 
 #############################
 # Production runtime image
 #############################
-FROM base AS runtime
+FROM runtime-base AS runtime
+ARG APP_USER=app
+
 ENV PATH=/opt/venv/bin:$PATH \
     PYTHONPATH=/app/src \
     STREAMLIT_SERVER_ADDRESS=0.0.0.0 \
     STREAMLIT_SERVER_PORT=8501
+
+# Create non-root user
+RUN groupadd --gid 1000 ${APP_USER} \
+    && useradd --uid 1000 --gid ${APP_USER} --shell /bin/bash --create-home ${APP_USER}
+
 WORKDIR /app
+
 COPY --from=python-builder /opt/venv /opt/venv
 COPY src ./src
 COPY data ./data
@@ -124,6 +141,11 @@ COPY streamlit_app.py ./streamlit_app.py
 COPY run_dashboard.sh ./run_dashboard.sh
 COPY README.md pyproject.toml requirements.base.txt ./
 COPY .streamlit ./.streamlit
+
+# Set ownership to non-root user
+RUN chown -R ${APP_USER}:${APP_USER} /app /opt/venv
+
+USER ${APP_USER}
 
 EXPOSE 8501
 ENTRYPOINT ["tini", "--"]
