@@ -169,5 +169,15 @@ RUN groupadd --gid 1000 ${APP_USER} \
     && chown -R ${APP_USER}:${APP_USER} /workspace /opt/venv /opt/cargo /opt/rustup
 USER ${APP_USER}
 RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -e ".[dev]"
+    && pip install --no-cache-dir \
+        pytest>=7.4.0 \
+        pytest-cov>=4.1.0 \
+        hypothesis>=6.98.0 \
+        responses>=0.25.0 \
+        ruff>=0.1.0 \
+        black>=23.11.0 \
+        mypy>=1.7.0 \
+        pandas-stubs>=2.0.0 \
+        types-PyYAML>=6.0.0 \
+        types-Markdown>=3.0.0
 CMD ["bash"]
