@@ -66,6 +66,7 @@ ENV RUSTUP_HOME=/opt/rustup \
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
         | sh -s -- -y --default-toolchain ${RUST_VERSION} --profile minimal \
     && rustup target add x86_64-unknown-linux-gnu \
+    && rustup component add rustfmt clippy \
     && cargo install cargo-chef --locked
 
 #############################
