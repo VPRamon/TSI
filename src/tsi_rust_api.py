@@ -201,8 +201,19 @@ class TSIBackend:
             >>> print(f"Found {len(conflicts)} conflicts")
         """
         df_polars = self._to_polars(df)
-        result: pl.DataFrame = tsi_rust.py_find_conflicts(df_polars)
-        return cast(pd.DataFrame, result.to_pandas()) if self.use_pandas else result
+        result = tsi_rust.py_find_conflicts(df_polars)
+
+        # Rust backend may return list or DataFrame depending on version
+        if isinstance(result, list):
+            # Convert list to DataFrame
+            if not result:
+                # Empty conflicts - return empty DataFrame
+                return pd.DataFrame() if self.use_pandas else pl.DataFrame()
+            return pd.DataFrame(result) if self.use_pandas else pl.DataFrame(result)
+
+        # Result is already a DataFrame
+        result_df: pl.DataFrame = result
+        return cast(pd.DataFrame, result_df.to_pandas()) if self.use_pandas else result_df
 
     def greedy_schedule(
         self, df: pd.DataFrame | pl.DataFrame, max_iterations: int = 1000

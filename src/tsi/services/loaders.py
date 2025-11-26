@@ -208,8 +208,8 @@ def get_filtered_dataframe(
         result = filter_by_priority(result, priority_range[0], priority_range[1])
 
     # Apply scheduled filter (Rust)
-    if scheduled_filter.lower() != "all":
-        result = filter_by_scheduled(result, scheduled_filter.lower())
+    if scheduled_filter != "All":
+        result = filter_by_scheduled(result, scheduled_filter)
 
     # Apply priority bins filter (Python - complex logic)
     if priority_bins:
