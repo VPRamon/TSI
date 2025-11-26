@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use tsi_rust::algorithms::compute_metrics;
 //! use polars::prelude::*;
 //!

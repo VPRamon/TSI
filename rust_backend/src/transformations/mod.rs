@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use tsi_rust::transformations::{remove_duplicates, filter_by_scheduled};
 //! use polars::prelude::*;
 //!

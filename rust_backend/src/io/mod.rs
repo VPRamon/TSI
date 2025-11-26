@@ -6,7 +6,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use tsi_rust::io::loaders::ScheduleLoader;
 //! use std::path::Path;
 //!

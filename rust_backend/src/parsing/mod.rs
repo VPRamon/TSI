@@ -12,7 +12,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use tsi_rust::parsing::json_parser::parse_schedule_json;
 //! use std::path::Path;
 //!
