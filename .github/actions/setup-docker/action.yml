@@ -1,0 +1,28 @@
+name: Setup Docker Environment
+description: Setup Buildx and build dev image with caching
+
+inputs:
+  dev-image-tag:
+    description: Tag for the dev Docker image
+    required: true
+    default: tsi-dev:ci
+  dev-cache-scope:
+    description: Cache scope for the dev image
+    required: true
+    default: tsi-dev-ci
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build dev image with cache
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        target: dev
+        tags: ${{ inputs.dev-image-tag }}
+        load: true
+        cache-from: type=gha,scope=${{ inputs.dev-cache-scope }}
+        cache-to: type=gha,scope=${{ inputs.dev-cache-scope }},mode=max
