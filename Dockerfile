@@ -168,6 +168,11 @@ RUN groupadd --gid 1000 ${APP_USER} \
     && useradd --uid 1000 --gid ${APP_USER} --shell /bin/bash --create-home ${APP_USER} \
     && chown -R ${APP_USER}:${APP_USER} /workspace /opt/venv /opt/cargo /opt/rustup
 USER ${APP_USER}
+# Ensure PATH is set in login shells
+RUN echo 'export PATH=/opt/venv/bin:/opt/cargo/bin:$PATH' >> ~/.bashrc \
+    && echo 'export PATH=/opt/venv/bin:/opt/cargo/bin:$PATH' >> ~/.bash_profile \
+    && echo 'export PYTHONPATH=/workspace/src' >> ~/.bashrc \
+    && echo 'export PYTHONPATH=/workspace/src' >> ~/.bash_profile
 RUN pip install --upgrade pip \
     && pip install --no-cache-dir \
         pytest>=7.4.0 \
