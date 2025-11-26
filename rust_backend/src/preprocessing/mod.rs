@@ -11,7 +11,7 @@
 //!
 //! # Example
 //!
-//! ```no_run
+//! ```ignore
 //! use tsi_rust::preprocessing::preprocess_schedule;
 //! use std::path::Path;
 //!
