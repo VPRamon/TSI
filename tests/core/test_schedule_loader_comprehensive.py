@@ -191,7 +191,6 @@ class TestLoadScheduleFromJson:
         result = load_schedule_from_json(minimal_schedule_data, validate=True)
         assert isinstance(result.validation.is_valid, bool)
 
-    @pytest.mark.skip(reason="Empty dataframe edge case needs fix in add_derived_columns")
     def test_with_empty_scheduling_blocks__returns_empty_dataframe(self) -> None:
         """Handle empty SchedulingBlock list."""
         empty_data = {"SchedulingBlock": []}

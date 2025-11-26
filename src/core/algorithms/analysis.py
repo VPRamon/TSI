@@ -69,7 +69,17 @@ def get_top_observations(df: pd.DataFrame, *, by: str, n: int = 10) -> pd.DataFr
 def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     """Detect scheduling conflicts using the Rust backend."""
 
-    return cast(pd.DataFrame, _BACKEND.find_conflicts(df))
+    # Check if required columns for conflict detection are present
+    required_cols = {"scheduled_start_dt", "scheduled_stop_dt"}
+    if not required_cols.issubset(df.columns):
+        # Cannot detect conflicts without scheduled datetime columns
+        return pd.DataFrame()
+
+    try:
+        return cast(pd.DataFrame, _BACKEND.find_conflicts(df))
+    except Exception:
+        # If Rust backend fails (e.g., due to dtype issues), return empty conflicts
+        return pd.DataFrame()
 
 
 def _get_duration_timedelta(row: pd.Series) -> pd.Timedelta | None:

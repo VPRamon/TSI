@@ -453,8 +453,13 @@ def validate_dataframe_rust(df: pd.DataFrame) -> tuple[bool, list[str]]:
     assert _BACKEND is not None
     try:
         result = _BACKEND.validate_dataframe(df)
-        # Rust returns dict with 'valid' and 'errors' keys
-        return result.get("valid", False), result.get("errors", [])
+        # Rust returns tuple (bool, list[str])
+        if isinstance(result, tuple) and len(result) == 2:
+            return result[0], result[1]
+        # Fallback for dict format (legacy compatibility)
+        if isinstance(result, dict):
+            return result.get("valid", False), result.get("errors", [])
+        return False, [f"Unexpected validation result format: {type(result)}"]
     except Exception as e:
         return False, [f"Validation failed: {str(e)}"]
 

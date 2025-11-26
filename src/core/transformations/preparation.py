@@ -9,7 +9,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from core.time import parse_optional_mjd, parse_visibility_periods
+from core.time import parse_visibility_periods
 
 
 @dataclass(frozen=True)
@@ -102,8 +102,10 @@ def prepare_dataframe(df: pd.DataFrame) -> PreparationResult:
     # Convert scheduled_flag to boolean if it's a string
     if "scheduled_flag" in prepared.columns:
         if prepared["scheduled_flag"].dtype == object:
-            prepared["scheduled_flag"] = prepared["scheduled_flag"].map(
-                lambda x: str(x).lower() == "true" if pd.notna(x) else False
+            prepared["scheduled_flag"] = (
+                prepared["scheduled_flag"]
+                .map(lambda x: str(x).lower() == "true" if pd.notna(x) else False)
+                .astype(bool)
             )
 
     # NOTE: visibility_periods_parsed parsing is DISABLED during initial load
@@ -116,11 +118,9 @@ def prepare_dataframe(df: pd.DataFrame) -> PreparationResult:
     if "visibility" in prepared.columns:
         prepared["visibility_periods_parsed"] = None
 
-    # Add datetime columns (lightweight conversion)
-    prepared["fixed_start_dt"] = prepared["fixedStartTime"].apply(parse_optional_mjd)
-    prepared["fixed_stop_dt"] = prepared["fixedStopTime"].apply(parse_optional_mjd)
-    prepared["scheduled_start_dt"] = prepared["scheduled_period.start"].apply(parse_optional_mjd)
-    prepared["scheduled_stop_dt"] = prepared["scheduled_period.stop"].apply(parse_optional_mjd)
+    # NOTE: Datetime columns (fixed_start_dt, scheduled_start_dt, etc.) are created
+    # on-demand by pages that need them, not during preparation, to avoid conflicts
+    # with the Rust backend which expects specific column types.
 
     return PreparationResult(dataframe=prepared, warnings=warnings)
 

@@ -114,18 +114,18 @@ class TestPrepareDataframe:
         df = pd.DataFrame({"scheduled_flag": ["True", "False", "true", "false"]})
         result = prepare_dataframe(df)
         assert result.dataframe["scheduled_flag"].dtype == bool
-        assert result.dataframe["scheduled_flag"].iloc[0] is True
-        assert result.dataframe["scheduled_flag"].iloc[1] is False
-        assert result.dataframe["scheduled_flag"].iloc[2] is True
-        assert result.dataframe["scheduled_flag"].iloc[3] is False
+        assert result.dataframe["scheduled_flag"].iloc[0]
+        assert not result.dataframe["scheduled_flag"].iloc[1]
+        assert result.dataframe["scheduled_flag"].iloc[2]
+        assert not result.dataframe["scheduled_flag"].iloc[3]
 
     def test_with_nan_scheduled_flag__converts_to_false(self) -> None:
         """Convert NaN scheduled_flag to False."""
         df = pd.DataFrame({"scheduled_flag": [float("nan"), None, "True"]})
         result = prepare_dataframe(df)
-        assert result.dataframe["scheduled_flag"].iloc[0] is False
-        assert result.dataframe["scheduled_flag"].iloc[1] is False
-        assert result.dataframe["scheduled_flag"].iloc[2] is True
+        assert not result.dataframe["scheduled_flag"].iloc[0]
+        assert not result.dataframe["scheduled_flag"].iloc[1]
+        assert result.dataframe["scheduled_flag"].iloc[2]
 
     def test_with_mjd_columns__converts_to_numeric(self) -> None:
         """Convert MJD columns to numeric."""
@@ -140,22 +140,6 @@ class TestPrepareDataframe:
         result = prepare_dataframe(df)
         assert result.dataframe["fixedStartTime"].dtype in [float, "float64"]
         assert result.dataframe["scheduled_period.start"].dtype in [float, "float64"]
-
-    def test_adds_datetime_columns(self) -> None:
-        """Add datetime columns for MJD values."""
-        df = pd.DataFrame(
-            {
-                "fixedStartTime": [58000.0],
-                "fixedStopTime": [58001.0],
-                "scheduled_period.start": [58010.0],
-                "scheduled_period.stop": [58011.0],
-            }
-        )
-        result = prepare_dataframe(df)
-        assert "fixed_start_dt" in result.dataframe.columns
-        assert "fixed_stop_dt" in result.dataframe.columns
-        assert "scheduled_start_dt" in result.dataframe.columns
-        assert "scheduled_stop_dt" in result.dataframe.columns
 
     def test_with_visibility_column__sets_parsed_to_none(self) -> None:
         """Set visibility_periods_parsed to None for lazy parsing."""
@@ -194,35 +178,35 @@ class TestValidateDataframe:
             }
         )
         is_valid, issues = validate_dataframe(df)
-        assert is_valid is True
+        assert is_valid
         assert issues == []
 
     def test_with_missing_scheduling_block_id__reports_issue(self) -> None:
         """Report missing schedulingBlockId."""
         df = pd.DataFrame({"schedulingBlockId": ["SB001", None, "SB003"]})
         is_valid, issues = validate_dataframe(df)
-        assert is_valid is False
+        assert not is_valid
         assert any("missing schedulingBlockId" in issue for issue in issues)
 
     def test_with_invalid_priority__reports_issue(self) -> None:
         """Report invalid priority values."""
         df = pd.DataFrame({"priority": [5.0, float("nan"), float("inf"), -float("inf")]})
         is_valid, issues = validate_dataframe(df)
-        assert is_valid is False
+        assert not is_valid
         assert any("invalid priority" in issue for issue in issues)
 
     def test_with_invalid_declination__reports_issue(self) -> None:
         """Report declination outside [-90, 90]."""
         df = pd.DataFrame({"decInDeg": [45.0, -91.0, 91.0]})
         is_valid, issues = validate_dataframe(df)
-        assert is_valid is False
+        assert not is_valid
         assert any("invalid declination" in issue for issue in issues)
 
     def test_with_invalid_right_ascension__reports_issue(self) -> None:
         """Report right ascension outside [0, 360)."""
         df = pd.DataFrame({"raInDeg": [123.45, -10.0, 361.0]})
         is_valid, issues = validate_dataframe(df)
-        assert is_valid is False
+        assert not is_valid
         assert any("invalid right ascension" in issue for issue in issues)
 
     def test_with_missing_columns__handles_gracefully(self) -> None:
@@ -237,14 +221,14 @@ class TestValidateDataframe:
         """Empty dataframe is considered valid."""
         df = pd.DataFrame()
         is_valid, issues = validate_dataframe(df)
-        assert is_valid is True
+        assert is_valid
         assert issues == []
 
     def test_with_boundary_coordinates__accepts_valid_boundaries(self) -> None:
         """Accept boundary values for coordinates."""
         df = pd.DataFrame({"decInDeg": [-90.0, 90.0], "raInDeg": [0.0, 359.999]})
         is_valid, issues = validate_dataframe(df)
-        assert is_valid is True
+        assert is_valid
 
 
 class TestFilterDataframe:

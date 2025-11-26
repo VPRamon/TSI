@@ -488,7 +488,6 @@ class TestComputeCorrelations:
 class TestGenerateInsights:
     """Test generate_insights function."""
 
-    @pytest.mark.skip(reason="Requires full Rust backend integration with all columns")
     def test_with_basic_metrics__generates_scheduling_rate_insight(self) -> None:
         """Always generate scheduling rate insight."""
         df = pd.DataFrame(
@@ -517,7 +516,6 @@ class TestGenerateInsights:
         insights = generate_insights(df, metrics)
         assert any("Scheduling Rate" in insight for insight in insights)
 
-    @pytest.mark.skip(reason="Requires full Rust backend integration with all columns")
     def test_with_priority_bias__generates_priority_insight(self) -> None:
         """Generate priority bias insight when diff > 0.5."""
         df = pd.DataFrame(
@@ -546,7 +544,6 @@ class TestGenerateInsights:
         insights = generate_insights(df, metrics)
         assert any("Priority Bias" in insight for insight in insights)
 
-    @pytest.mark.skip(reason="Requires full Rust backend integration with all columns")
     def test_with_visibility_hours__generates_visibility_insight(self) -> None:
         """Generate visibility insight when total hours > 0."""
         df = pd.DataFrame(
@@ -575,7 +572,6 @@ class TestGenerateInsights:
         insights = generate_insights(df, metrics)
         assert any("Total Visibility" in insight for insight in insights)
 
-    @pytest.mark.skip(reason="Requires full Rust backend integration with all columns")
     def test_with_strong_correlation__generates_correlation_insight(self) -> None:
         """Generate correlation insight when |correlation| > 0.3."""
         df = pd.DataFrame(
@@ -619,7 +615,6 @@ class TestGenerateInsights:
         correlation_insights = [i for i in insights if "Correlation" in i]
         assert len(correlation_insights) > 0
 
-    @pytest.mark.skip(reason="Requires full Rust backend integration with all columns")
     def test_with_empty_dataframe__generates_minimal_insights(self) -> None:
         """Handle empty dataframe gracefully."""
         df = pd.DataFrame(
@@ -651,12 +646,11 @@ class TestGenerateInsights:
 class TestComputeMetrics:
     """Test compute_metrics function (integration with Rust backend)."""
 
-    @pytest.mark.skip(reason="Requires full Rust backend integration")
     def test_with_valid_dataframe__returns_snapshot(self) -> None:
         """Compute metrics via Rust backend."""
         df = pd.DataFrame(
             {
-                "priority": [5, 6, 7],
+                "priority": [5.0, 6.0, 7.0],
                 "scheduled_flag": [True, False, True],
                 "total_visibility_hours": [1.0, 2.0, 3.0],
                 "requested_hours": [1.0, 1.5, 2.0],
@@ -671,7 +665,6 @@ class TestComputeMetrics:
 class TestGetTopObservations:
     """Test get_top_observations function."""
 
-    @pytest.mark.skip(reason="Requires full Rust backend integration")
     def test_with_valid_dataframe__returns_top_n(self) -> None:
         """Return top N observations by specified column."""
         df = pd.DataFrame(
@@ -687,7 +680,6 @@ class TestGetTopObservations:
 class TestFindConflicts:
     """Test find_conflicts function."""
 
-    @pytest.mark.skip(reason="Requires full Rust backend integration")
     def test_with_valid_dataframe__returns_conflicts(self) -> None:
         """Find scheduling conflicts via Rust backend."""
         df = pd.DataFrame(
