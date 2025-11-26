@@ -15,6 +15,7 @@ dependencies = [
     "pytest-cov>=4.1.0",
     "responses>=0.25.0",
     "hypothesis>=6.98.0",
+    "polars>=0.20.0",
 ]
 
 [project.optional-dependencies]
@@ -27,11 +28,26 @@ dev = [
     "black>=23.11.0",
     "mypy>=1.7.0",
     "pandas-stubs>=2.0.0",
+    "types-PyYAML>=6.0.0",
+    "types-Markdown>=3.0.0",
 ]
 
 [build-system]
-requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["setuptools>=68.0", "wheel", "maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[tool.maturin]
+module-name = "tsi_rust"
+manifest-path = "rust_backend/Cargo.toml"
+bindings = "pyo3"
+compatibility = "linux"
+features = ["pyo3/extension-module"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = true
 
 [tool.ruff]
 line-length = 100

@@ -11,30 +11,6 @@ import streamlit as st
 from core.transformations import parse_visibility_for_rows
 
 
-@st.cache_data(ttl=3600, show_spinner="Parsing visibility periods...")
-def get_visibility_parsed(df_hash: int, visibility_column: str = "visibility") -> pd.Series:
-    """
-    Parse visibility periods with caching based on dataframe hash.
-
-    This function uses Streamlit's cache to avoid re-parsing the same
-    dataframe within a session. The cache persists across page navigations.
-
-    Args:
-        df_hash: Hash of the dataframe (use hash(df.index.values.tobytes()))
-        visibility_column: Name of visibility column
-
-    Returns:
-        pd.Series with parsed visibility periods
-
-    Note:
-        This function is called internally by ensure_visibility_parsed().
-        Users should call that function instead.
-    """
-    # This function body will never execute directly - it's a caching wrapper
-    # The actual implementation is in ensure_visibility_parsed
-    return pd.Series(dtype=object)  # Placeholder return
-
-
 def ensure_visibility_parsed(
     df: pd.DataFrame, visibility_column: str = "visibility", force: bool = False
 ) -> pd.DataFrame:

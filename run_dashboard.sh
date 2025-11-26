@@ -1,6 +1,8 @@
 #!/bin/bash
 # Quick start script for the Telescope Scheduling Intelligence Dashboard
 
+set -e  # Exit on error
+
 echo "🔭 Telescope Scheduling Intelligence Dashboard"
 echo "=============================================="
 echo ""
@@ -8,7 +10,14 @@ echo ""
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
     echo "📦 Creating virtual environment..."
-    python3 -m venv venv
+    if ! python3 -m venv venv 2>/dev/null; then
+        echo ""
+        echo "❌ Failed to create virtual environment!"
+        echo "Please install python3-venv first:"
+        echo "   sudo apt install python3-venv python3-full"
+        exit 1
+    fi
+    echo "✅ Virtual environment created successfully"
 fi
 
 # Activate virtual environment

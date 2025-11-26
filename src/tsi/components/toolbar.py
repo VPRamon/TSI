@@ -1,6 +1,9 @@
 """Toolbar components for filters and controls."""
 
+import pandas as pd
 import streamlit as st
+
+from tsi.services.impossible_filters import check_filter_support
 
 
 def render_priority_filter(
@@ -48,58 +51,94 @@ def render_priority_filter(
     return priority_range
 
 
-def render_scheduled_filter(key: str = "scheduled_filter") -> str:
+def render_priority_range_control(
+    min_value: float,
+    max_value: float,
+    stored_range: tuple[float, float] | None,
+    key: str,
+) -> tuple[float, float]:
     """
-    Render scheduled/unscheduled filter.
+    Render priority range slider with state handling.
+
+    Handles default range logic consistently across pages.
 
     Args:
+        min_value: Minimum priority in dataset
+        max_value: Maximum priority in dataset
+        stored_range: Previously stored range from state
         key: Session state key
 
     Returns:
-        Filter value: "All", "Scheduled", or "Unscheduled"
+        Selected priority range tuple
     """
-    scheduled_filter = st.radio(
-        "Scheduling Status",
-        options=["All", "Scheduled", "Unscheduled"],
-        horizontal=True,
+    if (
+        stored_range is None
+        or stored_range[0] < min_value
+        or stored_range[1] > max_value
+        or stored_range == (0.0, 10.0)
+    ):
+        default_range = (min_value, max_value)
+    else:
+        default_range = (
+            max(min_value, stored_range[0]),
+            min(max_value, stored_range[1]),
+        )
+
+    return st.slider(
+        "Priority Range",
+        min_value=min_value,
+        max_value=max_value,
+        value=default_range,
+        step=0.1,
         key=key,
-        help="Filter by scheduling status",
+        help="Filter observations by priority range",
     )
-    return scheduled_filter
 
 
-def render_bin_selector(
-    priority_bins: list[str],
-    key: str = "bin_selector",
-    default: list[str] | None = None,
-) -> list[str] | None:
+def render_impossible_filter_control(
+    df: pd.DataFrame,
+    key: str,
+    label_visible: bool = False,
+) -> str:
     """
-    Render priority bin checkboxes.
+    Render impossible observation filter control.
+
+    Provides radio buttons to filter out observations where required duration
+    exceeds total visibility hours.
 
     Args:
-        priority_bins: Available priority bins
+        df: Source DataFrame
         key: Session state key
-        default: Optional default selection
+        label_visible: Whether to show the label (default: collapsed)
 
     Returns:
-        Selected bins or None for all
+        Selected filter mode ('all' or 'exclude_impossible')
     """
-    if not priority_bins:
-        return None
+    if key not in st.session_state:
+        st.session_state[key] = "all"
 
-    st.markdown("**Priority Bins**")
-    st.caption("Activa o desactiva las etiquetas originales que quieres visualizar.")
+    filter_supported = check_filter_support(df)
 
-    default_selection = set(default or priority_bins)
-    selected: list[str] = []
+    if not filter_supported:
+        st.session_state[key] = "all"
+        return "all"
 
-    for idx, option in enumerate(priority_bins):
-        checkbox_key = f"{key}_{idx}"
-        checked = st.checkbox(option, value=option in default_selection, key=checkbox_key)
-        if checked:
-            selected.append(option)
+    filter_options = ("all", "exclude_impossible")
+    filter_labels = {
+        "all": "📋 All blocks",
+        "exclude_impossible": "✅ Filter invalid requests",
+    }
 
-    return selected if selected else None
+    st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
+
+    return st.radio(
+        "Filtrar:",
+        options=filter_options,
+        format_func=lambda x: filter_labels[x],
+        key=key,
+        horizontal=False,
+        label_visibility="collapsed" if not label_visible else "visible",
+    )
 
 
 def render_toggle(label: str, default: bool = True, key: str | None = None) -> bool:

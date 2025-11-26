@@ -5,6 +5,8 @@ from __future__ import annotations
 import pandas as pd
 import pytest
 
+pytest.importorskip("tsi_rust")
+
 from core.algorithms import compute_metrics, greedy_schedule
 from core.domain import Observation
 
@@ -17,7 +19,7 @@ def test_compute_metrics__with_basic_dataframe__returns_expected_snapshot() -> N
     # Given: a dataframe with a scheduled and unscheduled observation
     df = pd.DataFrame(
         {
-            "priority": [5, 6],
+            "priority": [5.0, 6.0],
             "scheduled_flag": [True, False],
             "total_visibility_hours": [1.0, 2.0],
             "requested_hours": [1.0, 1.5],

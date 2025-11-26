@@ -365,6 +365,16 @@ class SchedulePreprocessor:
 
         logger.info("Adding derived columns...")
 
+        # Handle empty dataframe edge case
+        if len(self.df) == 0:
+            # Add empty derived columns with appropriate dtypes
+            self.df["scheduled_flag"] = pd.Series([], dtype=bool)
+            self.df["requested_hours"] = pd.Series([], dtype=float)
+            self.df["elevation_range_deg"] = pd.Series([], dtype=float)
+            self.df["priority_bin"] = pd.Series([], dtype=str)
+            logger.info("Empty dataframe - added derived column headers only")
+            return self.df
+
         # Ensure numeric types for calculations
         numeric_columns = [
             "priority",
@@ -416,9 +426,22 @@ class SchedulePreprocessor:
         if self.df is None:
             raise ValueError("DataFrame not created. Call extract_dataframe() first.")
 
-        errors = []
-        warnings = []
-        stats = {}
+        errors: list[str] = []
+        warnings: list[str] = []
+        stats: dict[str, int | float] = {}
+
+        # Handle empty dataframe edge case
+        if len(self.df) == 0:
+            stats["total_blocks"] = 0
+            stats["scheduled_blocks"] = 0
+            stats["unscheduled_blocks"] = 0
+            logger.info("Empty dataframe - validation passed with no data")
+            return ValidationResult(
+                is_valid=True,
+                errors=errors,
+                warnings=warnings,
+                stats=stats,
+            )
 
         # Basic stats
         stats["total_blocks"] = len(self.df)
