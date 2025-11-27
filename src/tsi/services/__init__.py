@@ -8,7 +8,6 @@ from core.time import (
 )
 from tsi.services.analytics import (
     compute_correlations,
-    compute_distribution_stats,
     compute_metrics,
     find_conflicts,
     generate_insights,
@@ -84,7 +83,6 @@ __all__ = [
     "compute_correlations",
     "get_top_observations",
     "find_conflicts",
-    "compute_distribution_stats",
     "generate_insights",
     # priority
     "get_priority_range",

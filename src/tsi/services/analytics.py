@@ -7,19 +7,8 @@ import pandas as pd
 
 from core.algorithms import (
     AnalyticsSnapshot,
-    CandidatePlacement,
-)
-from core.algorithms import (
     compute_correlations as core_compute_correlations,
-)
-from core.algorithms import (
-    compute_distribution_stats as core_compute_distribution_stats,
-)
-from core.algorithms import (
     generate_insights as core_generate_insights,
-)
-from core.algorithms import (
-    suggest_candidate_positions as core_suggest_candidate_positions,
 )
 from tsi.config import CORRELATION_COLUMNS
 from tsi.models.schemas import AnalyticsMetrics
@@ -71,22 +60,10 @@ def _snapshot_from_metrics(metrics: AnalyticsMetrics) -> AnalyticsSnapshot:
     return AnalyticsSnapshot(**metrics.model_dump())
 
 
-def compute_distribution_stats(series: pd.Series) -> dict[str, float]:  # type: ignore[type-arg]
-    """Compute statistical summary for a numeric series."""
-    result: dict[str, float] = core_compute_distribution_stats(series)
-    return result
-
-
 def generate_insights(df: pd.DataFrame, metrics: AnalyticsMetrics) -> list[str]:
     """Generate automated insights from the data."""
     snapshot = _snapshot_from_metrics(metrics)
     result: list[str] = core_generate_insights(df, snapshot)
-    return result
-
-
-def suggest_candidate_positions(df: pd.DataFrame, row: pd.Series) -> list[CandidatePlacement]:  # type: ignore[type-arg]
-    """Proxy helper that exposes scheduling what-if scenarios to the UI."""
-    result: list[Any] = core_suggest_candidate_positions(df, row)
     return result
 
 
