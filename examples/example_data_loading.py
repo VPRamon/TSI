@@ -21,11 +21,7 @@ def get_project_root() -> Path:
 PROJECT_ROOT = get_project_root()
 sys.path.insert(0, str(PROJECT_ROOT / 'src'))
 
-from core.loaders import (
-    load_schedule_from_json,
-    load_schedule_from_csv,
-    load_schedule_from_iteration,
-)
+import tsi_rust
 
 
 def example_1_load_from_csv():
@@ -42,16 +38,15 @@ def example_1_load_from_csv():
         print("  python preprocess_schedules.py --schedule data/schedule.json --visibility data/possible_periods.json --output data/schedule.csv")
         return None
     
-    result = load_schedule_from_csv(csv_path)
+    # Load using Rust backend
+    df_polars = tsi_rust.load_schedule_from_csv(str(csv_path))
+    df = df_polars.to_pandas()
     
-    print(f"✅ Loaded {len(result.dataframe)} scheduling blocks")
-    print(f"📊 Source: {result.source_type}")
-    print(f"📁 Path: {result.source_path}")
-    print(f"\nValidation stats:")
-    for key, value in result.validation.stats.items():
-        print(f"  {key}: {value}")
+    print(f"✅ Loaded {len(df)} scheduling blocks")
+    print(f"📊 Source: CSV")
+    print(f"📁 Path: {csv_path}")
     
-    return result.dataframe
+    return df
 
 
 def example_2_load_from_json_files():
@@ -67,28 +62,31 @@ def example_2_load_from_json_files():
         print(f"⚠️  JSON file not found: {schedule_json}")
         return None
     
-    result = load_schedule_from_json(
-        schedule_json,
-        visibility_json if visibility_json.exists() else None
+    # Preprocess using Rust backend with validation
+    df_polars, validation = tsi_rust.py_preprocess_schedule(
+        str(schedule_json),
+        str(visibility_json) if visibility_json.exists() else None,
+        validate=True
     )
+    df = df_polars.to_pandas()
     
-    print(f"✅ Loaded {len(result.dataframe)} scheduling blocks")
-    print(f"📊 Source: {result.source_type}")
+    print(f"✅ Loaded {len(df)} scheduling blocks")
+    print(f"📊 Source: JSON")
     
     # Show validation warnings
-    if result.validation.warnings:
-        print(f"\n⚠️  {len(result.validation.warnings)} warnings:")
-        for warning in result.validation.warnings[:3]:
+    if validation.warnings:
+        print(f"\n⚠️  {len(validation.warnings)} warnings:")
+        for warning in validation.warnings[:3]:
             print(f"  • {warning}")
-        if len(result.validation.warnings) > 3:
-            print(f"  ... and {len(result.validation.warnings) - 3} more")
+        if len(validation.warnings) > 3:
+            print(f"  ... and {len(validation.warnings) - 3} more")
     
     # Show sample data
     print(f"\nFirst 3 scheduling blocks:")
     cols = ['schedulingBlockId', 'priority', 'scheduled_flag', 'total_visibility_hours']
-    print(result.dataframe[cols].head(3).to_string(index=False))
+    print(df[cols].head(3).to_string(index=False))
     
-    return result.dataframe
+    return df
 
 
 def example_4_analyze_data(df):

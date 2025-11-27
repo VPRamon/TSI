@@ -1,25 +1,32 @@
 #!/usr/bin/env python3
-"""Test coordinate extraction from JSON"""
+"""Regression check that the Rust preprocessing exposed via load_schedule works."""
+
+from __future__ import annotations
 
 import json
 import sys
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_PATH = PROJECT_ROOT / "src"
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
 
-from core.preprocessing import SchedulePreprocessor
+import tsi_rust
 
 
-def test_extraction():
-    """Test that coordinates are extracted correctly from JSON."""
+def test_extraction() -> None:
+    """Verify that coordinates match between JSON and the Rust-prepared DataFrame."""
 
     schedule_path = Path("data/schedule.json")
 
-    # Load and preprocess
-    preprocessor = SchedulePreprocessor(schedule_path)
-    preprocessor.load_data()
-    df = preprocessor.extract_dataframe()
+    # Load using the Rust backend
+    df_polars, validation = tsi_rust.py_preprocess_schedule(
+        str(schedule_path),
+        None,
+        validate=False
+    )
+    df = df_polars.to_pandas()
 
     # Load raw JSON for comparison
     with open(schedule_path) as f:

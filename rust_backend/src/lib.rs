@@ -85,6 +85,7 @@ pub mod transformations;
 /// - `load_schedule_from_json`: Load schedule from JSON file
 /// - `load_schedule_from_json_str`: Load schedule from JSON string
 /// - `load_schedule_from_csv`: Load schedule from CSV file
+/// - `load_schedule_from_iteration`: Load schedule from iteration directory
 /// - `load_dark_periods`: Load dark period constraints
 ///
 /// ## Preprocessing Functions
@@ -125,6 +126,7 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::load_schedule_from_json, m)?)?;
     m.add_function(wrap_pyfunction!(python::load_schedule_from_json_str, m)?)?;
     m.add_function(wrap_pyfunction!(python::load_schedule_from_csv, m)?)?;
+    m.add_function(wrap_pyfunction!(python::load_schedule_from_iteration, m)?)?;
     m.add_function(wrap_pyfunction!(python::load_dark_periods, m)?)?;
 
     // Register preprocessing functions

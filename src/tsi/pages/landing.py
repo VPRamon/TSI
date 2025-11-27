@@ -169,24 +169,48 @@ def _load_data(
     try:
         with st.spinner("Loading and processing data..."):
             if file_type == "json":
-                # Use the core loader which supports visibility data merging
-                from core.loaders import load_schedule_from_json
-
-                # Load with visibility data if provided
-                result = load_schedule_from_json(
-                    schedule_json=file_or_path, visibility_json=visibility_file, validate=True
-                )
-
-                raw_df = result.dataframe
+                # Use Rust backend for JSON preprocessing
+                import tsi_rust
+                
+                # Handle file-like objects by reading content
+                if hasattr(file_or_path, 'read'):
+                    schedule_content = file_or_path.read()
+                    if isinstance(schedule_content, bytes):
+                        schedule_content = schedule_content.decode('utf-8')
+                    # Reset file pointer if possible
+                    if hasattr(file_or_path, 'seek'):
+                        file_or_path.seek(0)
+                    
+                    visibility_content = None
+                    if visibility_file is not None:
+                        visibility_content = visibility_file.read()
+                        if isinstance(visibility_content, bytes):
+                            visibility_content = visibility_content.decode('utf-8')
+                        if hasattr(visibility_file, 'seek'):
+                            visibility_file.seek(0)
+                    
+                    # Preprocess using Rust backend (returns Polars DataFrame + ValidationResult)
+                    df_polars, validation = tsi_rust.py_preprocess_schedule_str(
+                        schedule_content, visibility_content, validate=True
+                    )
+                    raw_df = df_polars.to_pandas()
+                else:
+                    # File path - use file-based loader
+                    df_polars, validation = tsi_rust.py_preprocess_schedule(
+                        str(file_or_path), 
+                        str(visibility_file) if visibility_file else None,
+                        validate=True
+                    )
+                    raw_df = df_polars.to_pandas()
 
                 # Show validation warnings if any
-                if result.validation.warnings:
-                    st.warning(f"⚠️ {len(result.validation.warnings)} data warnings found")
+                if validation.warnings:
+                    st.warning(f"⚠️ {len(validation.warnings)} data warnings found")
                     with st.expander("View warnings", expanded=False):
-                        for warning in result.validation.warnings[:10]:
+                        for warning in validation.warnings[:10]:
                             st.warning(f"  - {warning}")
-                        if len(result.validation.warnings) > 10:
-                            st.info(f"... and {len(result.validation.warnings) - 10} more")
+                        if len(validation.warnings) > 10:
+                            st.info(f"... and {len(validation.warnings) - 10} more")
 
                 # Convert visibility lists to strings for Streamlit caching compatibility
                 # Streamlit's cache_data uses pandas hashing which doesn't support list columns
