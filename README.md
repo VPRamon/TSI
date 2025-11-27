@@ -52,6 +52,36 @@ Analyze and visualize astronomical scheduling outputs with an interactive Stream
     └── benchmarks/
 ```
 
+## Upload to Azure SQL Database 🚀 NEW!
+
+A high-performance Rust tool to upload schedules and visibility periods to Azure SQL Database.
+
+```bash
+# Quick start
+DB_PASSWORD='password' ./scripts/upload_schedule.sh
+
+# Test with sample data
+DB_PASSWORD='password' ./scripts/test_upload.sh
+
+# Verify installation
+./scripts/verify_installation.sh
+```
+
+**Features:**
+- ⚡ 10x faster than Python (processes ~100 blocks/sec)
+- 🔒 Type-safe with Rust + Serde
+- 🔄 Automatic duplicate handling (get-or-create pattern)
+- 📊 Processes visibility periods from possible_periods.json
+- 📦 Single binary deployment (3.7 MB)
+
+**Documentation:**
+- Quick Start: [`docs/upload_schedule_quickstart.md`](docs/upload_schedule_quickstart.md)
+- Full Guide: [`docs/upload_schedule_rust.md`](docs/upload_schedule_rust.md)
+- Implementation: [`UPLOAD_SCHEDULE_SUMMARY.md`](UPLOAD_SCHEDULE_SUMMARY.md)
+- SQL Queries: [`scripts/verify_schedule_queries.sql`](scripts/verify_schedule_queries.sql)
+
+**Schema:** The upload follows the SQL schema defined in [`scripts/schedule-schema-mmsql.sql`](scripts/schedule-schema-mmsql.sql) with 10 tables for schedules, targets, constraints, periods, and visibility windows.
+
 ## Quickstart
 
 Prereqs: Python 3.10+ and pip.

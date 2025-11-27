@@ -3,7 +3,7 @@ use pyo3::types::PyDict;
 use pyo3_polars::PyDataFrame;
 use std::path::PathBuf;
 
-use crate::preprocessing::{preprocess_schedule, PreprocessConfig, PreprocessPipeline};
+use crate::preprocessing::{preprocess_schedule, PreprocessConfig, PreprocessPipeline, ValidationStats};
 
 /// Python wrapper for ValidationResult
 #[pyclass]
@@ -15,6 +15,8 @@ pub struct PyValidationResult {
     pub errors: Vec<String>,
     #[pyo3(get)]
     pub warnings: Vec<String>,
+    // Store stats internally
+    stats: ValidationStats,
 }
 
 #[pymethods]
@@ -29,9 +31,19 @@ impl PyValidationResult {
     }
 
     /// Get statistics as a Python dict
-    fn get_stats(&self, py: Python) -> PyResult<Py<PyAny>> {
+    fn get_stats(&self, py: Python) -> PyResult<Py<PyDict>> {
         let dict = PyDict::new(py);
-        // Stats will be added if needed
+        dict.set_item("total_blocks", self.stats.total_blocks)?;
+        dict.set_item("scheduled_blocks", self.stats.scheduled_blocks)?;
+        dict.set_item("unscheduled_blocks", self.stats.unscheduled_blocks)?;
+        dict.set_item("blocks_with_visibility", self.stats.blocks_with_visibility)?;
+        dict.set_item("avg_visibility_periods", self.stats.avg_visibility_periods)?;
+        dict.set_item("avg_visibility_hours", self.stats.avg_visibility_hours)?;
+        dict.set_item("missing_coordinates", self.stats.missing_coordinates)?;
+        dict.set_item("missing_constraints", self.stats.missing_constraints)?;
+        dict.set_item("duplicate_ids", self.stats.duplicate_ids)?;
+        dict.set_item("invalid_priorities", self.stats.invalid_priorities)?;
+        dict.set_item("invalid_durations", self.stats.invalid_durations)?;
         Ok(dict.into())
     }
 }
@@ -73,6 +85,7 @@ pub fn py_preprocess_schedule(
         is_valid: result.validation.is_valid,
         errors: result.validation.errors,
         warnings: result.validation.warnings,
+        stats: result.validation.stats,
     };
 
     Ok((PyDataFrame(result.dataframe), py_validation))
@@ -110,6 +123,7 @@ pub fn py_preprocess_schedule_str(
         is_valid: result.validation.is_valid,
         errors: result.validation.errors,
         warnings: result.validation.warnings,
+        stats: result.validation.stats,
     };
 
     Ok((PyDataFrame(result.dataframe), py_validation))
@@ -132,5 +146,6 @@ pub fn py_validate_schedule(df: PyDataFrame) -> PyResult<PyValidationResult> {
         is_valid: validation.is_valid,
         errors: validation.errors,
         warnings: validation.warnings,
+        stats: validation.stats,
     })
 }

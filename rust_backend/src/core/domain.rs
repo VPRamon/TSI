@@ -146,6 +146,8 @@ impl Period {
 #[derive(Debug, Clone)]
 pub struct SchedulingBlock {
     pub scheduling_block_id: String,
+    pub target_id: Option<String>,
+    pub target_name: Option<String>,
     pub priority: f64,
     pub requested_duration: Seconds,
     pub min_observation_time: Seconds,

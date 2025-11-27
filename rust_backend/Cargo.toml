@@ -7,6 +7,10 @@ edition = "2021"
 name = "tsi_rust"
 crate-type = ["cdylib", "rlib"]  # rlib needed for benchmarks and tests
 
+[[bin]]
+name = "upload_schedule"
+path = "src/bin/upload_schedule.rs"
+
 [dependencies]
 # Using pyo3 0.25 to match pyo3-polars 0.24 compatibility
 # pyo3-polars 0.25 requires polars 0.52 which has critical compilation bugs
@@ -20,6 +24,9 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 anyhow = "1.0"
 thiserror = "2.0"
+tiberius = { version = "0.12", default-features = false, features = ["tds73", "rustls"] }
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["compat"] }
 
 [dev-dependencies]
 criterion = { version = "0.7", features = ["html_reports"] }

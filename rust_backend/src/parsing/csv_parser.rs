@@ -79,6 +79,8 @@ pub fn dataframe_to_blocks(df: &DataFrame) -> Result<Vec<SchedulingBlock>> {
 
     // Extract columns
     let ids = df.column("schedulingBlockId")?.str()?;
+    let target_ids = df.column("targetId").ok().and_then(|c| c.str().ok());
+    let target_names = df.column("targetName").ok().and_then(|c| c.str().ok());
     let priorities = df.column("priority")?.f64()?;
     let requested_durations = df.column("requestedDurationSec")?.f64()?;
     let min_obs_times = df
@@ -144,6 +146,8 @@ pub fn dataframe_to_blocks(df: &DataFrame) -> Result<Vec<SchedulingBlock>> {
 
         let block = SchedulingBlock {
             scheduling_block_id: id,
+            target_id: target_ids.and_then(|col| col.get(i)).map(|s| s.to_string()),
+            target_name: target_names.and_then(|col| col.get(i)).map(|s| s.to_string()),
             priority,
             requested_duration: Seconds::new(requested_duration),
             min_observation_time: Seconds::new(
@@ -188,6 +192,8 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
 
     // Prepare column vectors
     let mut ids = Vec::with_capacity(n);
+    let mut target_ids = Vec::with_capacity(n);
+    let mut target_names = Vec::with_capacity(n);
     let mut priorities = Vec::with_capacity(n);
     let mut requested_durations = Vec::with_capacity(n);
     let mut min_obs_times = Vec::with_capacity(n);
@@ -207,6 +213,7 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
     let mut fixed_start_times = Vec::with_capacity(n);
     let mut fixed_stop_times = Vec::with_capacity(n);
 
+    let mut visibility_strings = Vec::with_capacity(n);
     let mut num_vis_periods = Vec::with_capacity(n);
     let mut total_vis_hours = Vec::with_capacity(n);
     let mut requested_hours = Vec::with_capacity(n);
@@ -215,6 +222,8 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
 
     for block in blocks {
         ids.push(block.scheduling_block_id.clone());
+        target_ids.push(block.target_id.clone());
+        target_names.push(block.target_name.clone());
         priorities.push(block.priority);
         requested_durations.push(block.requested_duration.value());
         min_obs_times.push(Some(block.min_observation_time.value()));
@@ -235,6 +244,10 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
         fixed_start_times.push(block.fixed_time.as_ref().map(|p| p.start.value()));
         fixed_stop_times.push(block.fixed_time.as_ref().map(|p| p.stop.value()));
 
+        // Format visibility periods as string: "[(start, stop), ...]"
+        let vis_str = format_visibility_periods(&block.visibility_periods);
+        visibility_strings.push(vis_str);
+
         num_vis_periods.push(block.num_visibility_periods() as u32);
         total_vis_hours.push(block.total_visibility_hours().value());
         requested_hours.push(block.requested_duration.value() / 3600.0); // Convert seconds to hours
@@ -242,31 +255,49 @@ pub fn blocks_to_dataframe(blocks: &[SchedulingBlock]) -> Result<DataFrame> {
         priority_bins.push(block.priority_bin().to_string());
     }
 
-    // Create DataFrame
+    // Create DataFrame with columns in Python's expected order
     let df = df!(
         "schedulingBlockId" => ids,
+        "targetId" => target_ids,
+        "targetName" => target_names,
         "priority" => priorities,
-        "requestedDurationSec" => requested_durations,
         "minObservationTimeInSec" => min_obs_times,
+        "requestedDurationSec" => requested_durations,
         "fixedStartTime" => fixed_start_times,
         "fixedStopTime" => fixed_stop_times,
-        "raInDeg" => ras,
         "decInDeg" => decs,
+        "raInDeg" => ras,
         "minAzimuthAngleInDeg" => min_azs,
         "maxAzimuthAngleInDeg" => max_azs,
         "minElevationAngleInDeg" => min_els,
         "maxElevationAngleInDeg" => max_els,
         "scheduled_period.start" => scheduled_starts,
         "scheduled_period.stop" => scheduled_stops,
-        "scheduled_flag" => scheduled_flags,
+        "visibility" => visibility_strings,
         "num_visibility_periods" => num_vis_periods,
         "total_visibility_hours" => total_vis_hours,
+        "priority_bin" => priority_bins,
+        "scheduled_flag" => scheduled_flags,
         "requested_hours" => requested_hours,
         "elevation_range_deg" => elevation_ranges,
-        "priority_bin" => priority_bins,
     )?;
 
     Ok(df)
+}
+
+/// Format visibility periods as a string representation matching Python's format.
+/// Returns "[]" for empty, or "[(start1, stop1), (start2, stop2), ...]" for populated.
+fn format_visibility_periods(periods: &[crate::core::domain::Period]) -> String {
+    if periods.is_empty() {
+        return "[]".to_string();
+    }
+
+    let tuples: Vec<String> = periods
+        .iter()
+        .map(|p| format!("({}, {})", p.start.value(), p.stop.value()))
+        .collect();
+
+    format!("[{}]", tuples.join(", "))
 }
 
 #[cfg(test)]
@@ -281,6 +312,8 @@ mod tests {
     fn test_blocks_to_dataframe_roundtrip() {
         let blocks = vec![SchedulingBlock {
             scheduling_block_id: "1000004990".to_string(),
+            target_id: None,
+            target_name: None,
             priority: 8.5,
             requested_duration: Seconds::new(1200.0),
             min_observation_time: Seconds::new(1200.0),

@@ -364,9 +364,19 @@ fn convert_raw_to_domain(raw: RawSchedulingBlock, _idx: usize) -> SchedulingBloc
     use siderust::coordinates::spherical::direction::ICRS;
     use siderust::units::{angular::Degrees, time::*};
 
+    // Sentinel value for unscheduled blocks
+    const UNSCHEDULED_SENTINEL: f64 = 51910.5;
+
     let (scheduled_start, scheduled_stop) = raw
         .scheduled_period
-        .map(|p| (Some(p.start_time.value), Some(p.stop_time.value)))
+        .map(|p| {
+            // Check for sentinel value indicating unscheduled
+            if p.start_time.value == UNSCHEDULED_SENTINEL {
+                (None, None)
+            } else {
+                (Some(p.start_time.value), Some(p.stop_time.value))
+            }
+        })
         .unwrap_or((None, None));
 
     let constraints = &raw.scheduling_block_configuration.constraints;
@@ -378,6 +388,8 @@ fn convert_raw_to_domain(raw: RawSchedulingBlock, _idx: usize) -> SchedulingBloc
 
     SchedulingBlock {
         scheduling_block_id: raw.scheduling_block_id.to_string(),
+        target_id: raw.target.id.map(|id| id.to_string()),
+        target_name: raw.target.name.clone(),
         priority: raw.priority,
         requested_duration: Seconds::new(time_constraint.requested_duration_sec),
         min_observation_time: Seconds::new(

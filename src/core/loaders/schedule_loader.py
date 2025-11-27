@@ -11,15 +11,32 @@ and the Streamlit app, ensuring consistent data processing.
 import io
 import json
 import logging
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from core.preprocessing import SchedulePreprocessor, ValidationResult
+try:
+    import tsi_rust
+except ImportError:
+    raise ImportError(
+        "tsi_rust module not found. Please compile the Rust backend with: "
+        "maturin develop --release"
+    )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class ValidationResult:
+    """Result of data validation checks."""
+
+    is_valid: bool
+    errors: list[str]
+    warnings: list[str]
+    stats: dict
 
 
 @dataclass
@@ -68,25 +85,28 @@ def load_schedule_from_json(
     logger.info("Loading schedule from JSON...")
 
     # Handle different input types for schedule
+    schedule_data = None
+    schedule_path_str = None
+    source_path_display = None
+    
     if isinstance(schedule_json, dict):
         # Already parsed JSON
         schedule_data = schedule_json
-        schedule_path_str = None
+        source_path_display = "parsed_dict"
     elif isinstance(schedule_json, (str, Path)):
-        # File path
+        # File path - can use directly with Rust
         schedule_path = Path(schedule_json)
         if not schedule_path.exists():
             raise FileNotFoundError(f"Schedule file not found: {schedule_path}")
-        with open(schedule_path) as f:
-            schedule_data = json.load(f)
         schedule_path_str = str(schedule_path)
+        source_path_display = schedule_path_str
     elif hasattr(schedule_json, "read"):
-        # File-like object (e.g., Streamlit UploadedFile)
+        # File-like object (e.g., Streamlit UploadedFile) - need to load into memory
         content = schedule_json.read()
         if isinstance(content, bytes):
             content = content.decode("utf-8")
         schedule_data = json.loads(content)
-        schedule_path_str = getattr(schedule_json, "name", None)
+        source_path_display = getattr(schedule_json, "name", "uploaded_file")
         # Reset file pointer if possible
         if hasattr(schedule_json, "seek"):
             schedule_json.seek(0)
@@ -95,14 +115,14 @@ def load_schedule_from_json(
 
     # Handle visibility data
     visibility_data = None
+    visibility_path_str = None
     if visibility_json is not None:
         if isinstance(visibility_json, dict):
             visibility_data = visibility_json
         elif isinstance(visibility_json, (str, Path)):
             visibility_path = Path(visibility_json)
             if visibility_path.exists():
-                with open(visibility_path) as f:
-                    visibility_data = json.load(f)
+                visibility_path_str = str(visibility_path)
         elif hasattr(visibility_json, "read"):
             content = visibility_json.read()
             if isinstance(content, bytes):
@@ -111,27 +131,48 @@ def load_schedule_from_json(
             if hasattr(visibility_json, "seek"):
                 visibility_json.seek(0)
 
-    # Create a temporary preprocessor instance
-    # We can't use file paths directly, so we'll set data manually
-    preprocessor = SchedulePreprocessor.__new__(SchedulePreprocessor)
-    preprocessor.schedule_path = None
-    preprocessor.visibility_path = None
-    preprocessor.schedule_data = schedule_data
-    preprocessor.visibility_data = visibility_data
-    preprocessor.df = None
+    # Use Rust backend for preprocessing
+    num_blocks = len(schedule_data.get('SchedulingBlock', [])) if schedule_data else "schedule"
+    logger.info(f"Processing {num_blocks} blocks using Rust backend...")
+    
+    # Call Rust preprocessing - returns (DataFrame, ValidationResult)
+    # If we have file paths, use them directly; otherwise use temp files
+    if schedule_path_str is not None:
+        # We have a real file path - use it directly
+        df_polars, rust_validation = tsi_rust.py_preprocess_schedule(schedule_path_str, visibility_path_str, validate)
+    else:
+        # For dict/file-like objects, we need to save to temp files
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as schedule_tmp:
+            json.dump(schedule_data, schedule_tmp)
+            schedule_tmp_path = schedule_tmp.name
+        
+        visibility_tmp_path = None
+        if visibility_data:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as vis_tmp:
+                json.dump(visibility_data, vis_tmp)
+                visibility_tmp_path = vis_tmp.name
+        
+        try:
+            df_polars, rust_validation = tsi_rust.py_preprocess_schedule(schedule_tmp_path, visibility_tmp_path, validate)
+        finally:
+            Path(schedule_tmp_path).unlink()
+            if visibility_tmp_path:
+                Path(visibility_tmp_path).unlink()
 
-    # Run preprocessing pipeline
-    logger.info(f"Processing {len(schedule_data.get('SchedulingBlock', []))} scheduling blocks...")
-    preprocessor.extract_dataframe()
-    preprocessor.enrich_with_visibility()
-    preprocessor.add_derived_columns()
+    # Convert Polars DataFrame to pandas
+    df = df_polars.to_pandas()
 
-    # Validate if requested
-    validation = (
-        preprocessor.validate()
-        if validate
-        else ValidationResult(is_valid=True, errors=[], warnings=[], stats={})
-    )
+    # Convert Rust validation result to Python ValidationResult
+    if validate:
+        stats = rust_validation.get_stats() if hasattr(rust_validation, 'get_stats') else {}
+        validation = ValidationResult(
+            is_valid=rust_validation.is_valid,
+            errors=rust_validation.errors,
+            warnings=rust_validation.warnings,
+            stats=stats
+        )
+    else:
+        validation = ValidationResult(is_valid=True, errors=[], warnings=[], stats={})
 
     if validate and not validation.is_valid:
         logger.warning(f"Validation found {len(validation.errors)} errors")
@@ -143,13 +184,13 @@ def load_schedule_from_json(
         for warning in validation.warnings[:5]:  # Show first 5
             logger.warning(f"  - {warning}")
 
-    logger.info(f"Successfully loaded {len(preprocessor.df)} scheduling blocks")
+    logger.info(f"Successfully loaded {len(df)} scheduling blocks")
 
     return ScheduleLoadResult(
-        dataframe=preprocessor.df,
+        dataframe=df,
         validation=validation,
         source_type="json",
-        source_path=schedule_path_str,
+        source_path=source_path_display,
     )
 
 
