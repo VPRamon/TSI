@@ -1,4 +1,4 @@
-"""Priority range utilities for data filtering."""
+"""Priority range utilities now that schedule preprocessing happens in Rust."""
 
 from __future__ import annotations
 
@@ -13,18 +13,8 @@ def get_priority_range(df: pd.DataFrame) -> tuple[float, float]:
     - Missing priority column → returns (0.0, 10.0)
     - Empty priority values → returns (0.0, 10.0)
     - Single priority value → returns (value, value + 1.0)
-
-    Args:
-        df: DataFrame containing a 'priority' column
-
-    Returns:
-        Tuple of (min_priority, max_priority)
-
-    Example:
-        >>> df = pd.DataFrame({'priority': [1.0, 5.0, 9.0]})
-        >>> get_priority_range(df)
-        (1.0, 9.0)
     """
+
     if "priority" not in df.columns:
         return 0.0, 10.0
 
@@ -36,7 +26,6 @@ def get_priority_range(df: pd.DataFrame) -> tuple[float, float]:
     priority_min = float(priority_values.min())
     priority_max = float(priority_values.max())
 
-    # Prevent zero-width range
     if priority_min == priority_max:
         priority_max = priority_min + 1.0
 
