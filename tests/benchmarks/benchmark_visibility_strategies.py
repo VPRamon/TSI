@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from core.transformations import parse_visibility_for_rows, prepare_dataframe
+from tsi.services.preparation import parse_visibility_for_rows, prepare_dataframe
 
 
 def get_project_root() -> Path:

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from core.transformations import prepare_dataframe
+from tsi.services.preparation import prepare_dataframe
 
 
 def get_project_root() -> Path:
@@ -71,7 +71,7 @@ def benchmark_load():
 
     # Test 5: On-demand parsing sample
     print("\n4️⃣  Testing on-demand visibility parsing (10 rows)...")
-    from core.transformations import parse_visibility_for_rows
+    from tsi.services.preparation import parse_visibility_for_rows
 
     sample = result.dataframe.head(10)
     start = time.time()

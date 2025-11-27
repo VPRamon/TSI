@@ -9,9 +9,6 @@ from typing import Any, TypeVar, cast
 
 import pandas as pd
 
-from core.transformations import PreparationResult
-from core.transformations import prepare_dataframe as core_prepare_dataframe
-from core.transformations.data_cleaning import validate_schema as core_validate_schema
 from tsi.config import REQUIRED_COLUMNS
 from tsi.services.rust_compat import (
     filter_by_priority,
@@ -19,6 +16,9 @@ from tsi.services.rust_compat import (
     load_schedule_rust,
     validate_dataframe_rust,
 )
+from tsi.services.preparation import PreparationResult
+from tsi.services.preparation import prepare_dataframe as core_prepare_dataframe
+from tsi.services.preparation import validate_schema as core_validate_schema
 
 logger = logging.getLogger(__name__)
 

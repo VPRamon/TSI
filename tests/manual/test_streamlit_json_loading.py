@@ -86,7 +86,7 @@ def test_json_to_streamlit_compatible():
     try:
         # Import from the actual app code
         sys.path.insert(0, str(PROJECT_ROOT / "src"))
-        from core.transformations import prepare_dataframe
+        from tsi.services.preparation import prepare_dataframe
 
         prepared = prepare_dataframe(df)
         print("   ✅ prepare_dataframe successful")

@@ -1,10 +1,5 @@
 """Services package initialization."""
 
-from core.time import (
-    format_datetime_utc,
-    get_time_range,
-    parse_optional_mjd,
-)
 from tsi.services.analytics import (
     compute_correlations,
     compute_metrics,
@@ -31,14 +26,11 @@ from tsi.services.loaders import (
 # Time conversions now use Rust backend (8x faster)
 from tsi.services.rust_compat import (
     datetime_to_mjd_rust as datetime_to_mjd,
-)
-from tsi.services.rust_compat import (
+    format_datetime_utc_rust as format_datetime_utc,
+    get_time_range_rust as get_time_range,
     load_dark_periods_rust as load_dark_periods,
-)
-from tsi.services.rust_compat import (
     mjd_to_datetime_rust as mjd_to_datetime,
-)
-from tsi.services.rust_compat import (
+    parse_optional_mjd_rust as parse_optional_mjd,
     parse_visibility_periods_rust as parse_visibility_periods,
 )
 from tsi.services.sky_map_filters import (
