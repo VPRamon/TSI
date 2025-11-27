@@ -8,7 +8,7 @@ the same dataframe multiple times within a session.
 import pandas as pd
 import streamlit as st
 
-from core.transformations import parse_visibility_for_rows
+from tsi.services.preparation import parse_visibility_for_rows
 
 
 def ensure_visibility_parsed(

@@ -33,6 +33,7 @@ Requirements:
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
@@ -469,7 +470,7 @@ def validate_dataframe_rust(df: pd.DataFrame) -> tuple[bool, list[str]]:
 # =============================================================================
 
 
-def mjd_to_datetime_rust(mjd: float) -> datetime:
+def mjd_to_datetime_rust(mjd: float) -> pd.Timestamp:
     """
     Convert Modified Julian Date to Python datetime using Rust backend (8x faster).
 
@@ -477,7 +478,7 @@ def mjd_to_datetime_rust(mjd: float) -> datetime:
         mjd: Modified Julian Date value
 
     Returns:
-        Python datetime object (UTC timezone)
+        pandas Timestamp (UTC timezone)
 
     Example:
         >>> dt = mjd_to_datetime_rust(59580.5)
@@ -488,7 +489,9 @@ def mjd_to_datetime_rust(mjd: float) -> datetime:
         - Bulk (100k conversions): ~50ms (Python: ~400ms) = 8x speedup
     """
     _ensure_rust_backend()
-    return cast(datetime, TSIBackend.mjd_to_datetime(mjd))
+    dt = TSIBackend.mjd_to_datetime(mjd)
+    # Convert datetime to pd.Timestamp for consistency with original API
+    return cast(pd.Timestamp, pd.Timestamp(dt))
 
 
 def datetime_to_mjd_rust(dt: datetime) -> float:
@@ -501,6 +504,9 @@ def datetime_to_mjd_rust(dt: datetime) -> float:
     Returns:
         Modified Julian Date value
 
+    Raises:
+        ValueError: If datetime is not timezone-aware
+
     Example:
         >>> from datetime import datetime, timezone
         >>> dt = datetime(2022, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
@@ -511,11 +517,15 @@ def datetime_to_mjd_rust(dt: datetime) -> float:
         - Single conversion: ~0.5µs (Python: ~4µs) = 8x speedup
         - Bulk (100k conversions): ~50ms (Python: ~400ms) = 8x speedup
     """
+    # Validate timezone-aware datetime (matches original Python behavior)
+    if dt.tzinfo is None:
+        raise ValueError("Datetime must be timezone-aware")
+    
     _ensure_rust_backend()
     return cast(float, TSIBackend.datetime_to_mjd(dt))
 
 
-def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[Any, Any]]:
+def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
     """
     Parse visibility period string using Rust backend (10-20x faster).
 
@@ -524,7 +534,7 @@ def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[Any, Any]]:
                        (e.g., "[(59580.5, 59581.0), (59582.0, 59583.0)]")
 
     Returns:
-        List of (start_datetime, stop_datetime) tuples
+        List of (start_datetime, stop_datetime) tuples with pd.Timestamp objects
 
     Example:
         >>> periods = parse_visibility_periods_rust(visibility_str)
@@ -536,8 +546,92 @@ def parse_visibility_periods_rust(visibility_str: str) -> list[tuple[Any, Any]]:
         - Single row: ~0.5ms (Python: ~15ms) = 30x speedup
         - Full dataset (2647 rows): ~2-4s (Python: ~40s) = 10-20x speedup
     """
+    # Handle empty/None strings gracefully like the original Python version
+    if not visibility_str or visibility_str.strip() == "":
+        return []
+    
     _ensure_rust_backend()
-    return cast(list[tuple[Any, Any]], TSIBackend.parse_visibility_periods(visibility_str))
+    try:
+        rust_result = TSIBackend.parse_visibility_periods(visibility_str)
+        # Convert datetime objects to pd.Timestamp for consistency with original API
+        return [(pd.Timestamp(start), pd.Timestamp(stop)) for start, stop in rust_result]
+    except Exception:
+        # If Rust parsing fails (malformed data), return empty list
+        # This matches the original Python behavior of gracefully handling errors
+        return []
+
+
+def parse_optional_mjd_rust(value: float | None) -> pd.Timestamp | None:
+    """
+    Convert an optional MJD value to datetime using Rust backend.
+
+    Args:
+        value: Optional Modified Julian Date value (or None/NaN)
+
+    Returns:
+        pd.Timestamp (UTC) or None if input is None/NaN
+
+    Example:
+        >>> dt = parse_optional_mjd_rust(59580.5)
+        >>> print(dt)  # 2022-01-01 12:00:00+00:00
+        >>> dt = parse_optional_mjd_rust(None)
+        >>> print(dt)  # None
+
+    Performance:
+        Same as mjd_to_datetime_rust (~8x faster than Python)
+    """
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    return cast(pd.Timestamp, pd.to_datetime(mjd_to_datetime_rust(float(value))))
+
+
+def get_time_range_rust(
+    periods: Sequence[tuple[pd.Timestamp, pd.Timestamp]],
+) -> tuple[pd.Timestamp | None, pd.Timestamp | None]:
+    """
+    Return the earliest start and latest stop across periods.
+
+    Args:
+        periods: List of (start, stop) timestamp tuples
+
+    Returns:
+        Tuple of (earliest_start, latest_stop) or (None, None) if empty
+
+    Example:
+        >>> periods = [(start1, stop1), (start2, stop2)]
+        >>> earliest, latest = get_time_range_rust(periods)
+        >>> print(f"Range: {earliest} → {latest}")
+
+    Performance:
+        Pure Python, no Rust backend needed (lightweight operation)
+    """
+    if not periods:
+        return None, None
+
+    starts = [period[0] for period in periods]
+    stops = [period[1] for period in periods]
+    return min(starts), max(stops)
+
+
+def format_datetime_utc_rust(dt: pd.Timestamp) -> str:
+    """
+    Pretty-print a UTC timestamp.
+
+    Args:
+        dt: pandas Timestamp (UTC)
+
+    Returns:
+        Formatted string (e.g., "2022-01-01 12:00:00 UTC")
+
+    Example:
+        >>> dt = pd.Timestamp("2022-01-01 12:00:00", tz="UTC")
+        >>> formatted = format_datetime_utc_rust(dt)
+        >>> print(formatted)  # "2022-01-01 12:00:00 UTC"
+
+    Performance:
+        Pure Python, no Rust backend needed (lightweight formatting)
+    """
+    return cast(str, dt.strftime("%Y-%m-%d %H:%M:%S UTC"))
 
 
 # =============================================================================
@@ -625,6 +719,9 @@ __all__ = [
     "mjd_to_datetime_rust",
     "datetime_to_mjd_rust",
     "parse_visibility_periods_rust",
+    "parse_optional_mjd_rust",
+    "get_time_range_rust",
+    "format_datetime_utc_rust",
     # Dark Periods
     "load_dark_periods_rust",
     # Backend access

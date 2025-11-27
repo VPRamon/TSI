@@ -9,7 +9,10 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from core.time import parse_optional_mjd, parse_visibility_periods
+from tsi.services.rust_compat import (
+    parse_optional_mjd_rust as parse_optional_mjd,
+    parse_visibility_periods_rust as parse_visibility_periods,
+)
 
 
 @dataclass(frozen=True)
