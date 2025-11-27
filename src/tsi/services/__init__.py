@@ -1,6 +1,5 @@
 """Services package initialization."""
 
-from core.domain.priority import get_priority_range
 from core.time import (
     format_datetime_utc,
     get_time_range,
@@ -59,6 +58,7 @@ from tsi.services.trends_processing import (
     apply_trends_filters,
     validate_required_columns,
 )
+from tsi.services.priority_range import get_priority_range
 from tsi.services.visibility_processing import (
     compute_effective_priority_range,
     get_all_block_ids,
