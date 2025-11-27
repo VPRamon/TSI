@@ -1,14 +1,9 @@
 {
   "name": "TSI Dev Container",
-  "build": {
-    "dockerfile": "../Dockerfile",
-    "target": "dev",
-    "args": {
-      "DEBIAN_VERSION": "12",
-      "RUST_VERSION": "nightly"
-    }
-  },
+  "image": "tsi-devcontainer:dev",
+  "initializeCommand": "${localWorkspaceFolder}/.devcontainer/build-dev-image.sh",
   "remoteUser": "app",
+  "updateRemoteUserUID": false,
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
   "runArgs": [
