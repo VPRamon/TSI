@@ -210,7 +210,7 @@ def render_generate_button() -> bool:
     col_btn1, col_btn2 = st.columns([1, 4])
     with col_btn1:
         generate_clicked = st.button(
-            "🔄 Generate Histogram", type="primary", use_container_width=True
+            "🔄 Generate Histogram", type="primary", width='stretch'
         )
     with col_btn2:
         st.caption("")

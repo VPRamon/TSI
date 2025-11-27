@@ -41,9 +41,9 @@ def render_heatmap_section(
         )
 
         if plot_library == "altair":
-            st.altair_chart(cast("Chart", fig_heatmap), use_container_width=True)
+            st.altair_chart(cast("Chart", fig_heatmap), width='stretch')
         else:
-            st.plotly_chart(fig_heatmap, use_container_width=True)
+            st.plotly_chart(fig_heatmap, width='stretch')
 
     except Exception as e:
         st.error(f"❌ Error generating heatmap: {e}")

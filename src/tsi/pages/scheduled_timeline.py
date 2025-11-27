@@ -78,7 +78,7 @@ def render() -> None:
         "modeBarButtonsToRemove": ["lasso2d", "select2d"],
         "scrollZoom": True,
     }
-    st.plotly_chart(fig, use_container_width=True, config=config)
+    st.plotly_chart(fig, width='stretch', config=config)
 
     # Show dark period summary if available
     if filtered_dark_periods is not None:

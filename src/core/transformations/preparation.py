@@ -9,7 +9,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from core.time import parse_visibility_periods
+from core.time import parse_optional_mjd, parse_visibility_periods
 
 
 @dataclass(frozen=True)
@@ -121,6 +121,16 @@ def prepare_dataframe(df: pd.DataFrame) -> PreparationResult:
     # NOTE: Datetime columns (fixed_start_dt, scheduled_start_dt, etc.) are created
     # on-demand by pages that need them, not during preparation, to avoid conflicts
     # with the Rust backend which expects specific column types.
+
+    # Add datetime columns (lightweight conversion)
+    if "fixedStartTime" in prepared.columns:
+        prepared["fixed_start_dt"] = prepared["fixedStartTime"].apply(parse_optional_mjd)
+    if "fixedStopTime" in prepared.columns:
+        prepared["fixed_stop_dt"] = prepared["fixedStopTime"].apply(parse_optional_mjd)
+    if "scheduled_period.start" in prepared.columns:
+        prepared["scheduled_start_dt"] = prepared["scheduled_period.start"].apply(parse_optional_mjd)
+    if "scheduled_period.stop" in prepared.columns:
+        prepared["scheduled_stop_dt"] = prepared["scheduled_period.stop"].apply(parse_optional_mjd)
 
     return PreparationResult(dataframe=prepared, warnings=warnings)
 

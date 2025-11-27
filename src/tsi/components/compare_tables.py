@@ -327,19 +327,19 @@ def _render_change_details(
 
                 display_df = display_df[final_columns]
 
-                # Rename columns for display
-                rename_dict = {
-                    "schedulingBlockId": "Block ID",
-                    "targetName": "Target Name",
-                    "priority": "Priority",
-                    "scheduled_period.start": "Start (MJD)",
-                    "scheduled_period.stop": "Stop (MJD)",
-                }
-                display_df = display_df.rename(
-                    columns={k: v for k, v in rename_dict.items() if k in display_df.columns}
-                )
+            # Rename columns for display
+            rename_dict = {
+                "schedulingBlockId": "Block ID",
+                "targetName": "Target Name",
+                "priority": "Priority",
+                "scheduled_period.start": "Start (MJD)",
+                "scheduled_period.stop": "Stop (MJD)",
+            }
+            display_df = display_df.rename(
+                columns={k: v for k, v in rename_dict.items() if k in display_df.columns}
+            )
 
-                st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
+            st.dataframe(display_df, hide_index=True, height=200, width='stretch')
         else:
             with st.expander("📋 View 0 newly scheduled blocks", expanded=False):
                 st.info("No blocks were newly scheduled in the comparison schedule.")
@@ -372,17 +372,17 @@ def _render_change_details(
 
                 display_df = display_df[final_columns]
 
-                # Rename columns for display
-                rename_dict = {
-                    "schedulingBlockId": "Block ID",
-                    "targetName": "Target Name",
-                    "priority": "Priority",
-                }
-                display_df = display_df.rename(
-                    columns={k: v for k, v in rename_dict.items() if k in display_df.columns}
-                )
+            # Rename columns for display
+            rename_dict = {
+                "schedulingBlockId": "Block ID",
+                "targetName": "Target Name",
+                "priority": "Priority",
+            }
+            display_df = display_df.rename(
+                columns={k: v for k, v in rename_dict.items() if k in display_df.columns}
+            )
 
-                st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
+            st.dataframe(display_df, hide_index=True, height=200, width='stretch')
         else:
             with st.expander("📋 View 0 newly unscheduled blocks", expanded=False):
                 st.info("No blocks were removed in the comparison schedule.")

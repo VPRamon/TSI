@@ -102,9 +102,9 @@ def render_prediction_plot(
         )
 
         if plot_library == "altair":
-            st.altair_chart(cast("Chart", fig_pred), use_container_width=True)
+            st.altair_chart(cast("Chart", fig_pred), width='stretch')
         else:
-            st.plotly_chart(fig_pred, use_container_width=True)
+            st.plotly_chart(fig_pred, width='stretch')
 
         st.caption(
             "📌 Each curve represents a different **priority level**. "

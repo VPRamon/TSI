@@ -52,9 +52,9 @@ def render_smoothed_trends(
             )
 
             if plot_library == "altair":
-                st.altair_chart(cast("Chart", fig_vis), use_container_width=True)
+                st.altair_chart(cast("Chart", fig_vis), width='stretch')
             else:
-                st.plotly_chart(fig_vis, use_container_width=True)
+                st.plotly_chart(fig_vis, width='stretch')
 
     with col2:
         st.markdown("**Requested time → Scheduling rate**")
@@ -71,6 +71,6 @@ def render_smoothed_trends(
             )
 
             if plot_library == "altair":
-                st.altair_chart(cast("Chart", fig_time), use_container_width=True)
+                st.altair_chart(cast("Chart", fig_time), width='stretch')
             else:
-                st.plotly_chart(fig_time, use_container_width=True)
+                st.plotly_chart(fig_time, width='stretch')

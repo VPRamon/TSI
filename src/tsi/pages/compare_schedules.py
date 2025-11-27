@@ -146,22 +146,22 @@ def _display_comparison_plots(
         fig_priority = create_priority_distribution_plot(
             current_scheduled, comparison_scheduled, current_name, comparison_name
         )
-        st.plotly_chart(fig_priority, use_container_width=True)
-
+        st.plotly_chart(fig_priority, width='stretch')
+    
     with col2:
         st.subheader("Scheduling Status Breakdown")
         fig_status = create_scheduling_status_plot(
             current_common, comparison_common, current_name, comparison_name
         )
-        st.plotly_chart(fig_status, use_container_width=True)
-
+        st.plotly_chart(fig_status, width='stretch')
+    
     add_vertical_space(1)
 
     # Plot 3: Changes Flow
     if len(newly_scheduled) > 0 or len(newly_unscheduled) > 0:
         st.subheader("Scheduling Changes")
         fig_changes = create_changes_plot(newly_scheduled, newly_unscheduled)
-        st.plotly_chart(fig_changes, use_container_width=True)
+        st.plotly_chart(fig_changes, width='stretch')
 
     # Plot 4: Time comparison (if available)
     has_time_data = (
@@ -174,4 +174,4 @@ def _display_comparison_plots(
         fig_time = create_time_distribution_plot(
             current_scheduled, comparison_scheduled, current_name, comparison_name
         )
-        st.plotly_chart(fig_time, use_container_width=True)
+        st.plotly_chart(fig_time, width='stretch')

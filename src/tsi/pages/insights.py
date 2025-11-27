@@ -15,7 +15,7 @@ from tsi.services.analytics import (
     generate_insights,
     get_top_observations,
 )
-from tsi.services.insights_filtering import (
+from tsi.services.impossible_filters import (
     apply_insights_filter,
     check_filter_support,
     compute_impossible_mask,
