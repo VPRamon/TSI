@@ -5,12 +5,15 @@ from __future__ import annotations
 import io
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
+import polars as pl
 import pytest
 
 from core.loaders.schedule_loader import (
     ScheduleLoadResult,
+    ValidationResult,
     load_schedule_from_csv,
     load_schedule_from_iteration,
     load_schedule_from_json,
@@ -83,6 +86,71 @@ def csv_missing_required_columns() -> str:
     return """schedulingBlockId,priority
 SB001,5.0
 """
+
+
+@pytest.fixture(autouse=True)
+def stub_rust_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Stub the tsi_rust backend so tests can run without compiled Rust."""
+
+    from core.loaders import schedule_loader
+
+    class DummyRustValidation:
+        def __init__(
+            self,
+            is_valid: bool = True,
+            errors: list[str] | None = None,
+            warnings: list[str] | None = None,
+            stats: dict[str, int] | None = None,
+        ) -> None:
+            self.is_valid = is_valid
+            self.errors = errors or []
+            self.warnings = warnings or []
+            self._stats = stats or {}
+
+        def get_stats(self) -> dict[str, int]:
+            return self._stats
+
+    def _load_blocks(schedule_path: str | Path) -> list[dict]:
+        with open(schedule_path) as handle:
+            payload = json.load(handle)
+        return payload.get("SchedulingBlock", [])
+
+    def fake_py_preprocess_schedule(
+        schedule_path: str | None,
+        visibility_path: str | None,
+        validate: bool,
+    ) -> tuple[pl.DataFrame, DummyRustValidation]:
+        """Emulate the Rust preprocessing output with lightweight pandas logic."""
+
+        blocks = _load_blocks(schedule_path) if schedule_path else []
+        block_ids = [
+            block.get("schedulingBlockId")
+            or block.get("id")
+            or f"sb-{idx}"
+            for idx, block in enumerate(blocks)
+        ]
+        scheduled_flags = [
+            bool((block.get("scheduled_period") or {}).get("start")) for block in blocks
+        ]
+        df_pd = pd.DataFrame(
+            {
+                "schedulingBlockId": block_ids,
+                "priority": [block.get("priority", 0.0) for block in blocks],
+                "scheduled_flag": scheduled_flags,
+                "visibility": [[] for _ in blocks],
+            }
+        )
+        df_polars = pl.from_pandas(df_pd)
+        scheduled_count = sum(1 for flag in scheduled_flags if flag)
+        stats = {
+            "total_blocks": len(blocks),
+            "scheduled_blocks": scheduled_count,
+            "unscheduled_blocks": max(len(blocks) - scheduled_count, 0),
+        }
+        return df_polars, DummyRustValidation(stats=stats)
+
+    fake_module = SimpleNamespace(py_preprocess_schedule=fake_py_preprocess_schedule)
+    monkeypatch.setattr(schedule_loader, "tsi_rust", fake_module, raising=False)
 
 
 class TestLoadScheduleFromJson:
@@ -466,8 +534,6 @@ class TestScheduleLoadResult:
     def test_with_all_fields__creates_successfully(self) -> None:
         """Create result with all fields."""
         df = pd.DataFrame({"col": [1, 2, 3]})
-        from core.preprocessing import ValidationResult
-
         validation = ValidationResult(is_valid=True, errors=[], warnings=[], stats={})
         result = ScheduleLoadResult(
             dataframe=df,
@@ -483,8 +549,6 @@ class TestScheduleLoadResult:
     def test_with_optional_source_path__defaults_to_none(self) -> None:
         """source_path defaults to None."""
         df = pd.DataFrame({"col": [1, 2, 3]})
-        from core.preprocessing import ValidationResult
-
         validation = ValidationResult(is_valid=True, errors=[], warnings=[], stats={})
         result = ScheduleLoadResult(dataframe=df, validation=validation, source_type="json")
         assert result.source_path is None

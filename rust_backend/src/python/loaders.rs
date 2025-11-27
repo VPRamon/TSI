@@ -86,6 +86,67 @@ pub fn load_schedule_from_csv(csv_path: &str) -> PyResult<PyDataFrame> {
     Ok(PyDataFrame(result.dataframe))
 }
 
+/// Load schedule data from a directory structure (iteration directory)
+///
+/// Expected directory structure:
+/// - iteration_dir/schedule.json
+/// - iteration_dir/possible_periods.json (optional)
+///
+/// Or legacy structure:
+/// - iteration_dir/schedule/schedule.json
+/// - iteration_dir/possible periods/possible_periods.json
+///
+/// Args:
+///     iteration_dir: Path to the iteration directory
+///
+/// Returns:
+///     PyDataFrame: Polars DataFrame with schedule data
+///
+/// Example:
+///     >>> import tsi_rust
+///     >>> df = tsi_rust.load_schedule_from_iteration("data/")
+///     >>> pandas_df = df.to_pandas()
+#[pyfunction]
+pub fn load_schedule_from_iteration(iteration_dir: &str) -> PyResult<PyDataFrame> {
+    use std::fs;
+    
+    let dir_path = PathBuf::from(iteration_dir);
+    
+    if !dir_path.exists() {
+        return Err(pyo3::exceptions::PyFileNotFoundError::new_err(
+            format!("Iteration directory not found: {}", iteration_dir)
+        ));
+    }
+    
+    // Try to find schedule.json in various locations
+    let mut schedule_path = dir_path.join("schedule.json");
+    if !schedule_path.exists() {
+        // Try legacy structure
+        schedule_path = dir_path.join("schedule").join("schedule.json");
+        if !schedule_path.exists() {
+            return Err(pyo3::exceptions::PyFileNotFoundError::new_err(
+                format!("schedule.json not found in {}", iteration_dir)
+            ));
+        }
+    }
+    
+    // Try to find possible_periods.json (optional)
+    let mut visibility_path = dir_path.join("possible_periods.json");
+    if !visibility_path.exists() {
+        // Try legacy structure
+        visibility_path = dir_path.join("possible periods").join("possible_periods.json");
+    }
+    
+    // Load using the regular JSON loader
+    let result = ScheduleLoader::load_from_json(&schedule_path).map_err(|e| {
+        pyo3::exceptions::PyRuntimeError::new_err(
+            format!("Failed to load schedule from {}: {}", iteration_dir, e)
+        )
+    })?;
+    
+    Ok(PyDataFrame(result.dataframe))
+}
+
 /// Load dark periods from a JSON file
 ///
 /// Supports flexible JSON formats with various key names (dark_periods, darkPeriods, etc.)
