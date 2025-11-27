@@ -37,7 +37,7 @@ def render_navigation() -> str | None:
             if st.button(
                 page,
                 key=f"nav_{page}",
-                use_container_width=True,
+                width='stretch',
                 type="primary" if page == current_page else "secondary",
             ):
                 # Update current page and force rerun to update button highlight

@@ -38,9 +38,9 @@ def render_empirical_proportions(
         )
 
         if plot_library == "altair":
-            st.altair_chart(cast("Chart", fig_priority), use_container_width=True)
+            st.altair_chart(cast("Chart", fig_priority), width='stretch')
         else:
-            st.plotly_chart(fig_priority, use_container_width=True)
+            st.plotly_chart(fig_priority, width='stretch')
 
     except Exception as e:
         st.error(f"❌ Error computing empirical rates: {e}")
