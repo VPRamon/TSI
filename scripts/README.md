@@ -1,6 +1,53 @@
-# post-query.py Usage Guide
+# Scripts Directory
 
-This script demonstrates how to post (insert) and get (retrieve) a minimal schedule from a SQL Server database using Python and pyodbc. Credentials are stored securely in `scripts/db_credentials.py` (see `.gitignore`).
+Este directorio contiene scripts para interactuar con la base de datos Azure SQL.
+
+## Scripts Disponibles
+
+### 1. upload_schedule.sh (Rust) ⭐ RECOMENDADO
+
+Script en **Rust** para subir schedules a Azure SQL de forma eficiente.
+
+**Características:**
+- ⚡ Alto rendimiento (~10x más rápido que Python)
+- 🔒 Type-safe (seguridad de tipos en compile-time)
+- 📦 Binario independiente (no requiere Python)
+- 🔄 Maneja duplicados automáticamente (get-or-create pattern)
+- 📊 Procesa visibility periods desde possible_periods.json
+
+**Uso:**
+```bash
+DB_PASSWORD='tu-password' ./scripts/upload_schedule.sh
+```
+
+**Documentación completa:** [docs/upload_schedule_rust.md](../docs/upload_schedule_rust.md)
+
+---
+
+### 2. post-query.py (Python)
+
+Script en **Python** para subir schedules usando pyodbc con Azure AD authentication.
+
+
+**Características:**
+- 🔑 Azure Active Directory password authentication
+- 🐍 Implementación Python pura
+- 📝 Código más legible y fácil de modificar
+- 🔍 Incluye función para consultar schedules
+
+**Uso:**
+```python
+from scripts.post_query import upload_minimal_schedule, get_schedule
+
+schedule_id = upload_minimal_schedule()
+get_schedule(schedule_id)
+```
+
+**Requisitos:**
+- pyodbc
+- Microsoft ODBC Driver 18 for SQL Server
+
+---
 
 ## Prerequisites
 - Python 3.x

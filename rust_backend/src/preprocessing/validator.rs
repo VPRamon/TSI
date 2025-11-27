@@ -52,6 +52,9 @@ pub struct ValidationResult {
 /// * `total_blocks` - Total number of scheduling blocks validated
 /// * `scheduled_blocks` - Count of blocks with assigned observation times
 /// * `unscheduled_blocks` - Count of blocks without assigned times
+/// * `blocks_with_visibility` - Count of blocks with visibility periods
+/// * `avg_visibility_periods` - Average number of visibility periods per block
+/// * `avg_visibility_hours` - Average visibility hours per block
 /// * `missing_coordinates` - Count of blocks lacking target coordinates
 /// * `missing_constraints` - Count of blocks missing elevation/azimuth constraints
 /// * `duplicate_ids` - Number of duplicate scheduling block IDs found
@@ -62,6 +65,9 @@ pub struct ValidationStats {
     pub total_blocks: usize,
     pub scheduled_blocks: usize,
     pub unscheduled_blocks: usize,
+    pub blocks_with_visibility: usize,
+    pub avg_visibility_periods: f64,
+    pub avg_visibility_hours: f64,
     pub missing_coordinates: usize,
     pub missing_constraints: usize,
     pub duplicate_ids: usize,
@@ -258,12 +264,20 @@ impl ScheduleValidator {
     ///
     /// - Missing required columns
     /// - Duplicate scheduling block IDs
-    /// - Invalid priorities (< 0 or > 20)
+    /// - Invalid priorities (< 0)
     /// - Non-positive durations
+    /// - Invalid coordinate ranges (dec: [-90, 90], ra: [0, 360))
+    /// - Invalid elevation constraints (min >= max)
+    /// - Invalid scheduled periods (start >= stop)
     pub fn validate_dataframe(df: &DataFrame) -> ValidationResult {
         let mut result = ValidationResult::new();
 
         result.stats.total_blocks = df.height();
+
+        // Handle empty DataFrame
+        if result.stats.total_blocks == 0 {
+            return result;
+        }
 
         // Check required columns
         let required_cols = vec!["schedulingBlockId", "priority", "requestedDurationSec"];
@@ -278,6 +292,27 @@ impl ScheduleValidator {
             return result;
         }
 
+        // Check for missing IDs
+        if let Ok(id_col) = df.column("schedulingBlockId") {
+            let missing_count = id_col.null_count();
+            if missing_count > 0 {
+                result.add_error(format!("{} blocks have missing IDs", missing_count));
+            }
+
+            // Check for duplicate IDs
+            if let Ok(str_series) = id_col.str() {
+                let unique_count = str_series.n_unique().unwrap_or(0);
+                let total_count = str_series.len();
+                let duplicates = total_count - unique_count;
+                if duplicates > 0 {
+                    result.add_error(format!(
+                        "{} duplicate scheduling block IDs found",
+                        duplicates
+                    ));
+                }
+            }
+        }
+
         // Count scheduled blocks
         if let Ok(scheduled_flag) = df.column("scheduled_flag") {
             if let Ok(bool_series) = scheduled_flag.bool() {
@@ -287,72 +322,189 @@ impl ScheduleValidator {
             }
         }
 
-        // Check for missing coordinates
-        if let Ok(ra_col) = df.column("raInDeg") {
-            if let Ok(f64_series) = ra_col.f64() {
-                result.stats.missing_coordinates = f64_series.null_count();
-            }
-        }
-
         // Validate priorities
         if let Ok(priority_col) = df.column("priority") {
             if let Ok(f64_series) = priority_col.f64() {
-                for val in f64_series.into_iter().flatten() {
-                    if !(0.0..=20.0).contains(&val) {
-                        result.stats.invalid_priorities += 1;
-                        if result.stats.invalid_priorities <= 5 {
-                            result.add_warning(format!("Invalid priority value: {}", val));
-                        }
-                    }
-                }
+                // Count negative priorities (errors)
+                let negative_count = f64_series
+                    .iter()
+                    .flatten()
+                    .filter(|&p| p < 0.0)
+                    .count();
 
-                if result.stats.invalid_priorities > 5 {
-                    result.add_warning(format!(
-                        "Total invalid priorities: {} (showing first 5)",
-                        result.stats.invalid_priorities
-                    ));
-                }
-            }
-        }
-
-        // Validate durations
-        if let Ok(duration_col) = df.column("requestedDurationSec") {
-            if let Ok(f64_series) = duration_col.f64() {
-                for val in f64_series.into_iter().flatten() {
-                    if val <= 0.0 {
-                        result.stats.invalid_durations += 1;
-                        if result.stats.invalid_durations <= 5 {
-                            result.add_error(format!("Invalid duration (must be > 0): {}", val));
-                        }
-                    }
-                }
-
-                if result.stats.invalid_durations > 5 {
+                if negative_count > 0 {
                     result.add_error(format!(
-                        "Total invalid durations: {} (showing first 5)",
-                        result.stats.invalid_durations
+                        "{} blocks have negative priority (invalid)",
+                        negative_count
                     ));
+                }
+
+                // Count missing priorities (warnings)
+                let missing_count = priority_col.null_count();
+                if missing_count > 0 {
+                    result.add_warning(format!("{} blocks have missing priority", missing_count));
                 }
             }
         }
 
-        // Check for duplicate IDs
-        if let Ok(id_col) = df.column("schedulingBlockId") {
-            if let Ok(str_series) = id_col.str() {
-                let unique_count = str_series.n_unique().unwrap_or(0);
-                let total_count = str_series.len();
-                result.stats.duplicate_ids = total_count - unique_count;
+        // Validate coordinates
+        Self::validate_coordinates(df, &mut result);
 
-                if result.stats.duplicate_ids > 0 {
-                    result.add_error(format!(
-                        "Found {} duplicate scheduling block IDs",
-                        result.stats.duplicate_ids
-                    ));
-                }
-            }
-        }
+        // Validate time constraints
+        Self::validate_time_constraints(df, &mut result);
+
+        // Validate elevation constraints
+        Self::validate_elevation_constraints(df, &mut result);
+
+        // Compute visibility statistics
+        Self::compute_visibility_stats(df, &mut result);
 
         result
+    }
+
+    fn validate_coordinates(df: &DataFrame, result: &mut ValidationResult) {
+        // Validate declination: [-90, 90]
+        if let Ok(dec_col) = df.column("decInDeg") {
+            if let Ok(f64_series) = dec_col.f64() {
+                let invalid_count = f64_series
+                    .iter()
+                    .flatten()
+                    .filter(|&dec| dec < -90.0 || dec > 90.0)
+                    .count();
+
+                if invalid_count > 0 {
+                    result.add_error(format!(
+                        "{} blocks have invalid declination (outside [-90, 90])",
+                        invalid_count
+                    ));
+                }
+
+                let missing = dec_col.null_count();
+                if missing > 0 {
+                    result.add_warning(format!("{} blocks have missing declination", missing));
+                }
+                result.stats.missing_coordinates = missing;
+            }
+        }
+
+        // Validate right ascension: [0, 360)
+        if let Ok(ra_col) = df.column("raInDeg") {
+            if let Ok(f64_series) = ra_col.f64() {
+                let invalid_count = f64_series
+                    .iter()
+                    .flatten()
+                    .filter(|&ra| ra < 0.0 || ra >= 360.0)
+                    .count();
+
+                if invalid_count > 0 {
+                    result.add_error(format!(
+                        "{} blocks have invalid right ascension (outside [0, 360))",
+                        invalid_count
+                    ));
+                }
+
+                let missing = ra_col.null_count();
+                if missing > 0 {
+                    result.add_warning(format!("{} blocks have missing right ascension", missing));
+                }
+            }
+        }
+    }
+
+    fn validate_time_constraints(df: &DataFrame, result: &mut ValidationResult) {
+        // Check requested duration > 0
+        if let Ok(duration_col) = df.column("requestedDurationSec") {
+            if let Ok(f64_series) = duration_col.f64() {
+                let invalid_count = f64_series
+                    .iter()
+                    .flatten()
+                    .filter(|&d| d <= 0.0)
+                    .count();
+
+                if invalid_count > 0 {
+                    result.add_error(format!(
+                        "{} blocks have invalid requested duration (≤ 0)",
+                        invalid_count
+                    ));
+                    result.stats.invalid_durations = invalid_count;
+                }
+            }
+        }
+
+        // Check scheduled period: start < stop
+        if let (Ok(start_col), Ok(stop_col)) = (
+            df.column("scheduled_period.start"),
+            df.column("scheduled_period.stop"),
+        ) {
+            if let (Ok(start_series), Ok(stop_series)) = (start_col.f64(), stop_col.f64()) {
+                let invalid_count = start_series
+                    .iter()
+                    .zip(stop_series.iter())
+                    .filter_map(|(s, e)| match (s, e) {
+                        (Some(start), Some(stop)) if start >= stop => Some(()),
+                        _ => None,
+                    })
+                    .count();
+
+                if invalid_count > 0 {
+                    result.add_error(format!(
+                        "{} blocks have start time ≥ stop time",
+                        invalid_count
+                    ));
+                }
+            }
+        }
+    }
+
+    fn validate_elevation_constraints(df: &DataFrame, result: &mut ValidationResult) {
+        if let (Ok(min_col), Ok(max_col)) = (
+            df.column("minElevationAngleInDeg"),
+            df.column("maxElevationAngleInDeg"),
+        ) {
+            if let (Ok(min_series), Ok(max_series)) = (min_col.f64(), max_col.f64()) {
+                let invalid_count = min_series
+                    .iter()
+                    .zip(max_series.iter())
+                    .filter_map(|(min, max)| match (min, max) {
+                        (Some(min_val), Some(max_val)) if min_val >= max_val => Some(()),
+                        _ => None,
+                    })
+                    .count();
+
+                if invalid_count > 0 {
+                    result.add_error(format!(
+                        "{} blocks have min elevation ≥ max elevation",
+                        invalid_count
+                    ));
+                }
+            }
+        }
+    }
+
+    fn compute_visibility_stats(df: &DataFrame, result: &mut ValidationResult) {
+        // Count blocks with visibility
+        if let Ok(num_vis_col) = df.column("num_visibility_periods") {
+            if let Ok(u32_series) = num_vis_col.u32() {
+                result.stats.blocks_with_visibility = u32_series
+                    .iter()
+                    .filter(|&v| v.unwrap_or(0) > 0)
+                    .count();
+            }
+
+            // Average visibility periods - cast to f64 first
+            if let Ok(f64_series) = num_vis_col.cast(&DataType::Float64) {
+                if let Ok(mean_val) = f64_series.f64().and_then(|s| Ok(s.mean().unwrap_or(0.0))) {
+                    result.stats.avg_visibility_periods = mean_val;
+                }
+            }
+        }
+
+        // Average visibility hours
+        if let Ok(vis_hours_col) = df.column("total_visibility_hours") {
+            if let Ok(f64_series) = vis_hours_col.f64() {
+                result.stats.avg_visibility_hours = f64_series.mean().unwrap_or(0.0);
+            }
+        }
     }
 
     fn validate_block(block: &SchedulingBlock, result: &mut ValidationResult) {
@@ -373,11 +525,11 @@ impl ScheduleValidator {
             result.stats.missing_constraints += 1;
         }
 
-        // Validate priority
-        if block.priority < 0.0 || block.priority > 20.0 {
+        // Validate priority (negative is invalid)
+        if block.priority < 0.0 {
             result.stats.invalid_priorities += 1;
-            result.add_warning(format!(
-                "Block {} has invalid priority: {}",
+            result.add_error(format!(
+                "Block {} has negative priority: {}",
                 block.scheduling_block_id, block.priority
             ));
         }
