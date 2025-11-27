@@ -10,11 +10,11 @@ from tsi.components.timeline_stats import (
     render_key_metrics,
 )
 from tsi.plots.timeline_monthly import build_monthly_timeline
+from tsi.services import get_priority_range
 from tsi.services.timeline_processing import (
     apply_search_filters,
     filter_dark_periods,
     filter_scheduled_data,
-    get_priority_range,
     prepare_display_dataframe,
     prepare_scheduled_data,
 )
