@@ -10,11 +10,11 @@ from tsi.components.visibility_controls import (
 )
 from tsi.components.visibility_stats import render_chart_info, render_dataset_statistics
 from tsi.plots.timeline import build_visibility_histogram
+from tsi.services import get_priority_range
 from tsi.services.loaders import get_filtered_dataframe
 from tsi.services.visibility_processing import (
     compute_effective_priority_range,
     get_all_block_ids,
-    get_priority_range,
 )
 
 

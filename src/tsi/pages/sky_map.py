@@ -8,10 +8,10 @@ from tsi import state
 from tsi.components.sky_map_controls import render_sidebar_controls
 from tsi.components.sky_map_stats import render_stats
 from tsi.plots.sky_map import build_figure
+from tsi.services import get_priority_range
 from tsi.services.sky_map_filters import (
     build_palette,
     filter_dataframe,
-    get_priority_range,
     prepare_priority_bins,
 )
 
