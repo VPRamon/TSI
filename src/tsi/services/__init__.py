@@ -1,6 +1,7 @@
 """Services package initialization."""
 
 from tsi.services.analytics import (
+    AnalyticsSnapshot,
     compute_correlations,
     compute_metrics,
     find_conflicts,
@@ -71,6 +72,7 @@ __all__ = [
     "get_time_range",
     "format_datetime_utc",
     # analytics
+    "AnalyticsSnapshot",
     "compute_metrics",
     "compute_correlations",
     "get_top_observations",

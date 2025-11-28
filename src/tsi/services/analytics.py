@@ -1,15 +1,14 @@
 """Analytics and statistical analysis services."""
 
+from __future__ import annotations
+
+from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Any, cast
 
 import numpy as np
 import pandas as pd
 
-from core.algorithms import (
-    AnalyticsSnapshot,
-    compute_correlations as core_compute_correlations,
-    generate_insights as core_generate_insights,
-)
 from tsi.config import CORRELATION_COLUMNS
 from tsi.models.schemas import AnalyticsMetrics
 from tsi.services.rust_compat import (
@@ -21,6 +20,26 @@ from tsi.services.rust_compat import (
 from tsi.services.rust_compat import (
     get_top_observations as rust_get_top_observations,
 )
+from tsi_rust_api import TSIBackend
+
+
+@dataclass(frozen=True)
+class AnalyticsSnapshot:
+    """Thin dataclass capturing dataset-level aggregates."""
+
+    total_observations: int
+    scheduled_count: int
+    unscheduled_count: int
+    scheduling_rate: float
+    mean_priority: float
+    median_priority: float
+    mean_priority_scheduled: float
+    mean_priority_unscheduled: float
+    total_visibility_hours: float
+    mean_requested_hours: float
+
+
+_BACKEND = TSIBackend(use_pandas=True)
 
 
 def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
@@ -28,10 +47,25 @@ def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
     return cast(AnalyticsMetrics, rust_compute_metrics(df))
 
 
-def compute_correlations(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute a Spearman correlation matrix for key numeric features."""
-    result: pd.DataFrame = core_compute_correlations(df, columns=CORRELATION_COLUMNS)
-    return cast(pd.DataFrame, result)  # type: ignore[no-any-return]
+def compute_correlations(df: pd.DataFrame, *, columns: Sequence[str] | None = None) -> pd.DataFrame:
+    """
+    Compute a Spearman correlation matrix for the selected columns.
+    
+    Args:
+        df: DataFrame with scheduling data
+        columns: List of column names to analyze. If None, uses default CORRELATION_COLUMNS.
+        
+    Returns:
+        Correlation matrix DataFrame
+    """
+    if columns is None:
+        columns = CORRELATION_COLUMNS
+    
+    cols_to_analyze = [col for col in columns if col in df.columns]
+    if len(cols_to_analyze) < 2:
+        return pd.DataFrame()
+
+    return df[cols_to_analyze].dropna().corr(method="spearman")
 
 
 def get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) -> pd.DataFrame:
@@ -45,14 +79,15 @@ def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
 
     Note: Falls back to empty DataFrame if datetime conversion issues occur.
     """
+    # Check if Rust backend can handle it
+    required_cols = {"scheduled_start_dt", "scheduled_stop_dt"}
+    if not required_cols.issubset(df.columns):
+        return pd.DataFrame()
+
     try:
         return cast(pd.DataFrame, rust_find_conflicts(df))
-    except RuntimeError as e:
-        # Handle Rust backend datetime conversion issues
-        if "datetime" in str(e).lower() or "dtype" in str(e).lower():
-            # Return empty DataFrame with expected columns when conversion fails
-            return pd.DataFrame(columns=["schedulingBlockId", "conflict_type", "details"])
-        raise  # Re-raise other RuntimeErrors
+    except Exception:
+        return pd.DataFrame()
 
 
 def _snapshot_from_metrics(metrics: AnalyticsMetrics) -> AnalyticsSnapshot:
@@ -60,11 +95,66 @@ def _snapshot_from_metrics(metrics: AnalyticsMetrics) -> AnalyticsSnapshot:
     return AnalyticsSnapshot(**metrics.model_dump())
 
 
-def generate_insights(df: pd.DataFrame, metrics: AnalyticsMetrics) -> list[str]:
-    """Generate automated insights from the data."""
-    snapshot = _snapshot_from_metrics(metrics)
-    result: list[str] = core_generate_insights(df, snapshot)
-    return result
+def generate_insights(df: pd.DataFrame, metrics: AnalyticsMetrics | AnalyticsSnapshot) -> list[str]:
+    """
+    Generate automated insights from the data.
+    
+    Args:
+        df: DataFrame with scheduling data
+        metrics: Either AnalyticsMetrics (Pydantic) or AnalyticsSnapshot (dataclass)
+        
+    Returns:
+        List of insight strings
+    """
+    # Convert AnalyticsMetrics to AnalyticsSnapshot if needed
+    if isinstance(metrics, AnalyticsMetrics):
+        snapshot = _snapshot_from_metrics(metrics)
+    else:
+        snapshot = metrics
+
+    insights = [
+        (
+            f"**Scheduling Rate**: {snapshot.scheduling_rate * 100:.1f}% "
+            f"({snapshot.scheduled_count:,} of {snapshot.total_observations:,}) observations scheduled."
+        ),
+    ]
+
+    if snapshot.mean_priority_scheduled > 0 and snapshot.mean_priority_unscheduled > 0:
+        diff = snapshot.mean_priority_scheduled - snapshot.mean_priority_unscheduled
+        if abs(diff) > 0.5:
+            direction = "higher" if diff > 0 else "lower"
+            insights.append(
+                f"**Priority Bias**: Scheduled observations have {direction} average priority "
+                f"({snapshot.mean_priority_scheduled:.2f}) vs unscheduled "
+                f"({snapshot.mean_priority_unscheduled:.2f})."
+            )
+
+    if snapshot.total_visibility_hours > 0:
+        insights.append(
+            f"**Total Visibility**: {snapshot.total_visibility_hours:,.0f} cumulative visibility hours."
+        )
+
+    corr_matrix = compute_correlations(
+        df,
+        columns=[
+            "priority",
+            "requested_hours",
+            "total_visibility_hours",
+            "elevation_range_deg",
+        ],
+    )
+    if not corr_matrix.empty and "priority" in corr_matrix:
+        for column in corr_matrix.columns:
+            if column == "priority":
+                continue
+            corr_val = corr_matrix.loc["priority", column]
+            if isinstance(corr_val, (int, float)) and abs(float(corr_val)) > 0.3:
+                direction = "positive" if float(corr_val) > 0 else "negative"
+                insights.append(
+                    f"**Correlation**: Priority has {direction} correlation ({corr_val:.2f}) with {column}."
+                )
+
+    return insights
 
 
 def generate_correlation_insights(correlations: pd.DataFrame) -> list[str]:
