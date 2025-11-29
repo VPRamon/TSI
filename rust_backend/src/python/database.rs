@@ -41,23 +41,28 @@ pub fn py_store_schedule(
 ) -> PyResult<PyObject> {
     use crate::db::models::Schedule;
 
-    // Parse the JSON to get scheduling blocks
-    let dark_periods = std::fs::read_to_string("data/dark_periods.json")
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to read dark_periods.json: {}", e)))?;
-    let mut schedule: Schedule = crate::parsing::json_parser::parse_schedule_json_str(
-        schedule_json,
-        visibility_json,
-        dark_periods.as_str(),
-    ).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to parse schedule: {}", e)))?;
-    schedule.name = schedule_name.to_string();
+    // Heavy parsing + DB insert happens without the GIL held to avoid blocking Python.
+    let metadata = Python::with_gil(|py| {
+        py.allow_threads(|| -> PyResult<_> {
+            let dark_periods = std::fs::read_to_string("data/dark_periods.json")
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to read dark_periods.json: {}", e)))?;
 
-    let runtime = Runtime::new()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e)))?;
+            let mut schedule: Schedule = crate::parsing::json_parser::parse_schedule_json_str(
+                schedule_json,
+                visibility_json,
+                dark_periods.as_str(),
+            )
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to parse schedule: {}", e)))?;
+            schedule.name = schedule_name.to_string();
 
-    // Store in database
-    let metadata = runtime
-        .block_on(operations::store_schedule(&schedule))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
+            let runtime = Runtime::new()
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e)))?;
+
+            runtime
+                .block_on(operations::store_schedule(&schedule))
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+        })
+    })?;
 
     // Convert to Python dict
     Python::with_gil(|py| {

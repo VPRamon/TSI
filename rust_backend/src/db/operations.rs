@@ -1,6 +1,7 @@
 //! Database CRUD operations for schedules, dark periods, and visibility data (SQL Server).
 
 use chrono::{DateTime, Utc};
+use std::collections::{HashMap, HashSet};
 use tiberius::{Query, Row, numeric::Numeric};
 use siderust::{
     astro::ModifiedJulianDate,
@@ -14,6 +15,601 @@ use super::models::{
     Period, Constraints, ScheduleId, SchedulingBlockId
 };
 use super::pool;
+
+type DbClient = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+struct FloatKey(u64);
+
+impl FloatKey {
+    fn new(value: f64) -> Self {
+        Self(value.to_bits())
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+struct TargetKey {
+    ra: FloatKey,
+    dec: FloatKey,
+}
+
+impl TargetKey {
+    fn from_icrs(target: &ICRS) -> Self {
+        Self {
+            ra: FloatKey::new(target.ra().value()),
+            dec: FloatKey::new(target.dec().value()),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+struct AltitudeKey {
+    min: FloatKey,
+    max: FloatKey,
+}
+
+impl AltitudeKey {
+    fn new(min: f64, max: f64) -> Self {
+        Self {
+            min: FloatKey::new(min),
+            max: FloatKey::new(max),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+struct AzimuthKey {
+    min: FloatKey,
+    max: FloatKey,
+}
+
+impl AzimuthKey {
+    fn new(min: f64, max: f64) -> Self {
+        Self {
+            min: FloatKey::new(min),
+            max: FloatKey::new(max),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+struct ConstraintsKey {
+    start: Option<FloatKey>,
+    stop: Option<FloatKey>,
+    altitude: AltitudeKey,
+    azimuth: AzimuthKey,
+}
+
+impl ConstraintsKey {
+    fn new(constraints: &Constraints) -> Self {
+        let (start, stop) = if let Some(period) = &constraints.fixed_time {
+            (
+                Some(FloatKey::new(period.start.value())),
+                Some(FloatKey::new(period.stop.value())),
+            )
+        } else {
+            (None, None)
+        };
+
+        Self {
+            start,
+            stop,
+            altitude: AltitudeKey::new(
+                constraints.min_alt.value(),
+                constraints.max_alt.value(),
+            ),
+            azimuth: AzimuthKey::new(
+                constraints.min_az.value(),
+                constraints.max_az.value(),
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+struct VisibilityKey {
+    target_id: i64,
+    constraints_id: i64,
+    start: FloatKey,
+    stop: FloatKey,
+}
+
+impl VisibilityKey {
+    fn new(target_id: i64, constraints_id: i64, period: &Period) -> Self {
+        Self {
+            target_id,
+            constraints_id,
+            start: FloatKey::new(period.start.value()),
+            stop: FloatKey::new(period.stop.value()),
+        }
+    }
+}
+
+struct ScheduleInserter<'a> {
+    conn: &'a mut DbClient,
+    target_cache: HashMap<TargetKey, i64>,
+    altitude_cache: HashMap<AltitudeKey, i64>,
+    azimuth_cache: HashMap<AzimuthKey, i64>,
+    constraints_cache: HashMap<ConstraintsKey, i64>,
+    visibility_cache: HashSet<VisibilityKey>,
+}
+
+impl<'a> ScheduleInserter<'a> {
+    fn new(conn: &'a mut DbClient) -> Self {
+        Self {
+            conn,
+            target_cache: HashMap::new(),
+            altitude_cache: HashMap::new(),
+            azimuth_cache: HashMap::new(),
+            constraints_cache: HashMap::new(),
+            visibility_cache: HashSet::new(),
+        }
+    }
+
+    async fn insert_schedule(&mut self, schedule: &Schedule) -> Result<ScheduleMetadata, String> {
+        let (schedule_id, upload_timestamp) = self.insert_schedule_row(schedule).await?;
+
+        // Batch insert all dark periods at once
+        if !schedule.dark_periods.is_empty() {
+            self.insert_dark_periods_batch(schedule_id, &schedule.dark_periods).await?;
+        }
+
+        for block in &schedule.blocks {
+            self.insert_scheduling_block(schedule_id, block).await?;
+        }
+
+        Ok(ScheduleMetadata {
+            schedule_id: Some(schedule_id),
+            schedule_name: schedule.name.clone(),
+            upload_timestamp,
+            checksum: schedule.checksum.clone(),
+        })
+    }
+
+    async fn insert_schedule_row(
+        &mut self,
+        schedule: &Schedule,
+    ) -> Result<(i64, DateTime<Utc>), String> {
+        let mut insert = Query::new(
+            r#"
+            INSERT INTO dbo.schedules (schedule_name, checksum)
+            OUTPUT inserted.schedule_id, inserted.upload_timestamp
+            VALUES (@P1, @P2)
+            "#,
+        );
+        insert.bind(&schedule.name);
+        insert.bind(&schedule.checksum);
+
+        let stream = insert
+            .query(&mut *self.conn)
+            .await
+            .map_err(|e| format!("Failed to insert schedule: {e}"))?;
+
+        let row = stream
+            .into_row()
+            .await
+            .map_err(|e| format!("Failed to get schedule insert result: {e}"))?
+            .ok_or_else(|| "No schedule_id returned from insert".to_string())?;
+
+        let schedule_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "schedule_id is NULL".to_string())?;
+        let upload_timestamp: DateTime<Utc> = row
+            .get::<DateTime<Utc>, _>(1)
+            .ok_or_else(|| "upload_timestamp is NULL".to_string())?;
+
+        Ok((schedule_id, upload_timestamp))
+    }
+
+    async fn insert_dark_periods_batch(
+        &mut self,
+        schedule_id: i64,
+        periods: &[Period],
+    ) -> Result<(), String> {
+        if periods.is_empty() {
+            return Ok(());
+        }
+
+        // Build bulk insert with multiple VALUES clauses
+        // SQL Server supports up to 1000 rows per INSERT, so we batch if needed
+        const BATCH_SIZE: usize = 1000;
+        
+        for chunk in periods.chunks(BATCH_SIZE) {
+            let mut values_clauses = Vec::new();
+            let mut params = Vec::new();
+            
+            for (i, period) in chunk.iter().enumerate() {
+                let base = i * 3;
+                values_clauses.push(format!("(@P{}, @P{}, @P{})", base + 1, base + 2, base + 3));
+                params.push((schedule_id, period.start.value(), period.stop.value()));
+            }
+            
+            let sql = format!(
+                "INSERT INTO dbo.schedule_dark_periods (schedule_id, start_time_mjd, stop_time_mjd) VALUES {}",
+                values_clauses.join(", ")
+            );
+            
+            let mut insert = Query::new(sql);
+            for (sched_id, start, stop) in params {
+                insert.bind(sched_id);
+                insert.bind(start);
+                insert.bind(stop);
+            }
+            
+            insert
+                .execute(&mut *self.conn)
+                .await
+                .map_err(|e| format!("Failed to batch insert dark periods: {e}"))?;
+        }
+
+        Ok(())
+    }
+
+    async fn insert_scheduling_block(
+        &mut self,
+        schedule_id: i64,
+        block: &SchedulingBlock,
+    ) -> Result<i64, String> {
+        let target_name = format!("SB_{}", block.id.0);
+        let target_id = self
+            .get_or_create_target(&target_name, &block.target)
+            .await?;
+        let constraints_id = self.get_or_create_constraints(&block.constraints).await?;
+
+        // Batch insert visibility periods
+        if !block.visibility_periods.is_empty() {
+            self.insert_visibility_periods_batch(target_id, constraints_id, &block.visibility_periods)
+                .await?;
+        }
+
+        let mut insert = Query::new(
+            r#"
+            INSERT INTO dbo.scheduling_blocks 
+                (target_id, constraints_id, priority, min_observation_sec, requested_duration_sec)
+            OUTPUT inserted.scheduling_block_id
+            VALUES (@P1, @P2, @P3, @P4, @P5)
+            "#,
+        );
+        insert.bind(target_id);
+        insert.bind(constraints_id);
+
+        let priority_numeric = Numeric::new_with_scale((block.priority * 10.0) as i128, 1);
+        insert.bind(priority_numeric);
+        insert.bind(block.min_observation.value() as i32);
+        insert.bind(block.requested_duration.value() as i32);
+
+        let stream = insert
+            .query(&mut *self.conn)
+            .await
+            .map_err(|e| format!("Failed to insert scheduling block: {e}"))?;
+
+        let row = stream
+            .into_row()
+            .await
+            .map_err(|e| format!("Failed to get scheduling block result: {e}"))?
+            .ok_or_else(|| "No scheduling_block_id returned".to_string())?;
+
+        let sb_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+
+        let (start_mjd, stop_mjd) = if let Some(period) = &block.scheduled_period {
+            (Some(period.start.value()), Some(period.stop.value()))
+        } else {
+            (None, None)
+        };
+
+        let mut link = Query::new(
+            r#"
+            INSERT INTO dbo.schedule_scheduling_blocks 
+                (schedule_id, scheduling_block_id, start_time_mjd, stop_time_mjd)
+            VALUES (@P1, @P2, @P3, @P4)
+            "#,
+        );
+        link.bind(schedule_id);
+        link.bind(sb_id);
+        link.bind(start_mjd);
+        link.bind(stop_mjd);
+
+        link.execute(&mut *self.conn)
+            .await
+            .map_err(|e| format!("Failed to link scheduling block to schedule: {e}"))?;
+
+        Ok(sb_id)
+    }
+
+    async fn insert_visibility_periods_batch(
+        &mut self,
+        target_id: i64,
+        constraints_id: i64,
+        periods: &[Period],
+    ) -> Result<(), String> {
+        if periods.is_empty() {
+            return Ok(());
+        }
+
+        // Filter out already-cached periods
+        let mut to_insert = Vec::new();
+        for period in periods {
+            let key = VisibilityKey::new(target_id, constraints_id, period);
+            if self.visibility_cache.insert(key) {
+                to_insert.push(period);
+            }
+        }
+
+        if to_insert.is_empty() {
+            return Ok(());
+        }
+
+        // Batch insert with NOT EXISTS check - SQL Server supports up to 1000 rows
+        const BATCH_SIZE: usize = 500; // Use 500 to be safe with the NOT EXISTS subquery
+        
+        for chunk in to_insert.chunks(BATCH_SIZE) {
+            let mut values_clauses = Vec::new();
+            let mut params = Vec::new();
+            
+            for (i, period) in chunk.iter().enumerate() {
+                let base = i * 4;
+                values_clauses.push(format!("(@P{}, @P{}, @P{}, @P{})", base + 1, base + 2, base + 3, base + 4));
+                params.push((target_id, constraints_id, period.start.value(), period.stop.value()));
+            }
+            
+            // Use MERGE or INSERT with NOT EXISTS for bulk upsert
+            let sql = format!(
+                r#"INSERT INTO dbo.visibility_periods (target_id, constraints_id, start_time_mjd, stop_time_mjd)
+                SELECT * FROM (VALUES {}) AS NewPeriods(target_id, constraints_id, start_time_mjd, stop_time_mjd)
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM dbo.visibility_periods vp
+                    WHERE vp.target_id = NewPeriods.target_id
+                      AND vp.constraints_id = NewPeriods.constraints_id
+                      AND vp.start_time_mjd = NewPeriods.start_time_mjd
+                      AND vp.stop_time_mjd = NewPeriods.stop_time_mjd
+                )"#,
+                values_clauses.join(", ")
+            );
+            
+            let mut insert = Query::new(sql);
+            for (tid, cid, start, stop) in params {
+                insert.bind(tid);
+                insert.bind(cid);
+                insert.bind(start);
+                insert.bind(stop);
+            }
+            
+            insert
+                .execute(&mut *self.conn)
+                .await
+                .map_err(|e| format!("Failed to batch insert visibility periods: {e}"))?;
+        }
+
+        Ok(())
+    }
+
+    async fn get_or_create_target(
+        &mut self,
+        name: &str,
+        target: &ICRS,
+    ) -> Result<i64, String> {
+        let key = TargetKey::from_icrs(target);
+        if let Some(id) = self.target_cache.get(&key) {
+            return Ok(*id);
+        }
+
+        let ra_deg = target.ra().value();
+        let dec_deg = target.dec().value();
+
+        // Use MERGE for atomic get-or-create in one roundtrip
+        let mut merge = Query::new(
+            r#"
+            MERGE dbo.targets AS target
+            USING (SELECT @P1 AS ra_deg, @P2 AS dec_deg, @P3 AS name) AS source
+            ON (target.ra_deg = source.ra_deg 
+                AND target.dec_deg = source.dec_deg
+                AND target.ra_pm_masyr = 0 
+                AND target.dec_pm_masyr = 0 
+                AND target.equinox = 2000.0)
+            WHEN NOT MATCHED THEN
+                INSERT (name, ra_deg, dec_deg, ra_pm_masyr, dec_pm_masyr, equinox)
+                VALUES (source.name, source.ra_deg, source.dec_deg, 0, 0, 2000.0)
+            OUTPUT inserted.target_id;
+            "#,
+        );
+        merge.bind(ra_deg);
+        merge.bind(dec_deg);
+        merge.bind(name);
+
+        let stream = merge
+            .query(&mut *self.conn)
+            .await
+            .map_err(|e| format!("Failed to merge target: {e}"))?;
+
+        let row = stream
+            .into_row()
+            .await
+            .map_err(|e| format!("Failed to get target merge result: {e}"))?
+            .ok_or_else(|| "No target_id returned from merge".to_string())?;
+
+        let id = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "target_id is NULL".to_string())?;
+        self.target_cache.insert(key, id);
+        Ok(id)
+    }    async fn get_or_create_altitude_constraints(
+        &mut self,
+        min_alt: f64,
+        max_alt: f64,
+    ) -> Result<i64, String> {
+        let key = AltitudeKey::new(min_alt, max_alt);
+        if let Some(id) = self.altitude_cache.get(&key) {
+            return Ok(*id);
+        }
+
+        // Use MERGE for atomic get-or-create
+        let mut merge = Query::new(
+            r#"
+            MERGE dbo.altitude_constraints AS target
+            USING (SELECT @P1 AS min_alt_deg, @P2 AS max_alt_deg) AS source
+            ON (target.min_alt_deg = source.min_alt_deg AND target.max_alt_deg = source.max_alt_deg)
+            WHEN NOT MATCHED THEN
+                INSERT (min_alt_deg, max_alt_deg)
+                VALUES (source.min_alt_deg, source.max_alt_deg)
+            OUTPUT inserted.altitude_constraints_id;
+            "#,
+        );
+        merge.bind(min_alt);
+        merge.bind(max_alt);
+
+        let stream = merge
+            .query(&mut *self.conn)
+            .await
+            .map_err(|e| format!("Failed to merge altitude constraints: {e}"))?;
+
+        let row = stream
+            .into_row()
+            .await
+            .map_err(|e| format!("Failed to get altitude constraints result: {e}"))?
+            .ok_or_else(|| "No altitude_constraints_id returned".to_string())?;
+
+        let id = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "altitude_constraints_id is NULL".to_string())?;
+        self.altitude_cache.insert(key, id);
+        Ok(id)
+    }    async fn get_or_create_azimuth_constraints(
+        &mut self,
+        min_az: f64,
+        max_az: f64,
+    ) -> Result<i64, String> {
+        let key = AzimuthKey::new(min_az, max_az);
+        if let Some(id) = self.azimuth_cache.get(&key) {
+            return Ok(*id);
+        }
+
+        // Use MERGE for atomic get-or-create
+        let mut merge = Query::new(
+            r#"
+            MERGE dbo.azimuth_constraints AS target
+            USING (SELECT @P1 AS min_az_deg, @P2 AS max_az_deg) AS source
+            ON (target.min_az_deg = source.min_az_deg AND target.max_az_deg = source.max_az_deg)
+            WHEN NOT MATCHED THEN
+                INSERT (min_az_deg, max_az_deg)
+                VALUES (source.min_az_deg, source.max_az_deg)
+            OUTPUT inserted.azimuth_constraints_id;
+            "#,
+        );
+        merge.bind(min_az);
+        merge.bind(max_az);
+
+        let stream = merge
+            .query(&mut *self.conn)
+            .await
+            .map_err(|e| format!("Failed to merge azimuth constraints: {e}"))?;
+
+        let row = stream
+            .into_row()
+            .await
+            .map_err(|e| format!("Failed to get azimuth constraints result: {e}"))?
+            .ok_or_else(|| "No azimuth_constraints_id returned".to_string())?;
+
+        let id = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "azimuth_constraints_id is NULL".to_string())?;
+        self.azimuth_cache.insert(key, id);
+        Ok(id)
+    }
+
+    async fn get_or_create_constraints(
+        &mut self,
+        constraints: &Constraints,
+    ) -> Result<i64, String> {
+        let key = ConstraintsKey::new(constraints);
+        if let Some(id) = self.constraints_cache.get(&key) {
+            return Ok(*id);
+        }
+
+        let start_mjd = constraints
+            .fixed_time
+            .as_ref()
+            .map(|period| period.start.value());
+        let stop_mjd = constraints
+            .fixed_time
+            .as_ref()
+            .map(|period| period.stop.value());
+
+        let altitude_id = self
+            .get_or_create_altitude_constraints(
+                constraints.min_alt.value(),
+                constraints.max_alt.value(),
+            )
+            .await?;
+        let azimuth_id = self
+            .get_or_create_azimuth_constraints(
+                constraints.min_az.value(),
+                constraints.max_az.value(),
+            )
+            .await?;
+
+        let mut lookup = Query::new(
+            r#"
+            SELECT constraints_id FROM dbo.constraints
+            WHERE (start_time_mjd = @P1 OR (start_time_mjd IS NULL AND @P1 IS NULL))
+              AND (stop_time_mjd = @P2 OR (stop_time_mjd IS NULL AND @P2 IS NULL))
+              AND altitude_constraints_id = @P3
+              AND azimuth_constraints_id = @P4
+            "#,
+        );
+        lookup.bind(start_mjd);
+        lookup.bind(stop_mjd);
+        lookup.bind(altitude_id);
+        lookup.bind(azimuth_id);
+
+        let stream = lookup
+            .query(&mut *self.conn)
+            .await
+            .map_err(|e| format!("Failed to lookup constraints: {e}"))?;
+
+        if let Some(row) = stream
+            .into_row()
+            .await
+            .map_err(|e| format!("Failed to read constraints: {e}"))?
+        {
+            let id = row
+                .get::<i64, _>(0)
+                .ok_or_else(|| "constraints_id is NULL".to_string())?;
+            self.constraints_cache.insert(key, id);
+            return Ok(id);
+        }
+
+        let mut insert = Query::new(
+            r#"
+            INSERT INTO dbo.constraints (start_time_mjd, stop_time_mjd, altitude_constraints_id, azimuth_constraints_id)
+            OUTPUT inserted.constraints_id
+            VALUES (@P1, @P2, @P3, @P4)
+            "#,
+        );
+        insert.bind(start_mjd);
+        insert.bind(stop_mjd);
+        insert.bind(altitude_id);
+        insert.bind(azimuth_id);
+
+        let stream = insert
+            .query(&mut *self.conn)
+            .await
+            .map_err(|e| format!("Failed to insert constraints: {e}"))?;
+
+        let row = stream
+            .into_row()
+            .await
+            .map_err(|e| format!("Failed to get constraints result: {e}"))?
+            .ok_or_else(|| "No constraints_id returned".to_string())?;
+
+        let id = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "constraints_id is NULL".to_string())?;
+        self.constraints_cache.insert(key, id);
+        Ok(id)
+    }
+}
 
 /// Perform a health check on the database connection.
 pub async fn health_check() -> Result<bool, String> {
@@ -90,452 +686,17 @@ pub async fn store_schedule(
     //
     // 2) No existing schedule with this checksum → insert the full schedule
     //    (schedule row + all dependent rows) using your "full insert" function.
+    //    Note: SQL Server uses implicit transactions, so all operations are
+    //    automatically wrapped in a transaction and will rollback on error.
     //
     let metadata = insert_full_schedule(&mut *conn, schedule).await?;
-
     Ok(metadata)
 }
 
 /// Insert a complete schedule with all dependent entities.
-async fn insert_full_schedule(
-    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    schedule: &Schedule,
-) -> Result<ScheduleMetadata, String> {
-    // 1. Insert schedule record
-    let mut insert = Query::new(
-        r#"
-        INSERT INTO dbo.schedules (schedule_name, checksum)
-        OUTPUT inserted.schedule_id, inserted.upload_timestamp
-        VALUES (@P1, @P2)
-        "#,
-    );
-    insert.bind(&schedule.name);
-    insert.bind(&schedule.checksum);
-
-    let stream = insert
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to insert schedule: {e}"))?;
-
-    let row = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to get schedule insert result: {e}"))?
-        .ok_or_else(|| "No schedule_id returned from insert".to_string())?;
-
-    let schedule_id: i64 = row
-        .get::<i64, _>(0)
-        .ok_or_else(|| "schedule_id is NULL".to_string())?;
-    let upload_timestamp: DateTime<Utc> = row
-        .get::<DateTime<Utc>, _>(1)
-        .ok_or_else(|| "upload_timestamp is NULL".to_string())?;
-
-    // 2. Insert dark periods for this schedule
-    for period in &schedule.dark_periods {
-        insert_dark_period(conn, schedule_id, period).await?;
-    }
-
-    // 3. Insert all scheduling blocks (targets, constraints, visibility, assignments)
-    for block in &schedule.blocks {
-        insert_scheduling_block(conn, schedule_id, block).await?;
-    }
-
-    Ok(ScheduleMetadata {
-        schedule_id: Some(schedule_id),
-        schedule_name: schedule.name.clone(),
-        upload_timestamp,
-        checksum: schedule.checksum.clone(),
-    })
-}
-
-/// Insert a dark period for a schedule.
-async fn insert_dark_period(
-    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    schedule_id: i64,
-    period: &Period,
-) -> Result<(), String> {
-    let mut insert = Query::new(
-        r#"
-        INSERT INTO dbo.schedule_dark_periods (schedule_id, start_time_mjd, stop_time_mjd)
-        VALUES (@P1, @P2, @P3)
-        "#,
-    );
-    insert.bind(schedule_id);
-    insert.bind(period.start.value());
-    insert.bind(period.stop.value());
-
-    insert
-        .execute(conn)
-        .await
-        .map_err(|e| format!("Failed to insert dark period: {e}"))?;
-
-    Ok(())
-}
-
-/// Insert or retrieve a target.
-async fn get_or_create_target(
-    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    name: &str,
-    target: &ICRS,
-) -> Result<i64, String> {
-    // Extract RA/Dec from ICRS (already in Degrees)
-    let ra_deg = target.ra().value();
-    let dec_deg = target.dec().value();
-
-    // Try to find existing target
-    let mut lookup = Query::new(
-        r#"
-        SELECT target_id FROM dbo.targets
-        WHERE ra_deg = @P1 AND dec_deg = @P2 
-          AND ra_pm_masyr = 0 AND dec_pm_masyr = 0 AND equinox = 2000.0
-        "#,
-    );
-    lookup.bind(ra_deg);
-    lookup.bind(dec_deg);
-
-    let stream = lookup
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to lookup target: {e}"))?;
-
-    if let Some(row) = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to read target lookup: {e}"))?
-    {
-        return Ok(row.get::<i64, _>(0).ok_or_else(|| "target_id is NULL".to_string())?);
-    }
-
-    // Insert new target
-    let mut insert = Query::new(
-        r#"
-        INSERT INTO dbo.targets (name, ra_deg, dec_deg, ra_pm_masyr, dec_pm_masyr, equinox)
-        OUTPUT inserted.target_id
-        VALUES (@P1, @P2, @P3, 0, 0, 2000.0)
-        "#,
-    );
-    insert.bind(name);
-    insert.bind(ra_deg);
-    insert.bind(dec_deg);
-
-    let stream = insert
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to insert target: {e}"))?;
-
-    let row = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to get target insert result: {e}"))?
-        .ok_or_else(|| "No target_id returned".to_string())?;
-
-    Ok(row.get::<i64, _>(0).ok_or_else(|| "target_id is NULL".to_string())?)
-}
-
-/// Insert or retrieve altitude constraints.
-async fn get_or_create_altitude_constraints(
-    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    min_alt: f64,
-    max_alt: f64,
-) -> Result<i64, String> {
-    // Try to find existing
-    let mut lookup = Query::new(
-        r#"
-        SELECT altitude_constraints_id FROM dbo.altitude_constraints
-        WHERE min_alt_deg = @P1 AND max_alt_deg = @P2
-        "#,
-    );
-    lookup.bind(min_alt);
-    lookup.bind(max_alt);
-
-    let stream = lookup
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to lookup altitude constraints: {e}"))?;
-
-    if let Some(row) = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to read altitude constraints: {e}"))?
-    {
-        return Ok(row.get::<i64, _>(0).ok_or_else(|| "altitude_constraints_id is NULL".to_string())?);
-    }
-
-    // Insert new
-    let mut insert = Query::new(
-        r#"
-        INSERT INTO dbo.altitude_constraints (min_alt_deg, max_alt_deg)
-        OUTPUT inserted.altitude_constraints_id
-        VALUES (@P1, @P2)
-        "#,
-    );
-    insert.bind(min_alt);
-    insert.bind(max_alt);
-
-    let stream = insert
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to insert altitude constraints: {e}"))?;
-
-    let row = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to get altitude constraints result: {e}"))?
-        .ok_or_else(|| "No altitude_constraints_id returned".to_string())?;
-
-    Ok(row.get::<i64, _>(0).ok_or_else(|| "altitude_constraints_id is NULL".to_string())?)
-}
-
-/// Insert or retrieve azimuth constraints.
-async fn get_or_create_azimuth_constraints(
-    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    min_az: f64,
-    max_az: f64,
-) -> Result<i64, String> {
-    // Try to find existing
-    let mut lookup = Query::new(
-        r#"
-        SELECT azimuth_constraints_id FROM dbo.azimuth_constraints
-        WHERE min_az_deg = @P1 AND max_az_deg = @P2
-        "#,
-    );
-    lookup.bind(min_az);
-    lookup.bind(max_az);
-
-    let stream = lookup
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to lookup azimuth constraints: {e}"))?;
-
-    if let Some(row) = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to read azimuth constraints: {e}"))?
-    {
-        return Ok(row.get::<i64, _>(0).ok_or_else(|| "azimuth_constraints_id is NULL".to_string())?);
-    }
-
-    // Insert new
-    let mut insert = Query::new(
-        r#"
-        INSERT INTO dbo.azimuth_constraints (min_az_deg, max_az_deg)
-        OUTPUT inserted.azimuth_constraints_id
-        VALUES (@P1, @P2)
-        "#,
-    );
-    insert.bind(min_az);
-    insert.bind(max_az);
-
-    let stream = insert
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to insert azimuth constraints: {e}"))?;
-
-    let row = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to get azimuth constraints result: {e}"))?
-        .ok_or_else(|| "No azimuth_constraints_id returned".to_string())?;
-
-    Ok(row.get::<i64, _>(0).ok_or_else(|| "azimuth_constraints_id is NULL".to_string())?)
-}
-
-/// Insert or retrieve composite constraints.
-async fn get_or_create_constraints(
-    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    constraints: &Constraints,
-) -> Result<i64, String> {
-    // Get altitude and azimuth constraint IDs
-    let altitude_id = get_or_create_altitude_constraints(
-        conn,
-        constraints.min_alt.value(),
-        constraints.max_alt.value(),
-    )
-    .await?;
-
-    let azimuth_id = get_or_create_azimuth_constraints(
-        conn,
-        constraints.min_az.value(),
-        constraints.max_az.value(),
-    )
-    .await?;
-
-    let (start_mjd, stop_mjd) = if let Some(period) = &constraints.fixed_time {
-        (Some(period.start.value()), Some(period.stop.value()))
-    } else {
-        (None, None)
-    };
-
-    // Try to find existing constraint combo
-    let mut lookup = Query::new(
-        r#"
-        SELECT constraints_id FROM dbo.constraints
-        WHERE (start_time_mjd = @P1 OR (start_time_mjd IS NULL AND @P1 IS NULL))
-          AND (stop_time_mjd = @P2 OR (stop_time_mjd IS NULL AND @P2 IS NULL))
-          AND altitude_constraints_id = @P3
-          AND azimuth_constraints_id = @P4
-        "#,
-    );
-    lookup.bind(start_mjd);
-    lookup.bind(stop_mjd);
-    lookup.bind(altitude_id);
-    lookup.bind(azimuth_id);
-
-    let stream = lookup
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to lookup constraints: {e}"))?;
-
-    if let Some(row) = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to read constraints: {e}"))?
-    {
-        return Ok(row.get::<i64, _>(0).ok_or_else(|| "constraints_id is NULL".to_string())?);
-    }
-
-    // Insert new
-    let mut insert = Query::new(
-        r#"
-        INSERT INTO dbo.constraints (start_time_mjd, stop_time_mjd, altitude_constraints_id, azimuth_constraints_id)
-        OUTPUT inserted.constraints_id
-        VALUES (@P1, @P2, @P3, @P4)
-        "#,
-    );
-    insert.bind(start_mjd);
-    insert.bind(stop_mjd);
-    insert.bind(altitude_id);
-    insert.bind(azimuth_id);
-
-    let stream = insert
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to insert constraints: {e}"))?;
-
-    let row = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to get constraints result: {e}"))?
-        .ok_or_else(|| "No constraints_id returned".to_string())?;
-
-    Ok(row.get::<i64, _>(0).ok_or_else(|| "constraints_id is NULL".to_string())?)
-}
-
-/// Insert a complete scheduling block with all dependencies.
-async fn insert_scheduling_block(
-    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    schedule_id: i64,
-    block: &SchedulingBlock,
-) -> Result<i64, String> {
-    // 1. Get or create target
-    let target_id = get_or_create_target(
-        conn,
-        &format!("SB_{}", block.id.0),
-        &block.target,
-    )
-    .await?;
-
-    // 2. Get or create constraints
-    let constraints_id = get_or_create_constraints(conn, &block.constraints).await?;
-
-    // 3. Insert visibility periods for this target+constraints
-    for period in &block.visibility_periods {
-        insert_visibility_period(conn, target_id, constraints_id, period).await?;
-    }
-
-    // 4. Insert the scheduling block itself
-    let mut insert = Query::new(
-        r#"
-        INSERT INTO dbo.scheduling_blocks 
-            (target_id, constraints_id, priority, min_observation_sec, requested_duration_sec)
-        OUTPUT inserted.scheduling_block_id
-        VALUES (@P1, @P2, @P3, @P4, @P5)
-        "#,
-    );
-    insert.bind(target_id);
-    insert.bind(constraints_id);
-    
-    // Convert priority to NUMERIC(4,1)
-    let priority_numeric = Numeric::new_with_scale((block.priority * 10.0) as i128, 1);
-    insert.bind(priority_numeric);
-    insert.bind(block.min_observation.value() as i32);
-    insert.bind(block.requested_duration.value() as i32);
-
-    let stream = insert
-        .query(conn)
-        .await
-        .map_err(|e| format!("Failed to insert scheduling block: {e}"))?;
-
-    let row = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to get scheduling block result: {e}"))?
-        .ok_or_else(|| "No scheduling_block_id returned".to_string())?;
-
-    let sb_id: i64 = row.get::<i64, _>(0).ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-
-    // 5. Link to schedule with optional execution window
-    let (start_mjd, stop_mjd) = if let Some(period) = &block.scheduled_period {
-        (Some(period.start.value()), Some(period.stop.value()))
-    } else {
-        (None, None)
-    };
-
-    let mut link = Query::new(
-        r#"
-        INSERT INTO dbo.schedule_scheduling_blocks 
-            (schedule_id, scheduling_block_id, start_time_mjd, stop_time_mjd)
-        VALUES (@P1, @P2, @P3, @P4)
-        "#,
-    );
-    link.bind(schedule_id);
-    link.bind(sb_id);
-    link.bind(start_mjd);
-    link.bind(stop_mjd);
-
-    link.execute(conn)
-        .await
-        .map_err(|e| format!("Failed to link scheduling block to schedule: {e}"))?;
-
-    Ok(sb_id)
-}
-
-/// Insert a visibility period for a target+constraints pair.
-async fn insert_visibility_period(
-    conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    target_id: i64,
-    constraints_id: i64,
-    period: &Period,
-) -> Result<(), String> {
-    let mut insert = Query::new(
-        r#"
-        INSERT INTO dbo.visibility_periods (target_id, constraints_id, start_time_mjd, stop_time_mjd)
-        SELECT @P1, @P2, @P3, @P4
-        WHERE NOT EXISTS (
-            SELECT 1 
-            FROM dbo.visibility_periods
-            WHERE target_id = @P5
-              AND constraints_id = @P6
-              AND start_time_mjd = @P7
-              AND stop_time_mjd = @P8
-        )
-        "#,
-    );
-    insert.bind(target_id);
-    insert.bind(constraints_id);
-    insert.bind(period.start.value());
-    insert.bind(period.stop.value());
-    insert.bind(target_id);
-    insert.bind(constraints_id);
-    insert.bind(period.start.value());
-    insert.bind(period.stop.value());
-
-    insert
-        .execute(conn)
-        .await
-        .map_err(|e| format!("Failed to ensure visibility period: {e}"))?;
-
-    Ok(())
+async fn insert_full_schedule(conn: &mut DbClient, schedule: &Schedule) -> Result<ScheduleMetadata, String> {
+    let mut inserter = ScheduleInserter::new(conn);
+    inserter.insert_schedule(schedule).await
 }
 
 /// Fetch a schedule from the database by ID or name.
