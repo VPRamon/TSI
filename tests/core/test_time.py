@@ -6,13 +6,13 @@ from datetime import datetime, timezone
 import pandas as pd
 import pytest
 
-from tsi.services.rust_compat import (
-    datetime_to_mjd_rust as datetime_to_mjd,
-    format_datetime_utc_rust as format_datetime_utc,
-    get_time_range_rust as get_time_range,
-    mjd_to_datetime_rust as mjd_to_datetime,
-    parse_optional_mjd_rust as parse_optional_mjd,
-    parse_visibility_periods_rust as parse_visibility_periods,
+from tsi.services.time_utils import (
+    datetime_to_mjd,
+    format_datetime_utc,
+    get_time_range,
+    mjd_to_datetime,
+    parse_optional_mjd,
+    parse_visibility_periods,
 )
 
 pytestmark = pytest.mark.unit

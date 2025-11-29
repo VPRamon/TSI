@@ -8,7 +8,7 @@ import pytest
 def test_load_dark_periods_rust():
     """Test loading dark periods using Rust backend."""
     try:
-        from tsi.services.rust_compat import load_dark_periods_rust
+        from tsi_rust_api import load_dark_periods
     except ImportError:
         pytest.skip("Rust backend not available (needs rebuild)")
 
@@ -20,7 +20,7 @@ def test_load_dark_periods_rust():
         pytest.skip("dark_periods.json not found")
 
     # Load dark periods
-    df = load_dark_periods_rust(dark_periods_path)
+    df = load_dark_periods(dark_periods_path)
 
     # Verify DataFrame structure
     assert not df.empty, "DataFrame should not be empty"

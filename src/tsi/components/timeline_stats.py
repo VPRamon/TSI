@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from tsi.services.rust_compat import format_datetime_utc_rust as format_datetime_utc
+from tsi.services.time_utils import format_datetime_utc
 
 
 def render_dark_period_summary(dark_periods_df: pd.DataFrame) -> None:

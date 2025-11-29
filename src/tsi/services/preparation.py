@@ -9,10 +9,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from tsi.services.rust_compat import (
-    parse_optional_mjd_rust as parse_optional_mjd,
-    parse_visibility_periods_rust,
-)
+from tsi.services.time_utils import parse_optional_mjd, parse_visibility_periods
 
 NumericColumns = [
     "priority",
@@ -56,7 +53,7 @@ def parse_visibility_for_rows(df: pd.DataFrame, visibility_column: str = "visibi
         if value is None or (isinstance(value, float) and pd.isna(value)):
             return None
         try:
-            return parse_visibility_periods_rust(str(value))
+            return parse_visibility_periods(str(value))
         except Exception:
             return None
 

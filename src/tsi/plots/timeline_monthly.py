@@ -7,7 +7,7 @@ from typing import cast
 import pandas as pd
 import plotly.graph_objects as go
 
-from tsi.services.rust_compat import format_datetime_utc_rust as format_datetime_utc
+from tsi.services.time_utils import format_datetime_utc
 
 
 def build_monthly_timeline(

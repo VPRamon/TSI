@@ -1,16 +1,46 @@
 #[cfg(test)]
 mod tests {
-    use crate::parsing::json_parser::{parse_schedule_json, parse_schedule_json_str};
-    use std::io::Write;
-    use tempfile::NamedTempFile;
+    use crate::db::models::Schedule;
+    use crate::parsing::json_parser::*;
+    use std::path::PathBuf;
 
-    /// Test parsing JSON with string IDs
+    const DATA_DIR: &str = "../data";
+    const EXPECTED_SCHEDULE_CHECKSUM: &str =
+        "0c06e8a8ea614fb6393b7549f98abf973941f54012ac47a309a9d5a99876233a";
+
+    fn repo_data_path(file_name: &str) -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join(DATA_DIR)
+            .join(file_name)
+    }
+
+    fn parse_real_schedule_fixture() -> Schedule {
+        let schedule_path = repo_data_path("schedule.json");
+        let possible_path = repo_data_path("possible_periods.json");
+        let dark_path = repo_data_path("dark_periods.json");
+
+        parse_schedule_json(&schedule_path, Some(&possible_path), &dark_path)
+            .expect("Failed to parse repository schedule fixtures")
+    }
+
+    fn assert_close(value: f64, expected: f64, label: &str) {
+        let diff = (value - expected).abs();
+        assert!(
+            diff < 1e-9,
+            "Mismatch for {}: expected {}, got {}",
+            label,
+            expected,
+            value
+        );
+    }
+
+    /// Test basic parsing with minimal schedule
     #[test]
-    fn test_parse_string_ids() {
-        let json = r#"{
+    fn test_parse_minimal_schedule() {
+        let schedule_json = r#"{
             "SchedulingBlock": [
                 {
-                    "schedulingBlockId": "1000004990",
+                    "schedulingBlockId": 1000004990,
                     "priority": 8.5,
                     "target": {
                         "id_": 10,
@@ -19,7 +49,10 @@ mod tests {
                             "coord": {
                                 "celestial": {
                                     "raInDeg": 158.03,
-                                    "decInDeg": -68.03
+                                    "decInDeg": -68.03,
+                                    "raProperMotionInMarcsecYear": 0.0,
+                                    "decProperMotionInMarcsecYear": 0.0,
+                                    "equinox": 2000.0
                                 }
                             }
                         }
@@ -46,259 +79,57 @@ mod tests {
             ]
         }"#;
 
-        let result = parse_schedule_json_str(json);
+        let dark_periods_json = r#"{
+            "dark_periods": [
+                {
+                    "startTime": {
+                        "format": "MJD",
+                        "scale": "UTC",
+                        "value": 61771.0
+                    },
+                    "stopTime": {
+                        "format": "MJD",
+                        "scale": "UTC",
+                        "value": 61772.0
+                    }
+                }
+            ]
+        }"#;
+
+        let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
         assert!(
             result.is_ok(),
-            "Should parse string IDs: {:?}",
+            "Should parse minimal schedule: {:?}",
             result.err()
         );
-        let blocks = result.unwrap();
-        assert_eq!(blocks.len(), 1);
-        assert_eq!(blocks[0].scheduling_block_id, "1000004990");
+        
+        let schedule = result.unwrap();
+        assert_eq!(schedule.blocks.len(), 1);
+        assert_eq!(schedule.dark_periods.len(), 1);
+        assert_eq!(schedule.blocks[0].id.0, 1000004990);
+        assert_eq!(schedule.blocks[0].priority, 8.5);
     }
 
-    /// Test parsing JSON with integer IDs
+    /// Test parsing with scheduled period
     #[test]
-    fn test_parse_integer_ids() {
-        let json = r#"{
-            "SchedulingBlock": [
-                {
-                    "schedulingBlockId": 1000004990,
-                    "priority": 8.5,
-                    "target": {
-                        "id_": 10,
-                        "name": "T32",
-                        "position_": {
-                            "coord": {
-                                "celestial": {
-                                    "raInDeg": 158.03,
-                                    "decInDeg": -68.03
-                                }
-                            }
-                        }
-                    },
-                    "schedulingBlockConfiguration_": {
-                        "constraints_": {
-                            "azimuthConstraint_": {
-                                "minAzimuthAngleInDeg": 0.0,
-                                "maxAzimuthAngleInDeg": 360.0
-                            },
-                            "elevationConstraint_": {
-                                "minElevationAngleInDeg": 60.0,
-                                "maxElevationAngleInDeg": 90.0
-                            },
-                            "timeConstraint_": {
-                                "fixedStartTime": [],
-                                "fixedStopTime": [],
-                                "minObservationTimeInSec": 1200,
-                                "requestedDurationSec": 1200
-                            }
-                        }
-                    }
-                }
-            ]
-        }"#;
-
-        let result = parse_schedule_json_str(json);
-        assert!(
-            result.is_ok(),
-            "Should parse integer IDs: {:?}",
-            result.err()
-        );
-        let blocks = result.unwrap();
-        assert_eq!(blocks.len(), 1);
-        assert_eq!(blocks[0].scheduling_block_id, "1000004990");
-    }
-
-    /// Test parsing JSON without SchedulingBlock key
-    #[test]
-    fn test_missing_scheduling_block_key() {
-        let json = r#"{
-            "SomeOtherKey": []
-        }"#;
-
-        let result = parse_schedule_json_str(json);
-        assert!(result.is_err(), "Should fail without SchedulingBlock key");
-        let error_msg = result.unwrap_err().to_string();
-        assert!(
-            error_msg.contains("SchedulingBlock"),
-            "Error should mention missing key: {}",
-            error_msg
-        );
-    }
-
-    /// Test parsing JSON with missing required fields
-    #[test]
-    fn test_missing_priority() {
-        let json = r#"{
-            "SchedulingBlock": [
-                {
-                    "schedulingBlockId": 1000004990,
-                    "target": {
-                        "id_": 10,
-                        "name": "T32",
-                        "position_": {
-                            "coord": {
-                                "celestial": {
-                                    "raInDeg": 158.03,
-                                    "decInDeg": -68.03
-                                }
-                            }
-                        }
-                    },
-                    "schedulingBlockConfiguration_": {
-                        "constraints_": {
-                            "azimuthConstraint_": {
-                                "minAzimuthAngleInDeg": 0.0,
-                                "maxAzimuthAngleInDeg": 360.0
-                            },
-                            "elevationConstraint_": {
-                                "minElevationAngleInDeg": 60.0,
-                                "maxElevationAngleInDeg": 90.0
-                            },
-                            "timeConstraint_": {
-                                "fixedStartTime": [],
-                                "fixedStopTime": [],
-                                "minObservationTimeInSec": 1200,
-                                "requestedDurationSec": 1200
-                            }
-                        }
-                    }
-                }
-            ]
-        }"#;
-
-        let result = parse_schedule_json_str(json);
-        assert!(result.is_err(), "Should fail with missing priority");
-        let error_msg = result.unwrap_err().to_string();
-        assert!(
-            error_msg.contains("priority") || error_msg.contains("missing field"),
-            "Error should mention missing field: {}",
-            error_msg
-        );
-    }
-
-    /// Test parsing JSON with malformed constraints
-    #[test]
-    fn test_malformed_azimuth_constraint() {
-        let json = r#"{
-            "SchedulingBlock": [
-                {
-                    "schedulingBlockId": 1000004990,
-                    "priority": 8.5,
-                    "target": {
-                        "id_": 10,
-                        "name": "T32",
-                        "position_": {
-                            "coord": {
-                                "celestial": {
-                                    "raInDeg": 158.03,
-                                    "decInDeg": -68.03
-                                }
-                            }
-                        }
-                    },
-                    "schedulingBlockConfiguration_": {
-                        "constraints_": {
-                            "azimuthConstraint_": {
-                                "minAzimuthAngleInDeg": "not_a_number"
-                            },
-                            "elevationConstraint_": {
-                                "minElevationAngleInDeg": 60.0,
-                                "maxElevationAngleInDeg": 90.0
-                            },
-                            "timeConstraint_": {
-                                "fixedStartTime": [],
-                                "fixedStopTime": [],
-                                "minObservationTimeInSec": 1200,
-                                "requestedDurationSec": 1200
-                            }
-                        }
-                    }
-                }
-            ]
-        }"#;
-
-        let result = parse_schedule_json_str(json);
-        assert!(result.is_err(), "Should fail with malformed constraint");
-        let error_msg = result.unwrap_err().to_string();
-        assert!(
-            error_msg.contains("index 0") || error_msg.contains("SchedulingBlock"),
-            "Error should include context about which block failed: {}",
-            error_msg
-        );
-    }
-
-    /// Test parsing JSON with fixed time windows
-    #[test]
-    fn test_fixed_time_windows() {
-        let json = r#"{
-            "SchedulingBlock": [
-                {
-                    "schedulingBlockId": 1000004990,
-                    "priority": 8.5,
-                    "target": {
-                        "id_": 10,
-                        "name": "T32",
-                        "position_": {
-                            "coord": {
-                                "celestial": {
-                                    "raInDeg": 158.03,
-                                    "decInDeg": -68.03
-                                }
-                            }
-                        }
-                    },
-                    "schedulingBlockConfiguration_": {
-                        "constraints_": {
-                            "azimuthConstraint_": {
-                                "minAzimuthAngleInDeg": 0.0,
-                                "maxAzimuthAngleInDeg": 360.0
-                            },
-                            "elevationConstraint_": {
-                                "minElevationAngleInDeg": 60.0,
-                                "maxElevationAngleInDeg": 90.0
-                            },
-                            "timeConstraint_": {
-                                "fixedStartTime": [{"value": 61894.0}],
-                                "fixedStopTime": [{"value": 61894.5}],
-                                "minObservationTimeInSec": 1200,
-                                "requestedDurationSec": 1200
-                            }
-                        }
-                    }
-                }
-            ]
-        }"#;
-
-        let result = parse_schedule_json_str(json);
-        assert!(
-            result.is_ok(),
-            "Should parse fixed time windows: {:?}",
-            result.err()
-        );
-        let blocks = result.unwrap();
-        assert_eq!(blocks.len(), 1);
-        assert!(
-            blocks[0].fixed_time.is_some(),
-            "Should have fixed_time populated"
-        );
-        let fixed_time = blocks[0].fixed_time.as_ref().unwrap();
-        assert_eq!(fixed_time.start.value(), 61894.0);
-        assert_eq!(fixed_time.stop.value(), 61894.5);
-    }
-
-    /// Test parsing JSON with scheduled period
-    #[test]
-    fn test_scheduled_period() {
-        let json = r#"{
+    fn test_parse_with_scheduled_period() {
+        let schedule_json = r#"{
             "SchedulingBlock": [
                 {
                     "schedulingBlockId": 1000004990,
                     "priority": 8.5,
                     "scheduled_period": {
-                        "startTime": {"value": 61894.19},
-                        "stopTime": {"value": 61894.21}
+                        "durationInSec": 1200.0,
+                        "startTime": {
+                            "format": "MJD",
+                            "scale": "UTC",
+                            "value": 61894.19429606479
+                        },
+                        "stopTime": {
+                            "format": "MJD",
+                            "scale": "UTC",
+                            "value": 61894.20818495378
+                        }
                     },
                     "target": {
                         "id_": 10,
@@ -307,7 +138,10 @@ mod tests {
                             "coord": {
                                 "celestial": {
                                     "raInDeg": 158.03,
-                                    "decInDeg": -68.03
+                                    "decInDeg": -68.03,
+                                    "raProperMotionInMarcsecYear": 0.0,
+                                    "decProperMotionInMarcsecYear": 0.0,
+                                    "equinox": 2000.0
                                 }
                             }
                         }
@@ -334,47 +168,22 @@ mod tests {
             ]
         }"#;
 
-        let result = parse_schedule_json_str(json);
-        assert!(
-            result.is_ok(),
-            "Should parse scheduled period: {:?}",
-            result.err()
-        );
-        let blocks = result.unwrap();
-        assert!(
-            blocks[0].scheduled_period.is_some(),
-            "Should have scheduled_period"
-        );
-        assert!(blocks[0].is_scheduled(), "Should be marked as scheduled");
-    }
-
-    /// Test parsing invalid JSON syntax
-    #[test]
-    fn test_invalid_json_syntax() {
-        let json = r#"{
-            "SchedulingBlock": [
-                {
-                    "schedulingBlockId": 1000004990,
-                    "priority": 8.5,
-                    // This is invalid JSON (no comments allowed)
-                }
-            ]
+        let dark_periods_json = r#"{
+            "dark_periods": []
         }"#;
 
-        let result = parse_schedule_json_str(json);
-        assert!(result.is_err(), "Should fail with invalid JSON syntax");
-        let error_msg = result.unwrap_err().to_string();
-        assert!(
-            error_msg.contains("Invalid JSON") || error_msg.contains("syntax"),
-            "Error should mention JSON syntax error: {}",
-            error_msg
-        );
+        let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
+        assert!(result.is_ok(), "Should parse with scheduled period");
+        
+        let schedule = result.unwrap();
+        assert_eq!(schedule.blocks.len(), 1);
+        assert!(schedule.blocks[0].scheduled_period.is_some());
     }
 
-    /// Test parsing JSON file (integration with file system)
+    /// Test parsing with possible periods
     #[test]
-    fn test_parse_schedule_json_file() {
-        let json_content = r#"{
+    fn test_parse_with_possible_periods() {
+        let schedule_json = r#"{
             "SchedulingBlock": [
                 {
                     "schedulingBlockId": 1000004990,
@@ -386,7 +195,10 @@ mod tests {
                             "coord": {
                                 "celestial": {
                                     "raInDeg": 158.03,
-                                    "decInDeg": -68.03
+                                    "decInDeg": -68.03,
+                                    "raProperMotionInMarcsecYear": 0.0,
+                                    "decProperMotionInMarcsecYear": 0.0,
+                                    "equinox": 2000.0
                                 }
                             }
                         }
@@ -413,261 +225,180 @@ mod tests {
             ]
         }"#;
 
-        let mut temp_file = NamedTempFile::new().unwrap();
-        write!(temp_file, "{}", json_content).unwrap();
-
-        let result = parse_schedule_json(temp_file.path());
-        assert!(
-            result.is_ok(),
-            "Should parse JSON from file: {:?}",
-            result.err()
-        );
-        let blocks = result.unwrap();
-        assert_eq!(blocks.len(), 1);
-    }
-
-    /// Test parsing JSON file that doesn't exist
-    #[test]
-    fn test_parse_nonexistent_file() {
-        let result = parse_schedule_json(std::path::Path::new("/nonexistent/file.json"));
-        assert!(result.is_err(), "Should fail for nonexistent file");
-        let error_msg = result.unwrap_err().to_string();
-        assert!(
-            error_msg.contains("Failed to read") || error_msg.contains("No such file"),
-            "Error should mention file read failure: {}",
-            error_msg
-        );
-    }
-
-    /// Test parsing multiple blocks
-    #[test]
-    fn test_parse_multiple_blocks() {
-        let json = r#"{
-            "SchedulingBlock": [
-                {
-                    "schedulingBlockId": 1000004990,
-                    "priority": 8.5,
-                    "target": {
-                        "position_": {
-                            "coord": {
-                                "celestial": {
-                                    "raInDeg": 158.03,
-                                    "decInDeg": -68.03
-                                }
-                            }
+        let possible_periods_json = r#"{
+            "SchedulingBlock": {
+                "1000004990": [
+                    {
+                        "startTime": {
+                            "format": "MJD",
+                            "scale": "UTC",
+                            "value": 61771.0
+                        },
+                        "stopTime": {
+                            "format": "MJD",
+                            "scale": "UTC",
+                            "value": 61772.0
                         }
                     },
-                    "schedulingBlockConfiguration_": {
-                        "constraints_": {
-                            "azimuthConstraint_": {
-                                "minAzimuthAngleInDeg": 0.0,
-                                "maxAzimuthAngleInDeg": 360.0
-                            },
-                            "elevationConstraint_": {
-                                "minElevationAngleInDeg": 60.0,
-                                "maxElevationAngleInDeg": 90.0
-                            },
-                            "timeConstraint_": {
-                                "fixedStartTime": [],
-                                "fixedStopTime": [],
-                                "minObservationTimeInSec": 1200,
-                                "requestedDurationSec": 1200
-                            }
+                    {
+                        "startTime": {
+                            "format": "MJD",
+                            "scale": "UTC",
+                            "value": 61773.0
+                        },
+                        "stopTime": {
+                            "format": "MJD",
+                            "scale": "UTC",
+                            "value": 61774.0
                         }
                     }
-                },
-                {
-                    "schedulingBlockId": 1000004991,
-                    "priority": 7.0,
-                    "target": {
-                        "position_": {
-                            "coord": {
-                                "celestial": {
-                                    "raInDeg": 200.0,
-                                    "decInDeg": 45.0
-                                }
-                            }
-                        }
-                    },
-                    "schedulingBlockConfiguration_": {
-                        "constraints_": {
-                            "azimuthConstraint_": {
-                                "minAzimuthAngleInDeg": 0.0,
-                                "maxAzimuthAngleInDeg": 360.0
-                            },
-                            "elevationConstraint_": {
-                                "minElevationAngleInDeg": 30.0,
-                                "maxElevationAngleInDeg": 85.0
-                            },
-                            "timeConstraint_": {
-                                "fixedStartTime": [],
-                                "fixedStopTime": [],
-                                "minObservationTimeInSec": 600,
-                                "requestedDurationSec": 600
-                            }
-                        }
-                    }
-                }
-            ]
+                ]
+            }
         }"#;
 
-        let result = parse_schedule_json_str(json);
-        assert!(
-            result.is_ok(),
-            "Should parse multiple blocks: {:?}",
-            result.err()
-        );
-        let blocks = result.unwrap();
-        assert_eq!(blocks.len(), 2);
-        assert_eq!(blocks[0].scheduling_block_id, "1000004990");
-        assert_eq!(blocks[1].scheduling_block_id, "1000004991");
-        assert_eq!(blocks[0].priority, 8.5);
-        assert_eq!(blocks[1].priority, 7.0);
-    }
-
-    /// Test empty SchedulingBlock array
-    #[test]
-    fn test_empty_scheduling_blocks() {
-        let json = r#"{
-            "SchedulingBlock": []
+        let dark_periods_json = r#"{
+            "dark_periods": []
         }"#;
 
-        let result = parse_schedule_json_str(json);
-        assert!(
-            result.is_ok(),
-            "Should parse empty array: {:?}",
-            result.err()
+        let result = parse_schedule_json_str(
+            schedule_json,
+            Some(possible_periods_json),
+            dark_periods_json
         );
-        let blocks = result.unwrap();
-        assert_eq!(blocks.len(), 0);
+        assert!(result.is_ok(), "Should parse with possible periods");
+        
+        let schedule = result.unwrap();
+        assert_eq!(schedule.blocks.len(), 1);
+        assert_eq!(schedule.blocks[0].visibility_periods.len(), 2);
     }
 
-    /// Test missing nested constraint fields
+    /// Test error handling for missing required fields
     #[test]
-    fn test_missing_time_constraint() {
-        let json = r#"{
-            "SchedulingBlock": [
-                {
-                    "schedulingBlockId": 1000004990,
-                    "priority": 8.5,
-                    "target": {
-                        "position_": {
-                            "coord": {
-                                "celestial": {
-                                    "raInDeg": 158.03,
-                                    "decInDeg": -68.03
-                                }
-                            }
-                        }
-                    },
-                    "schedulingBlockConfiguration_": {
-                        "constraints_": {
-                            "azimuthConstraint_": {
-                                "minAzimuthAngleInDeg": 0.0,
-                                "maxAzimuthAngleInDeg": 360.0
-                            },
-                            "elevationConstraint_": {
-                                "minElevationAngleInDeg": 60.0,
-                                "maxElevationAngleInDeg": 90.0
-                            }
-                        }
-                    }
-                }
-            ]
+    fn test_missing_scheduling_block_key() {
+        let schedule_json = r#"{
+            "SomeOtherKey": []
         }"#;
 
-        let result = parse_schedule_json_str(json);
-        assert!(result.is_err(), "Should fail with missing timeConstraint_");
-        let error_msg = result.unwrap_err().to_string();
-        assert!(
-            error_msg.contains("timeConstraint") || error_msg.contains("missing field"),
-            "Error should mention missing constraint: {}",
-            error_msg
+        let dark_periods_json = r#"{
+            "dark_periods": []
+        }"#;
+
+        let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
+        assert!(result.is_err(), "Should fail without SchedulingBlock key");
+    }
+
+    /// Test error handling for invalid JSON
+    #[test]
+    fn test_invalid_json() {
+        let schedule_json = "not valid json {";
+        let dark_periods_json = r#"{
+            "dark_periods": []
+        }"#;
+
+        let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
+        assert!(result.is_err(), "Should fail with invalid JSON");
+    }
+
+    /// Integration test using repository schedule fixtures to ensure we parse end-to-end data.
+    #[test]
+    fn test_parse_real_schedule_files() {
+        let schedule = parse_real_schedule_fixture();
+
+        assert_eq!(schedule.blocks.len(), 2647, "Unexpected block count");
+        assert_eq!(schedule.dark_periods.len(), 314, "Unexpected dark period count");
+        assert_eq!(schedule.name, "parsed_schedule");
+        assert_eq!(schedule.checksum, EXPECTED_SCHEDULE_CHECKSUM);
+
+        let first_dark = schedule
+            .dark_periods
+            .first()
+            .expect("Dark periods should not be empty");
+        assert_close(first_dark.start.value(), 61771.0, "first dark period start");
+        assert_close(
+            first_dark.stop.value(),
+            61771.276910532266,
+            "first dark period stop",
+        );
+
+        let block_4990 = schedule
+            .blocks
+            .iter()
+            .find(|block| block.id.0 == 1000004990)
+            .expect("Scheduling block 1000004990 should exist");
+        assert_eq!(block_4990.priority, 8.5);
+        assert_eq!(block_4990.visibility_periods.len(), 120);
+
+        let scheduled_period = block_4990
+            .scheduled_period
+            .expect("Scheduling block 1000004990 should be scheduled");
+        assert_close(
+            scheduled_period.start.value(),
+            61894.19429606479,
+            "scheduled period start",
+        );
+        assert_close(
+            scheduled_period.stop.value(),
+            61894.20818495378,
+            "scheduled period stop",
         );
     }
 
-    /// Test that error context includes block index
+    /// Ensure we correctly capture fixed-time constraints and visibility periods from real data.
     #[test]
-    fn test_error_context_includes_block_index() {
-        let json = r#"{
-            "SchedulingBlock": [
-                {
-                    "schedulingBlockId": 1000004990,
-                    "priority": 8.5,
-                    "target": {
-                        "position_": {
-                            "coord": {
-                                "celestial": {
-                                    "raInDeg": 158.03,
-                                    "decInDeg": -68.03
-                                }
-                            }
-                        }
-                    },
-                    "schedulingBlockConfiguration_": {
-                        "constraints_": {
-                            "azimuthConstraint_": {
-                                "minAzimuthAngleInDeg": 0.0,
-                                "maxAzimuthAngleInDeg": 360.0
-                            },
-                            "elevationConstraint_": {
-                                "minElevationAngleInDeg": 60.0,
-                                "maxElevationAngleInDeg": 90.0
-                            },
-                            "timeConstraint_": {
-                                "fixedStartTime": [],
-                                "fixedStopTime": [],
-                                "minObservationTimeInSec": 1200,
-                                "requestedDurationSec": 1200
-                            }
-                        }
-                    }
-                },
-                {
-                    "schedulingBlockId": 1000004991,
-                    "priority": "invalid_priority",
-                    "target": {
-                        "position_": {
-                            "coord": {
-                                "celestial": {
-                                    "raInDeg": 200.0,
-                                    "decInDeg": 45.0
-                                }
-                            }
-                        }
-                    },
-                    "schedulingBlockConfiguration_": {
-                        "constraints_": {
-                            "azimuthConstraint_": {
-                                "minAzimuthAngleInDeg": 0.0,
-                                "maxAzimuthAngleInDeg": 360.0
-                            },
-                            "elevationConstraint_": {
-                                "minElevationAngleInDeg": 30.0,
-                                "maxElevationAngleInDeg": 85.0
-                            },
-                            "timeConstraint_": {
-                                "fixedStartTime": [],
-                                "fixedStopTime": [],
-                                "minObservationTimeInSec": 600,
-                                "requestedDurationSec": 600
-                            }
-                        }
-                    }
-                }
-            ]
-        }"#;
+    fn test_parse_fixed_time_block_from_real_data() {
+        let schedule = parse_real_schedule_fixture();
 
-        let result = parse_schedule_json_str(json);
-        assert!(
-            result.is_err(),
-            "Should fail with invalid priority in second block"
+        let block_2662 = schedule
+            .blocks
+            .iter()
+            .find(|block| block.id.0 == 1000002662)
+            .expect("Scheduling block 1000002662 should exist");
+        assert_eq!(
+            block_2662.visibility_periods.len(),
+            3,
+            "Expected three possible periods"
         );
-        let error_msg = result.unwrap_err().to_string();
-        assert!(
-            error_msg.contains("index 1") || error_msg.contains("SchedulingBlock"),
-            "Error should indicate which block failed: {}",
-            error_msg
+        assert_close(
+            block_2662.constraints.min_alt.value(),
+            45.0,
+            "minimum altitude",
+        );
+        assert_close(
+            block_2662.constraints.max_alt.value(),
+            90.0,
+            "maximum altitude",
+        );
+        assert_close(
+            block_2662.constraints.min_az.value(),
+            0.0,
+            "minimum azimuth",
+        );
+        assert_close(
+            block_2662.constraints.max_az.value(),
+            360.0,
+            "maximum azimuth",
+        );
+
+        let fixed_window = block_2662
+            .constraints
+            .fixed_time
+            .expect("Block 1000002662 should have a fixed time window");
+        assert_close(
+            fixed_window.start.value(),
+            61771.0,
+            "fixed window start",
+        );
+        assert_close(fixed_window.stop.value(), 61778.0, "fixed window stop");
+
+        assert_close(
+            block_2662.min_observation.value(),
+            1800.0,
+            "min observation seconds",
+        );
+        assert_close(
+            block_2662.requested_duration.value(),
+            1800.0,
+            "requested duration seconds",
         );
     }
 }
