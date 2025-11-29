@@ -4,7 +4,38 @@ Este directorio contiene scripts para interactuar con la base de datos Azure SQL
 
 ## Scripts Disponibles
 
-### 1. upload_schedule.sh (Rust) ⭐ RECOMENDADO
+### 1. schedule-schema-mmsql.sql ⭐ SCRIPT PRINCIPAL DE BASE DE DATOS
+
+Script **COMPLETO** para crear la base de datos desde cero.
+
+**Incluye:**
+- ✅ Creación de todas las tablas (9 tablas)
+- ✅ Constraints y checks de integridad
+- ✅ Índices básicos (5 índices)
+- ✅ Índices de optimización de performance (10 índices críticos)
+- ✅ Actualización de estadísticas
+
+**Uso:**
+```bash
+# Opción 1: Azure Portal Query Editor
+# - Abre el archivo y copia/pega todo el contenido
+# - Ejecuta en Query Editor
+
+# Opción 2: sqlcmd
+sqlcmd -S tsi-upgrade.database.windows.net \
+       -d db-schedules \
+       -U ramon.valles@bootcamp-upgrade.com \
+       -P "$DB_PASSWORD" \
+       -i schedule-schema-mmsql.sql
+```
+
+**⚠️ NOTA:** Este script es **idempotente** pero hace DROP de tablas existentes. Ver `DATABASE_SETUP.md` para más detalles.
+
+**Documentación completa:** [DATABASE_SETUP.md](./DATABASE_SETUP.md)
+
+---
+
+### 2. upload_schedule.sh (Rust) ⭐ RECOMENDADO PARA UPLOADS
 
 Script en **Rust** para subir schedules a Azure SQL de forma eficiente.
 
