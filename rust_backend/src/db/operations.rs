@@ -1,7 +1,7 @@
 //! Database CRUD operations for schedules, dark periods, and visibility data (SQL Server).
 
 use chrono::{DateTime, Utc};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use tiberius::{Query, Row, numeric::Numeric};
 use siderust::{
     astro::ModifiedJulianDate,
@@ -106,32 +106,12 @@ impl ConstraintsKey {
     }
 }
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
-struct VisibilityKey {
-    target_id: i64,
-    constraints_id: i64,
-    start: FloatKey,
-    stop: FloatKey,
-}
-
-impl VisibilityKey {
-    fn new(target_id: i64, constraints_id: i64, period: &Period) -> Self {
-        Self {
-            target_id,
-            constraints_id,
-            start: FloatKey::new(period.start.value()),
-            stop: FloatKey::new(period.stop.value()),
-        }
-    }
-}
-
 struct ScheduleInserter<'a> {
     conn: &'a mut DbClient,
     target_cache: HashMap<TargetKey, i64>,
     altitude_cache: HashMap<AltitudeKey, i64>,
     azimuth_cache: HashMap<AzimuthKey, i64>,
     constraints_cache: HashMap<ConstraintsKey, i64>,
-    visibility_cache: HashSet<VisibilityKey>,
 }
 
 impl<'a> ScheduleInserter<'a> {
@@ -142,20 +122,15 @@ impl<'a> ScheduleInserter<'a> {
             altitude_cache: HashMap::new(),
             azimuth_cache: HashMap::new(),
             constraints_cache: HashMap::new(),
-            visibility_cache: HashSet::new(),
         }
     }
 
     async fn insert_schedule(&mut self, schedule: &Schedule) -> Result<ScheduleMetadata, String> {
         let (schedule_id, upload_timestamp) = self.insert_schedule_row(schedule).await?;
 
-        // Batch insert all dark periods at once
-        if !schedule.dark_periods.is_empty() {
-            self.insert_dark_periods_batch(schedule_id, &schedule.dark_periods).await?;
-        }
-
-        for block in &schedule.blocks {
-            self.insert_scheduling_block(schedule_id, block).await?;
+        // Batch process ALL scheduling blocks at once for maximum performance
+        if !schedule.blocks.is_empty() {
+            self.insert_scheduling_blocks_bulk(schedule_id, &schedule.blocks).await?;
         }
 
         Ok(ScheduleMetadata {
@@ -170,15 +145,31 @@ impl<'a> ScheduleInserter<'a> {
         &mut self,
         schedule: &Schedule,
     ) -> Result<(i64, DateTime<Utc>), String> {
+        // Serialize dark periods to JSON
+        let dark_periods_json = if schedule.dark_periods.is_empty() {
+            None
+        } else {
+            let periods_array: Vec<serde_json::Value> = schedule.dark_periods
+                .iter()
+                .map(|p| serde_json::json!({
+                    "start": p.start.value(),
+                    "stop": p.stop.value()
+                }))
+                .collect();
+            Some(serde_json::to_string(&periods_array)
+                .map_err(|e| format!("Failed to serialize dark periods: {e}"))?)
+        };
+
         let mut insert = Query::new(
             r#"
-            INSERT INTO dbo.schedules (schedule_name, checksum)
+            INSERT INTO dbo.schedules (schedule_name, checksum, dark_periods_json)
             OUTPUT inserted.schedule_id, inserted.upload_timestamp
-            VALUES (@P1, @P2)
+            VALUES (@P1, @P2, @P3)
             "#,
         );
         insert.bind(&schedule.name);
         insert.bind(&schedule.checksum);
+        insert.bind(dark_periods_json.as_deref());
 
         let stream = insert
             .query(&mut *self.conn)
@@ -201,185 +192,215 @@ impl<'a> ScheduleInserter<'a> {
         Ok((schedule_id, upload_timestamp))
     }
 
-    async fn insert_dark_periods_batch(
+    async fn insert_scheduling_blocks_bulk(
         &mut self,
         schedule_id: i64,
-        periods: &[Period],
+        blocks: &[SchedulingBlock],
     ) -> Result<(), String> {
-        if periods.is_empty() {
+        // Step 1: Batch create all unique targets using VALUES + MERGE
+        let mut unique_targets: Vec<(String, f64, f64)> = Vec::new();
+        for block in blocks {
+            let target_name = format!("SB_{}", block.id.0);
+            let ra = block.target.ra().value();
+            let dec = block.target.dec().value();
+            unique_targets.push((target_name, ra, dec));
+        }
+        self.batch_create_targets(&unique_targets).await?;
+
+        // Step 2: Batch create all unique constraints
+        let mut unique_constraints: Vec<&Constraints> = Vec::new();
+        for block in blocks {
+            unique_constraints.push(&block.constraints);
+        }
+        self.batch_create_constraints(&unique_constraints).await?;
+
+        // Step 3: Bulk insert ALL scheduling blocks in one query
+        self.bulk_insert_scheduling_blocks(schedule_id, blocks).await?;
+
+        Ok(())
+    }
+
+    async fn bulk_insert_scheduling_blocks(
+        &mut self,
+        schedule_id: i64,
+        blocks: &[SchedulingBlock],
+    ) -> Result<(), String> {
+        if blocks.is_empty() {
             return Ok(());
         }
 
-        // Build bulk insert with multiple VALUES clauses
-        // SQL Server supports up to 1000 rows per INSERT, so we batch if needed
-        const BATCH_SIZE: usize = 1000;
+        // SQL Server parameter limit: 2100 params
+        // Each scheduling block uses 6 params, so max = 2100/6 = 350
+        // Use 300 for safety margin (1800 params)
+        const BATCH_SIZE: usize = 300;
         
-        for chunk in periods.chunks(BATCH_SIZE) {
+        for chunk in blocks.chunks(BATCH_SIZE) {
+            // Build VALUES clause for scheduling blocks
             let mut values_clauses = Vec::new();
-            let mut params = Vec::new();
+            let mut json_strings: Vec<Option<String>> = Vec::new();
             
-            for (i, period) in chunk.iter().enumerate() {
-                let base = i * 3;
-                values_clauses.push(format!("(@P{}, @P{}, @P{})", base + 1, base + 2, base + 3));
-                params.push((schedule_id, period.start.value(), period.stop.value()));
+            for (i, block) in chunk.iter().enumerate() {
+                let target_key = TargetKey::from_icrs(&block.target);
+                let _target_id = *self.target_cache.get(&target_key)
+                    .ok_or_else(|| "Target not in cache after batch creation".to_string())?;
+                
+                let constraints_key = ConstraintsKey::new(&block.constraints);
+                let _constraints_id = *self.constraints_cache.get(&constraints_key)
+                    .ok_or_else(|| "Constraints not in cache after batch creation".to_string())?;
+
+                // Serialize visibility periods to JSON
+                let visibility_json = if block.visibility_periods.is_empty() {
+                    None
+                } else {
+                    let periods_array: Vec<serde_json::Value> = block.visibility_periods
+                        .iter()
+                        .map(|p| serde_json::json!({
+                            "start": p.start.value(),
+                            "stop": p.stop.value()
+                        }))
+                        .collect();
+                    Some(serde_json::to_string(&periods_array)
+                        .map_err(|e| format!("Failed to serialize visibility periods: {e}"))?)
+                };
+                json_strings.push(visibility_json);
+
+                let base = i * 6;
+                values_clauses.push(format!("(@P{}, @P{}, @P{}, @P{}, @P{}, @P{})", 
+                    base + 1, base + 2, base + 3, base + 4, base + 5, base + 6));
             }
-            
+
+            // Bulk INSERT with OUTPUT to get all scheduling_block_ids
             let sql = format!(
-                "INSERT INTO dbo.schedule_dark_periods (schedule_id, start_time_mjd, stop_time_mjd) VALUES {}",
+                r#"
+                INSERT INTO dbo.scheduling_blocks 
+                    (target_id, constraints_id, priority, min_observation_sec, requested_duration_sec, visibility_periods_json)
+                OUTPUT inserted.scheduling_block_id
+                VALUES {}
+                "#,
                 values_clauses.join(", ")
             );
-            
+
             let mut insert = Query::new(sql);
-            for (sched_id, start, stop) in params {
-                insert.bind(sched_id);
-                insert.bind(start);
-                insert.bind(stop);
+            for (i, block) in chunk.iter().enumerate() {
+                let target_key = TargetKey::from_icrs(&block.target);
+                let target_id = *self.target_cache.get(&target_key).unwrap();
+                
+                let constraints_key = ConstraintsKey::new(&block.constraints);
+                let constraints_id = *self.constraints_cache.get(&constraints_key).unwrap();
+
+                insert.bind(target_id);
+                insert.bind(constraints_id);
+                insert.bind(Numeric::new_with_scale((block.priority * 10.0) as i128, 1));
+                insert.bind(block.min_observation.value() as i32);
+                insert.bind(block.requested_duration.value() as i32);
+                insert.bind(json_strings[i].as_deref());
             }
+
+            let stream = insert
+                .query(&mut *self.conn)
+                .await
+                .map_err(|e| format!("Failed to bulk insert scheduling blocks: {e}"))?;
+
+            let rows = stream
+                .into_first_result()
+                .await
+                .map_err(|e| format!("Failed to read bulk insert results: {e}"))?;
+
+            // Now link all blocks to schedule
+            let mut sb_ids: Vec<i64> = Vec::new();
+            for row in rows {
+                let sb_id: i64 = row.get::<i64, _>(0)
+                    .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+                sb_ids.push(sb_id);
+            }
+
+            // Bulk insert into schedule_scheduling_blocks
+            let mut link_values = Vec::new();
+            let mut link_params = Vec::new();
             
-            insert
+            for (i, (block, sb_id)) in chunk.iter().zip(sb_ids.iter()).enumerate() {
+                let (start_mjd, stop_mjd) = if let Some(period) = &block.scheduled_period {
+                    (Some(period.start.value()), Some(period.stop.value()))
+                } else {
+                    (None, None)
+                };
+                
+                let base = i * 4;
+                link_values.push(format!("(@P{}, @P{}, @P{}, @P{})", 
+                    base + 1, base + 2, base + 3, base + 4));
+                link_params.push((schedule_id, *sb_id, start_mjd, stop_mjd));
+            }
+
+            let link_sql = format!(
+                "INSERT INTO dbo.schedule_scheduling_blocks (schedule_id, scheduling_block_id, start_time_mjd, stop_time_mjd) VALUES {}",
+                link_values.join(", ")
+            );
+
+            let mut link_insert = Query::new(link_sql);
+            for (sched_id, sb_id, start, stop) in link_params {
+                link_insert.bind(sched_id);
+                link_insert.bind(sb_id);
+                link_insert.bind(start);
+                link_insert.bind(stop);
+            }
+
+            link_insert
                 .execute(&mut *self.conn)
                 .await
-                .map_err(|e| format!("Failed to batch insert dark periods: {e}"))?;
+                .map_err(|e| format!("Failed to bulk link scheduling blocks: {e}"))?;
         }
 
         Ok(())
     }
 
-    async fn insert_scheduling_block(
-        &mut self,
-        schedule_id: i64,
-        block: &SchedulingBlock,
-    ) -> Result<i64, String> {
-        let target_name = format!("SB_{}", block.id.0);
-        let target_id = self
-            .get_or_create_target(&target_name, &block.target)
-            .await?;
-        let constraints_id = self.get_or_create_constraints(&block.constraints).await?;
-
-        // Batch insert visibility periods
-        if !block.visibility_periods.is_empty() {
-            self.insert_visibility_periods_batch(target_id, constraints_id, &block.visibility_periods)
-                .await?;
+    async fn batch_create_targets(&mut self, targets: &[(String, f64, f64)]) -> Result<(), String> {
+        if targets.is_empty() {
+            return Ok(());
         }
 
-        let mut insert = Query::new(
-            r#"
-            INSERT INTO dbo.scheduling_blocks 
-                (target_id, constraints_id, priority, min_observation_sec, requested_duration_sec)
-            OUTPUT inserted.scheduling_block_id
-            VALUES (@P1, @P2, @P3, @P4, @P5)
-            "#,
-        );
-        insert.bind(target_id);
-        insert.bind(constraints_id);
+        // Process targets one by one using the optimized get_or_create
+        // This is safer than bulk MERGE and still uses the cache
+        for (name, ra, dec) in targets {
+            let target = ICRS::new(Degrees::new(*ra), Degrees::new(*dec));
+            self.get_or_create_target(name, &target).await?;
+        }
 
-        let priority_numeric = Numeric::new_with_scale((block.priority * 10.0) as i128, 1);
-        insert.bind(priority_numeric);
-        insert.bind(block.min_observation.value() as i32);
-        insert.bind(block.requested_duration.value() as i32);
-
-        let stream = insert
-            .query(&mut *self.conn)
-            .await
-            .map_err(|e| format!("Failed to insert scheduling block: {e}"))?;
-
-        let row = stream
-            .into_row()
-            .await
-            .map_err(|e| format!("Failed to get scheduling block result: {e}"))?
-            .ok_or_else(|| "No scheduling_block_id returned".to_string())?;
-
-        let sb_id: i64 = row
-            .get::<i64, _>(0)
-            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-
-        let (start_mjd, stop_mjd) = if let Some(period) = &block.scheduled_period {
-            (Some(period.start.value()), Some(period.stop.value()))
-        } else {
-            (None, None)
-        };
-
-        let mut link = Query::new(
-            r#"
-            INSERT INTO dbo.schedule_scheduling_blocks 
-                (schedule_id, scheduling_block_id, start_time_mjd, stop_time_mjd)
-            VALUES (@P1, @P2, @P3, @P4)
-            "#,
-        );
-        link.bind(schedule_id);
-        link.bind(sb_id);
-        link.bind(start_mjd);
-        link.bind(stop_mjd);
-
-        link.execute(&mut *self.conn)
-            .await
-            .map_err(|e| format!("Failed to link scheduling block to schedule: {e}"))?;
-
-        Ok(sb_id)
+        Ok(())
     }
 
-    async fn insert_visibility_periods_batch(
-        &mut self,
-        target_id: i64,
-        constraints_id: i64,
-        periods: &[Period],
-    ) -> Result<(), String> {
-        if periods.is_empty() {
+    async fn batch_create_constraints(&mut self, constraints_list: &[&Constraints]) -> Result<(), String> {
+        if constraints_list.is_empty() {
             return Ok(());
         }
 
-        // Filter out already-cached periods
-        let mut to_insert = Vec::new();
-        for period in periods {
-            let key = VisibilityKey::new(target_id, constraints_id, period);
-            if self.visibility_cache.insert(key) {
-                to_insert.push(period);
-            }
-        }
-
-        if to_insert.is_empty() {
-            return Ok(());
-        }
-
-        // Batch insert with NOT EXISTS check - SQL Server supports up to 1000 rows
-        const BATCH_SIZE: usize = 500; // Use 500 to be safe with the NOT EXISTS subquery
+        // First, create all unique altitude/azimuth constraints
+        let mut unique_altitudes = std::collections::HashSet::new();
+        let mut unique_azimuths = std::collections::HashSet::new();
         
-        for chunk in to_insert.chunks(BATCH_SIZE) {
-            let mut values_clauses = Vec::new();
-            let mut params = Vec::new();
-            
-            for (i, period) in chunk.iter().enumerate() {
-                let base = i * 4;
-                values_clauses.push(format!("(@P{}, @P{}, @P{}, @P{})", base + 1, base + 2, base + 3, base + 4));
-                params.push((target_id, constraints_id, period.start.value(), period.stop.value()));
-            }
-            
-            // Use MERGE or INSERT with NOT EXISTS for bulk upsert
-            let sql = format!(
-                r#"INSERT INTO dbo.visibility_periods (target_id, constraints_id, start_time_mjd, stop_time_mjd)
-                SELECT * FROM (VALUES {}) AS NewPeriods(target_id, constraints_id, start_time_mjd, stop_time_mjd)
-                WHERE NOT EXISTS (
-                    SELECT 1 FROM dbo.visibility_periods vp
-                    WHERE vp.target_id = NewPeriods.target_id
-                      AND vp.constraints_id = NewPeriods.constraints_id
-                      AND vp.start_time_mjd = NewPeriods.start_time_mjd
-                      AND vp.stop_time_mjd = NewPeriods.stop_time_mjd
-                )"#,
-                values_clauses.join(", ")
-            );
-            
-            let mut insert = Query::new(sql);
-            for (tid, cid, start, stop) in params {
-                insert.bind(tid);
-                insert.bind(cid);
-                insert.bind(start);
-                insert.bind(stop);
-            }
-            
-            insert
-                .execute(&mut *self.conn)
-                .await
-                .map_err(|e| format!("Failed to batch insert visibility periods: {e}"))?;
+        for constraints in constraints_list {
+            let alt_key = AltitudeKey::new(constraints.min_alt.value(), constraints.max_alt.value());
+            let az_key = AzimuthKey::new(constraints.min_az.value(), constraints.max_az.value());
+            unique_altitudes.insert(alt_key);
+            unique_azimuths.insert(az_key);
+        }
+
+        // Batch create altitude constraints
+        for key in unique_altitudes {
+            let FloatKey(min_bits) = key.min;
+            let FloatKey(max_bits) = key.max;
+            self.get_or_create_altitude_constraints(f64::from_bits(min_bits), f64::from_bits(max_bits)).await?;
+        }
+
+        // Batch create azimuth constraints
+        for key in unique_azimuths {
+            let FloatKey(min_bits) = key.min;
+            let FloatKey(max_bits) = key.max;
+            self.get_or_create_azimuth_constraints(f64::from_bits(min_bits), f64::from_bits(max_bits)).await?;
+        }
+
+        // Now create all composite constraints
+        for constraints in constraints_list {
+            self.get_or_create_constraints(constraints).await?;
         }
 
         Ok(())
@@ -826,10 +847,9 @@ async fn fetch_dark_periods(
 ) -> Result<Vec<Period>, String> {
     let mut query = Query::new(
         r#"
-        SELECT start_time_mjd, stop_time_mjd
-        FROM dbo.schedule_dark_periods
+        SELECT dark_periods_json
+        FROM dbo.schedules
         WHERE schedule_id = @P1
-        ORDER BY start_time_mjd
         "#,
     );
     query.bind(schedule_id);
@@ -839,21 +859,31 @@ async fn fetch_dark_periods(
         .await
         .map_err(|e| format!("Failed to fetch dark periods: {e}"))?;
 
-    let rows = stream
-        .into_first_result()
+    let row = stream
+        .into_row()
         .await
-        .map_err(|e| format!("Failed to read dark periods: {e}"))?;
+        .map_err(|e| format!("Failed to read dark periods: {e}"))?
+        .ok_or_else(|| format!("Schedule {} not found", schedule_id))?;
 
+    let json_str: Option<&str> = row.get(0);
+    
     let mut periods = Vec::new();
-    for row in rows {
-        let start: f64 = row.get::<f64, _>(0).ok_or_else(|| "start_time_mjd is NULL".to_string())?;
-        let stop: f64 = row.get::<f64, _>(1).ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
+    if let Some(json) = json_str {
+        let periods_array: Vec<serde_json::Value> = serde_json::from_str(json)
+            .map_err(|e| format!("Failed to parse dark periods JSON: {e}"))?;
         
-        if let Some(period) = Period::new(
-            ModifiedJulianDate::new(start),
-            ModifiedJulianDate::new(stop),
-        ) {
-            periods.push(period);
+        for period_obj in periods_array {
+            let start = period_obj["start"].as_f64()
+                .ok_or_else(|| "Invalid start value in dark period".to_string())?;
+            let stop = period_obj["stop"].as_f64()
+                .ok_or_else(|| "Invalid stop value in dark period".to_string())?;
+            
+            if let Some(period) = Period::new(
+                ModifiedJulianDate::new(start),
+                ModifiedJulianDate::new(stop),
+            ) {
+                periods.push(period);
+            }
         }
     }
 
@@ -973,10 +1003,9 @@ async fn fetch_visibility_periods_for_block(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
     sb_id: i64,
 ) -> Result<Vec<Period>, String> {
-    // First get target_id and constraints_id for this block
     let mut block_query = Query::new(
         r#"
-        SELECT target_id, constraints_id
+        SELECT visibility_periods_json
         FROM dbo.scheduling_blocks
         WHERE scheduling_block_id = @P1
         "#,
@@ -994,36 +1023,18 @@ async fn fetch_visibility_periods_for_block(
         .map_err(|e| format!("Failed to read block info: {e}"))?
         .ok_or_else(|| format!("Block {} not found", sb_id))?;
 
-    let target_id: i64 = row.get::<i64, _>(0).ok_or_else(|| "target_id is NULL".to_string())?;
-    let constraints_id: Option<i64> = row.get(1);
-
-    if let Some(cid) = constraints_id {
-        // Fetch visibility periods
-        let mut vis_query = Query::new(
-            r#"
-            SELECT start_time_mjd, stop_time_mjd
-            FROM dbo.visibility_periods
-            WHERE target_id = @P1 AND constraints_id = @P2
-            ORDER BY start_time_mjd
-            "#,
-        );
-        vis_query.bind(target_id);
-        vis_query.bind(cid);
-
-        let stream = vis_query
-            .query(conn)
-            .await
-            .map_err(|e| format!("Failed to fetch visibility periods: {e}"))?;
-
-        let rows = stream
-            .into_first_result()
-            .await
-            .map_err(|e| format!("Failed to read visibility periods: {e}"))?;
-
-        let mut periods = Vec::new();
-        for row in rows {
-            let start: f64 = row.get::<f64, _>(0).ok_or_else(|| "start_time_mjd is NULL".to_string())?;
-            let stop: f64 = row.get::<f64, _>(1).ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
+    let json_str: Option<&str> = row.get(0);
+    
+    let mut periods = Vec::new();
+    if let Some(json) = json_str {
+        let periods_array: Vec<serde_json::Value> = serde_json::from_str(json)
+            .map_err(|e| format!("Failed to parse visibility periods JSON: {e}"))?;
+        
+        for period_obj in periods_array {
+            let start = period_obj["start"].as_f64()
+                .ok_or_else(|| "Invalid start value in visibility period".to_string())?;
+            let stop = period_obj["stop"].as_f64()
+                .ok_or_else(|| "Invalid stop value in visibility period".to_string())?;
             
             if let Some(period) = Period::new(
                 ModifiedJulianDate::new(start),
@@ -1032,11 +1043,9 @@ async fn fetch_visibility_periods_for_block(
                 periods.push(period);
             }
         }
-
-        Ok(periods)
-    } else {
-        Ok(Vec::new())
     }
+
+    Ok(periods)
 }
 
 /// List all available schedules with metadata.
