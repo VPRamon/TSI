@@ -86,8 +86,9 @@ impl DbConfig {
         let auth_method = match auth_method_env.to_lowercase().as_str() {
             "aad_password" | "aad" | "active_directory_password" => DbAuthMethod::AadPassword,
             "aad_token" | "access_token" => {
-                let token = env::var("AZURE_ACCESS_TOKEN")
-                    .map_err(|_| "AZURE_ACCESS_TOKEN must be set when DB_AUTH_METHOD=aad_token".to_string())?;
+                let token = env::var("AZURE_ACCESS_TOKEN").map_err(|_| {
+                    "AZURE_ACCESS_TOKEN must be set when DB_AUTH_METHOD=aad_token".to_string()
+                })?;
                 DbAuthMethod::AadToken(token)
             }
             "sql" | "sql_password" | "" => {
@@ -98,12 +99,10 @@ impl DbConfig {
                     DbAuthMethod::SqlPassword
                 }
             }
-            other => {
-                return Err(format!(
-                    "Unsupported DB_AUTH_METHOD '{}'. Use sql_password, aad_password, or aad_token.",
-                    other
-                ))
-            }
+            other => return Err(format!(
+                "Unsupported DB_AUTH_METHOD '{}'. Use sql_password, aad_password, or aad_token.",
+                other
+            )),
         };
 
         Ok(Self {

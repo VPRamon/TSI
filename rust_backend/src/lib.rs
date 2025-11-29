@@ -157,6 +157,16 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<python::PyAnalyticsSnapshot>()?;
     m.add_class::<python::PySchedulingConflict>()?;
     m.add_class::<python::PyOptimizationResult>()?;
+    m.add_class::<db::models::Schedule>()?;
+    m.add_class::<db::models::SchedulingBlock>()?;
+    m.add_class::<db::models::Constraints>()?;
+    m.add_class::<db::models::Period>()?;
+    m.add_class::<db::models::ScheduleMetadata>()?;
+    m.add_class::<db::models::ScheduleInfo>()?;
+    m.add_class::<db::models::ScheduleId>()?;
+    m.add_class::<db::models::TargetId>()?;
+    m.add_class::<db::models::ConstraintsId>()?;
+    m.add_class::<db::models::SchedulingBlockId>()?;
 
     Ok(())
 }

@@ -9,13 +9,18 @@ use crate::db::{operations, pool, DbConfig};
 /// Initialize database connection pool from environment variables.
 #[pyfunction]
 pub fn py_init_database() -> PyResult<()> {
-    let config = DbConfig::from_env()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
+    let config =
+        DbConfig::from_env().map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
 
-    let runtime = Runtime::new()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e)))?;
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
 
-    runtime.block_on(pool::init_pool(&config))
+    runtime
+        .block_on(pool::init_pool(&config))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
 
     Ok(())
@@ -24,8 +29,12 @@ pub fn py_init_database() -> PyResult<()> {
 /// Check database connection health.
 #[pyfunction]
 pub fn py_db_health_check() -> PyResult<bool> {
-    let runtime = Runtime::new()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e)))?;
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
 
     runtime
         .block_on(operations::health_check())
@@ -44,19 +53,32 @@ pub fn py_store_schedule(
     // Heavy parsing + DB insert happens without the GIL held to avoid blocking Python.
     let metadata = Python::with_gil(|py| {
         py.allow_threads(|| -> PyResult<_> {
-            let dark_periods = std::fs::read_to_string("data/dark_periods.json")
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to read dark_periods.json: {}", e)))?;
+            let dark_periods = std::fs::read_to_string("data/dark_periods.json").map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "Failed to read dark_periods.json: {}",
+                    e
+                ))
+            })?;
 
             let mut schedule: Schedule = crate::parsing::json_parser::parse_schedule_json_str(
                 schedule_json,
                 visibility_json,
                 dark_periods.as_str(),
             )
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to parse schedule: {}", e)))?;
+            .map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "Failed to parse schedule: {}",
+                    e
+                ))
+            })?;
             schedule.name = schedule_name.to_string();
 
-            let runtime = Runtime::new()
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e)))?;
+            let runtime = Runtime::new().map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "Failed to create async runtime: {}",
+                    e
+                ))
+            })?;
 
             runtime
                 .block_on(operations::store_schedule(&schedule))
@@ -94,8 +116,12 @@ pub fn py_fetch_schedule(
 /// List all available schedules in the database.
 #[pyfunction]
 pub fn py_list_schedules() -> PyResult<PyObject> {
-    let runtime = Runtime::new()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e)))?;
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
 
     let schedules = runtime
         .block_on(operations::list_schedules())
@@ -107,7 +133,10 @@ pub fn py_list_schedules() -> PyResult<PyObject> {
             let dict = PyDict::new(py);
             dict.set_item("schedule_id", schedule_info.metadata.schedule_id)?;
             dict.set_item("schedule_name", schedule_info.metadata.schedule_name)?;
-            dict.set_item("upload_timestamp", schedule_info.metadata.upload_timestamp.to_rfc3339())?;
+            dict.set_item(
+                "upload_timestamp",
+                schedule_info.metadata.upload_timestamp.to_rfc3339(),
+            )?;
             dict.set_item("checksum", schedule_info.metadata.checksum)?;
             dict.set_item("total_blocks", schedule_info.total_blocks)?;
             dict.set_item("scheduled_blocks", schedule_info.scheduled_blocks)?;
@@ -121,8 +150,12 @@ pub fn py_list_schedules() -> PyResult<PyObject> {
 /// Fetch dark periods for a schedule.
 #[pyfunction]
 pub fn py_fetch_dark_periods(schedule_id: Option<i64>) -> PyResult<PyObject> {
-    let runtime = Runtime::new()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e)))?;
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
 
     let periods = runtime
         .block_on(operations::fetch_dark_periods_public(schedule_id))
@@ -140,8 +173,12 @@ pub fn py_fetch_dark_periods(schedule_id: Option<i64>) -> PyResult<PyObject> {
 /// Fetch possible (visibility) periods for a schedule.
 #[pyfunction]
 pub fn py_fetch_possible_periods(schedule_id: i64) -> PyResult<PyObject> {
-    let runtime = Runtime::new()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e)))?;
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
 
     let periods = runtime
         .block_on(operations::fetch_possible_periods(schedule_id))

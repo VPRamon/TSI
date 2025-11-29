@@ -102,7 +102,7 @@ mod tests {
             "Should parse minimal schedule: {:?}",
             result.err()
         );
-        
+
         let schedule = result.unwrap();
         assert_eq!(schedule.blocks.len(), 1);
         assert_eq!(schedule.dark_periods.len(), 1);
@@ -174,7 +174,7 @@ mod tests {
 
         let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
         assert!(result.is_ok(), "Should parse with scheduled period");
-        
+
         let schedule = result.unwrap();
         assert_eq!(schedule.blocks.len(), 1);
         assert!(schedule.blocks[0].scheduled_period.is_some());
@@ -263,10 +263,10 @@ mod tests {
         let result = parse_schedule_json_str(
             schedule_json,
             Some(possible_periods_json),
-            dark_periods_json
+            dark_periods_json,
         );
         assert!(result.is_ok(), "Should parse with possible periods");
-        
+
         let schedule = result.unwrap();
         assert_eq!(schedule.blocks.len(), 1);
         assert_eq!(schedule.blocks[0].visibility_periods.len(), 2);
@@ -305,7 +305,11 @@ mod tests {
         let schedule = parse_real_schedule_fixture();
 
         assert_eq!(schedule.blocks.len(), 2647, "Unexpected block count");
-        assert_eq!(schedule.dark_periods.len(), 314, "Unexpected dark period count");
+        assert_eq!(
+            schedule.dark_periods.len(),
+            314,
+            "Unexpected dark period count"
+        );
         assert_eq!(schedule.name, "parsed_schedule");
         assert_eq!(schedule.checksum, EXPECTED_SCHEDULE_CHECKSUM);
 
@@ -383,11 +387,7 @@ mod tests {
             .constraints
             .fixed_time
             .expect("Block 1000002662 should have a fixed time window");
-        assert_close(
-            fixed_window.start.value(),
-            61771.0,
-            "fixed window start",
-        );
+        assert_close(fixed_window.start.value(), 61771.0, "fixed window start");
         assert_close(fixed_window.stop.value(), 61778.0, "fixed window stop");
 
         assert_close(
