@@ -2,18 +2,16 @@
 
 use chrono::{DateTime, Utc};
 use log::{debug, info};
-use std::collections::HashMap;
-use tiberius::{Query, Row, numeric::Numeric};
 use siderust::{
-    astro::ModifiedJulianDate,
+    astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS, units::angular::Degrees,
     units::time::Seconds,
-    units::angular::Degrees,
-    coordinates::spherical::direction::ICRS,
 };
+use std::collections::HashMap;
+use tiberius::{numeric::Numeric, Query, Row};
 
 use super::models::{
-    Schedule, SchedulingBlock, ScheduleMetadata, ScheduleInfo, 
-    Period, Constraints, ScheduleId, SchedulingBlockId
+    Constraints, Period, Schedule, ScheduleId, ScheduleInfo, ScheduleMetadata, SchedulingBlock,
+    SchedulingBlockId,
 };
 use super::pool;
 
@@ -95,14 +93,8 @@ impl ConstraintsKey {
         Self {
             start,
             stop,
-            altitude: AltitudeKey::new(
-                constraints.min_alt.value(),
-                constraints.max_alt.value(),
-            ),
-            azimuth: AzimuthKey::new(
-                constraints.min_az.value(),
-                constraints.max_az.value(),
-            ),
+            altitude: AltitudeKey::new(constraints.min_alt.value(), constraints.max_alt.value()),
+            azimuth: AzimuthKey::new(constraints.min_az.value(), constraints.max_az.value()),
         }
     }
 }
@@ -137,13 +129,13 @@ impl<'a> ScheduleInserter<'a> {
 
         // Batch process ALL scheduling blocks at once for maximum performance
         if !schedule.blocks.is_empty() {
-            self.insert_scheduling_blocks_bulk(schedule_id, &schedule.blocks).await?;
+            self.insert_scheduling_blocks_bulk(schedule_id, &schedule.blocks)
+                .await?;
         }
 
         info!(
             "Finished uploading schedule '{}' as id {}",
-            schedule.name,
-            schedule_id
+            schedule.name, schedule_id
         );
         Ok(ScheduleMetadata {
             schedule_id: Some(schedule_id),
@@ -159,22 +151,26 @@ impl<'a> ScheduleInserter<'a> {
     ) -> Result<(i64, DateTime<Utc>), String> {
         debug!(
             "Inserting schedule metadata row for '{}' (checksum {})",
-            schedule.name,
-            schedule.checksum
+            schedule.name, schedule.checksum
         );
         // Serialize dark periods to JSON
         let dark_periods_json = if schedule.dark_periods.is_empty() {
             None
         } else {
-            let periods_array: Vec<serde_json::Value> = schedule.dark_periods
+            let periods_array: Vec<serde_json::Value> = schedule
+                .dark_periods
                 .iter()
-                .map(|p| serde_json::json!({
-                    "start": p.start.value(),
-                    "stop": p.stop.value()
-                }))
+                .map(|p| {
+                    serde_json::json!({
+                        "start": p.start.value(),
+                        "stop": p.stop.value()
+                    })
+                })
                 .collect();
-            Some(serde_json::to_string(&periods_array)
-                .map_err(|e| format!("Failed to serialize dark periods: {e}"))?)
+            Some(
+                serde_json::to_string(&periods_array)
+                    .map_err(|e| format!("Failed to serialize dark periods: {e}"))?,
+            )
         };
 
         let mut insert = Query::new(
@@ -208,9 +204,7 @@ impl<'a> ScheduleInserter<'a> {
 
         debug!(
             "Inserted schedule '{}' as id {} (uploaded at {})",
-            schedule.name,
-            schedule_id,
-            upload_timestamp
+            schedule.name, schedule_id, upload_timestamp
         );
         Ok((schedule_id, upload_timestamp))
     }
@@ -238,7 +232,8 @@ impl<'a> ScheduleInserter<'a> {
         self.batch_create_constraints(&unique_constraints).await?;
 
         // Step 3: Bulk insert ALL scheduling blocks in one query
-        self.bulk_insert_scheduling_blocks(schedule_id, blocks).await?;
+        self.bulk_insert_scheduling_blocks(schedule_id, blocks)
+            .await?;
 
         Ok(())
     }
@@ -262,7 +257,7 @@ impl<'a> ScheduleInserter<'a> {
         // Each scheduling block uses 6 params, so max = 2100/6 = 350
         // Use 300 for safety margin (1800 params)
         const BATCH_SIZE: usize = 300;
-        
+
         for (chunk_index, chunk) in blocks.chunks(BATCH_SIZE).enumerate() {
             debug!(
                 "Inserting scheduling block chunk {} containing {} blocks",
@@ -272,35 +267,51 @@ impl<'a> ScheduleInserter<'a> {
             // Build VALUES clause for scheduling blocks
             let mut values_clauses = Vec::new();
             let mut json_strings: Vec<Option<String>> = Vec::new();
-            
+
             for (i, block) in chunk.iter().enumerate() {
                 let target_key = TargetKey::from_icrs(&block.target);
-                let _target_id = *self.target_cache.get(&target_key)
+                let _target_id = *self
+                    .target_cache
+                    .get(&target_key)
                     .ok_or_else(|| "Target not in cache after batch creation".to_string())?;
-                
+
                 let constraints_key = ConstraintsKey::new(&block.constraints);
-                let _constraints_id = *self.constraints_cache.get(&constraints_key)
+                let _constraints_id = *self
+                    .constraints_cache
+                    .get(&constraints_key)
                     .ok_or_else(|| "Constraints not in cache after batch creation".to_string())?;
 
                 // Serialize visibility periods to JSON
                 let visibility_json = if block.visibility_periods.is_empty() {
                     None
                 } else {
-                    let periods_array: Vec<serde_json::Value> = block.visibility_periods
+                    let periods_array: Vec<serde_json::Value> = block
+                        .visibility_periods
                         .iter()
-                        .map(|p| serde_json::json!({
-                            "start": p.start.value(),
-                            "stop": p.stop.value()
-                        }))
+                        .map(|p| {
+                            serde_json::json!({
+                                "start": p.start.value(),
+                                "stop": p.stop.value()
+                            })
+                        })
                         .collect();
-                    Some(serde_json::to_string(&periods_array)
-                        .map_err(|e| format!("Failed to serialize visibility periods: {e}"))?)
+                    Some(
+                        serde_json::to_string(&periods_array)
+                            .map_err(|e| format!("Failed to serialize visibility periods: {e}"))?,
+                    )
                 };
                 json_strings.push(visibility_json);
 
                 let base = i * 6;
-                values_clauses.push(format!("(@P{}, @P{}, @P{}, @P{}, @P{}, @P{})", 
-                    base + 1, base + 2, base + 3, base + 4, base + 5, base + 6));
+                values_clauses.push(format!(
+                    "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
+                    base + 1,
+                    base + 2,
+                    base + 3,
+                    base + 4,
+                    base + 5,
+                    base + 6
+                ));
             }
 
             // Bulk INSERT with OUTPUT to get all scheduling_block_ids
@@ -318,7 +329,7 @@ impl<'a> ScheduleInserter<'a> {
             for (i, block) in chunk.iter().enumerate() {
                 let target_key = TargetKey::from_icrs(&block.target);
                 let target_id = *self.target_cache.get(&target_key).unwrap();
-                
+
                 let constraints_key = ConstraintsKey::new(&block.constraints);
                 let constraints_id = *self.constraints_cache.get(&constraints_key).unwrap();
 
@@ -343,7 +354,8 @@ impl<'a> ScheduleInserter<'a> {
             // Now link all blocks to schedule
             let mut sb_ids: Vec<i64> = Vec::new();
             for row in rows {
-                let sb_id: i64 = row.get::<i64, _>(0)
+                let sb_id: i64 = row
+                    .get::<i64, _>(0)
                     .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
                 sb_ids.push(sb_id);
             }
@@ -351,17 +363,22 @@ impl<'a> ScheduleInserter<'a> {
             // Bulk insert into schedule_scheduling_blocks
             let mut link_values = Vec::new();
             let mut link_params = Vec::new();
-            
+
             for (i, (block, sb_id)) in chunk.iter().zip(sb_ids.iter()).enumerate() {
                 let (start_mjd, stop_mjd) = if let Some(period) = &block.scheduled_period {
                     (Some(period.start.value()), Some(period.stop.value()))
                 } else {
                     (None, None)
                 };
-                
+
                 let base = i * 4;
-                link_values.push(format!("(@P{}, @P{}, @P{}, @P{})", 
-                    base + 1, base + 2, base + 3, base + 4));
+                link_values.push(format!(
+                    "(@P{}, @P{}, @P{}, @P{})",
+                    base + 1,
+                    base + 2,
+                    base + 3,
+                    base + 4
+                ));
                 link_params.push((schedule_id, *sb_id, start_mjd, stop_mjd));
             }
 
@@ -406,7 +423,10 @@ impl<'a> ScheduleInserter<'a> {
         Ok(())
     }
 
-    async fn batch_create_constraints(&mut self, constraints_list: &[&Constraints]) -> Result<(), String> {
+    async fn batch_create_constraints(
+        &mut self,
+        constraints_list: &[&Constraints],
+    ) -> Result<(), String> {
         if constraints_list.is_empty() {
             return Ok(());
         }
@@ -418,9 +438,10 @@ impl<'a> ScheduleInserter<'a> {
         // First, create all unique altitude/azimuth constraints
         let mut unique_altitudes = std::collections::HashSet::new();
         let mut unique_azimuths = std::collections::HashSet::new();
-        
+
         for constraints in constraints_list {
-            let alt_key = AltitudeKey::new(constraints.min_alt.value(), constraints.max_alt.value());
+            let alt_key =
+                AltitudeKey::new(constraints.min_alt.value(), constraints.max_alt.value());
             let az_key = AzimuthKey::new(constraints.min_az.value(), constraints.max_az.value());
             unique_altitudes.insert(alt_key);
             unique_azimuths.insert(az_key);
@@ -430,14 +451,22 @@ impl<'a> ScheduleInserter<'a> {
         for key in unique_altitudes {
             let FloatKey(min_bits) = key.min;
             let FloatKey(max_bits) = key.max;
-            self.get_or_create_altitude_constraints(f64::from_bits(min_bits), f64::from_bits(max_bits)).await?;
+            self.get_or_create_altitude_constraints(
+                f64::from_bits(min_bits),
+                f64::from_bits(max_bits),
+            )
+            .await?;
         }
 
         // Batch create azimuth constraints
         for key in unique_azimuths {
             let FloatKey(min_bits) = key.min;
             let FloatKey(max_bits) = key.max;
-            self.get_or_create_azimuth_constraints(f64::from_bits(min_bits), f64::from_bits(max_bits)).await?;
+            self.get_or_create_azimuth_constraints(
+                f64::from_bits(min_bits),
+                f64::from_bits(max_bits),
+            )
+            .await?;
         }
 
         // Now create all composite constraints
@@ -448,11 +477,7 @@ impl<'a> ScheduleInserter<'a> {
         Ok(())
     }
 
-    async fn get_or_create_target(
-        &mut self,
-        name: &str,
-        target: &ICRS,
-    ) -> Result<i64, String> {
+    async fn get_or_create_target(&mut self, name: &str, target: &ICRS) -> Result<i64, String> {
         let key = TargetKey::from_icrs(target);
         if let Some(id) = self.target_cache.get(&key) {
             return Ok(*id);
@@ -497,7 +522,8 @@ impl<'a> ScheduleInserter<'a> {
             .ok_or_else(|| "target_id is NULL".to_string())?;
         self.target_cache.insert(key, id);
         Ok(id)
-    }    async fn get_or_create_altitude_constraints(
+    }
+    async fn get_or_create_altitude_constraints(
         &mut self,
         min_alt: f64,
         max_alt: f64,
@@ -538,7 +564,8 @@ impl<'a> ScheduleInserter<'a> {
             .ok_or_else(|| "altitude_constraints_id is NULL".to_string())?;
         self.altitude_cache.insert(key, id);
         Ok(id)
-    }    async fn get_or_create_azimuth_constraints(
+    }
+    async fn get_or_create_azimuth_constraints(
         &mut self,
         min_az: f64,
         max_az: f64,
@@ -690,9 +717,7 @@ pub async fn health_check() -> Result<bool, String> {
     Ok(true)
 }
 
-pub async fn store_schedule(
-    schedule: &Schedule,
-) -> Result<ScheduleMetadata, String> {
+pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, String> {
     info!(
         "Received request to store schedule '{}' (checksum {}, {} blocks)",
         schedule.name,
@@ -731,23 +756,15 @@ pub async fn store_schedule(
         let schedule_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "Existing schedule_id is NULL".to_string())?;
-        let schedule_name: String = row
-            .get::<&str, _>(1)
-            .unwrap_or_default()
-            .to_string();
+        let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
         let upload_timestamp: DateTime<Utc> = row
             .get::<DateTime<Utc>, _>(2)
             .ok_or_else(|| "Existing upload_timestamp is NULL".to_string())?;
-        let checksum: String = row
-            .get::<&str, _>(3)
-            .unwrap_or_default()
-            .to_string();
+        let checksum: String = row.get::<&str, _>(3).unwrap_or_default().to_string();
 
         info!(
             "Schedule '{}' already present as id {} (upload timestamp: {})",
-            schedule_name,
-            schedule_id,
-            upload_timestamp
+            schedule_name, schedule_id, upload_timestamp
         );
         // Return metadata for the existing schedule
         return Ok(ScheduleMetadata {
@@ -787,7 +804,10 @@ pub async fn store_schedule(
 }
 
 /// Insert a complete schedule with all dependent entities.
-async fn insert_full_schedule(conn: &mut DbClient, schedule: &Schedule) -> Result<ScheduleMetadata, String> {
+async fn insert_full_schedule(
+    conn: &mut DbClient,
+    schedule: &Schedule,
+) -> Result<ScheduleMetadata, String> {
     let mut inserter = ScheduleInserter::new(conn);
     inserter.insert_schedule(schedule).await
 }
@@ -820,7 +840,9 @@ pub async fn get_schedule(
         fetch_schedule_metadata_by_name(&mut *conn, schedule_name.unwrap()).await?
     };
 
-    let db_schedule_id = metadata.schedule_id.ok_or_else(|| "Schedule has no ID".to_string())?;
+    let db_schedule_id = metadata
+        .schedule_id
+        .ok_or_else(|| "Schedule has no ID".to_string())?;
 
     // 2. Fetch dark periods
     let dark_periods = fetch_dark_periods(&mut *conn, db_schedule_id).await?;
@@ -906,17 +928,11 @@ fn parse_schedule_metadata_row(row: Row) -> Result<ScheduleMetadata, String> {
     let schedule_id: i64 = row
         .get::<i64, _>(0)
         .ok_or_else(|| "schedule_id is NULL".to_string())?;
-    let schedule_name: String = row
-        .get::<&str, _>(1)
-        .unwrap_or_default()
-        .to_string();
+    let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
     let upload_timestamp: DateTime<Utc> = row
         .get::<DateTime<Utc>, _>(2)
         .ok_or_else(|| "upload_timestamp is NULL".to_string())?;
-    let checksum: String = row
-        .get::<&str, _>(3)
-        .unwrap_or_default()
-        .to_string();
+    let checksum: String = row.get::<&str, _>(3).unwrap_or_default().to_string();
 
     Ok(ScheduleMetadata {
         schedule_id: Some(schedule_id),
@@ -931,10 +947,7 @@ async fn fetch_dark_periods(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
     schedule_id: i64,
 ) -> Result<Vec<Period>, String> {
-    debug!(
-        "Fetching dark periods for schedule_id {}",
-        schedule_id
-    );
+    debug!("Fetching dark periods for schedule_id {}", schedule_id);
     let mut query = Query::new(
         r#"
         SELECT dark_periods_json
@@ -956,18 +969,20 @@ async fn fetch_dark_periods(
         .ok_or_else(|| format!("Schedule {} not found", schedule_id))?;
 
     let json_str: Option<&str> = row.get(0);
-    
+
     let mut periods = Vec::new();
     if let Some(json) = json_str {
         let periods_array: Vec<serde_json::Value> = serde_json::from_str(json)
             .map_err(|e| format!("Failed to parse dark periods JSON: {e}"))?;
-        
+
         for period_obj in periods_array {
-            let start = period_obj["start"].as_f64()
+            let start = period_obj["start"]
+                .as_f64()
                 .ok_or_else(|| "Invalid start value in dark period".to_string())?;
-            let stop = period_obj["stop"].as_f64()
+            let stop = period_obj["stop"]
+                .as_f64()
                 .ok_or_else(|| "Invalid stop value in dark period".to_string())?;
-            
+
             if let Some(period) = Period::new(
                 ModifiedJulianDate::new(start),
                 ModifiedJulianDate::new(stop),
@@ -990,10 +1005,7 @@ async fn fetch_scheduling_blocks(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
     schedule_id: i64,
 ) -> Result<Vec<SchedulingBlock>, String> {
-    debug!(
-        "Fetching scheduling blocks for schedule_id {}",
-        schedule_id
-    );
+    debug!("Fetching scheduling blocks for schedule_id {}", schedule_id);
     let mut query = Query::new(
         r#"
         SELECT 
@@ -1034,18 +1046,30 @@ async fn fetch_scheduling_blocks(
 
     let mut blocks = Vec::new();
     for row in rows {
-        let sb_id: i64 = row.get::<i64, _>(0).ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        let priority: Numeric = row.get::<Numeric, _>(1).ok_or_else(|| "priority is NULL".to_string())?;
-        let min_obs: i32 = row.get::<i32, _>(2).ok_or_else(|| "min_observation_sec is NULL".to_string())?;
-        let req_dur: i32 = row.get::<i32, _>(3).ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
-        let ra: f64 = row.get::<f64, _>(4).ok_or_else(|| "ra_deg is NULL".to_string())?;
-        let dec: f64 = row.get::<f64, _>(5).ok_or_else(|| "dec_deg is NULL".to_string())?;
-        
+        let sb_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+        let priority: Numeric = row
+            .get::<Numeric, _>(1)
+            .ok_or_else(|| "priority is NULL".to_string())?;
+        let min_obs: i32 = row
+            .get::<i32, _>(2)
+            .ok_or_else(|| "min_observation_sec is NULL".to_string())?;
+        let req_dur: i32 = row
+            .get::<i32, _>(3)
+            .ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
+        let ra: f64 = row
+            .get::<f64, _>(4)
+            .ok_or_else(|| "ra_deg is NULL".to_string())?;
+        let dec: f64 = row
+            .get::<f64, _>(5)
+            .ok_or_else(|| "dec_deg is NULL".to_string())?;
+
         let min_alt = row.get::<f64, _>(6).unwrap_or(0.0);
         let max_alt = row.get::<f64, _>(7).unwrap_or(90.0);
         let min_az = row.get::<f64, _>(8).unwrap_or(0.0);
         let max_az = row.get::<f64, _>(9).unwrap_or(360.0);
-        
+
         let constraint_start: Option<f64> = row.get(10);
         let constraint_stop: Option<f64> = row.get(11);
         let scheduled_start: Option<f64> = row.get(12);
@@ -1128,18 +1152,20 @@ async fn fetch_visibility_periods_for_block(
         .ok_or_else(|| format!("Block {} not found", sb_id))?;
 
     let json_str: Option<&str> = row.get(0);
-    
+
     let mut periods = Vec::new();
     if let Some(json) = json_str {
         let periods_array: Vec<serde_json::Value> = serde_json::from_str(json)
             .map_err(|e| format!("Failed to parse visibility periods JSON: {e}"))?;
-        
+
         for period_obj in periods_array {
-            let start = period_obj["start"].as_f64()
+            let start = period_obj["start"]
+                .as_f64()
                 .ok_or_else(|| "Invalid start value in visibility period".to_string())?;
-            let stop = period_obj["stop"].as_f64()
+            let stop = period_obj["stop"]
+                .as_f64()
                 .ok_or_else(|| "Invalid stop value in visibility period".to_string())?;
-            
+
             if let Some(period) = Period::new(
                 ModifiedJulianDate::new(start),
                 ModifiedJulianDate::new(stop),
@@ -1188,9 +1214,12 @@ pub async fn list_schedules() -> Result<Vec<ScheduleInfo>, String> {
 
     let mut schedules = Vec::new();
     for row in rows {
-        let schedule_id: i64 = row.get::<i64, _>(0).ok_or_else(|| "schedule_id is NULL".to_string())?;
+        let schedule_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "schedule_id is NULL".to_string())?;
         let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
-        let upload_timestamp: DateTime<Utc> = row.get::<DateTime<Utc>, _>(2)
+        let upload_timestamp: DateTime<Utc> = row
+            .get::<DateTime<Utc>, _>(2)
             .ok_or_else(|| "upload_timestamp is NULL".to_string())?;
         let checksum: String = row.get::<&str, _>(3).unwrap_or_default().to_string();
         let total_blocks: i32 = row.get::<i32, _>(4).unwrap_or(0);
@@ -1261,18 +1290,30 @@ pub async fn get_scheduling_block(sb_id: i64) -> Result<SchedulingBlock, String>
         .map_err(|e| format!("Failed to read scheduling block: {e}"))?
         .ok_or_else(|| format!("Scheduling block {} not found", sb_id))?;
 
-    let sb_id: i64 = row.get::<i64, _>(0).ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-    let priority: Numeric = row.get::<Numeric, _>(1).ok_or_else(|| "priority is NULL".to_string())?;
-    let min_obs: i32 = row.get::<i32, _>(2).ok_or_else(|| "min_observation_sec is NULL".to_string())?;
-    let req_dur: i32 = row.get::<i32, _>(3).ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
-    let ra: f64 = row.get::<f64, _>(4).ok_or_else(|| "ra_deg is NULL".to_string())?;
-    let dec: f64 = row.get::<f64, _>(5).ok_or_else(|| "dec_deg is NULL".to_string())?;
-    
+    let sb_id: i64 = row
+        .get::<i64, _>(0)
+        .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+    let priority: Numeric = row
+        .get::<Numeric, _>(1)
+        .ok_or_else(|| "priority is NULL".to_string())?;
+    let min_obs: i32 = row
+        .get::<i32, _>(2)
+        .ok_or_else(|| "min_observation_sec is NULL".to_string())?;
+    let req_dur: i32 = row
+        .get::<i32, _>(3)
+        .ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
+    let ra: f64 = row
+        .get::<f64, _>(4)
+        .ok_or_else(|| "ra_deg is NULL".to_string())?;
+    let dec: f64 = row
+        .get::<f64, _>(5)
+        .ok_or_else(|| "dec_deg is NULL".to_string())?;
+
     let min_alt = row.get::<f64, _>(6).unwrap_or(0.0);
     let max_alt = row.get::<f64, _>(7).unwrap_or(90.0);
     let min_az = row.get::<f64, _>(8).unwrap_or(0.0);
     let max_az = row.get::<f64, _>(9).unwrap_or(360.0);
-    
+
     let constraint_start: Option<f64> = row.get(10);
     let constraint_stop: Option<f64> = row.get(11);
 
@@ -1324,7 +1365,7 @@ pub async fn fetch_schedule(
     schedule_name: Option<&str>,
 ) -> Result<DataFrame, String> {
     let schedule = get_schedule(schedule_id, schedule_name).await?;
-    
+
     // Convert to DataFrame format expected by Python
     // This is a simplified version - you may want to flatten the structure more
     let mut sb_ids = Vec::new();
@@ -1333,13 +1374,13 @@ pub async fn fetch_schedule(
     let mut decs = Vec::new();
     let mut scheduled_starts = Vec::new();
     let mut scheduled_stops = Vec::new();
-    
+
     for block in &schedule.blocks {
         sb_ids.push(block.id.0);
         priorities.push(block.priority as f64);
         ras.push(block.target.ra().value());
         decs.push(block.target.dec().value());
-        
+
         if let Some(period) = &block.scheduled_period {
             scheduled_starts.push(Some(period.start.value()));
             scheduled_stops.push(Some(period.stop.value()));
@@ -1348,7 +1389,7 @@ pub async fn fetch_schedule(
             scheduled_stops.push(None);
         }
     }
-    
+
     let df = DataFrame::new(vec![
         Series::new("scheduling_block_id", sb_ids),
         Series::new("priority", priorities),
@@ -1358,7 +1399,7 @@ pub async fn fetch_schedule(
         Series::new("scheduled_stop_mjd", scheduled_stops),
     ])
     .map_err(|e| format!("Failed to create DataFrame: {e}"))?;
-    
+
     Ok(df)
 }*/
 
@@ -1372,9 +1413,12 @@ pub async fn fetch_dark_periods_public(
             .get()
             .await
             .map_err(|e| format!("Failed to get connection: {e}"))?;
-        
+
         let periods = fetch_dark_periods(&mut *conn, sid).await?;
-        Ok(periods.into_iter().map(|p| (p.start.value(), p.stop.value())).collect())
+        Ok(periods
+            .into_iter()
+            .map(|p| (p.start.value(), p.stop.value()))
+            .collect())
     } else {
         // Global dark periods - fetch all unique periods across all schedules
         let pool = pool::get_pool()?;
@@ -1382,7 +1426,7 @@ pub async fn fetch_dark_periods_public(
             .get()
             .await
             .map_err(|e| format!("Failed to get connection: {e}"))?;
-        
+
         let query = Query::new(
             r#"
             SELECT DISTINCT start_time_mjd, stop_time_mjd
@@ -1390,38 +1434,40 @@ pub async fn fetch_dark_periods_public(
             ORDER BY start_time_mjd
             "#,
         );
-        
+
         let stream = query
             .query(&mut *conn)
             .await
             .map_err(|e| format!("Failed to fetch global dark periods: {e}"))?;
-        
+
         let rows = stream
             .into_first_result()
             .await
             .map_err(|e| format!("Failed to read global dark periods: {e}"))?;
-        
+
         let mut periods = Vec::new();
         for row in rows {
-            let start: f64 = row.get::<f64, _>(0).ok_or_else(|| "start_time_mjd is NULL".to_string())?;
-            let stop: f64 = row.get::<f64, _>(1).ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
+            let start: f64 = row
+                .get::<f64, _>(0)
+                .ok_or_else(|| "start_time_mjd is NULL".to_string())?;
+            let stop: f64 = row
+                .get::<f64, _>(1)
+                .ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
             periods.push((start, stop));
         }
-        
+
         Ok(periods)
     }
 }
 
 /// Fetch visibility (possible) periods for a schedule.
-pub async fn fetch_possible_periods(
-    schedule_id: i64,
-) -> Result<Vec<(i64, f64, f64)>, String> {
+pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<(i64, f64, f64)>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
         .await
         .map_err(|e| format!("Failed to get connection: {e}"))?;
-    
+
     // Get all visibility periods for blocks in this schedule
     let query = Query::new(
         r#"
@@ -1437,27 +1483,33 @@ pub async fn fetch_possible_periods(
         ORDER BY ssb.scheduling_block_id, vp.start_time_mjd
         "#,
     );
-    
+
     let mut q = query;
     q.bind(schedule_id);
-    
+
     let stream = q
         .query(&mut *conn)
         .await
         .map_err(|e| format!("Failed to fetch possible periods: {e}"))?;
-    
+
     let rows = stream
         .into_first_result()
         .await
         .map_err(|e| format!("Failed to read possible periods: {e}"))?;
-    
+
     let mut periods = Vec::new();
     for row in rows {
-        let sb_id: i64 = row.get::<i64, _>(0).ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        let start: f64 = row.get::<f64, _>(1).ok_or_else(|| "start_time_mjd is NULL".to_string())?;
-        let stop: f64 = row.get::<f64, _>(2).ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
+        let sb_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+        let start: f64 = row
+            .get::<f64, _>(1)
+            .ok_or_else(|| "start_time_mjd is NULL".to_string())?;
+        let stop: f64 = row
+            .get::<f64, _>(2)
+            .ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
         periods.push((sb_id, start, stop));
     }
-    
+
     Ok(periods)
 }

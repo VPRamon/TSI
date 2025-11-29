@@ -1,6 +1,6 @@
 //! Checksum calculation for schedule deduplication.
 
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 /// Calculate SHA-256 checksum of schedule JSON content.
 ///

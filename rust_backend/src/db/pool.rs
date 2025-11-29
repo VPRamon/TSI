@@ -121,7 +121,7 @@ pub async fn init_pool(config: &DbConfig) -> Result<(), String> {
     let sql_config = build_tiberius_config(config).await?;
 
     let manager = ConnectionManager::new(sql_config);
-    
+
     // Build pool with extended timeout for initial connection
     let pool = Pool::builder()
         .max_size(5)
