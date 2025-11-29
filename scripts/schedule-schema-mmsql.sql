@@ -28,13 +28,7 @@ CREATE TABLE dbo.schedules (
     checksum         NVARCHAR(64) NOT NULL,   -- Required + unique identifier of the schedule
     CONSTRAINT UQ_schedules_checksum UNIQUE (checksum)
 );
-INSERT INTO dbo.schedules (schedule_name, checksum)
-SELECT @schedule_name, @checksum
-WHERE NOT EXISTS (
-    SELECT 1
-    FROM dbo.schedules
-    WHERE checksum = @checksum
-);
+
 -- A schedule upload (e.g. one run of the scheduler).
 
 
