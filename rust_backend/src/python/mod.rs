@@ -10,6 +10,7 @@
 //! - [`algorithms`]: Analytics and optimization algorithms
 //! - [`transformations`]: Data transformation utilities
 //! - [`time_bindings`]: Time conversion functions (MJD ↔ datetime)
+//! - [`database`]: Database operations for Azure PostgreSQL
 //!
 //! # Python API
 //!
@@ -17,13 +18,9 @@
 //! See individual module documentation for usage examples.
 
 pub mod algorithms;
-pub mod loaders;
-pub mod preprocessing;
-pub mod time_bindings;
+pub mod database;
 pub mod transformations;
 
 pub use algorithms::*;
-pub use loaders::*;
-pub use preprocessing::*;
-pub use time_bindings::*;
+pub use database::*;
 pub use transformations::*;

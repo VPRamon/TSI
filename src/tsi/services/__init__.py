@@ -1,5 +1,6 @@
 """Services package initialization."""
 
+from tsi.services.rust_backend import BACKEND
 from tsi.services.analytics import (
     AnalyticsSnapshot,
     compute_correlations,
@@ -20,19 +21,29 @@ from tsi.services.impossible_filters import (
 from tsi.services.loaders import (
     get_filtered_dataframe,
     load_csv,
+    load_schedule_rust,
     prepare_dataframe,
     validate_dataframe,
 )
+from tsi.services.database import (
+    db_health_check,
+    fetch_dark_periods_db,
+    fetch_possible_periods_db,
+    fetch_schedule_db,
+    init_database,
+    list_schedules_db,
+    store_schedule_db,
+)
 
 # Time conversions now use Rust backend (8x faster)
-from tsi.services.rust_compat import (
-    datetime_to_mjd_rust as datetime_to_mjd,
-    format_datetime_utc_rust as format_datetime_utc,
-    get_time_range_rust as get_time_range,
-    load_dark_periods_rust as load_dark_periods,
-    mjd_to_datetime_rust as mjd_to_datetime,
-    parse_optional_mjd_rust as parse_optional_mjd,
-    parse_visibility_periods_rust as parse_visibility_periods,
+from tsi_rust_api import load_dark_periods
+from tsi.services.time_utils import (
+    datetime_to_mjd,
+    format_datetime_utc,
+    get_time_range,
+    mjd_to_datetime,
+    parse_optional_mjd,
+    parse_visibility_periods,
 )
 from tsi.services.sky_map_filters import (
     build_palette,
@@ -58,11 +69,13 @@ from tsi.services.visibility_processing import (
 )
 
 __all__ = [
+    "BACKEND",
     # loaders
     "load_csv",
     "prepare_dataframe",
     "get_filtered_dataframe",
     "validate_dataframe",
+    "load_schedule_rust",
     "load_dark_periods",
     # time_utils
     "mjd_to_datetime",
@@ -104,4 +117,12 @@ __all__ = [
     "apply_trends_filters",
     # compare_processing
     "calculate_observation_gaps",
+    # database
+    "init_database",
+    "db_health_check",
+    "store_schedule_db",
+    "fetch_schedule_db",
+    "list_schedules_db",
+    "fetch_dark_periods_db",
+    "fetch_possible_periods_db",
 ]

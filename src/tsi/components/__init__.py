@@ -19,6 +19,8 @@ from tsi.components.insights_metrics import (
 )
 from tsi.components.insights_reports import render_report_downloads
 from tsi.components.insights_tables import render_integrity_checks, render_top_observations
+from tsi.components.landing_database import render_database_section
+from tsi.components.landing_upload import render_upload_section
 from tsi.components.sky_map_controls import render_sidebar_controls, reset_sky_map_controls
 from tsi.components.sky_map_stats import render_stats
 from tsi.components.timeline_controls import render_search_filters
@@ -84,4 +86,7 @@ __all__ = [
     "validate_and_display_discrepancies",
     "compute_scheduling_changes",
     "render_comparison_tables",
+    # Landing components
+    "render_database_section",
+    "render_upload_section",
 ]

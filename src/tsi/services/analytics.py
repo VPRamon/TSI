@@ -11,16 +11,7 @@ import pandas as pd
 
 from tsi.config import CORRELATION_COLUMNS
 from tsi.models.schemas import AnalyticsMetrics
-from tsi.services.rust_compat import (
-    compute_metrics as rust_compute_metrics,
-)
-from tsi.services.rust_compat import (
-    find_conflicts as rust_find_conflicts,
-)
-from tsi.services.rust_compat import (
-    get_top_observations as rust_get_top_observations,
-)
-from tsi_rust_api import TSIBackend
+from tsi.services.rust_backend import BACKEND
 
 
 @dataclass(frozen=True)
@@ -39,12 +30,10 @@ class AnalyticsSnapshot:
     mean_requested_hours: float
 
 
-_BACKEND = TSIBackend(use_pandas=True)
-
-
 def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
     """Compute comprehensive analytics metrics from the dataset (using Rust backend - 10x faster)."""
-    return cast(AnalyticsMetrics, rust_compute_metrics(df))
+    metrics = BACKEND.compute_metrics(df)
+    return AnalyticsMetrics(**metrics)
 
 
 def compute_correlations(df: pd.DataFrame, *, columns: Sequence[str] | None = None) -> pd.DataFrame:
@@ -70,7 +59,7 @@ def compute_correlations(df: pd.DataFrame, *, columns: Sequence[str] | None = No
 
 def get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) -> pd.DataFrame:
     """Get top N observations by a specified metric (using Rust backend - 10x faster)."""
-    return cast(pd.DataFrame, rust_get_top_observations(df, by=by, n=n))
+    return cast(pd.DataFrame, BACKEND.get_top_observations(df, by=by, n=n))
 
 
 def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
@@ -85,7 +74,7 @@ def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
     try:
-        return cast(pd.DataFrame, rust_find_conflicts(df))
+        return cast(pd.DataFrame, BACKEND.find_conflicts(df))
     except Exception:
         return pd.DataFrame()
 

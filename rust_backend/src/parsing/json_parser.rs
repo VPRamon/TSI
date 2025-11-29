@@ -1,430 +1,424 @@
-//! JSON parser for telescope scheduling block files.
-//!
-//! This module parses schedule.json files containing observation scheduling blocks
-//! with their constraints, target coordinates, and timing information. The parser
-//! handles flexible JSON structures with robust error reporting.
-//!
-//! # Format
-//!
-//! Expected JSON structure:
-//! ```json
-//! {
-//!   "SchedulingBlock": [
-//!     {
-//!       "schedulingBlockId": 12345,
-//!       "priority": 10.5,
-//!       "target": {
-//!         "position_": {
-//!           "coord": {
-//!             "celestial": {
-//!               "raInDeg": 123.45,
-//!               "decInDeg": -23.45
-//!             }
-//!           }
-//!         }
-//!       },
-//!       "schedulingBlockConfiguration_": {
-//!         "constraints_": {
-//!           "timeConstraint_": { ... },
-//!           "elevationConstraint_": { ... },
-//!           "azimuthConstraint_": { ... }
-//!         }
-//!       }
-//!     }
-//!   ]
-//! }
-//! ```
-
+use crate::db::models::*;
 use anyhow::{Context, Result};
-use serde::{Deserialize, Deserializer};
-use std::path::Path;
+use serde_json::Value;
+use siderust::{
+    astro::ModifiedJulianDate,
+    units::time::Seconds,
+    units::angular::Degrees,
+    coordinates::spherical::direction::ICRS,
+};
+use std::collections::HashMap;
 
-use crate::core::domain::SchedulingBlock;
-
-/// Custom deserializer that accepts either string or integer for scheduling block ID.
-///
-/// This flexibility handles variations in JSON generation where IDs might be
-/// represented as either strings or integers.
-fn deserialize_scheduling_block_id<'de, D>(deserializer: D) -> Result<i64, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    use serde::de::Error;
-
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum StringOrInt {
-        String(String),
-        Int(i64),
-    }
-
-    match StringOrInt::deserialize(deserializer)? {
-        StringOrInt::String(s) => s.parse::<i64>().map_err(D::Error::custom),
-        StringOrInt::Int(i) => Ok(i),
-    }
-}
-
-/// Raw JSON structure for time values
-#[derive(Debug, Deserialize)]
-struct TimeValue {
-    value: f64, // MJD value
-}
-
-/// Raw JSON structure for a scheduled period
-#[derive(Debug, Deserialize)]
-struct ScheduledPeriod {
-    #[serde(rename = "startTime")]
-    start_time: TimeValue,
-    #[serde(rename = "stopTime")]
-    stop_time: TimeValue,
-}
-
-/// Raw JSON structure for celestial coordinates
-#[derive(Debug, Deserialize)]
-struct Celestial {
-    #[serde(rename = "raInDeg")]
-    ra_in_deg: f64,
-    #[serde(rename = "decInDeg")]
-    dec_in_deg: f64,
-}
-
-/// Raw JSON structure for position coordinate
-#[derive(Debug, Deserialize)]
-struct Coord {
-    celestial: Celestial,
-}
-
-/// Raw JSON structure for position
-#[derive(Debug, Deserialize)]
-struct Position {
-    coord: Coord,
-}
-
-/// Raw JSON structure for target information
-#[derive(Debug, Deserialize)]
-#[allow(dead_code)]
-struct Target {
-    #[serde(rename = "id_")]
-    id: Option<i64>,
-    name: Option<String>,
-    #[serde(rename = "position_")]
-    position: Position,
-}
-
-/// Raw JSON structure for azimuth constraint
-#[derive(Debug, Deserialize)]
-struct AzimuthConstraint {
-    #[serde(rename = "minAzimuthAngleInDeg")]
-    min_azimuth_angle_in_deg: f64,
-    #[serde(rename = "maxAzimuthAngleInDeg")]
-    max_azimuth_angle_in_deg: f64,
-}
-
-/// Raw JSON structure for elevation constraint
-#[derive(Debug, Deserialize)]
-struct ElevationConstraint {
-    #[serde(rename = "minElevationAngleInDeg")]
-    min_elevation_angle_in_deg: f64,
-    #[serde(rename = "maxElevationAngleInDeg")]
-    max_elevation_angle_in_deg: f64,
-}
-
-/// Raw JSON structure for time constraint
-#[derive(Debug, Deserialize)]
-struct TimeConstraint {
-    #[serde(rename = "minObservationTimeInSec")]
-    min_observation_time_in_sec: Option<f64>,
-    #[serde(rename = "requestedDurationSec")]
-    requested_duration_sec: f64,
-    #[serde(rename = "fixedStartTime")]
-    fixed_start_time: Vec<TimeValue>, // Array of TimeValue objects (can be empty)
-    #[serde(rename = "fixedStopTime")]
-    fixed_stop_time: Vec<TimeValue>, // Array of TimeValue objects (can be empty)
-}
-
-/// Raw JSON structure for constraints
-#[derive(Debug, Deserialize)]
-struct Constraints {
-    #[serde(rename = "azimuthConstraint_")]
-    azimuth_constraint: AzimuthConstraint,
-    #[serde(rename = "elevationConstraint_")]
-    elevation_constraint: ElevationConstraint,
-    #[serde(rename = "timeConstraint_")]
-    time_constraint: TimeConstraint,
-}
-
-/// Raw JSON structure for scheduling block configuration
-#[derive(Debug, Deserialize)]
-struct SchedulingBlockConfiguration {
-    #[serde(rename = "constraints_")]
-    constraints: Constraints,
-}
-
-/// Raw JSON structure as it comes from schedule.json
-#[derive(Debug, Deserialize)]
-struct RawSchedulingBlock {
-    #[serde(
-        rename = "schedulingBlockId",
-        deserialize_with = "deserialize_scheduling_block_id"
-    )]
-    scheduling_block_id: i64,
-    priority: f64,
-    #[serde(rename = "scheduled_period")]
-    scheduled_period: Option<ScheduledPeriod>,
-    target: Target,
-    #[serde(rename = "schedulingBlockConfiguration_")]
-    scheduling_block_configuration: SchedulingBlockConfiguration,
-}
-
-/// Container for the JSON file structure
-#[derive(Debug, Deserialize)]
-struct ScheduleJson {
-    #[serde(rename = "SchedulingBlock")]
-    scheduling_blocks: Vec<RawSchedulingBlock>,
-}
-
-/// Parses a schedule.json file into a vector of `SchedulingBlock` structures.
-///
-/// Reads a JSON file from disk and deserializes it into the internal domain model.
-/// Provides detailed error messages indicating which scheduling block caused parse failures.
+/// Parses schedule JSON from a string into a `Schedule` structure.
 ///
 /// # Arguments
-///
-/// * `json_path` - Path to the schedule.json file
+/// * `json_schedule_json` - JSON string containing the scheduling blocks
+/// * `possible_periods_json` - Optional JSON string with visibility periods per block ID
+/// * `dark_periods_json` - JSON string containing dark periods
 ///
 /// # Returns
-///
-/// * `Ok(Vec<SchedulingBlock>)` - Successfully parsed scheduling blocks
-/// * `Err(anyhow::Error)` - File I/O error, JSON syntax error, or deserialization error
-///
-/// # Errors
-///
-/// This function returns an error if:
-/// - The file cannot be read (permissions, file not found, etc.)
-/// - The file contains invalid JSON syntax
-/// - The JSON structure doesn't match the expected schema
-/// - Required fields are missing or have invalid values
-/// - The "SchedulingBlock" top-level key is missing
-///
-/// # Examples
-///
-/// ```no_run
-/// use tsi_rust::parsing::json_parser::parse_schedule_json;
-/// use std::path::Path;
-///
-/// let blocks = parse_schedule_json(Path::new("data/schedule.json"))
-///     .expect("Failed to parse schedule");
-/// println!("Loaded {} scheduling blocks", blocks.len());
-/// ```
-pub fn parse_schedule_json(json_path: &Path) -> Result<Vec<SchedulingBlock>> {
-    let json_content = std::fs::read_to_string(json_path)
-        .with_context(|| format!("Failed to read JSON file: {}", json_path.display()))?;
-
-    parse_schedule_json_str(&json_content)
+/// A `Schedule` containing all parsed blocks and dark periods
+pub fn parse_schedule_json_str(
+    json_schedule_json: &str,
+    possible_periods_json: Option<&str>,
+    dark_periods_json: &str,
+) -> Result<Schedule> {
+    // Parse dark periods
+    let dark_periods = parse_dark_periods_from_str(dark_periods_json)
+        .context("Failed to parse dark periods")?;
+    
+    // Parse possible periods if provided
+    let possible_periods_map = if let Some(pp_json) = possible_periods_json {
+        Some(parse_possible_periods_from_str(pp_json)
+            .context("Failed to parse possible periods")?)
+    } else {
+        None
+    };
+    
+    // Parse scheduling blocks
+    let blocks = parse_scheduling_blocks_from_str(json_schedule_json, possible_periods_map.as_ref())
+        .context("Failed to parse scheduling blocks")?;
+    
+    // Create schedule with a default name and checksum
+    let checksum = compute_schedule_checksum(json_schedule_json);
+    
+    Ok(Schedule {
+        id: None,
+        name: "parsed_schedule".to_string(),
+        checksum,
+        dark_periods,
+        blocks,
+    })
 }
 
-/// Parses schedule JSON from a string into `SchedulingBlock` structures.
-///
-/// This function is useful for parsing JSON data from memory, network responses,
-/// or embedded strings without requiring file I/O.
-///
-/// # Arguments
-///
-/// * `json_str` - JSON string containing schedule data
-///
-/// # Returns
-///
-/// * `Ok(Vec<SchedulingBlock>)` - Successfully parsed scheduling blocks
-/// * `Err(anyhow::Error)` - JSON syntax error or deserialization error with detailed context
-///
-/// # Errors
-///
-/// Returns an error if:
-/// - The string is not valid JSON
-/// - The JSON structure is missing the "SchedulingBlock" key
-/// - Any scheduling block fails to deserialize (pinpoints which block and field)
-/// - Required fields are missing or have the wrong type
-///
-/// Error messages include:
-/// - A preview of the JSON (first 500 characters) for syntax errors
-/// - The index of the problematic scheduling block
-/// - The specific deserialization error and field name
-/// - The full JSON representation of the failing block
-///
-/// # Examples
-///
-/// ```
-/// use tsi_rust::parsing::json_parser::parse_schedule_json_str;
-///
-/// let json = r#"{
-///   "SchedulingBlock": [
-///     {
-///       "schedulingBlockId": 1,
-///       "priority": 10.0,
-///       "target": {
-///         "position_": {
-///           "coord": {
-///             "celestial": {
-///               "raInDeg": 180.0,
-///               "decInDeg": 45.0
-///             }
-///           }
-///         }
-///       },
-///       "schedulingBlockConfiguration_": {
-///         "constraints_": {
-///           "timeConstraint_": {
-///             "requestedDurationSec": 3600.0,
-///             "fixedStartTime": [],
-///             "fixedStopTime": []
-///           },
-///           "elevationConstraint_": {
-///             "minElevationAngleInDeg": 30.0,
-///             "maxElevationAngleInDeg": 80.0
-///           },
-///           "azimuthConstraint_": {
-///             "minAzimuthAngleInDeg": 0.0,
-///             "maxAzimuthAngleInDeg": 360.0
-///           }
-///         }
-///       }
-///     }
-///   ]
-/// }"#;
-///
-/// let blocks = parse_schedule_json_str(json)
-///     .expect("Failed to parse");
-/// assert_eq!(blocks.len(), 1);
-/// ```
-pub fn parse_schedule_json_str(json_str: &str) -> Result<Vec<SchedulingBlock>> {
-    // First validate that it's valid JSON
-    let json_value: serde_json::Value = serde_json::from_str(json_str).with_context(|| {
-        let preview = if json_str.len() > 500 {
-            format!("{}...", &json_str[..500])
-        } else {
-            json_str.to_string()
-        };
-        format!("Invalid JSON syntax. First 500 chars: {}", preview)
-    })?;
-
-    // Check if SchedulingBlock key exists
-    if !json_value.is_object()
-        || !json_value
-            .as_object()
-            .unwrap()
-            .contains_key("SchedulingBlock")
-    {
-        anyhow::bail!(
-            "JSON must contain a 'SchedulingBlock' key. Found keys: {:?}",
-            json_value.as_object().map(|o| o.keys().collect::<Vec<_>>())
-        );
+/// Parse dark periods from JSON string
+fn parse_dark_periods_from_str(json_str: &str) -> Result<Vec<Period>> {
+    let value: Value = serde_json::from_str(json_str)
+        .context("Failed to parse dark periods JSON")?;
+    
+    let dark_periods_array = value
+        .get("dark_periods")
+        .and_then(|v| v.as_array())
+        .context("Missing or invalid 'dark_periods' array")?;
+    
+    let mut periods = Vec::new();
+    
+    for period_value in dark_periods_array {
+        if let Some(period) = parse_period_from_value(period_value)? {
+            periods.push(period);
+        }
     }
+    
+    Ok(periods)
+}
 
-    // Now try to deserialize with detailed error handling
-    let schedule_json: ScheduleJson = serde_json::from_value(json_value.clone()).map_err(|e| {
-        // Provide detailed error information
-        let error_msg = format!("JSON deserialization error: {}", e);
-
-        // Try to identify which block is causing the issue
-        if let Some(blocks) = json_value.get("SchedulingBlock").and_then(|v| v.as_array()) {
-            // Try to deserialize blocks one by one to find the problematic one
-            for (idx, block) in blocks.iter().enumerate() {
-                if let Err(block_err) = serde_json::from_value::<RawSchedulingBlock>(block.clone())
-                {
-                    return anyhow::anyhow!(
-                        "{}\nError in SchedulingBlock at index {}: {}\nBlock data: {}",
-                        error_msg,
-                        idx,
-                        block_err,
-                        serde_json::to_string_pretty(block)
-                            .unwrap_or_else(|_| "cannot display".to_string())
-                    );
-                }
+/// Parse possible periods (visibility windows) from JSON string
+/// Returns a map of scheduling_block_id -> Vec<Period>
+fn parse_possible_periods_from_str(json_str: &str) -> Result<HashMap<i64, Vec<Period>>> {
+    let value: Value = serde_json::from_str(json_str)
+        .context("Failed to parse possible periods JSON")?;
+    
+    let scheduling_block_obj = value
+        .get("SchedulingBlock")
+        .and_then(|v| v.as_object())
+        .context("Missing or invalid 'SchedulingBlock' object")?;
+    
+    let mut result = HashMap::new();
+    
+    for (block_id_str, periods_array) in scheduling_block_obj {
+        let block_id: i64 = block_id_str.parse()
+            .with_context(|| format!("Invalid block ID: {}", block_id_str))?;
+        
+        let periods_arr = periods_array.as_array()
+            .context("Expected array of periods")?;
+        
+        let mut periods = Vec::new();
+        for period_value in periods_arr {
+            if let Some(period) = parse_period_from_value(period_value)? {
+                periods.push(period);
             }
         }
-
-        anyhow::anyhow!("{}", error_msg)
-    })?;
-
-    Ok(schedule_json
-        .scheduling_blocks
-        .into_iter()
-        .enumerate()
-        .map(|(idx, raw)| {
-            // Wrap conversion to add context about which block failed
-            convert_raw_to_domain(raw, idx)
-        })
-        .collect())
+        
+        result.insert(block_id, periods);
+    }
+    
+    Ok(result)
 }
 
-/// Convert raw JSON structure to domain model
-fn convert_raw_to_domain(raw: RawSchedulingBlock, _idx: usize) -> SchedulingBlock {
-    use crate::core::domain::Period;
-    use siderust::astro::ModifiedJulianDate;
-    use siderust::coordinates::spherical::direction::ICRS;
-    use siderust::units::{angular::Degrees, time::*};
-
-    // Sentinel value for unscheduled blocks
-    const UNSCHEDULED_SENTINEL: f64 = 51910.5;
-
-    let (scheduled_start, scheduled_stop) = raw
-        .scheduled_period
-        .map(|p| {
-            // Check for sentinel value indicating unscheduled
-            if p.start_time.value == UNSCHEDULED_SENTINEL {
-                (None, None)
-            } else {
-                (Some(p.start_time.value), Some(p.stop_time.value))
-            }
-        })
-        .unwrap_or((None, None));
-
-    let constraints = &raw.scheduling_block_configuration.constraints;
-    let time_constraint = &constraints.time_constraint;
-
-    // Get fixed times if they exist - extract the .value from TimeValue
-    let fixed_start_time = time_constraint.fixed_start_time.first().map(|tv| tv.value);
-    let fixed_stop_time = time_constraint.fixed_stop_time.first().map(|tv| tv.value);
-
-    SchedulingBlock {
-        scheduling_block_id: raw.scheduling_block_id.to_string(),
-        target_id: raw.target.id.map(|id| id.to_string()),
-        target_name: raw.target.name.clone(),
-        priority: raw.priority,
-        requested_duration: Seconds::new(time_constraint.requested_duration_sec),
-        min_observation_time: Seconds::new(
-            time_constraint.min_observation_time_in_sec.unwrap_or(0.0),
-        ),
-        fixed_time: match (fixed_start_time, fixed_stop_time) {
-            (Some(start), Some(stop)) => Some(Period::new(
-                ModifiedJulianDate::new(start),
-                ModifiedJulianDate::new(stop),
-            )),
-            _ => None,
-        },
-        coordinates: Some(ICRS::new(
-            Degrees::new(raw.target.position.coord.celestial.ra_in_deg),
-            Degrees::new(raw.target.position.coord.celestial.dec_in_deg),
-        )),
-        min_azimuth_angle: Some(Degrees::new(
-            constraints.azimuth_constraint.min_azimuth_angle_in_deg,
-        )),
-        max_azimuth_angle: Some(Degrees::new(
-            constraints.azimuth_constraint.max_azimuth_angle_in_deg,
-        )),
-        min_elevation_angle: Some(Degrees::new(
-            constraints.elevation_constraint.min_elevation_angle_in_deg,
-        )),
-        max_elevation_angle: Some(Degrees::new(
-            constraints.elevation_constraint.max_elevation_angle_in_deg,
-        )),
-        scheduled_period: match (scheduled_start, scheduled_stop) {
-            (Some(start), Some(stop)) => Some(Period::new(
-                ModifiedJulianDate::new(start),
-                ModifiedJulianDate::new(stop),
-            )),
-            _ => None,
-        },
-        visibility_periods: vec![], // Will be enriched later with visibility data
+/// Parse scheduling blocks from JSON string
+fn parse_scheduling_blocks_from_str(
+    json_str: &str,
+    possible_periods_map: Option<&HashMap<i64, Vec<Period>>>,
+) -> Result<Vec<SchedulingBlock>> {
+    let value: Value = serde_json::from_str(json_str)
+        .context("Failed to parse schedule JSON")?;
+    
+    let blocks_array = value
+        .get("SchedulingBlock")
+        .and_then(|v| v.as_array())
+        .context("Missing or invalid 'SchedulingBlock' array")?;
+    
+    let mut blocks = Vec::new();
+    
+    for block_value in blocks_array {
+        let block = parse_scheduling_block(block_value, possible_periods_map)
+            .context("Failed to parse scheduling block")?;
+        blocks.push(block);
     }
+    
+    Ok(blocks)
+}
+
+/// Parse a single scheduling block from JSON
+fn parse_scheduling_block(
+    value: &Value,
+    possible_periods_map: Option<&HashMap<i64, Vec<Period>>>,
+) -> Result<SchedulingBlock> {
+    // Extract block ID
+    let block_id = value
+        .get("schedulingBlockId")
+        .and_then(|v| v.as_i64())
+        .context("Missing or invalid 'schedulingBlockId'")?;
+    
+    // Extract priority
+    let priority = value
+        .get("priority")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'priority'")? as f32;
+    
+    // Extract target coordinates
+    let target = parse_target(value)?;
+    
+    // Extract constraints
+    let constraints = parse_constraints(value)?;
+    
+    // Extract time constraints
+    let (min_observation, requested_duration) = parse_time_constraints(value)?;
+    
+    // Extract scheduled period (if exists)
+    let scheduled_period = match value.get("scheduled_period") {
+        Some(v) => parse_period_from_value(v)?,
+        None => None,
+    };
+    
+    // Get visibility periods from possible_periods_map
+    let visibility_periods = if let Some(map) = possible_periods_map {
+        map.get(&block_id).cloned().unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    
+    Ok(SchedulingBlock {
+        id: SchedulingBlockId(block_id),
+        target,
+        constraints,
+        priority,
+        min_observation,
+        requested_duration,
+        visibility_periods,
+        scheduled_period,
+    })
+}
+
+/// Parse target coordinates from scheduling block JSON
+fn parse_target(value: &Value) -> Result<ICRS> {
+    let target_obj = value
+        .get("target")
+        .context("Missing 'target' field")?;
+    
+    let position = target_obj
+        .get("position_")
+        .context("Missing 'position_' field")?;
+    
+    let coord = position
+        .get("coord")
+        .context("Missing 'coord' field")?;
+    
+    let celestial = coord
+        .get("celestial")
+        .context("Missing 'celestial' field")?;
+    
+    let ra_deg = celestial
+        .get("raInDeg")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'raInDeg'")?;
+    
+    let dec_deg = celestial
+        .get("decInDeg")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'decInDeg'")?;
+    
+    Ok(ICRS::new(
+        Degrees::new(ra_deg),
+        Degrees::new(dec_deg),
+    ))
+}
+
+/// Parse constraints from scheduling block JSON
+fn parse_constraints(value: &Value) -> Result<Constraints> {
+    let config = value
+        .get("schedulingBlockConfiguration_")
+        .context("Missing 'schedulingBlockConfiguration_' field")?;
+    
+    let constraints_obj = config
+        .get("constraints_")
+        .context("Missing 'constraints_' field")?;
+    
+    // Parse elevation constraint
+    let elevation_constraint = constraints_obj
+        .get("elevationConstraint_")
+        .context("Missing 'elevationConstraint_' field")?;
+    
+    let min_alt = elevation_constraint
+        .get("minElevationAngleInDeg")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'minElevationAngleInDeg'")? as f64;
+    
+    let max_alt = elevation_constraint
+        .get("maxElevationAngleInDeg")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'maxElevationAngleInDeg'")? as f64;
+    
+    // Parse azimuth constraint
+    let azimuth_constraint = constraints_obj
+        .get("azimuthConstraint_")
+        .context("Missing 'azimuthConstraint_' field")?;
+    
+    let min_az = azimuth_constraint
+        .get("minAzimuthAngleInDeg")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'minAzimuthAngleInDeg'")? as f64;
+    
+    let max_az = azimuth_constraint
+        .get("maxAzimuthAngleInDeg")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'maxAzimuthAngleInDeg'")? as f64;
+    
+    // Parse time constraint for fixed time (if exists)
+    let time_constraint = constraints_obj
+        .get("timeConstraint_")
+        .context("Missing 'timeConstraint_' field")?;
+    
+    let fixed_start = time_constraint
+        .get("fixedStartTime")
+        .and_then(|v| v.as_array());
+    
+    let fixed_stop = time_constraint
+        .get("fixedStopTime")
+        .and_then(|v| v.as_array());
+    
+    let fixed_time = match (fixed_start, fixed_stop) {
+        (Some(start_arr), Some(stop_arr)) if !start_arr.is_empty() && !stop_arr.is_empty() => {
+            let start_mjd = parse_time_entry(&start_arr[0], "startTime")?;
+            let stop_mjd = parse_time_entry(&stop_arr[0], "stopTime")?;
+            Period::new(start_mjd, stop_mjd)
+        }
+        _ => None,
+    };
+    
+    Ok(Constraints {
+        min_alt: Degrees::new(min_alt),
+        max_alt: Degrees::new(max_alt),
+        min_az: Degrees::new(min_az),
+        max_az: Degrees::new(max_az),
+        fixed_time,
+    })
+}
+
+/// Extract time constraint parameters from scheduling block JSON
+fn parse_time_constraints(value: &Value) -> Result<(Seconds, Seconds)> {
+    let config = value
+        .get("schedulingBlockConfiguration_")
+        .context("Missing 'schedulingBlockConfiguration_' field")?;
+    
+    let constraints_obj = config
+        .get("constraints_")
+        .context("Missing 'constraints_' field")?;
+    
+    let time_constraint = constraints_obj
+        .get("timeConstraint_")
+        .context("Missing 'timeConstraint_' field")?;
+    
+    let min_observation_sec = time_constraint
+        .get("minObservationTimeInSec")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'minObservationTimeInSec'")? as f64;
+    
+    let requested_duration_sec = time_constraint
+        .get("requestedDurationSec")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'requestedDurationSec'")? as f64;
+    
+    Ok((
+        Seconds::new(min_observation_sec),
+        Seconds::new(requested_duration_sec),
+    ))
+}
+
+/// Parse a single fixed time entry helper supporting both full period objects
+/// and standalone timestamp objects.
+fn parse_time_entry(value: &Value, key_hint: &str) -> Result<ModifiedJulianDate> {
+    if let Some(obj) = value.get(key_hint) {
+        return parse_time_value_object(obj, key_hint);
+    }
+
+    if let Some(obj) = value.get("startTime") {
+        return parse_time_value_object(obj, "startTime");
+    }
+
+    if let Some(obj) = value.get("stopTime") {
+        return parse_time_value_object(obj, "stopTime");
+    }
+
+    parse_time_value_object(value, key_hint)
+}
+
+/// Extract the numeric MJD value from a time object.
+fn parse_time_value_object(value: &Value, context_label: &str) -> Result<ModifiedJulianDate> {
+    let mjd = value
+        .get("value")
+        .and_then(|v| v.as_f64())
+        .or_else(|| value.as_f64())
+        .with_context(|| format!("Missing or invalid '{}' in time entry", context_label))?;
+
+    Ok(ModifiedJulianDate::new(mjd))
+}
+
+/// Parse a period from a JSON value
+fn parse_period_from_value(value: &Value) -> Result<Option<Period>> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    
+    let start_obj = value
+        .get("startTime")
+        .context("Missing 'startTime' in period")?;
+    
+    let stop_obj = value
+        .get("stopTime")
+        .context("Missing 'stopTime' in period")?;
+    
+    let start_mjd = start_obj
+        .get("value")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'value' in startTime")?;
+    
+    let stop_mjd = stop_obj
+        .get("value")
+        .and_then(|v| v.as_f64())
+        .context("Missing or invalid 'value' in stopTime")?;
+    
+    let period = Period::new(
+        ModifiedJulianDate::new(start_mjd),
+        ModifiedJulianDate::new(stop_mjd),
+    );
+    
+    Ok(period)
+}
+
+/// Compute a checksum for the schedule JSON
+fn compute_schedule_checksum(json_str: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(json_str.as_bytes());
+    let result = hasher.finalize();
+    hex::encode(result)
+}
+
+/// Parses schedule JSON from files into a `Schedule` structure.
+///
+/// # Arguments
+/// * `schedule_json_path` - Path to JSON file containing the scheduling blocks
+/// * `possible_periods_json_path` - Optional path to JSON file with visibility periods per block ID
+/// * `dark_periods_json_path` - Path to JSON file containing dark periods
+///
+/// # Returns
+/// A `Schedule` containing all parsed blocks and dark periods
+pub fn parse_schedule_json(
+    schedule_json_path: &std::path::Path,
+    possible_periods_json_path: Option<&std::path::Path>,
+    dark_periods_json_path: &std::path::Path,
+) -> Result<Schedule> {
+    // Read schedule JSON
+    let schedule_json = std::fs::read_to_string(schedule_json_path)
+        .with_context(|| format!("Failed to read schedule file: {}", schedule_json_path.display()))?;
+    
+    // Read possible periods if provided
+    let possible_periods_json = if let Some(path) = possible_periods_json_path {
+        Some(std::fs::read_to_string(path)
+            .with_context(|| format!("Failed to read possible periods file: {}", path.display()))?)
+    } else {
+        None
+    };
+    
+    // Read dark periods
+    let dark_periods_json = std::fs::read_to_string(dark_periods_json_path)
+        .with_context(|| format!("Failed to read dark periods file: {}", dark_periods_json_path.display()))?;
+    
+    // Parse using string-based function
+    parse_schedule_json_str(
+        &schedule_json,
+        possible_periods_json.as_deref(),
+        &dark_periods_json,
+    )
 }

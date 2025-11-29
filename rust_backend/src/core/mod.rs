@@ -1,6 +1,5 @@
-//! Core domain models for telescope scheduling.
-//!
-//! This module defines the fundamental data structures used throughout the TSI system,
-//! representing scheduling blocks, time periods, and observation constraints.
+/// Core domain types for the scheduling system.
+///
+/// This module re-exports domain models from the database layer.
 
 pub mod domain;

@@ -3,113 +3,47 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from pathlib import Path
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
 import pandas as pd
 
 from tsi.config import REQUIRED_COLUMNS
-from tsi.services.rust_compat import (
-    filter_by_priority,
-    filter_by_scheduled,
-    load_schedule_rust,
-    validate_dataframe_rust,
-)
 from tsi.services.preparation import PreparationResult
 from tsi.services.preparation import prepare_dataframe as core_prepare_dataframe
 from tsi.services.preparation import validate_schema as core_validate_schema
+from tsi.services.rust_backend import BACKEND, load_schedule_from_any
 
 logger = logging.getLogger(__name__)
 
-F = TypeVar("F", bound=Callable[..., Any])
-
-
-# =============================================================================
-# Streamlit Adapter Layer
-# =============================================================================
-
-
-def _identity_cache(func: F | None = None, **_: Any) -> F | Callable[[F], F]:
-    """Fallback decorator used when Streamlit caching is unavailable."""
-
-    def decorator(inner: F) -> F:
-        return inner
-
-    if func is None:
-        return decorator
-    return decorator(func)
-
-
-# Streamlit integration (optional - gracefully degrades if unavailable)
-def _default_warning_handler(msg: str) -> None:
-    logger.warning(msg)
-
-
-_streamlit_available = False
-_cache_decorator: Any = _identity_cache
-_warning_handler: Any = _default_warning_handler
-
-
-try:  # pragma: no cover
-    import streamlit as st
-
-    try:
-        from streamlit import runtime
-    except Exception:
-        runtime = None  # type: ignore[assignment]
-
-    if (
-        hasattr(st, "cache_data")
-        and runtime is not None
-        and callable(getattr(runtime, "exists", None))
-    ):
-        if runtime.exists():  # type: ignore[union-attr]
-            _streamlit_available = True
-            _cache_decorator = st.cache_data
-            _warning_handler = st.warning
-        else:
-            logger.info("Streamlit runtime not initialized")
-    else:
-        logger.info("Streamlit caching unavailable")
-
-except Exception as e:
-    logger.debug(f"Streamlit not available: {e}")
-
 
 def emit_warning(message: str) -> None:
+    """Display warnings in Streamlit when available, otherwise log."""
+    try:
+        import streamlit as st
+
+        st.warning(message)
+    except Exception:
+        logger.warning(message)
+
+
+def load_schedule_rust(path: str | Path | Any, format: str = "auto") -> pd.DataFrame:
     """
-    Emit a warning through the appropriate channel.
-
-    Uses Streamlit UI if available, otherwise logs as warning.
-
-    Args:
-        message: Warning message to display
+    Load schedule data using the Rust backend (supports file-like objects).
     """
-    _warning_handler(message)
+    return cast(pd.DataFrame, load_schedule_from_any(path, format=format))
 
 
-def cache_data(**kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    """
-    Apply caching decorator appropriate for the runtime context.
-
-    Uses Streamlit cache_data if available, otherwise no-op.
-
-    Args:
-        **kwargs: Cache configuration parameters (passed to Streamlit if available)
-
-    Returns:
-        Caching decorator function
-    """
-    return cast(
-        Callable[[Callable[..., Any]], Callable[..., Any]],
-        _cache_decorator(**kwargs),
-    )
+def filter_by_priority(
+    df: pd.DataFrame, min_priority: float = 0.0, max_priority: float = 10.0
+) -> pd.DataFrame:
+    """Filter dataframe by priority range using the Rust backend."""
+    return cast(pd.DataFrame, BACKEND.filter_by_priority(df, min_priority, max_priority))
 
 
-# =============================================================================
-# Core Loading Functions (Streamlit-agnostic)
-# =============================================================================
+def filter_by_scheduled(df: pd.DataFrame, filter_type: str = "All") -> pd.DataFrame:
+    """Filter dataframe by scheduled status using the Rust backend."""
+    return cast(pd.DataFrame, BACKEND.filter_by_scheduled(df, filter_type))
 
 
 def _load_csv_core(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
@@ -127,7 +61,6 @@ def _load_csv_core(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
         ValueError: If required columns are missing
     """
     try:
-        # Use Rust backend for loading (10x speedup)
         df = load_schedule_rust(file_path_or_buffer, format="csv")
     except Exception as e:
         raise ValueError(f"Failed to read CSV: {e}")
@@ -140,12 +73,9 @@ def _load_csv_core(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
     return cast(pd.DataFrame, df)
 
 
-@cache_data(ttl=3600, show_spinner="Loading data...")
 def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:  # type: ignore[no-any-return]
     """
     Load CSV file using Rust backend (10x faster than pandas).
-
-    Streamlit-aware version with caching when available.
 
     Args:
         file_path_or_buffer: Path to CSV file or file-like buffer
@@ -174,15 +104,12 @@ def _prepare_dataframe_core(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     return result.dataframe, result.warnings  # type: ignore[return-value]
 
 
-@cache_data(ttl=3600, show_spinner="Preparing data...")
 def prepare_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """
     Prepare and enrich pre-processed DataFrame.
 
     Assumes the CSV has been pre-processed with all derived columns.
     Only performs lightweight operations like type conversion and datetime parsing.
-
-    Streamlit-aware version with caching and warning display.
     """
     prepared_df, warnings = _prepare_dataframe_core(df)
     for warning in warnings:
@@ -234,7 +161,10 @@ def validate_dataframe(df: pd.DataFrame) -> tuple[bool, list[str]]:
     )
 
     # Data validation (Rust - 5x speedup)
-    data_ok, data_errors = validate_dataframe_rust(df)
+    try:
+        data_ok, data_errors = BACKEND.validate_dataframe(df)
+    except Exception as e:
+        data_ok, data_errors = False, [f"Validation failed: {e}"]
 
     issues = [*schema_errors, *data_errors]
     return schema_ok and data_ok, issues

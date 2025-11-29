@@ -15,20 +15,21 @@ from tsi.services import (
     load_csv,
     validate_dataframe,
 )
-from tsi.services.rust_compat import (
-    compute_metrics as rust_compute_metrics,
-)
-from tsi.services.rust_compat import (
-    filter_by_priority,
-    filter_by_scheduled,
-    load_schedule_rust,
-)
-from tsi.services.rust_compat import (
-    find_conflicts as rust_find_conflicts,
-)
-from tsi.services.rust_compat import (
-    get_top_observations as rust_get_top_observations,
-)
+from tsi.services.loaders import filter_by_priority, filter_by_scheduled, load_schedule_rust
+from tsi.models.schemas import AnalyticsMetrics
+from tsi.services.rust_backend import BACKEND
+
+
+def rust_compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
+    return AnalyticsMetrics(**BACKEND.compute_metrics(df))
+
+
+def rust_get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) -> pd.DataFrame:
+    return BACKEND.get_top_observations(df, by=by, n=n)
+
+
+def rust_find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
+    return BACKEND.find_conflicts(df)
 
 
 class TestRustIntegrationE2E:

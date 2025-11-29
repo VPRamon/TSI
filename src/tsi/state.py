@@ -10,6 +10,8 @@ KEY_DATA_PREPARED = "data_prepared"
 KEY_CURRENT_PAGE = "current_page"
 KEY_DATA_SOURCE = "data_source"
 KEY_DATA_FILENAME = "data_filename"
+KEY_SCHEDULE_ID = "schedule_id"
+KEY_SCHEDULE_NAME = "schedule_name"
 KEY_PRIORITY_RANGE = "priority_range"
 KEY_SCHEDULED_FILTER = "scheduled_filter"
 KEY_SELECTED_BINS = "selected_bins"
@@ -37,6 +39,12 @@ def initialize_state() -> None:
 
     if KEY_DATA_FILENAME not in st.session_state:
         st.session_state[KEY_DATA_FILENAME] = None
+
+    if KEY_SCHEDULE_ID not in st.session_state:
+        st.session_state[KEY_SCHEDULE_ID] = None
+
+    if KEY_SCHEDULE_NAME not in st.session_state:
+        st.session_state[KEY_SCHEDULE_NAME] = None
 
     if KEY_PRIORITY_RANGE not in st.session_state:
         st.session_state[KEY_PRIORITY_RANGE] = None
@@ -154,3 +162,23 @@ def get_comparison_schedule() -> Any:
 def set_comparison_schedule(df: Any) -> None:
     """Set the comparison schedule DataFrame in session state."""
     st.session_state[KEY_COMPARISON_SCHEDULE] = df
+
+
+def get_schedule_id() -> int | None:
+    """Get the current schedule ID from the database."""
+    return st.session_state.get(KEY_SCHEDULE_ID)
+
+
+def set_schedule_id(schedule_id: int | None) -> None:
+    """Set the current schedule ID."""
+    st.session_state[KEY_SCHEDULE_ID] = schedule_id
+
+
+def get_schedule_name() -> str | None:
+    """Get the current schedule name."""
+    return st.session_state.get(KEY_SCHEDULE_NAME)
+
+
+def set_schedule_name(schedule_name: str | None) -> None:
+    """Set the current schedule name."""
+    st.session_state[KEY_SCHEDULE_NAME] = schedule_name
