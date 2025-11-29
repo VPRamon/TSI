@@ -1,6 +1,7 @@
 //! Database CRUD operations for schedules, dark periods, and visibility data (SQL Server).
 
 use chrono::{DateTime, Utc};
+use log::{debug, info};
 use std::collections::HashMap;
 use tiberius::{Query, Row, numeric::Numeric};
 use siderust::{
@@ -126,6 +127,12 @@ impl<'a> ScheduleInserter<'a> {
     }
 
     async fn insert_schedule(&mut self, schedule: &Schedule) -> Result<ScheduleMetadata, String> {
+        info!(
+            "Uploading schedule '{}' ({} blocks, {} dark periods)",
+            schedule.name,
+            schedule.blocks.len(),
+            schedule.dark_periods.len()
+        );
         let (schedule_id, upload_timestamp) = self.insert_schedule_row(schedule).await?;
 
         // Batch process ALL scheduling blocks at once for maximum performance
@@ -133,6 +140,11 @@ impl<'a> ScheduleInserter<'a> {
             self.insert_scheduling_blocks_bulk(schedule_id, &schedule.blocks).await?;
         }
 
+        info!(
+            "Finished uploading schedule '{}' as id {}",
+            schedule.name,
+            schedule_id
+        );
         Ok(ScheduleMetadata {
             schedule_id: Some(schedule_id),
             schedule_name: schedule.name.clone(),
@@ -145,6 +157,11 @@ impl<'a> ScheduleInserter<'a> {
         &mut self,
         schedule: &Schedule,
     ) -> Result<(i64, DateTime<Utc>), String> {
+        debug!(
+            "Inserting schedule metadata row for '{}' (checksum {})",
+            schedule.name,
+            schedule.checksum
+        );
         // Serialize dark periods to JSON
         let dark_periods_json = if schedule.dark_periods.is_empty() {
             None
@@ -189,6 +206,12 @@ impl<'a> ScheduleInserter<'a> {
             .get::<DateTime<Utc>, _>(1)
             .ok_or_else(|| "upload_timestamp is NULL".to_string())?;
 
+        debug!(
+            "Inserted schedule '{}' as id {} (uploaded at {})",
+            schedule.name,
+            schedule_id,
+            upload_timestamp
+        );
         Ok((schedule_id, upload_timestamp))
     }
 
@@ -229,12 +252,23 @@ impl<'a> ScheduleInserter<'a> {
             return Ok(());
         }
 
+        debug!(
+            "Preparing bulk insert for {} scheduling blocks (schedule_id={})",
+            blocks.len(),
+            schedule_id
+        );
+
         // SQL Server parameter limit: 2100 params
         // Each scheduling block uses 6 params, so max = 2100/6 = 350
         // Use 300 for safety margin (1800 params)
         const BATCH_SIZE: usize = 300;
         
-        for chunk in blocks.chunks(BATCH_SIZE) {
+        for (chunk_index, chunk) in blocks.chunks(BATCH_SIZE).enumerate() {
+            debug!(
+                "Inserting scheduling block chunk {} containing {} blocks",
+                chunk_index + 1,
+                chunk.len()
+            );
             // Build VALUES clause for scheduling blocks
             let mut values_clauses = Vec::new();
             let mut json_strings: Vec<Option<String>> = Vec::new();
@@ -358,6 +392,10 @@ impl<'a> ScheduleInserter<'a> {
             return Ok(());
         }
 
+        debug!(
+            "Ensuring {} targets are present in the database",
+            targets.len()
+        );
         // Process targets one by one using the optimized get_or_create
         // This is safer than bulk MERGE and still uses the cache
         for (name, ra, dec) in targets {
@@ -373,6 +411,10 @@ impl<'a> ScheduleInserter<'a> {
             return Ok(());
         }
 
+        debug!(
+            "Ensuring {} constraint sets are present in the database",
+            constraints_list.len()
+        );
         // First, create all unique altitude/azimuth constraints
         let mut unique_altitudes = std::collections::HashSet::new();
         let mut unique_azimuths = std::collections::HashSet::new();
@@ -651,6 +693,12 @@ pub async fn health_check() -> Result<bool, String> {
 pub async fn store_schedule(
     schedule: &Schedule,
 ) -> Result<ScheduleMetadata, String> {
+    info!(
+        "Received request to store schedule '{}' (checksum {}, {} blocks)",
+        schedule.name,
+        schedule.checksum,
+        schedule.blocks.len()
+    );
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -695,6 +743,12 @@ pub async fn store_schedule(
             .unwrap_or_default()
             .to_string();
 
+        info!(
+            "Schedule '{}' already present as id {} (upload timestamp: {})",
+            schedule_name,
+            schedule_id,
+            upload_timestamp
+        );
         // Return metadata for the existing schedule
         return Ok(ScheduleMetadata {
             schedule_id: Some(schedule_id),
@@ -710,7 +764,25 @@ pub async fn store_schedule(
     //    Note: SQL Server uses implicit transactions, so all operations are
     //    automatically wrapped in a transaction and will rollback on error.
     //
+    info!(
+        "No existing schedule found for checksum {}. Proceeding with full insert",
+        schedule.checksum
+    );
     let metadata = insert_full_schedule(&mut *conn, schedule).await?;
+
+    if let Some(schedule_id) = metadata.schedule_id {
+        info!(
+            "Successfully inserted schedule '{}' with id {} ({} blocks)",
+            schedule.name,
+            schedule_id,
+            schedule.blocks.len()
+        );
+    } else {
+        info!(
+            "Successfully inserted schedule '{}' (id pending)",
+            schedule.name
+        );
+    }
     Ok(metadata)
 }
 
@@ -727,6 +799,12 @@ pub async fn get_schedule(
 ) -> Result<Schedule, String> {
     if schedule_id.is_none() && schedule_name.is_none() {
         return Err("Must provide either schedule_id or schedule_name".to_string());
+    }
+
+    if let Some(id) = schedule_id {
+        info!("Loading schedule by id {}", id);
+    } else if let Some(name) = schedule_name {
+        info!("Loading schedule '{}'", name);
     }
 
     let pool = pool::get_pool()?;
@@ -749,6 +827,14 @@ pub async fn get_schedule(
 
     // 3. Fetch all scheduling blocks for this schedule
     let blocks = fetch_scheduling_blocks(&mut *conn, db_schedule_id).await?;
+
+    info!(
+        "Loaded schedule '{}' (id {}) with {} blocks and {} dark periods",
+        metadata.schedule_name,
+        db_schedule_id,
+        blocks.len(),
+        dark_periods.len()
+    );
 
     Ok(Schedule {
         id: Some(ScheduleId(db_schedule_id)),
@@ -845,6 +931,10 @@ async fn fetch_dark_periods(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
     schedule_id: i64,
 ) -> Result<Vec<Period>, String> {
+    debug!(
+        "Fetching dark periods for schedule_id {}",
+        schedule_id
+    );
     let mut query = Query::new(
         r#"
         SELECT dark_periods_json
@@ -887,6 +977,11 @@ async fn fetch_dark_periods(
         }
     }
 
+    debug!(
+        "Fetched {} dark periods for schedule_id {}",
+        periods.len(),
+        schedule_id
+    );
     Ok(periods)
 }
 
@@ -895,6 +990,10 @@ async fn fetch_scheduling_blocks(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
     schedule_id: i64,
 ) -> Result<Vec<SchedulingBlock>, String> {
+    debug!(
+        "Fetching scheduling blocks for schedule_id {}",
+        schedule_id
+    );
     let mut query = Query::new(
         r#"
         SELECT 
@@ -995,6 +1094,11 @@ async fn fetch_scheduling_blocks(
         });
     }
 
+    debug!(
+        "Fetched {} scheduling blocks for schedule_id {}",
+        blocks.len(),
+        schedule_id
+    );
     Ok(blocks)
 }
 

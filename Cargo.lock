@@ -3789,6 +3789,7 @@ dependencies = [
  "criterion",
  "csv",
  "hex",
+ "log",
  "once_cell",
  "polars",
  "proptest",
