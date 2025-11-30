@@ -8,18 +8,8 @@ from tsi.components.insights.insights_controls import render_filter_controls
 from tsi.components.insights.insights_metrics import render_key_metrics, render_priority_analysis
 from tsi.components.insights.insights_reports import render_report_downloads
 from tsi.components.insights.insights_tables import render_integrity_checks, render_top_observations
-from tsi.services.analytics import (
-    compute_correlations,
-    compute_metrics,
-    find_conflicts,
-    generate_insights,
-    get_top_observations,
-)
-from tsi.services.impossible_filters import (
-    apply_insights_filter,
-    check_filter_support,
-    compute_impossible_mask,
-)
+from tsi.services.analytics import generate_insights
+from tsi.services.database import get_insights_data
 
 
 def render() -> None:
@@ -37,42 +27,45 @@ def render() -> None:
         """
     )
 
-    df = state.get_prepared_data()
+    schedule_id = state.get_schedule_id()
 
-    if df is None:
-        st.warning("No data loaded. Please return to the landing page.")
+    if schedule_id is None:
+        st.info("Load a schedule from the database to view insights.")
         return
 
-    # Check if filtering is supported and compute impossible mask
-    filter_supported = check_filter_support(df)
-    impossible_mask = compute_impossible_mask(df) if filter_supported else None
+    schedule_id = int(schedule_id)
 
-    # Render filter controls
+    # Render filter control (simplified - just the impossible filter toggle)
     with col2:
-        filter_mode = render_filter_controls(filter_supported)
+        filter_impossible = st.checkbox(
+            "Exclude Impossible",
+            value=False,
+            help="Exclude observations with zero visibility hours"
+        )
 
-    # Apply filter based on user selection
-    filtered_df = apply_insights_filter(df, filter_mode, impossible_mask)
+    try:
+        with st.spinner("Loading insights data..."):
+            insights_data = get_insights_data(
+                schedule_id=schedule_id,
+                filter_impossible=filter_impossible
+            )
+    except Exception as exc:
+        st.error(f"Failed to load insights data from the backend: {exc}")
+        return
 
-    if filtered_df.empty:
+    if insights_data.total_count == 0:
         st.warning("⚠️ No observations available with the selected filter.")
         return
 
-    # Compute analytics
-    with st.spinner("Computing analytics..."):
-        metrics = compute_metrics(filtered_df)
-        insights = generate_insights(filtered_df, metrics)
-        correlations = compute_correlations(filtered_df)
-        top_priority = get_top_observations(filtered_df, by="priority", n=10)
-        top_visibility = get_top_observations(filtered_df, by="total_visibility_hours", n=10)
-        conflicts = find_conflicts(filtered_df)
+    # Generate insights from metrics
+    insights = generate_insights(insights_data.blocks, insights_data.metrics)
 
     # Key Metrics
-    render_key_metrics(metrics)
+    render_key_metrics(insights_data.metrics)
     st.divider()
 
     # Priority comparison
-    render_priority_analysis(metrics)
+    render_priority_analysis(insights_data.metrics)
     st.divider()
 
     # Insights
@@ -80,16 +73,22 @@ def render() -> None:
     st.divider()
 
     # Correlation analysis
-    render_correlation_analysis(correlations)
+    render_correlation_analysis(insights_data.correlations)
     st.divider()
 
     # Top observations
-    render_top_observations(top_priority, top_visibility)
+    render_top_observations(insights_data.top_priority, insights_data.top_visibility)
     st.divider()
 
     # Integrity checks
-    render_integrity_checks(conflicts)
+    render_integrity_checks(insights_data.conflicts)
     st.divider()
 
     # Report generation
-    render_report_downloads(metrics, insights, correlations, top_priority, conflicts)
+    render_report_downloads(
+        insights_data.metrics,
+        insights,
+        insights_data.correlations,
+        insights_data.top_priority,
+        insights_data.conflicts
+    )

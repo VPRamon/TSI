@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 import streamlit as st
 
 from tsi.plots.distributions import build_correlation_heatmap
 from tsi.services.analytics import generate_correlation_insights
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 def render_automated_insights(insights: list[str]) -> None:
@@ -22,21 +27,42 @@ def render_automated_insights(insights: list[str]) -> None:
         st.markdown(f"- {insight}")
 
 
-def render_correlation_analysis(correlations: pd.DataFrame) -> None:
+def render_correlation_analysis(correlations: list[Any]) -> None:
     """
     Display correlation analysis with heatmap and interpretation.
 
     Args:
-        correlations: DataFrame with correlation data
+        correlations: List of CorrelationEntry objects from Rust backend
     """
     st.header("📊 Correlation Analysis")
 
-    if correlations.empty:
+    if not correlations:
         st.info("Insufficient data for correlation analysis")
         return
 
+    # Convert Rust CorrelationEntry objects to DataFrame in matrix format
+    # First, collect all unique variables
+    variables = set()
+    for corr in correlations:
+        variables.add(corr.variable1)
+        variables.add(corr.variable2)
+    
+    variables = sorted(variables)
+    
+    # Create correlation matrix
+    corr_matrix = pd.DataFrame(
+        1.0,  # diagonal is always 1
+        index=variables,
+        columns=variables,
+    )
+    
+    # Fill in the correlation values
+    for corr in correlations:
+        corr_matrix.loc[corr.variable1, corr.variable2] = corr.correlation
+        corr_matrix.loc[corr.variable2, corr.variable1] = corr.correlation
+
     # Generate correlation insights
-    correlation_insights = generate_correlation_insights(correlations)
+    correlation_insights = generate_correlation_insights(corr_matrix)
 
     col1, col2 = st.columns([1, 2])
 
@@ -61,5 +87,5 @@ def render_correlation_analysis(correlations: pd.DataFrame) -> None:
         )
 
     with col2:
-        fig = build_correlation_heatmap(correlations)
-        st.plotly_chart(fig, width='stretch')
+        fig = build_correlation_heatmap(corr_matrix)
+        st.plotly_chart(fig, use_container_width=True)

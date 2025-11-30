@@ -1102,3 +1102,361 @@ impl ScheduleTimelineData {
         )
     }
 }
+
+// =========================================================
+// Insights Types
+// =========================================================
+
+/// Lightweight block for insights analysis with all required metrics.
+/// Contains only the fields needed for analytics computations.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct InsightsBlock {
+    pub scheduling_block_id: i64,
+    pub priority: f64,
+    pub total_visibility_hours: f64,
+    pub requested_hours: f64,
+    pub elevation_range_deg: f64,
+    pub scheduled: bool,
+    pub scheduled_start_mjd: Option<f64>,
+    pub scheduled_stop_mjd: Option<f64>,
+}
+
+#[pymethods]
+impl InsightsBlock {
+    #[getter]
+    pub fn scheduling_block_id(&self) -> i64 {
+        self.scheduling_block_id
+    }
+
+    #[getter]
+    pub fn priority(&self) -> f64 {
+        self.priority
+    }
+
+    #[getter]
+    pub fn total_visibility_hours(&self) -> f64 {
+        self.total_visibility_hours
+    }
+
+    #[getter]
+    pub fn requested_hours(&self) -> f64 {
+        self.requested_hours
+    }
+
+    #[getter]
+    pub fn elevation_range_deg(&self) -> f64 {
+        self.elevation_range_deg
+    }
+
+    #[getter]
+    pub fn scheduled(&self) -> bool {
+        self.scheduled
+    }
+
+    #[getter]
+    pub fn scheduled_start_mjd(&self) -> Option<f64> {
+        self.scheduled_start_mjd
+    }
+
+    #[getter]
+    pub fn scheduled_stop_mjd(&self) -> Option<f64> {
+        self.scheduled_stop_mjd
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "InsightsBlock(id={}, priority={:.2}, scheduled={})",
+            self.scheduling_block_id, self.priority, self.scheduled
+        )
+    }
+}
+
+/// Analytics metrics computed from the dataset.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct AnalyticsMetrics {
+    pub total_observations: usize,
+    pub scheduled_count: usize,
+    pub unscheduled_count: usize,
+    pub scheduling_rate: f64,
+    pub mean_priority: f64,
+    pub median_priority: f64,
+    pub mean_priority_scheduled: f64,
+    pub mean_priority_unscheduled: f64,
+    pub total_visibility_hours: f64,
+    pub mean_requested_hours: f64,
+}
+
+#[pymethods]
+impl AnalyticsMetrics {
+    #[getter]
+    pub fn total_observations(&self) -> usize {
+        self.total_observations
+    }
+
+    #[getter]
+    pub fn scheduled_count(&self) -> usize {
+        self.scheduled_count
+    }
+
+    #[getter]
+    pub fn unscheduled_count(&self) -> usize {
+        self.unscheduled_count
+    }
+
+    #[getter]
+    pub fn scheduling_rate(&self) -> f64 {
+        self.scheduling_rate
+    }
+
+    #[getter]
+    pub fn mean_priority(&self) -> f64 {
+        self.mean_priority
+    }
+
+    #[getter]
+    pub fn median_priority(&self) -> f64 {
+        self.median_priority
+    }
+
+    #[getter]
+    pub fn mean_priority_scheduled(&self) -> f64 {
+        self.mean_priority_scheduled
+    }
+
+    #[getter]
+    pub fn mean_priority_unscheduled(&self) -> f64 {
+        self.mean_priority_unscheduled
+    }
+
+    #[getter]
+    pub fn total_visibility_hours(&self) -> f64 {
+        self.total_visibility_hours
+    }
+
+    #[getter]
+    pub fn mean_requested_hours(&self) -> f64 {
+        self.mean_requested_hours
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "AnalyticsMetrics(total={}, scheduled={}, rate={:.2}%)",
+            self.total_observations,
+            self.scheduled_count,
+            self.scheduling_rate * 100.0
+        )
+    }
+}
+
+/// Correlation entry for a pair of variables.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct CorrelationEntry {
+    pub variable1: String,
+    pub variable2: String,
+    pub correlation: f64,
+}
+
+#[pymethods]
+impl CorrelationEntry {
+    #[getter]
+    pub fn variable1(&self) -> String {
+        self.variable1.clone()
+    }
+
+    #[getter]
+    pub fn variable2(&self) -> String {
+        self.variable2.clone()
+    }
+
+    #[getter]
+    pub fn correlation(&self) -> f64 {
+        self.correlation
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "CorrelationEntry({} <-> {}: {:.3})",
+            self.variable1, self.variable2, self.correlation
+        )
+    }
+}
+
+/// Conflict record for overlapping scheduled observations.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct ConflictRecord {
+    pub block_id_1: i64,
+    pub block_id_2: i64,
+    pub start_time_1: f64,
+    pub stop_time_1: f64,
+    pub start_time_2: f64,
+    pub stop_time_2: f64,
+    pub overlap_hours: f64,
+}
+
+#[pymethods]
+impl ConflictRecord {
+    #[getter]
+    pub fn block_id_1(&self) -> i64 {
+        self.block_id_1
+    }
+
+    #[getter]
+    pub fn block_id_2(&self) -> i64 {
+        self.block_id_2
+    }
+
+    #[getter]
+    pub fn start_time_1(&self) -> f64 {
+        self.start_time_1
+    }
+
+    #[getter]
+    pub fn stop_time_1(&self) -> f64 {
+        self.stop_time_1
+    }
+
+    #[getter]
+    pub fn start_time_2(&self) -> f64 {
+        self.start_time_2
+    }
+
+    #[getter]
+    pub fn stop_time_2(&self) -> f64 {
+        self.stop_time_2
+    }
+
+    #[getter]
+    pub fn overlap_hours(&self) -> f64 {
+        self.overlap_hours
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "ConflictRecord(blocks=({}, {}), overlap={:.2}h)",
+            self.block_id_1, self.block_id_2, self.overlap_hours
+        )
+    }
+}
+
+/// Top observation record with all display fields.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct TopObservation {
+    pub scheduling_block_id: i64,
+    pub priority: f64,
+    pub total_visibility_hours: f64,
+    pub requested_hours: f64,
+    pub scheduled: bool,
+}
+
+#[pymethods]
+impl TopObservation {
+    #[getter]
+    pub fn scheduling_block_id(&self) -> i64 {
+        self.scheduling_block_id
+    }
+
+    #[getter]
+    pub fn priority(&self) -> f64 {
+        self.priority
+    }
+
+    #[getter]
+    pub fn total_visibility_hours(&self) -> f64 {
+        self.total_visibility_hours
+    }
+
+    #[getter]
+    pub fn requested_hours(&self) -> f64 {
+        self.requested_hours
+    }
+
+    #[getter]
+    pub fn scheduled(&self) -> bool {
+        self.scheduled
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "TopObservation(id={}, priority={:.2}, visibility={:.1}h)",
+            self.scheduling_block_id, self.priority, self.total_visibility_hours
+        )
+    }
+}
+
+/// Complete insights data with metrics, correlations, top observations, and conflicts.
+/// This structure contains everything the frontend needs for the insights page.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct InsightsData {
+    pub blocks: Vec<InsightsBlock>,
+    pub metrics: AnalyticsMetrics,
+    pub correlations: Vec<CorrelationEntry>,
+    pub top_priority: Vec<TopObservation>,
+    pub top_visibility: Vec<TopObservation>,
+    pub conflicts: Vec<ConflictRecord>,
+    pub total_count: usize,
+    pub scheduled_count: usize,
+    pub impossible_count: usize,
+}
+
+#[pymethods]
+impl InsightsData {
+    #[getter]
+    pub fn blocks(&self) -> Vec<InsightsBlock> {
+        self.blocks.clone()
+    }
+
+    #[getter]
+    pub fn metrics(&self) -> AnalyticsMetrics {
+        self.metrics.clone()
+    }
+
+    #[getter]
+    pub fn correlations(&self) -> Vec<CorrelationEntry> {
+        self.correlations.clone()
+    }
+
+    #[getter]
+    pub fn top_priority(&self) -> Vec<TopObservation> {
+        self.top_priority.clone()
+    }
+
+    #[getter]
+    pub fn top_visibility(&self) -> Vec<TopObservation> {
+        self.top_visibility.clone()
+    }
+
+    #[getter]
+    pub fn conflicts(&self) -> Vec<ConflictRecord> {
+        self.conflicts.clone()
+    }
+
+    #[getter]
+    pub fn total_count(&self) -> usize {
+        self.total_count
+    }
+
+    #[getter]
+    pub fn scheduled_count(&self) -> usize {
+        self.scheduled_count
+    }
+
+    #[getter]
+    pub fn impossible_count(&self) -> usize {
+        self.impossible_count
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "InsightsData(total={}, scheduled={}, conflicts={})",
+            self.total_count,
+            self.scheduled_count,
+            self.conflicts.len()
+        )
+    }
+}
