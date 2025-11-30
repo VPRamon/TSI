@@ -787,6 +787,7 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
     );
     let metadata = insert_full_schedule(&mut *conn, schedule).await?;
 
+    // Populate analytics table after successful schedule insertion
     if let Some(schedule_id) = metadata.schedule_id {
         info!(
             "Successfully inserted schedule '{}' with id {} ({} blocks)",
@@ -794,6 +795,23 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
             schedule_id,
             schedule.blocks.len()
         );
+
+        // Populate analytics table (best-effort, log errors but don't fail upload)
+        match super::analytics::populate_schedule_analytics(schedule_id).await {
+            Ok(analytics_count) => {
+                info!(
+                    "Populated {} analytics rows for schedule_id={}",
+                    analytics_count, schedule_id
+                );
+            }
+            Err(e) => {
+                // Log warning but don't fail the upload - analytics is optional
+                log::warn!(
+                    "Failed to populate analytics for schedule_id={}: {}",
+                    schedule_id, e
+                );
+            }
+        }
     } else {
         info!(
             "Successfully inserted schedule '{}' (id pending)",

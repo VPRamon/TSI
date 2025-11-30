@@ -1,5 +1,6 @@
 use crate::db::models::{LightweightBlock, PriorityBinInfo, SkyMapData};
-use crate::db::operations;
+use crate::db::{analytics, operations};
+use log::info;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
@@ -123,8 +124,48 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
 
 /// Get complete sky map data with computed bins and metadata.
 /// This function orchestrates fetching blocks from the database and computing the sky map data.
+/// It first tries to use the analytics table for better performance, falling back to legacy
+/// joins if analytics data is not available.
 pub async fn get_sky_map_data(schedule_id: i64) -> Result<SkyMapData, String> {
+    // Try analytics table first (faster path)
+    let blocks = match analytics::fetch_analytics_blocks_for_sky_map(schedule_id).await {
+        Ok(analytics_blocks) if !analytics_blocks.is_empty() => {
+            info!(
+                "Using analytics table for sky map (schedule_id={}, {} blocks)",
+                schedule_id,
+                analytics_blocks.len()
+            );
+            analytics_blocks
+        }
+        Ok(_) | Err(_) => {
+            // Fall back to legacy joins
+            info!(
+                "Falling back to legacy joins for sky map (schedule_id={})",
+                schedule_id
+            );
+            operations::fetch_lightweight_blocks(schedule_id).await?
+        }
+    };
+    compute_sky_map_data(blocks)
+}
+
+/// Get sky map data using only the legacy join path.
+/// This function is provided for comparison and testing purposes.
+pub async fn get_sky_map_data_legacy(schedule_id: i64) -> Result<SkyMapData, String> {
     let blocks = operations::fetch_lightweight_blocks(schedule_id).await?;
+    compute_sky_map_data(blocks)
+}
+
+/// Get sky map data using only the analytics table.
+/// Returns an error if analytics data is not available.
+pub async fn get_sky_map_data_analytics(schedule_id: i64) -> Result<SkyMapData, String> {
+    let blocks = analytics::fetch_analytics_blocks_for_sky_map(schedule_id).await?;
+    if blocks.is_empty() {
+        return Err(format!(
+            "No analytics data available for schedule_id={}",
+            schedule_id
+        ));
+    }
     compute_sky_map_data(blocks)
 }
 

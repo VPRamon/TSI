@@ -1,5 +1,6 @@
 use crate::db::models::{DistributionBlock, DistributionData, DistributionStats};
-use crate::db::operations;
+use crate::db::{analytics, operations};
+use log::info;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
@@ -95,13 +96,48 @@ pub fn compute_distribution_data(
 
 /// Get complete distribution data with computed statistics.
 /// This function orchestrates fetching blocks from the database and computing statistics.
+/// It first tries to use the analytics table for better performance, falling back to legacy
+/// joins if analytics data is not available.
 pub async fn get_distribution_data(
+    schedule_id: i64,
+    filter_impossible: bool,
+) -> Result<DistributionData, String> {
+    // Try analytics table first (faster path)
+    let mut blocks = match analytics::fetch_analytics_blocks_for_distribution(schedule_id).await {
+        Ok(analytics_blocks) if !analytics_blocks.is_empty() => {
+            info!(
+                "Using analytics table for distributions (schedule_id={}, {} blocks)",
+                schedule_id,
+                analytics_blocks.len()
+            );
+            analytics_blocks
+        }
+        Ok(_) | Err(_) => {
+            // Fall back to legacy joins
+            info!(
+                "Falling back to legacy joins for distributions (schedule_id={})",
+                schedule_id
+            );
+            operations::fetch_distribution_blocks(schedule_id).await?
+        }
+    };
+
+    // Apply impossible filter if requested
+    if filter_impossible {
+        blocks.retain(|b| b.total_visibility_hours > 0.0);
+    }
+
+    compute_distribution_data(blocks)
+}
+
+/// Get distribution data using only the legacy join path.
+/// This function is provided for comparison and testing purposes.
+pub async fn get_distribution_data_legacy(
     schedule_id: i64,
     filter_impossible: bool,
 ) -> Result<DistributionData, String> {
     let mut blocks = operations::fetch_distribution_blocks(schedule_id).await?;
 
-    // Apply impossible filter if requested
     if filter_impossible {
         blocks.retain(|b| b.total_visibility_hours > 0.0);
     }
