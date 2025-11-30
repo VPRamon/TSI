@@ -264,13 +264,233 @@ cargo test analytics
 
 Expected improvement: **2-5x faster** for typical page loads.
 
-## Future Enhancements (Phase 2+)
+## Future Enhancements (Phase 3+)
 
 1. **Incremental Updates**: Update only changed blocks instead of full refresh
 2. **Additional Derived Fields**: Pre-compute correlations, conflicts
-3. **Aggregation Tables**: Schedule-level summary statistics
-4. **Caching Layer**: Redis/in-memory cache for hot schedules
-5. **Materialized Views**: Database-level aggregations for common queries
+3. **Caching Layer**: Redis/in-memory cache for hot schedules
+4. **Materialized Views**: Database-level aggregations for common queries
+
+---
+
+## Phase 2: Summary Analytics Tables (IMPLEMENTED)
+
+### Goals
+
+1. **Pre-compute Schedule-Level Metrics**: Overall statistics used by Insights/Trends pages
+2. **Pre-compute Priority-Level Statistics**: Per-priority scheduling rates for Trends charts
+3. **Pre-compute Histogram Bins**: Visibility and time-based rate distributions
+4. **Reduce Runtime Computation**: Eliminate expensive aggregations on every page load
+
+### New Tables
+
+Phase 2 introduces four new tables in the `analytics` schema:
+
+#### Table: `analytics.schedule_summary_analytics`
+
+Overall metrics for each schedule:
+
+```sql
+CREATE TABLE analytics.schedule_summary_analytics (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    schedule_id BIGINT NOT NULL,
+    
+    -- Block counts
+    total_blocks INT NOT NULL,
+    scheduled_blocks INT NOT NULL,
+    unscheduled_blocks INT NOT NULL,
+    impossible_blocks INT NOT NULL,
+    scheduling_rate FLOAT NOT NULL,
+    
+    -- Priority statistics
+    priority_min FLOAT,
+    priority_max FLOAT,
+    priority_mean FLOAT,
+    priority_median FLOAT,
+    priority_scheduled_mean FLOAT,
+    priority_unscheduled_mean FLOAT,
+    
+    -- Visibility statistics
+    visibility_total_hours FLOAT NOT NULL,
+    visibility_mean_hours FLOAT,
+    visibility_min_hours FLOAT,
+    visibility_max_hours FLOAT,
+    
+    -- Time statistics
+    requested_total_hours FLOAT NOT NULL,
+    requested_mean_hours FLOAT,
+    scheduled_total_hours FLOAT NOT NULL,
+    
+    -- Correlations (Spearman)
+    corr_priority_visibility FLOAT,
+    corr_priority_requested FLOAT,
+    corr_visibility_requested FLOAT,
+    
+    -- Conflict stats
+    conflict_count INT NOT NULL DEFAULT 0,
+    
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+);
+```
+
+#### Table: `analytics.schedule_priority_rates`
+
+Per-priority scheduling statistics:
+
+```sql
+CREATE TABLE analytics.schedule_priority_rates (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    schedule_id BIGINT NOT NULL,
+    priority_value INT NOT NULL,
+    total_count INT NOT NULL,
+    scheduled_count INT NOT NULL,
+    scheduling_rate FLOAT NOT NULL,
+    visibility_mean_hours FLOAT,
+    requested_mean_hours FLOAT,
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+);
+```
+
+#### Table: `analytics.schedule_visibility_bins`
+
+Visibility-based rate histogram:
+
+```sql
+CREATE TABLE analytics.schedule_visibility_bins (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    schedule_id BIGINT NOT NULL,
+    bin_index INT NOT NULL,
+    bin_min_hours FLOAT NOT NULL,
+    bin_max_hours FLOAT NOT NULL,
+    bin_mid_hours FLOAT NOT NULL,
+    total_count INT NOT NULL,
+    scheduled_count INT NOT NULL,
+    scheduling_rate FLOAT NOT NULL,
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+);
+```
+
+#### Table: `analytics.schedule_heatmap_bins`
+
+2D heatmap for visibility vs. requested time:
+
+```sql
+CREATE TABLE analytics.schedule_heatmap_bins (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    schedule_id BIGINT NOT NULL,
+    visibility_mid_hours FLOAT NOT NULL,
+    time_mid_hours FLOAT NOT NULL,
+    total_count INT NOT NULL,
+    scheduled_count INT NOT NULL,
+    scheduling_rate FLOAT NOT NULL,
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+);
+```
+
+### SQL Migration
+
+Located at: `docs/sql/002_create_summary_tables.sql`
+
+Run after Phase 1 migration:
+```bash
+sqlcmd -S your-server.database.windows.net -d your-database -U your-user -P your-password -i docs/sql/002_create_summary_tables.sql
+```
+
+### ETL Implementation
+
+The summary analytics are populated automatically after block-level analytics:
+
+```
+[Schedule Upload] 
+  → [store_schedule()] 
+  → [populate_schedule_analytics()]      # Phase 1
+  → [populate_summary_analytics()]       # Phase 2
+  → [Success]
+```
+
+#### Rust Functions (analytics.rs)
+
+- `populate_summary_analytics(schedule_id, n_bins)` - Main Phase 2 ETL
+- `fetch_schedule_summary(schedule_id)` - Get summary metrics
+- `fetch_priority_rates(schedule_id)` - Get per-priority rates
+- `fetch_visibility_bins(schedule_id)` - Get visibility histogram
+- `fetch_heatmap_bins(schedule_id)` - Get 2D heatmap bins
+- `has_summary_analytics(schedule_id)` - Check if summary exists
+- `delete_summary_analytics(schedule_id)` - Clean up summary data
+
+### Python API
+
+```python
+import tsi_rust
+
+# Manually populate summary analytics (uses 10 bins by default)
+tsi_rust.py_populate_summary_analytics(schedule_id=42)
+tsi_rust.py_populate_summary_analytics(schedule_id=42, n_bins=15)
+
+# Check if summary analytics exist
+has_data = tsi_rust.py_has_summary_analytics(schedule_id=42)
+
+# Fetch summary metrics
+summary = tsi_rust.py_get_schedule_summary(schedule_id=42)
+print(f"Scheduling rate: {summary.scheduling_rate:.2%}")
+print(f"Total blocks: {summary.total_blocks}")
+
+# Fetch priority rates
+rates = tsi_rust.py_get_priority_rates(schedule_id=42)
+for rate in rates:
+    print(f"Priority {rate.priority_value}: {rate.scheduling_rate:.2%} ({rate.total_count} blocks)")
+
+# Fetch visibility bins
+bins = tsi_rust.py_get_visibility_bins(schedule_id=42)
+for b in bins:
+    print(f"[{b.bin_min_hours:.1f}-{b.bin_max_hours:.1f}h]: {b.scheduling_rate:.2%}")
+
+# Fetch heatmap bins
+heatmap = tsi_rust.py_get_heatmap_bins(schedule_id=42)
+for h in heatmap:
+    print(f"Vis={h.visibility_mid_hours:.1f}h, Time={h.time_mid_hours:.1f}h: {h.scheduling_rate:.2%}")
+
+# Delete summary analytics
+tsi_rust.py_delete_summary_analytics(schedule_id=42)
+```
+
+### Backfilling Existing Schedules
+
+After running both migrations, backfill all schedules:
+
+```python
+import tsi_rust
+
+schedules = tsi_rust.py_list_schedules()
+
+for schedule in schedules:
+    schedule_id = schedule["schedule_id"]
+    
+    # Phase 1: Block-level analytics (if not already done)
+    if not tsi_rust.py_has_analytics_data(schedule_id):
+        rows = tsi_rust.py_populate_analytics(schedule_id)
+        print(f"Schedule {schedule_id}: {rows} block analytics rows")
+    
+    # Phase 2: Summary analytics
+    if not tsi_rust.py_has_summary_analytics(schedule_id):
+        tsi_rust.py_populate_summary_analytics(schedule_id)
+        print(f"Schedule {schedule_id}: Summary analytics populated")
+```
+
+### Phase 2 Files Changed
+
+#### New Files
+- `docs/sql/002_create_summary_tables.sql` - SQL migration for Phase 2 tables
+
+#### Modified Files
+- `rust_backend/src/db/analytics.rs` - Added summary analytics functions and structs
+- `rust_backend/src/db/mod.rs` - Export new functions and types
+- `rust_backend/src/db/operations.rs` - Call summary analytics after upload
+- `rust_backend/src/python/database.rs` - Python bindings for summary functions
+- `rust_backend/src/lib.rs` - Register new Python functions and classes
+- `docs/ETL_INTEGRATION_PLAN.md` - This documentation
+
+---
 
 ## Rollback Plan
 

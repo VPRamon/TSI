@@ -150,10 +150,19 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_get_schedule_time_range, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_visibility_map_data, m)?)?;
     
-    // Analytics ETL functions
+    // Phase 1: Block-level analytics ETL functions
     m.add_function(wrap_pyfunction!(python::py_populate_analytics, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_has_analytics_data, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_delete_analytics, m)?)?;
+    
+    // Phase 2: Summary analytics ETL functions
+    m.add_function(wrap_pyfunction!(python::py_populate_summary_analytics, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_has_summary_analytics, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_delete_summary_analytics, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_schedule_summary, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_priority_rates, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_visibility_bins, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_heatmap_bins, m)?)?;
 
     // Register service functions
     m.add_function(wrap_pyfunction!(services::py_get_sky_map_data, m)?)?;
@@ -204,6 +213,12 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<db::models::CompareStats>()?;
     m.add_class::<db::models::SchedulingChange>()?;
     m.add_class::<db::models::CompareData>()?;
+    
+    // Phase 2: Summary analytics classes
+    m.add_class::<db::ScheduleSummary>()?;
+    m.add_class::<db::PriorityRate>()?;
+    m.add_class::<db::VisibilityBin>()?;
+    m.add_class::<db::HeatmapBinData>()?;
 
     Ok(())
 }

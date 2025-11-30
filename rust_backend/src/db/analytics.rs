@@ -581,6 +581,797 @@ pub async fn has_analytics_data(schedule_id: i64) -> Result<bool, String> {
     }
 }
 
+// =============================================================================
+// Phase 2: Summary Analytics Tables
+// =============================================================================
+
+use pyo3::prelude::*;
+
+/// Summary metrics for a schedule (matches schedule_summary_analytics table).
+#[derive(Debug, Clone)]
+#[pyclass(get_all)]
+pub struct ScheduleSummary {
+    pub schedule_id: i64,
+    pub total_blocks: i32,
+    pub scheduled_blocks: i32,
+    pub unscheduled_blocks: i32,
+    pub impossible_blocks: i32,
+    pub scheduling_rate: f64,
+    pub priority_min: Option<f64>,
+    pub priority_max: Option<f64>,
+    pub priority_mean: Option<f64>,
+    pub priority_median: Option<f64>,
+    pub priority_scheduled_mean: Option<f64>,
+    pub priority_unscheduled_mean: Option<f64>,
+    pub visibility_total_hours: f64,
+    pub visibility_mean_hours: Option<f64>,
+    pub requested_total_hours: f64,
+    pub requested_mean_hours: Option<f64>,
+    pub scheduled_total_hours: f64,
+    pub corr_priority_visibility: Option<f64>,
+    pub corr_priority_requested: Option<f64>,
+    pub corr_visibility_requested: Option<f64>,
+    pub conflict_count: i32,
+}
+
+/// Priority-level rate data (matches schedule_priority_rates table).
+#[derive(Debug, Clone)]
+#[pyclass(get_all)]
+pub struct PriorityRate {
+    pub priority_value: i32,
+    pub total_count: i32,
+    pub scheduled_count: i32,
+    pub scheduling_rate: f64,
+    pub visibility_mean_hours: Option<f64>,
+    pub requested_mean_hours: Option<f64>,
+}
+
+/// Visibility bin data (matches schedule_visibility_bins table).
+#[derive(Debug, Clone)]
+#[pyclass(get_all)]
+pub struct VisibilityBin {
+    pub bin_index: i32,
+    pub bin_min_hours: f64,
+    pub bin_max_hours: f64,
+    pub bin_mid_hours: f64,
+    pub total_count: i32,
+    pub scheduled_count: i32,
+    pub scheduling_rate: f64,
+}
+
+/// Heatmap bin data (matches schedule_heatmap_bins table).
+#[derive(Debug, Clone)]
+#[pyclass(get_all)]
+pub struct HeatmapBinData {
+    pub visibility_mid_hours: f64,
+    pub time_mid_hours: f64,
+    pub total_count: i32,
+    pub scheduled_count: i32,
+    pub scheduling_rate: f64,
+}
+
+/// Populate summary analytics tables for a schedule.
+///
+/// This function populates:
+/// - schedule_summary_analytics: Overall schedule metrics
+/// - schedule_priority_rates: Per-priority scheduling rates
+/// - schedule_visibility_bins: Visibility-based rate bins
+/// - schedule_heatmap_bins: 2D visibility x time bins
+///
+/// Requires that schedule_blocks_analytics is already populated.
+pub async fn populate_summary_analytics(schedule_id: i64, n_bins: usize) -> Result<(), String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    info!(
+        "Populating summary analytics for schedule_id={}",
+        schedule_id
+    );
+
+    // First, check if block-level analytics exist
+    let check_sql = "SELECT COUNT(*) FROM analytics.schedule_blocks_analytics WHERE schedule_id = @P1";
+    let mut check_query = Query::new(check_sql);
+    check_query.bind(schedule_id);
+
+    let check_stream = check_query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to check block analytics: {e}"))?;
+
+    let check_row = check_stream
+        .into_row()
+        .await
+        .map_err(|e| format!("Failed to read count: {e}"))?;
+
+    let block_count: i32 = check_row
+        .and_then(|r| r.get(0))
+        .unwrap_or(0);
+
+    if block_count == 0 {
+        warn!(
+            "No block-level analytics for schedule_id={}, skipping summary",
+            schedule_id
+        );
+        return Ok(());
+    }
+
+    // Delete existing summaries
+    for table in &[
+        "analytics.schedule_summary_analytics",
+        "analytics.schedule_priority_rates",
+        "analytics.schedule_visibility_bins",
+        "analytics.schedule_heatmap_bins",
+    ] {
+        let delete_sql = format!("DELETE FROM {} WHERE schedule_id = @P1", table);
+        let mut delete_query = Query::new(delete_sql);
+        delete_query.bind(schedule_id);
+        delete_query
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| format!("Failed to delete from {}: {}", table, e))?;
+    }
+
+    // Populate schedule_summary_analytics
+    populate_schedule_summary(&mut conn, schedule_id).await?;
+
+    // Populate schedule_priority_rates
+    populate_priority_rates(&mut conn, schedule_id).await?;
+
+    // Populate schedule_visibility_bins
+    populate_visibility_bins(&mut conn, schedule_id, n_bins).await?;
+
+    // Populate schedule_heatmap_bins
+    populate_heatmap_bins(&mut conn, schedule_id, n_bins).await?;
+
+    info!(
+        "Completed summary analytics for schedule_id={}",
+        schedule_id
+    );
+
+    Ok(())
+}
+
+// Note: DbClient is already defined earlier in this file
+
+async fn populate_schedule_summary(conn: &mut DbClient, schedule_id: i64) -> Result<(), String> {
+    let sql = r#"
+        INSERT INTO analytics.schedule_summary_analytics (
+            schedule_id,
+            total_blocks,
+            scheduled_blocks,
+            unscheduled_blocks,
+            impossible_blocks,
+            scheduling_rate,
+            priority_min,
+            priority_max,
+            priority_mean,
+            priority_scheduled_mean,
+            priority_unscheduled_mean,
+            visibility_total_hours,
+            visibility_mean_hours,
+            visibility_min_hours,
+            visibility_max_hours,
+            requested_total_hours,
+            requested_mean_hours,
+            requested_min_hours,
+            requested_max_hours,
+            scheduled_total_hours,
+            ra_min,
+            ra_max,
+            dec_min,
+            dec_max,
+            scheduled_time_min_mjd,
+            scheduled_time_max_mjd
+        )
+        SELECT
+            @P1,
+            COUNT(*),
+            SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN is_scheduled = 0 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN is_impossible = 1 THEN 1 ELSE 0 END),
+            CAST(SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(COUNT(*), 0),
+            MIN(priority),
+            MAX(priority),
+            AVG(priority),
+            AVG(CASE WHEN is_scheduled = 1 THEN priority END),
+            AVG(CASE WHEN is_scheduled = 0 THEN priority END),
+            SUM(total_visibility_hours),
+            AVG(total_visibility_hours),
+            MIN(total_visibility_hours),
+            MAX(total_visibility_hours),
+            SUM(requested_hours),
+            AVG(requested_hours),
+            MIN(requested_hours),
+            MAX(requested_hours),
+            SUM(CASE WHEN is_scheduled = 1 THEN COALESCE(scheduled_duration_sec, 0) / 3600.0 ELSE 0 END),
+            MIN(target_ra_deg),
+            MAX(target_ra_deg),
+            MIN(target_dec_deg),
+            MAX(target_dec_deg),
+            MIN(scheduled_start_mjd),
+            MAX(scheduled_stop_mjd)
+        FROM analytics.schedule_blocks_analytics
+        WHERE schedule_id = @P1
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    query
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to insert schedule summary: {e}"))?;
+
+    debug!("Inserted schedule summary for schedule_id={}", schedule_id);
+    Ok(())
+}
+
+async fn populate_priority_rates(conn: &mut DbClient, schedule_id: i64) -> Result<(), String> {
+    let sql = r#"
+        INSERT INTO analytics.schedule_priority_rates (
+            schedule_id,
+            priority_value,
+            total_count,
+            scheduled_count,
+            unscheduled_count,
+            impossible_count,
+            scheduling_rate,
+            visibility_mean_hours,
+            visibility_total_hours,
+            requested_mean_hours,
+            requested_total_hours
+        )
+        SELECT
+            @P1,
+            CAST(ROUND(priority, 0) AS INT),
+            COUNT(*),
+            SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN is_scheduled = 0 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN is_impossible = 1 THEN 1 ELSE 0 END),
+            CAST(SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(COUNT(*), 0),
+            AVG(total_visibility_hours),
+            SUM(total_visibility_hours),
+            AVG(requested_hours),
+            SUM(requested_hours)
+        FROM analytics.schedule_blocks_analytics
+        WHERE schedule_id = @P1
+        GROUP BY CAST(ROUND(priority, 0) AS INT)
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let result = query
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to insert priority rates: {e}"))?;
+
+    let rows = result.rows_affected().iter().sum::<u64>();
+    debug!(
+        "Inserted {} priority rates for schedule_id={}",
+        rows, schedule_id
+    );
+    Ok(())
+}
+
+async fn populate_visibility_bins(
+    conn: &mut DbClient,
+    schedule_id: i64,
+    n_bins: usize,
+) -> Result<(), String> {
+    // First, get visibility range
+    let range_sql = r#"
+        SELECT MIN(total_visibility_hours), MAX(total_visibility_hours)
+        FROM analytics.schedule_blocks_analytics
+        WHERE schedule_id = @P1
+    "#;
+
+    let mut range_query = Query::new(range_sql);
+    range_query.bind(schedule_id);
+
+    let range_stream = range_query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to get visibility range: {e}"))?;
+
+    let range_row = range_stream
+        .into_row()
+        .await
+        .map_err(|e| format!("Failed to read visibility range: {e}"))?;
+
+    let (vis_min, vis_max) = match range_row {
+        Some(row) => {
+            let min_val: Option<f64> = row.get(0);
+            let max_val: Option<f64> = row.get(1);
+            (min_val.unwrap_or(0.0), max_val.unwrap_or(0.0))
+        }
+        None => return Ok(()),
+    };
+
+    if (vis_max - vis_min).abs() < f64::EPSILON {
+        // Single value, create one bin
+        let sql = r#"
+            INSERT INTO analytics.schedule_visibility_bins (
+                schedule_id, bin_index, bin_min_hours, bin_max_hours, bin_mid_hours,
+                total_count, scheduled_count, scheduling_rate, priority_mean
+            )
+            SELECT
+                @P1, 0, @P2, @P3, @P4,
+                COUNT(*),
+                SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END),
+                CAST(SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(COUNT(*), 0),
+                AVG(priority)
+            FROM analytics.schedule_blocks_analytics
+            WHERE schedule_id = @P1
+        "#;
+
+        let mut query = Query::new(sql);
+        query.bind(schedule_id);
+        query.bind(vis_min);
+        query.bind(vis_max);
+        query.bind(vis_min);
+
+        query
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| format!("Failed to insert single visibility bin: {e}"))?;
+
+        return Ok(());
+    }
+
+    let bin_width = (vis_max - vis_min) / n_bins as f64;
+
+    // Insert bins using a loop (SQL Server doesn't have generate_series)
+    for i in 0..n_bins {
+        let bin_min = vis_min + (i as f64 * bin_width);
+        let bin_max = if i == n_bins - 1 {
+            vis_max + 0.001 // Include the max value in last bin
+        } else {
+            vis_min + ((i + 1) as f64 * bin_width)
+        };
+        let bin_mid = (bin_min + bin_max) / 2.0;
+
+        let sql = r#"
+            INSERT INTO analytics.schedule_visibility_bins (
+                schedule_id, bin_index, bin_min_hours, bin_max_hours, bin_mid_hours,
+                total_count, scheduled_count, scheduling_rate, priority_mean
+            )
+            SELECT
+                @P1, @P2, @P3, @P4, @P5,
+                COUNT(*),
+                SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END),
+                CAST(SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(COUNT(*), 0),
+                AVG(priority)
+            FROM analytics.schedule_blocks_analytics
+            WHERE schedule_id = @P1
+              AND total_visibility_hours >= @P3
+              AND total_visibility_hours < @P4
+            HAVING COUNT(*) > 0
+        "#;
+
+        let mut query = Query::new(sql);
+        query.bind(schedule_id);
+        query.bind(i as i32);
+        query.bind(bin_min);
+        query.bind(bin_max);
+        query.bind(bin_mid);
+
+        query
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| format!("Failed to insert visibility bin {}: {}", i, e))?;
+    }
+
+    debug!(
+        "Inserted visibility bins for schedule_id={}",
+        schedule_id
+    );
+    Ok(())
+}
+
+async fn populate_heatmap_bins(
+    conn: &mut DbClient,
+    schedule_id: i64,
+    n_bins: usize,
+) -> Result<(), String> {
+    // Get ranges for both dimensions
+    let range_sql = r#"
+        SELECT 
+            MIN(total_visibility_hours), MAX(total_visibility_hours),
+            MIN(requested_hours), MAX(requested_hours)
+        FROM analytics.schedule_blocks_analytics
+        WHERE schedule_id = @P1
+    "#;
+
+    let mut range_query = Query::new(range_sql);
+    range_query.bind(schedule_id);
+
+    let range_stream = range_query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to get heatmap ranges: {e}"))?;
+
+    let range_row = range_stream
+        .into_row()
+        .await
+        .map_err(|e| format!("Failed to read heatmap ranges: {e}"))?;
+
+    let (vis_min, vis_max, time_min, time_max) = match range_row {
+        Some(row) => {
+            let vis_min: Option<f64> = row.get(0);
+            let vis_max: Option<f64> = row.get(1);
+            let time_min: Option<f64> = row.get(2);
+            let time_max: Option<f64> = row.get(3);
+            (
+                vis_min.unwrap_or(0.0),
+                vis_max.unwrap_or(0.0),
+                time_min.unwrap_or(0.0),
+                time_max.unwrap_or(0.0),
+            )
+        }
+        None => return Ok(()),
+    };
+
+    if (vis_max - vis_min).abs() < f64::EPSILON || (time_max - time_min).abs() < f64::EPSILON {
+        return Ok(()); // Can't create 2D bins with no range
+    }
+
+    let vis_width = (vis_max - vis_min) / n_bins as f64;
+    let time_width = (time_max - time_min) / n_bins as f64;
+
+    // Insert 2D bins
+    for vi in 0..n_bins {
+        let vis_bin_min = vis_min + (vi as f64 * vis_width);
+        let vis_bin_max = if vi == n_bins - 1 {
+            vis_max + 0.001
+        } else {
+            vis_min + ((vi + 1) as f64 * vis_width)
+        };
+
+        for ti in 0..n_bins {
+            let time_bin_min = time_min + (ti as f64 * time_width);
+            let time_bin_max = if ti == n_bins - 1 {
+                time_max + 0.001
+            } else {
+                time_min + ((ti + 1) as f64 * time_width)
+            };
+
+            let sql = r#"
+                INSERT INTO analytics.schedule_heatmap_bins (
+                    schedule_id, visibility_bin_index, time_bin_index,
+                    visibility_mid_hours, time_mid_hours,
+                    total_count, scheduled_count, scheduling_rate
+                )
+                SELECT
+                    @P1, @P2, @P3,
+                    AVG(total_visibility_hours), AVG(requested_hours),
+                    COUNT(*),
+                    SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END),
+                    CAST(SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(COUNT(*), 0)
+                FROM analytics.schedule_blocks_analytics
+                WHERE schedule_id = @P1
+                  AND total_visibility_hours >= @P4 AND total_visibility_hours < @P5
+                  AND requested_hours >= @P6 AND requested_hours < @P7
+                HAVING COUNT(*) > 0
+            "#;
+
+            let mut query = Query::new(sql);
+            query.bind(schedule_id);
+            query.bind(vi as i32);
+            query.bind(ti as i32);
+            query.bind(vis_bin_min);
+            query.bind(vis_bin_max);
+            query.bind(time_bin_min);
+            query.bind(time_bin_max);
+
+            query
+                .execute(&mut *conn)
+                .await
+                .map_err(|e| format!("Failed to insert heatmap bin ({}, {}): {}", vi, ti, e))?;
+        }
+    }
+
+    debug!("Inserted heatmap bins for schedule_id={}", schedule_id);
+    Ok(())
+}
+
+/// Fetch schedule summary from analytics table.
+pub async fn fetch_schedule_summary(schedule_id: i64) -> Result<Option<ScheduleSummary>, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT
+            schedule_id,
+            total_blocks,
+            scheduled_blocks,
+            unscheduled_blocks,
+            impossible_blocks,
+            scheduling_rate,
+            priority_min,
+            priority_max,
+            priority_mean,
+            priority_median,
+            priority_scheduled_mean,
+            priority_unscheduled_mean,
+            visibility_total_hours,
+            visibility_mean_hours,
+            requested_total_hours,
+            requested_mean_hours,
+            scheduled_total_hours,
+            corr_priority_visibility,
+            corr_priority_requested,
+            corr_visibility_requested,
+            conflict_count
+        FROM analytics.schedule_summary_analytics
+        WHERE schedule_id = @P1
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch schedule summary: {e}"))?;
+
+    let row = stream
+        .into_row()
+        .await
+        .map_err(|e| format!("Failed to read schedule summary: {e}"))?;
+
+    match row {
+        Some(r) => Ok(Some(ScheduleSummary {
+            schedule_id: r.get::<i64, _>(0).unwrap_or(0),
+            total_blocks: r.get::<i32, _>(1).unwrap_or(0),
+            scheduled_blocks: r.get::<i32, _>(2).unwrap_or(0),
+            unscheduled_blocks: r.get::<i32, _>(3).unwrap_or(0),
+            impossible_blocks: r.get::<i32, _>(4).unwrap_or(0),
+            scheduling_rate: r.get::<f64, _>(5).unwrap_or(0.0),
+            priority_min: r.get(6),
+            priority_max: r.get(7),
+            priority_mean: r.get(8),
+            priority_median: r.get(9),
+            priority_scheduled_mean: r.get(10),
+            priority_unscheduled_mean: r.get(11),
+            visibility_total_hours: r.get::<f64, _>(12).unwrap_or(0.0),
+            visibility_mean_hours: r.get(13),
+            requested_total_hours: r.get::<f64, _>(14).unwrap_or(0.0),
+            requested_mean_hours: r.get(15),
+            scheduled_total_hours: r.get::<f64, _>(16).unwrap_or(0.0),
+            corr_priority_visibility: r.get(17),
+            corr_priority_requested: r.get(18),
+            corr_visibility_requested: r.get(19),
+            conflict_count: r.get::<i32, _>(20).unwrap_or(0),
+        })),
+        None => Ok(None),
+    }
+}
+
+/// Fetch priority rates from analytics table.
+pub async fn fetch_priority_rates(schedule_id: i64) -> Result<Vec<PriorityRate>, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT
+            priority_value,
+            total_count,
+            scheduled_count,
+            scheduling_rate,
+            visibility_mean_hours,
+            requested_mean_hours
+        FROM analytics.schedule_priority_rates
+        WHERE schedule_id = @P1
+        ORDER BY priority_value
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch priority rates: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read priority rates: {e}"))?;
+
+    let rates = rows
+        .iter()
+        .map(|r| PriorityRate {
+            priority_value: r.get::<i32, _>(0).unwrap_or(0),
+            total_count: r.get::<i32, _>(1).unwrap_or(0),
+            scheduled_count: r.get::<i32, _>(2).unwrap_or(0),
+            scheduling_rate: r.get::<f64, _>(3).unwrap_or(0.0),
+            visibility_mean_hours: r.get(4),
+            requested_mean_hours: r.get(5),
+        })
+        .collect();
+
+    Ok(rates)
+}
+
+/// Fetch visibility bins from analytics table.
+pub async fn fetch_visibility_bins(schedule_id: i64) -> Result<Vec<VisibilityBin>, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT
+            bin_index,
+            bin_min_hours,
+            bin_max_hours,
+            bin_mid_hours,
+            total_count,
+            scheduled_count,
+            scheduling_rate
+        FROM analytics.schedule_visibility_bins
+        WHERE schedule_id = @P1
+        ORDER BY bin_index
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch visibility bins: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read visibility bins: {e}"))?;
+
+    let bins = rows
+        .iter()
+        .map(|r| VisibilityBin {
+            bin_index: r.get::<i32, _>(0).unwrap_or(0),
+            bin_min_hours: r.get::<f64, _>(1).unwrap_or(0.0),
+            bin_max_hours: r.get::<f64, _>(2).unwrap_or(0.0),
+            bin_mid_hours: r.get::<f64, _>(3).unwrap_or(0.0),
+            total_count: r.get::<i32, _>(4).unwrap_or(0),
+            scheduled_count: r.get::<i32, _>(5).unwrap_or(0),
+            scheduling_rate: r.get::<f64, _>(6).unwrap_or(0.0),
+        })
+        .collect();
+
+    Ok(bins)
+}
+
+/// Fetch heatmap bins from analytics table.
+pub async fn fetch_heatmap_bins(schedule_id: i64) -> Result<Vec<HeatmapBinData>, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT
+            visibility_mid_hours,
+            time_mid_hours,
+            total_count,
+            scheduled_count,
+            scheduling_rate
+        FROM analytics.schedule_heatmap_bins
+        WHERE schedule_id = @P1
+        ORDER BY visibility_bin_index, time_bin_index
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch heatmap bins: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read heatmap bins: {e}"))?;
+
+    let bins = rows
+        .iter()
+        .map(|r| HeatmapBinData {
+            visibility_mid_hours: r.get::<f64, _>(0).unwrap_or(0.0),
+            time_mid_hours: r.get::<f64, _>(1).unwrap_or(0.0),
+            total_count: r.get::<i32, _>(2).unwrap_or(0),
+            scheduled_count: r.get::<i32, _>(3).unwrap_or(0),
+            scheduling_rate: r.get::<f64, _>(4).unwrap_or(0.0),
+        })
+        .collect();
+
+    Ok(bins)
+}
+
+/// Check if summary analytics data exists for a schedule.
+pub async fn has_summary_analytics(schedule_id: i64) -> Result<bool, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT COUNT(*) FROM analytics.schedule_summary_analytics
+        WHERE schedule_id = @P1
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to check summary analytics: {e}"))?;
+
+    let row = stream
+        .into_row()
+        .await
+        .map_err(|e| format!("Failed to read count: {e}"))?;
+
+    match row {
+        Some(r) => {
+            let count: i32 = r.get(0).unwrap_or(0);
+            Ok(count > 0)
+        }
+        None => Ok(false),
+    }
+}
+
+/// Delete summary analytics for a schedule.
+pub async fn delete_summary_analytics(schedule_id: i64) -> Result<usize, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let mut total_deleted = 0u64;
+
+    for table in &[
+        "analytics.schedule_summary_analytics",
+        "analytics.schedule_priority_rates",
+        "analytics.schedule_visibility_bins",
+        "analytics.schedule_heatmap_bins",
+    ] {
+        let sql = format!("DELETE FROM {} WHERE schedule_id = @P1", table);
+        let mut query = Query::new(sql);
+        query.bind(schedule_id);
+
+        let result = query
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| format!("Failed to delete from {}: {}", table, e))?;
+
+        total_deleted += result.rows_affected().iter().sum::<u64>();
+    }
+
+    info!(
+        "Deleted {} summary analytics rows for schedule_id={}",
+        total_deleted, schedule_id
+    );
+
+    Ok(total_deleted as usize)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
