@@ -11,7 +11,7 @@ from tsi.components.visibility.visibility_controls import (
 from tsi.components.visibility.visibility_stats import render_chart_info, render_dataset_statistics
 from tsi.components.visibility.visibility_map_figure import render_visibility_map_figure
 from tsi.services.database import get_visibility_map_data
-from tsi.services.visibility_processing import (
+from tsi.services.utils.visibility_processing import (
     compute_effective_priority_range,
     filter_visibility_blocks,
     get_all_block_ids,

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, TYPE_CHECKING
 
-from tsi.services.time_utils import ModifiedJulianDate
+from tsi.services.utils.time import ModifiedJulianDate
 
 if TYPE_CHECKING:
     from tsi_rust import Period, LightweightBlock

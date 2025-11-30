@@ -31,7 +31,7 @@ def build_visibility_histogram(
         return fig
 
     # Ensure visibility is parsed (with caching) - ONLY for rows in df
-    from tsi.services.visibility_cache import ensure_visibility_parsed
+    from tsi.services.utils.visibility_cache import ensure_visibility_parsed
 
     df_with_vis = ensure_visibility_parsed(df)
 

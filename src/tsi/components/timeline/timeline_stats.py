@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from tsi.services.time_utils import format_datetime_utc
+from tsi.services.utils.time import format_datetime_utc
 
 
 def render_dark_period_summary(dark_periods: list[tuple[float, float]]) -> None:
@@ -18,7 +18,7 @@ def render_dark_period_summary(dark_periods: list[tuple[float, float]]) -> None:
     if not dark_periods:
         return
     
-    from tsi.services.time_utils import mjd_to_datetime
+    from tsi.services.utils.time import mjd_to_datetime
     
     st.markdown("---")
     st.subheader("ℹ️ Observable periods information")
@@ -66,7 +66,7 @@ def render_key_metrics(blocks: list, unique_months: list[str]) -> None:
         blocks: List of ScheduleTimelineBlock objects
         unique_months: List of unique month labels
     """
-    from tsi.services.time_utils import mjd_to_datetime
+    from tsi.services.utils.time import mjd_to_datetime
     
     st.markdown("---")
     col1, col2, col3, col4 = st.columns(4)

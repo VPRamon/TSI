@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from tsi.models.schemas import AnalyticsMetrics
-from tsi.services.report import generate_html_report, generate_markdown_report
+from tsi.services.utils.report import generate_html_report, generate_markdown_report
 
 if TYPE_CHECKING:
     from typing import Any

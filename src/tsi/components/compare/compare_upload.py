@@ -9,7 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from tsi import state
-from tsi.services.loaders import prepare_dataframe
+from tsi.services.data.loaders import prepare_dataframe
 from tsi.services.database import list_schedules_db
 
 

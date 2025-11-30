@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from tsi.services.compare_processing import calculate_observation_gaps
+from tsi.services.processors.compare import calculate_observation_gaps
 from tsi.theme import add_vertical_space
 
 

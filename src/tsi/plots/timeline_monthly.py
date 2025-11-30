@@ -7,7 +7,7 @@ from typing import cast
 import pandas as pd
 import plotly.graph_objects as go
 
-from tsi.services.time_utils import format_datetime_utc, mjd_to_datetime
+from tsi.services.utils.time import format_datetime_utc, mjd_to_datetime
 
 
 def build_monthly_timeline(
@@ -626,7 +626,7 @@ def _datetime_to_day_fraction(dt: pd.Timestamp) -> float:
 
 def _dark_periods_to_dataframe(dark_periods: list[tuple[float, float]]) -> pd.DataFrame:
     """Convert dark periods list to DataFrame format for compatibility with existing functions."""
-    from tsi.services.time_utils import mjd_to_datetime
+    from tsi.services.utils.time import mjd_to_datetime
     
     data = []
     for start_mjd, stop_mjd in dark_periods:
@@ -663,7 +663,7 @@ def _add_observation_traces_from_blocks(
     priority_max: float,
 ) -> None:
     """Add observation traces to figure from ScheduleTimelineBlock objects."""
-    from tsi.services.time_utils import mjd_to_datetime
+    from tsi.services.utils.time import mjd_to_datetime
     
     for block in blocks:
         block_id = block.scheduling_block_id

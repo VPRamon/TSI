@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from tsi.services.time_utils import format_datetime_utc, mjd_to_datetime
+from tsi.services.utils.time import format_datetime_utc, mjd_to_datetime
 
 
 def render_timeline_summary(blocks: list, unique_months: list[str]) -> None:

@@ -75,8 +75,14 @@ def initialize_state() -> None:
 
 
 def has_data() -> bool:
-    """Check if data has been loaded."""
-    return st.session_state.get(KEY_DATA_PREPARED) is not None
+    """Check if data has been loaded (either from database or file upload)."""
+    # For database loads: check if schedule_id is set
+    if st.session_state.get(KEY_SCHEDULE_ID) is not None:
+        return True
+    # For file uploads: check if prepared DataFrame is set
+    if st.session_state.get(KEY_DATA_PREPARED) is not None:
+        return True
+    return False
 
 
 def get_prepared_data() -> Any:

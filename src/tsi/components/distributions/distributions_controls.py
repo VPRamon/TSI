@@ -18,7 +18,7 @@ def render_filter_control(df: pd.DataFrame) -> tuple[str, bool]:
     Returns:
         Tuple of (filter_mode, filter_supported)
     """
-    from tsi.services.impossible_filters import check_filter_support
+    from tsi.services.filters.impossible import check_filter_support
 
     filter_mode = render_impossible_filter_control(
         df,
