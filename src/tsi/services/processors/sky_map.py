@@ -62,22 +62,6 @@ def get_priority_range(source: pd.DataFrame | list[Any]) -> tuple[float, float]:
     return priority_min, priority_max
 
 
-def get_priority_range_from_blocks(blocks: list[Any]) -> tuple[float, float]:
-    """
-    Calculate the priority range from scheduling blocks.
-
-    **DEPRECATED**: Use `get_priority_range(blocks)` instead.
-    This function is kept for backward compatibility.
-
-    Args:
-        blocks: List of SchedulingBlock PyO3 objects
-
-    Returns:
-        Tuple of (min_priority, max_priority)
-    """
-    return get_priority_range(blocks)
-
-
 def prepare_priority_bins_from_blocks(blocks: list[Any]) -> tuple[list[Any], list[str]]:
     """
     Prepare priority bins from blocks.
@@ -124,7 +108,6 @@ def get_scheduled_time_range(blocks: list[Any]) -> tuple[float | None, float | N
 
 __all__ = [
     "get_priority_range",
-    "get_priority_range_from_blocks",  # Deprecated, use get_priority_range
     "prepare_priority_bins_from_blocks",
     "get_scheduled_time_range",
 ]

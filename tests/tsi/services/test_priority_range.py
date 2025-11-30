@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from tsi.services.sky_map_blocks import get_priority_range, get_priority_range_from_blocks
+from tsi.services.processors.sky_map import get_priority_range
 
 
 pytestmark = pytest.mark.unit
@@ -69,18 +69,6 @@ class TestGetPriorityRange:
         """Should return default range for empty blocks list."""
         result = get_priority_range([])
         assert result == (0.0, 10.0)
-
-    def test_backward_compatibility_function(self):
-        """get_priority_range_from_blocks should delegate to get_priority_range."""
-        blocks = [
-            SimpleNamespace(priority=2.0),
-            SimpleNamespace(priority=8.0),
-        ]
-        # Both functions should return the same result
-        result1 = get_priority_range(blocks)
-        result2 = get_priority_range_from_blocks(blocks)
-        assert result1 == result2
-        assert result1 == (2.0, 8.0)
 
     def test_float_conversion(self):
         """Should properly convert to float type."""

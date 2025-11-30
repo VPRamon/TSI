@@ -46,7 +46,6 @@ See `app_config.settings.Settings` for full configuration options.
 - `init_database()`: Initialize Rust connection pool
 - `db_health_check()`: Verify database connectivity
 - `store_schedule_db()`: Store schedule data
-- `fetch_schedule_db()`: Fetch schedule by ID or name
 - `list_schedules_db()`: List all schedules
 - `get_sky_map_data()`, `get_distribution_data()`, etc.: Page-specific data aggregation
 
@@ -221,42 +220,6 @@ def store_schedule_db(
             f"Failed to store schedule '{schedule_name}'",
             details={"schedule_name": schedule_name, "error": str(e)}
         ) from e
-
-
-def fetch_schedule_db(
-    schedule_id: int | None = None,
-    schedule_name: str | None = None,
-) -> pd.DataFrame:
-    """
-    Fetch a stored schedule as a pandas DataFrame.
-    
-    **DEPRECATED**: This function is kept for backward compatibility only.
-    Modern pages should use schedule_id directly with page-specific functions like:
-    - py_get_sky_map_data(schedule_id)
-    - py_get_distribution_data(schedule_id)
-    - py_get_schedule_timeline_data(schedule_id)
-    - etc.
-    
-    Backend: Rust (tiberius)
-    
-    Args:
-        schedule_id: Schedule ID to fetch
-        schedule_name: Schedule name to fetch (alternative to ID)
-        
-    Returns:
-        DataFrame with schedule blocks
-        
-    Raises:
-        ValueError: If neither schedule_id nor schedule_name provided
-        RuntimeError: If schedule not found
-    """
-    if schedule_id is None and schedule_name is None:
-        raise ValueError("Either schedule_id or schedule_name must be provided")
-
-    raise NotImplementedError(
-        "fetch_schedule_db() is deprecated. Use schedule_id with page-specific "
-        "data functions like py_get_sky_map_data(schedule_id) instead."
-    )
 
 
 @with_retry(max_attempts=3, backoff_factor=1.5)
@@ -710,7 +673,6 @@ __all__ = [
     "init_database",
     "db_health_check",
     "store_schedule_db",
-    "fetch_schedule_db",
     "list_schedules_db",
     "fetch_dark_periods_db",
     "fetch_possible_periods_db",

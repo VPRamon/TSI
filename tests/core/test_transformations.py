@@ -1,11 +1,11 @@
-"""Unit tests for :mod:`tsi.services.preparation`."""
+"""Unit tests for :mod:`tsi.services.data.preparation`."""
 
 from __future__ import annotations
 
 import pandas as pd
 import pytest
 
-from tsi.services.preparation import prepare_dataframe, validate_schema
+from tsi.services.data.preparation import prepare_dataframe, validate_schema
 
 pytestmark = pytest.mark.unit
 
