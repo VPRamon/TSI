@@ -7,7 +7,7 @@ from collections.abc import Iterator
 import pandas as pd
 import pytest
 
-from tsi.components.calendar_heatmap import build_calendar_heatmap
+from tsi.components.calendar.calendar_heatmap import build_calendar_heatmap
 
 pytestmark = pytest.mark.unit
 

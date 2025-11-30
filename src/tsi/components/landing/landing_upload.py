@@ -6,7 +6,7 @@ from typing import Any
 
 import streamlit as st
 
-from tsi.components.landing_database import load_schedule_from_db
+from tsi.components.landing.landing_database import load_schedule_from_db
 from tsi.services.database import store_schedule_db
 
 

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 import streamlit as st
 
 from tsi import state
-from tsi.components.toolbar import (
+from tsi.components.toolbar.toolbar import (
     render_priority_range_control,
     render_reset_filters_button,
     render_toggle,
