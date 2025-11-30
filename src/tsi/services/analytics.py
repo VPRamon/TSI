@@ -84,20 +84,35 @@ def _snapshot_from_metrics(metrics: AnalyticsMetrics) -> AnalyticsSnapshot:
     return AnalyticsSnapshot(**metrics.model_dump())
 
 
-def generate_insights(df: pd.DataFrame, metrics: AnalyticsMetrics | AnalyticsSnapshot) -> list[str]:
+def generate_insights(blocks: list | pd.DataFrame, metrics: AnalyticsMetrics | AnalyticsSnapshot) -> list[str]:
     """
     Generate automated insights from the data.
     
     Args:
-        df: DataFrame with scheduling data
-        metrics: Either AnalyticsMetrics (Pydantic) or AnalyticsSnapshot (dataclass)
+        blocks: List of InsightsBlock objects from Rust or DataFrame with scheduling data
+        metrics: Either AnalyticsMetrics (Pydantic/Rust) or AnalyticsSnapshot (dataclass)
         
     Returns:
         List of insight strings
     """
-    # Convert AnalyticsMetrics to AnalyticsSnapshot if needed
-    if isinstance(metrics, AnalyticsMetrics):
+    # Handle both Rust metrics and Pydantic metrics
+    if hasattr(metrics, 'model_dump'):
+        # Pydantic model
         snapshot = _snapshot_from_metrics(metrics)
+    elif hasattr(metrics, 'total_observations'):
+        # Rust AnalyticsMetrics or AnalyticsSnapshot
+        snapshot = AnalyticsSnapshot(
+            total_observations=metrics.total_observations,
+            scheduled_count=metrics.scheduled_count,
+            unscheduled_count=metrics.unscheduled_count,
+            scheduling_rate=metrics.scheduling_rate,
+            mean_priority=metrics.mean_priority,
+            median_priority=metrics.median_priority,
+            mean_priority_scheduled=metrics.mean_priority_scheduled,
+            mean_priority_unscheduled=metrics.mean_priority_unscheduled,
+            total_visibility_hours=metrics.total_visibility_hours,
+            mean_requested_hours=metrics.mean_requested_hours,
+        )
     else:
         snapshot = metrics
 
@@ -123,25 +138,29 @@ def generate_insights(df: pd.DataFrame, metrics: AnalyticsMetrics | AnalyticsSna
             f"**Total Visibility**: {snapshot.total_visibility_hours:,.0f} cumulative visibility hours."
         )
 
-    corr_matrix = compute_correlations(
-        df,
-        columns=[
-            "priority",
-            "requested_hours",
-            "total_visibility_hours",
-            "elevation_range_deg",
-        ],
-    )
-    if not corr_matrix.empty and "priority" in corr_matrix:
-        for column in corr_matrix.columns:
-            if column == "priority":
-                continue
-            corr_val = corr_matrix.loc["priority", column]
-            if isinstance(corr_val, (int, float)) and abs(float(corr_val)) > 0.3:
-                direction = "positive" if float(corr_val) > 0 else "negative"
-                insights.append(
-                    f"**Correlation**: Priority has {direction} correlation ({corr_val:.2f}) with {column}."
-                )
+    # If blocks is a list (Rust), we don't need to compute correlations here
+    # as they're already computed in the Rust backend
+    # If blocks is a DataFrame (legacy), compute correlations
+    if isinstance(blocks, pd.DataFrame):
+        corr_matrix = compute_correlations(
+            blocks,
+            columns=[
+                "priority",
+                "requested_hours",
+                "total_visibility_hours",
+                "elevation_range_deg",
+            ],
+        )
+        if not corr_matrix.empty and "priority" in corr_matrix:
+            for column in corr_matrix.columns:
+                if column == "priority":
+                    continue
+                corr_val = corr_matrix.loc["priority", column]
+                if isinstance(corr_val, (int, float)) and abs(float(corr_val)) > 0.3:
+                    direction = "positive" if float(corr_val) > 0 else "negative"
+                    insights.append(
+                        f"**Correlation**: Priority has {direction} correlation ({corr_val:.2f}) with {column}."
+                    )
 
     return insights
 

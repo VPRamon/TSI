@@ -195,6 +195,37 @@ def get_schedule_timeline_data(
     return _rust_call("py_get_schedule_timeline_data", schedule_id)
 
 
+def get_insights_data(
+    *,
+    schedule_id: int,
+    filter_impossible: bool = False,
+):
+    """
+    Get complete insights data with computed analytics and metadata.
+    
+    This is the main function for the insights feature. It returns an InsightsData
+    object containing:
+    - blocks: List of InsightsBlock objects with all required fields
+    - metrics: AnalyticsMetrics with comprehensive statistics
+    - correlations: List of CorrelationEntry objects with Spearman correlations
+    - top_priority: List of TopObservation objects sorted by priority
+    - top_visibility: List of TopObservation objects sorted by visibility hours
+    - conflicts: List of ConflictRecord objects for overlapping scheduled observations
+    - total_count, scheduled_count, impossible_count: Summary statistics
+    
+    All processing (querying, analytics computation, correlations, conflict detection)
+    is done in Rust for maximum performance. The frontend just needs to render the data.
+    
+    Args:
+        schedule_id: Database ID of the schedule to load
+        filter_impossible: If True, excludes blocks with zero visibility hours
+    
+    Returns:
+        InsightsData object with all required data and pre-computed analytics
+    """
+    return _rust_call("py_get_insights_data", schedule_id, filter_impossible)
+
+
 def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:
     """Fetch dark periods for a schedule (with global fallback)."""
     df_polars = _rust_call("py_fetch_dark_periods", schedule_id)
