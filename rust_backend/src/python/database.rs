@@ -4,7 +4,10 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use tokio::runtime::Runtime;
 
-use crate::db::{operations, pool, DbConfig};
+use crate::db::{
+    models::{Schedule, SchedulingBlock},
+    operations, pool, DbConfig,
+};
 
 /// Initialize database connection pool from environment variables.
 #[pyfunction]
@@ -48,8 +51,6 @@ pub fn py_store_schedule(
     schedule_json: &str,
     visibility_json: Option<&str>,
 ) -> PyResult<PyObject> {
-    use crate::db::models::Schedule;
-
     // Heavy parsing + DB insert happens without the GIL held to avoid blocking Python.
     let metadata = Python::with_gil(|py| {
         py.allow_threads(|| -> PyResult<_> {
@@ -95,6 +96,94 @@ pub fn py_store_schedule(
         dict.set_item("checksum", metadata.checksum)?;
         Ok(dict.into())
     })
+}
+
+/// Fetch a schedule (metadata + blocks) from the database.
+#[pyfunction]
+pub fn py_get_schedule(
+    schedule_id: Option<i64>,
+    schedule_name: Option<&str>,
+) -> PyResult<Schedule> {
+    if schedule_id.is_none() && schedule_name.is_none() {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "Either schedule_id or schedule_name must be provided",
+        ));
+    }
+
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    let owned_name = schedule_name.map(|s| s.to_string());
+    runtime
+        .block_on(operations::get_schedule(schedule_id, owned_name.as_deref()))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Fetch all scheduling blocks for a schedule ID.
+#[pyfunction]
+pub fn py_get_schedule_blocks(schedule_id: i64) -> PyResult<Vec<SchedulingBlock>> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(operations::get_blocks_for_schedule(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Fetch lightweight sky map blocks optimized for visualization.
+/// This function fetches only the essential fields needed for the sky map page,
+/// avoiding the overhead of loading full scheduling blocks with visibility periods.
+#[pyfunction]
+pub fn py_get_sky_map_blocks(
+    schedule_id: Option<i64>,
+    schedule_name: Option<&str>,
+) -> PyResult<Vec<crate::db::models::SkyMapBlock>> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    let owned_name = schedule_name.map(|s| s.to_string());
+    runtime
+        .block_on(operations::get_sky_map_blocks(
+            schedule_id,
+            owned_name.as_deref(),
+        ))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Get complete sky map data with computed bins and metadata.
+/// This is the main function for the sky map feature, computing priority bins
+/// and all necessary metadata on the Rust side.
+#[pyfunction]
+pub fn py_get_sky_map_data(
+    schedule_id: Option<i64>,
+    schedule_name: Option<&str>,
+) -> PyResult<crate::db::models::SkyMapData> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    let owned_name = schedule_name.map(|s| s.to_string());
+    runtime
+        .block_on(operations::get_sky_map_data(
+            schedule_id,
+            owned_name.as_deref(),
+        ))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 /// Fetch a schedule from the database.

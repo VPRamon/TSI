@@ -1513,3 +1513,297 @@ pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<(i64, f64, f
 
     Ok(periods)
 }
+
+/// Fetch lightweight sky map blocks for visualization.
+/// This is optimized to fetch only the minimal data needed for the sky map page,
+/// avoiding the overhead of loading full scheduling blocks with visibility periods.
+pub async fn get_sky_map_blocks(
+    schedule_id: Option<i64>,
+    schedule_name: Option<&str>,
+) -> Result<Vec<super::models::SkyMapBlock>, String> {
+    use super::models::SkyMapBlock;
+
+    if schedule_id.is_none() && schedule_name.is_none() {
+        return Err("Either schedule_id or schedule_name must be provided".to_string());
+    }
+
+    // Try with flat periods first, fallback to joined periods if needed
+    match get_sky_map_blocks_internal(schedule_id, schedule_name, true).await {
+        Ok(blocks) => Ok(blocks),
+        Err(e) => {
+            let err_msg = e.to_string();
+            let missing_flat_columns = err_msg.contains("Invalid column name")
+                && (err_msg.contains("start_time_mjd") || err_msg.contains("stop_time_mjd"));
+
+            if missing_flat_columns {
+                get_sky_map_blocks_internal(schedule_id, schedule_name, false).await
+            } else {
+                Err(e)
+            }
+        }
+    }
+}
+
+async fn get_sky_map_blocks_internal(
+    schedule_id: Option<i64>,
+    schedule_name: Option<&str>,
+    use_flat_periods: bool,
+) -> Result<Vec<super::models::SkyMapBlock>, String> {
+    use super::models::SkyMapBlock;
+
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let period_columns = if use_flat_periods {
+        "ssb.start_time_mjd, ssb.stop_time_mjd"
+    } else {
+        "p.start_time_mjd, p.stop_time_mjd"
+    };
+    let period_join = if use_flat_periods {
+        ""
+    } else {
+        "LEFT JOIN dbo.periods p ON ssb.scheduled_period_id = p.period_id"
+    };
+
+    let sql = if schedule_id.is_some() {
+        format!(
+            r#"
+            SELECT 
+                sb.scheduling_block_id,
+                sb.priority,
+                sb.requested_duration_sec,
+                t.ra_deg,
+                t.dec_deg,
+                {period_columns}
+            FROM dbo.schedule_scheduling_blocks ssb
+            JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+            JOIN dbo.targets t ON sb.target_id = t.target_id
+            {period_join}
+            WHERE ssb.schedule_id = @P1
+            ORDER BY sb.scheduling_block_id
+            "#
+        )
+    } else {
+        format!(
+            r#"
+            SELECT 
+                sb.scheduling_block_id,
+                sb.priority,
+                sb.requested_duration_sec,
+                t.ra_deg,
+                t.dec_deg,
+                {period_columns}
+            FROM dbo.schedules s
+            JOIN dbo.schedule_scheduling_blocks ssb ON s.schedule_id = ssb.schedule_id
+            JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+            JOIN dbo.targets t ON sb.target_id = t.target_id
+            {period_join}
+            WHERE s.schedule_name = @P1
+            ORDER BY sb.scheduling_block_id
+            "#
+        )
+    };
+
+    let mut query = Query::new(sql);
+    if let Some(id) = schedule_id {
+        query.bind(id);
+    } else {
+        query.bind(schedule_name.unwrap());
+    }
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch sky map blocks: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read sky map blocks: {e}"))?;
+
+    let mut blocks = Vec::with_capacity(rows.len());
+
+    for row in rows {
+        let id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+
+        let priority_numeric: Numeric = row
+            .get::<Numeric, _>(1)
+            .ok_or_else(|| "priority is NULL".to_string())?;
+        let priority = priority_numeric
+            .value()
+            .to_string()
+            .parse::<f64>()
+            .map_err(|e| format!("Failed to parse priority: {e}"))?;
+
+        let requested_duration: i32 = row
+            .get::<i32, _>(2)
+            .ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
+
+        let ra: f64 = row
+            .get::<f64, _>(3)
+            .ok_or_else(|| "ra_deg is NULL".to_string())?;
+
+        let dec: f64 = row
+            .get::<f64, _>(4)
+            .ok_or_else(|| "dec_deg is NULL".to_string())?;
+
+        // Handle optional scheduled period
+        let scheduled_period = match (row.get::<f64, _>(5), row.get::<f64, _>(6)) {
+            (Some(start_mjd), Some(stop_mjd)) => {
+                super::models::Period::new(
+                    ModifiedJulianDate::new(start_mjd),
+                    ModifiedJulianDate::new(stop_mjd),
+                )
+            }
+            _ => None,
+        };
+
+        blocks.push(SkyMapBlock {
+            id: super::models::SchedulingBlockId(id),
+            priority,
+            priority_bin: String::new(), // Will be computed in compute_sky_map_data
+            requested_duration_seconds: requested_duration as f64,
+            target_ra_deg: ra,
+            target_dec_deg: dec,
+            scheduled_period,
+        });
+    }
+
+    Ok(blocks)
+}
+
+/// Compute sky map data with priority bins and metadata.
+/// This function takes the raw blocks and computes everything needed for visualization.
+pub fn compute_sky_map_data(
+    blocks: Vec<super::models::SkyMapBlock>,
+) -> Result<super::models::SkyMapData, String> {
+    use super::models::{PriorityBinInfo, SkyMapData};
+
+    if blocks.is_empty() {
+        return Ok(SkyMapData {
+            blocks: vec![],
+            priority_bins: vec![],
+            priority_min: 0.0,
+            priority_max: 10.0,
+            ra_min: 0.0,
+            ra_max: 360.0,
+            dec_min: -90.0,
+            dec_max: 90.0,
+            total_count: 0,
+            scheduled_count: 0,
+            scheduled_time_min: None,
+            scheduled_time_max: None,
+        });
+    }
+
+    // Compute statistics
+    let mut priority_min = f64::MAX;
+    let mut priority_max = f64::MIN;
+    let mut ra_min = f64::MAX;
+    let mut ra_max = f64::MIN;
+    let mut dec_min = f64::MAX;
+    let mut dec_max = f64::MIN;
+    let mut scheduled_count = 0;
+    let mut scheduled_time_min: Option<f64> = None;
+    let mut scheduled_time_max: Option<f64> = None;
+
+    for block in &blocks {
+        priority_min = priority_min.min(block.priority);
+        priority_max = priority_max.max(block.priority);
+        ra_min = ra_min.min(block.target_ra_deg);
+        ra_max = ra_max.max(block.target_ra_deg);
+        dec_min = dec_min.min(block.target_dec_deg);
+        dec_max = dec_max.max(block.target_dec_deg);
+
+        if let Some(period) = &block.scheduled_period {
+            scheduled_count += 1;
+            let start_mjd = period.start.value();
+            scheduled_time_min = Some(scheduled_time_min.map_or(start_mjd, |v| v.min(start_mjd)));
+            scheduled_time_max = Some(scheduled_time_max.map_or(start_mjd, |v| v.max(start_mjd)));
+        }
+    }
+
+    // Ensure priority range is valid
+    if priority_min == priority_max {
+        priority_max = priority_min + 1.0;
+    }
+
+    // Compute 4 priority bins proportional to min/max values
+    let bin_count = 4;
+    let bin_width = (priority_max - priority_min) / bin_count as f64;
+    
+    // Define colors for the 4 bins (from low to high priority)
+    let bin_colors = vec![
+        "#2ca02c".to_string(), // Green - Low priority
+        "#1f77b4".to_string(), // Blue - Medium-low priority
+        "#ff7f0e".to_string(), // Orange - Medium-high priority
+        "#d62728".to_string(), // Red - High priority
+    ];
+
+    let mut priority_bins = Vec::with_capacity(bin_count);
+    for i in 0..bin_count {
+        let bin_min = priority_min + (i as f64 * bin_width);
+        let bin_max = if i == bin_count - 1 {
+            priority_max
+        } else {
+            priority_min + ((i + 1) as f64 * bin_width)
+        };
+
+        let label = format!("Bin {} [{:.1}-{:.1}]", i + 1, bin_min, bin_max);
+        
+        priority_bins.push(PriorityBinInfo {
+            label,
+            min_priority: bin_min,
+            max_priority: bin_max,
+            color: bin_colors[i].clone(),
+        });
+    }
+
+    // Assign computed bins to blocks
+    let total_count = blocks.len();
+    let mut blocks_with_bins = blocks;
+    for block in &mut blocks_with_bins {
+        // Find which bin this block belongs to
+        let priority = block.priority;
+        let bin_index = if priority >= priority_max {
+            bin_count - 1
+        } else {
+            ((priority - priority_min) / bin_width).floor() as usize
+        };
+        block.priority_bin = format!("Bin {} [{:.1}-{:.1}]", 
+            bin_index + 1, 
+            priority_bins[bin_index].min_priority, 
+            priority_bins[bin_index].max_priority
+        );
+    }
+
+    Ok(SkyMapData {
+        blocks: blocks_with_bins,
+        priority_bins,
+        priority_min,
+        priority_max,
+        ra_min,
+        ra_max,
+        dec_min,
+        dec_max,
+        total_count,
+        scheduled_count,
+        scheduled_time_min,
+        scheduled_time_max,
+    })
+}
+
+/// Get complete sky map data with computed bins and metadata.
+/// This is the main entry point for the sky map feature.
+pub async fn get_sky_map_data(
+    schedule_id: Option<i64>,
+    schedule_name: Option<&str>,
+) -> Result<super::models::SkyMapData, String> {
+    let blocks = get_sky_map_blocks(schedule_id, schedule_name).await?;
+    compute_sky_map_data(blocks)
+}

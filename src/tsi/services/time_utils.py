@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pandas as pd
@@ -11,16 +12,59 @@ import pandas as pd
 from tsi_rust_api import TSIBackend
 
 
+MJD_EPOCH = datetime(1858, 11, 17, tzinfo=timezone.utc)
+SECONDS_PER_DAY = 86400.0
+
+
+def _ensure_utc(dt: datetime) -> datetime:
+    """Ensure datetime objects are timezone-aware in UTC."""
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+@dataclass(frozen=True)
+class ModifiedJulianDate:
+    """Lightweight Modified Julian Date representation with datetime helpers."""
+
+    value: float
+
+    def to_datetime(self) -> datetime:
+        """Convert to a timezone-aware UTC datetime."""
+        return MJD_EPOCH + timedelta(days=self.value)
+
+    def to_timestamp(self) -> pd.Timestamp:
+        """Convert to pandas Timestamp."""
+        return pd.Timestamp(self.to_datetime())
+
+    @classmethod
+    def from_datetime(cls, dt: datetime) -> ModifiedJulianDate:
+        """Create an MJD from a Python datetime."""
+        dt_utc = _ensure_utc(dt)
+        delta = dt_utc - MJD_EPOCH
+        return cls(delta.total_seconds() / SECONDS_PER_DAY)
+
+    @classmethod
+    def from_timestamp(cls, ts: pd.Timestamp) -> ModifiedJulianDate:
+        """Create an MJD from a pandas Timestamp."""
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        else:
+            ts = ts.tz_convert("UTC")
+        return cls.from_datetime(ts.to_pydatetime())
+
+    def __float__(self) -> float:
+        return float(self.value)
+
+
 def mjd_to_datetime(mjd: float) -> pd.Timestamp:
     """Convert Modified Julian Date to a pandas Timestamp (UTC)."""
-    return pd.Timestamp(TSIBackend.mjd_to_datetime(mjd))
+    return ModifiedJulianDate(mjd).to_timestamp()
 
 
 def datetime_to_mjd(dt: datetime) -> float:
     """Convert a timezone-aware datetime to Modified Julian Date."""
-    if dt.tzinfo is None:
-        raise ValueError("Datetime must be timezone-aware")
-    return float(TSIBackend.datetime_to_mjd(dt))
+    return float(ModifiedJulianDate.from_datetime(dt).value)
 
 
 def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
@@ -39,7 +83,7 @@ def parse_optional_mjd(value: float | None) -> pd.Timestamp | None:
     """Convert an optional MJD value to a Timestamp, preserving missing values."""
     if value is None or (isinstance(value, float) and pd.isna(value)):
         return None
-    return mjd_to_datetime(float(value))
+    return ModifiedJulianDate(float(value)).to_timestamp()
 
 
 def get_time_range(
@@ -60,6 +104,7 @@ def format_datetime_utc(dt: pd.Timestamp) -> str:
 
 
 __all__ = [
+    "ModifiedJulianDate",
     "mjd_to_datetime",
     "datetime_to_mjd",
     "parse_visibility_periods",

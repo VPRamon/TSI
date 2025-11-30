@@ -151,6 +151,10 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_list_schedules, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_fetch_dark_periods, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_fetch_possible_periods, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_schedule, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_schedule_blocks, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_sky_map_blocks, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_sky_map_data, m)?)?;
 
     // Register classes
     //m.add_class::<python::PyValidationResult>()?;
@@ -167,6 +171,9 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<db::models::TargetId>()?;
     m.add_class::<db::models::ConstraintsId>()?;
     m.add_class::<db::models::SchedulingBlockId>()?;
+    m.add_class::<db::models::SkyMapBlock>()?;
+    m.add_class::<db::models::PriorityBinInfo>()?;
+    m.add_class::<db::models::SkyMapData>()?;
 
     Ok(())
 }

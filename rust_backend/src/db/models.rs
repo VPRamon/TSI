@@ -460,3 +460,200 @@ impl ScheduleInfo {
         )
     }
 }
+
+/// Lightweight scheduling block for sky map visualization.
+/// Contains only the essential fields needed for plotting.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct SkyMapBlock {
+    pub id: SchedulingBlockId,
+    pub priority: f64,
+    pub priority_bin: String,
+    pub requested_duration_seconds: f64,
+    pub target_ra_deg: f64,
+    pub target_dec_deg: f64,
+    pub scheduled_period: Option<Period>,
+}
+
+#[pymethods]
+impl SkyMapBlock {
+    #[getter]
+    pub fn id(&self) -> SchedulingBlockId {
+        self.id
+    }
+
+    #[getter]
+    pub fn priority(&self) -> f64 {
+        self.priority
+    }
+
+    #[getter]
+    pub fn priority_bin(&self) -> String {
+        self.priority_bin.clone()
+    }
+
+    #[getter]
+    pub fn requested_duration_seconds(&self) -> f64 {
+        self.requested_duration_seconds
+    }
+
+    #[getter]
+    pub fn target_ra_deg(&self) -> f64 {
+        self.target_ra_deg
+    }
+
+    #[getter]
+    pub fn target_dec_deg(&self) -> f64 {
+        self.target_dec_deg
+    }
+
+    #[getter]
+    pub fn scheduled_period(&self) -> Option<Period> {
+        self.scheduled_period
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "SkyMapBlock(id={}, priority={:.2}, ra={:.2}, dec={:.2}, scheduled={})",
+            self.id.0,
+            self.priority,
+            self.target_ra_deg,
+            self.target_dec_deg,
+            self.scheduled_period.is_some()
+        )
+    }
+}
+
+/// Computed priority bin with range information.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct PriorityBinInfo {
+    pub label: String,
+    pub min_priority: f64,
+    pub max_priority: f64,
+    pub color: String,
+}
+
+#[pymethods]
+impl PriorityBinInfo {
+    #[getter]
+    pub fn label(&self) -> String {
+        self.label.clone()
+    }
+
+    #[getter]
+    pub fn min_priority(&self) -> f64 {
+        self.min_priority
+    }
+
+    #[getter]
+    pub fn max_priority(&self) -> f64 {
+        self.max_priority
+    }
+
+    #[getter]
+    pub fn color(&self) -> String {
+        self.color.clone()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "PriorityBinInfo(label='{}', range=[{:.2}, {:.2}], color='{}')",
+            self.label, self.min_priority, self.max_priority, self.color
+        )
+    }
+}
+
+/// Complete sky map data with blocks and computed metadata.
+/// This structure contains everything the frontend needs to render the sky map.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct SkyMapData {
+    pub blocks: Vec<SkyMapBlock>,
+    pub priority_bins: Vec<PriorityBinInfo>,
+    pub priority_min: f64,
+    pub priority_max: f64,
+    pub ra_min: f64,
+    pub ra_max: f64,
+    pub dec_min: f64,
+    pub dec_max: f64,
+    pub total_count: usize,
+    pub scheduled_count: usize,
+    pub scheduled_time_min: Option<f64>,
+    pub scheduled_time_max: Option<f64>,
+}
+
+#[pymethods]
+impl SkyMapData {
+    #[getter]
+    pub fn blocks(&self) -> Vec<SkyMapBlock> {
+        self.blocks.clone()
+    }
+
+    #[getter]
+    pub fn priority_bins(&self) -> Vec<PriorityBinInfo> {
+        self.priority_bins.clone()
+    }
+
+    #[getter]
+    pub fn priority_min(&self) -> f64 {
+        self.priority_min
+    }
+
+    #[getter]
+    pub fn priority_max(&self) -> f64 {
+        self.priority_max
+    }
+
+    #[getter]
+    pub fn ra_min(&self) -> f64 {
+        self.ra_min
+    }
+
+    #[getter]
+    pub fn ra_max(&self) -> f64 {
+        self.ra_max
+    }
+
+    #[getter]
+    pub fn dec_min(&self) -> f64 {
+        self.dec_min
+    }
+
+    #[getter]
+    pub fn dec_max(&self) -> f64 {
+        self.dec_max
+    }
+
+    #[getter]
+    pub fn total_count(&self) -> usize {
+        self.total_count
+    }
+
+    #[getter]
+    pub fn scheduled_count(&self) -> usize {
+        self.scheduled_count
+    }
+
+    #[getter]
+    pub fn scheduled_time_min(&self) -> Option<f64> {
+        self.scheduled_time_min
+    }
+
+    #[getter]
+    pub fn scheduled_time_max(&self) -> Option<f64> {
+        self.scheduled_time_max
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "SkyMapData(blocks={}, bins={}, priority=[{:.2}, {:.2}], scheduled={}/{})",
+            self.total_count,
+            self.priority_bins.len(),
+            self.priority_min,
+            self.priority_max,
+            self.scheduled_count,
+            self.total_count
+        )
+    }
+}
