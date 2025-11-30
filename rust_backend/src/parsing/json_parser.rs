@@ -143,7 +143,7 @@ fn parse_scheduling_block(
     let priority = value
         .get("priority")
         .and_then(|v| v.as_f64())
-        .context("Missing or invalid 'priority'")? as f32;
+        .context("Missing or invalid 'priority'")? ;
 
     // Extract target coordinates
     let target = parse_target(value)?;

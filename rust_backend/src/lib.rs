@@ -64,6 +64,7 @@ pub mod core;
 pub mod db;
 pub mod parsing;
 pub mod python;
+pub mod services;
 pub mod transformations;
 
 /// Python module entry point for TSI Rust Backend.
@@ -153,8 +154,9 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_fetch_possible_periods, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_schedule, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_schedule_blocks, m)?)?;
-    m.add_function(wrap_pyfunction!(python::py_get_sky_map_blocks, m)?)?;
-    m.add_function(wrap_pyfunction!(python::py_get_sky_map_data, m)?)?;
+    
+    // Register service functions
+    m.add_function(wrap_pyfunction!(services::py_get_sky_map_data, m)?)?;
 
     // Register classes
     //m.add_class::<python::PyValidationResult>()?;
@@ -171,7 +173,7 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<db::models::TargetId>()?;
     m.add_class::<db::models::ConstraintsId>()?;
     m.add_class::<db::models::SchedulingBlockId>()?;
-    m.add_class::<db::models::SkyMapBlock>()?;
+    m.add_class::<db::models::LightweightBlock>()?;
     m.add_class::<db::models::PriorityBinInfo>()?;
     m.add_class::<db::models::SkyMapData>()?;
 

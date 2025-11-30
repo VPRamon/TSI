@@ -138,60 +138,6 @@ pub fn py_get_schedule_blocks(schedule_id: i64) -> PyResult<Vec<SchedulingBlock>
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
-/// Fetch lightweight sky map blocks optimized for visualization.
-/// This function fetches only the essential fields needed for the sky map page,
-/// avoiding the overhead of loading full scheduling blocks with visibility periods.
-#[pyfunction]
-pub fn py_get_sky_map_blocks(
-    schedule_id: i64
-) -> PyResult<Vec<crate::db::models::SkyMapBlock>> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
-    })?;
-
-    runtime
-        .block_on(operations::get_sky_map_blocks(schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
-}
-
-/// Get complete sky map data with computed bins and metadata.
-/// This is the main function for the sky map feature, computing priority bins
-/// and all necessary metadata on the Rust side.
-#[pyfunction]
-pub fn py_get_sky_map_data(
-    schedule_id: i64,
-) -> PyResult<crate::db::models::SkyMapData> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
-    })?;
-
-    runtime
-        .block_on(operations::get_sky_map_data(schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
-}
-
-/// Fetch a schedule from the database.
-/*#[pyfunction]
-pub fn py_fetch_schedule(
-    schedule_id: Option<i64>,
-    schedule_name: Option<&str>,
-) -> PyResult<PyDataFrame> {
-    let runtime = Runtime::new()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e)))?;
-
-    let df = runtime
-        .block_on(operations::fetch_schedule(schedule_id, schedule_name))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
-
-    Ok(PyDataFrame(df))
-}*/
-
 /// List all available schedules in the database.
 #[pyfunction]
 pub fn py_list_schedules() -> PyResult<PyObject> {

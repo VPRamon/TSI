@@ -28,7 +28,7 @@ def render() -> None:
     if schedule_id is None:
         st.info("Load a schedule from the database to view the Sky Map.")
         return
-    
+
     schedule_id = int(schedule_id)
 
     try:
@@ -37,46 +37,36 @@ def render() -> None:
         st.error(f"Failed to load sky map data from the backend: {exc}")
         return
 
-    if not sky_map_data or sky_map_data.total_count == 0:
+    if sky_map_data.total_count == 0:
         st.warning("No scheduling blocks were returned for this schedule.")
         return
-
-    blocks = sky_map_data.blocks
-    priority_bins = sky_map_data.priority_bins
-    
-    # Extract bin labels for filtering
-    bin_labels = [bin_info.label for bin_info in priority_bins]
 
     # Panel lateral izquierdo y sky map derecho
     sidebar_col, map_col = st.columns([1, 3], gap="large")
 
     with sidebar_col:
         controls = render_sidebar_controls(
-            blocks=blocks,
+            blocks=sky_map_data.blocks,
             priority_min=sky_map_data.priority_min,
             priority_max=sky_map_data.priority_max,
-            priority_bins=bin_labels,
+            priority_bins=[bin_info.label for bin_info in sky_map_data.priority_bins],
         )
 
     with map_col:
         filtered_blocks = filter_blocks(
-            blocks,
+            sky_map_data.blocks,
             priority_range=controls["priority_range"],
             scheduled_filter=controls["scheduled_filter"],
             selected_bins=controls["selected_bins"],
             schedule_window=controls["schedule_window"],
         )
 
-        if not filtered_blocks:
-            st.warning("No targets match the selected filters.")
-            return
-
         # Build color palette from priority bins computed in Rust
         category_palette = None
         if controls["color_column"] == "priority_bin":
             category_palette = {
                 bin_info.label: bin_info.color
-                for bin_info in priority_bins
+                for bin_info in sky_map_data.priority_bins
             }
 
         fig = build_figure(
