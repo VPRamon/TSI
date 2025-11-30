@@ -11,6 +11,8 @@ def render_priority_filter(
     min_value: float = 0.0,
     max_value: float = 10.0,
     default: tuple[float, float] | None = None,
+    label: str = "Priority Range",
+    subheader: str | None = None,
 ) -> tuple[float, float]:
     """
     Render priority range slider.
@@ -20,10 +22,15 @@ def render_priority_filter(
         min_value: Minimum allowed priority
         max_value: Maximum allowed priority
         default: Default slider values (min, max)
+        label: Label text for the slider control
+        subheader: Optional subheader text to render above the control
 
     Returns:
         Tuple of (min_priority, max_priority)
     """
+    if subheader:
+        st.subheader(subheader)
+
     slider_min = float(min_value)
     slider_max = float(max_value)
 
@@ -40,7 +47,7 @@ def render_priority_filter(
     default = (low, high)
 
     priority_range = st.slider(
-        "Priority Range",
+        label,
         min_value=slider_min,
         max_value=slider_max,
         value=default,
