@@ -965,3 +965,140 @@ pub struct BlockHistogramData {
     /// JSON string containing visibility periods: [{"start": mjd, "stop": mjd}, ...]
     pub visibility_periods_json: Option<String>,
 }
+
+// =========================================================
+// Schedule Timeline Types
+// =========================================================
+
+/// Lightweight scheduling block for scheduled timeline visualizations.
+/// Contains only the fields needed for monthly timeline plotting.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct ScheduleTimelineBlock {
+    pub scheduling_block_id: i64,
+    pub priority: f64,
+    pub scheduled_start_mjd: f64,
+    pub scheduled_stop_mjd: f64,
+    pub ra_deg: f64,
+    pub dec_deg: f64,
+    pub requested_hours: f64,
+    pub total_visibility_hours: f64,
+    pub num_visibility_periods: usize,
+}
+
+#[pymethods]
+impl ScheduleTimelineBlock {
+    #[getter]
+    pub fn scheduling_block_id(&self) -> i64 {
+        self.scheduling_block_id
+    }
+
+    #[getter]
+    pub fn priority(&self) -> f64 {
+        self.priority
+    }
+
+    #[getter]
+    pub fn scheduled_start_mjd(&self) -> f64 {
+        self.scheduled_start_mjd
+    }
+
+    #[getter]
+    pub fn scheduled_stop_mjd(&self) -> f64 {
+        self.scheduled_stop_mjd
+    }
+
+    #[getter]
+    pub fn ra_deg(&self) -> f64 {
+        self.ra_deg
+    }
+
+    #[getter]
+    pub fn dec_deg(&self) -> f64 {
+        self.dec_deg
+    }
+
+    #[getter]
+    pub fn requested_hours(&self) -> f64 {
+        self.requested_hours
+    }
+
+    #[getter]
+    pub fn total_visibility_hours(&self) -> f64 {
+        self.total_visibility_hours
+    }
+
+    #[getter]
+    pub fn num_visibility_periods(&self) -> usize {
+        self.num_visibility_periods
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "ScheduleTimelineBlock(id={}, priority={:.2}, start={:.2}, stop={:.2})",
+            self.scheduling_block_id, self.priority, self.scheduled_start_mjd, self.scheduled_stop_mjd
+        )
+    }
+}
+
+/// Complete schedule timeline data with blocks and computed metadata.
+/// This structure contains everything the frontend needs to render the scheduled timeline.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct ScheduleTimelineData {
+    pub blocks: Vec<ScheduleTimelineBlock>,
+    pub priority_min: f64,
+    pub priority_max: f64,
+    pub total_count: usize,
+    pub scheduled_count: usize,
+    pub unique_months: Vec<String>,
+    pub dark_periods: Vec<(f64, f64)>,
+}
+
+#[pymethods]
+impl ScheduleTimelineData {
+    #[getter]
+    pub fn blocks(&self) -> Vec<ScheduleTimelineBlock> {
+        self.blocks.clone()
+    }
+
+    #[getter]
+    pub fn priority_min(&self) -> f64 {
+        self.priority_min
+    }
+
+    #[getter]
+    pub fn priority_max(&self) -> f64 {
+        self.priority_max
+    }
+
+    #[getter]
+    pub fn total_count(&self) -> usize {
+        self.total_count
+    }
+
+    #[getter]
+    pub fn scheduled_count(&self) -> usize {
+        self.scheduled_count
+    }
+
+    #[getter]
+    pub fn unique_months(&self) -> Vec<String> {
+        self.unique_months.clone()
+    }
+
+    #[getter]
+    pub fn dark_periods(&self) -> Vec<(f64, f64)> {
+        self.dark_periods.clone()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "ScheduleTimelineData(blocks={}, months={}, priority=[{:.2}, {:.2}])",
+            self.total_count,
+            self.unique_months.len(),
+            self.priority_min,
+            self.priority_max
+        )
+    }
+}

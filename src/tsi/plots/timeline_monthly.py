@@ -7,13 +7,13 @@ from typing import cast
 import pandas as pd
 import plotly.graph_objects as go
 
-from tsi.services.time_utils import format_datetime_utc
+from tsi.services.time_utils import format_datetime_utc, mjd_to_datetime
 
 
 def build_monthly_timeline(
-    df: pd.DataFrame,
+    blocks: list,
     priority_range: tuple[float, float],
-    dark_periods: pd.DataFrame | None = None,
+    dark_periods: list[tuple[float, float]] | None = None,
 ) -> go.Figure:
     """
     Build a Plotly figure showing scheduled observations grouped by month.
@@ -23,20 +23,35 @@ def build_monthly_timeline(
     by constraining each row to its month's temporal boundaries.
 
     Args:
-        df: DataFrame with scheduled observations and monthly grouping columns
+        blocks: List of ScheduleTimelineBlock objects with scheduled observations
         priority_range: (min, max) priority values for color normalization
-        dark_periods: Optional DataFrame with dark period windows to overlay
+        dark_periods: Optional list of (start_mjd, stop_mjd) tuples for dark period windows
 
     Returns:
         Plotly Figure object
     """
-    # Get sorted months for Y-axis ordering
-    scheduled_months = set(df["scheduled_month_label"].unique())
+    # Get sorted months for Y-axis ordering from blocks
+    scheduled_months = set()
+    for block in blocks:
+        month_label = mjd_to_datetime(block.scheduled_start_mjd).strftime("%Y-%m")
+        scheduled_months.add(month_label)
+    
+    # Get months from dark periods
     dark_months: set[str] = set()
-    if dark_periods is not None and "months" in dark_periods.columns:
-        for month_list in dark_periods["months"]:
-            if isinstance(month_list, list):
-                dark_months.update(month_list)
+    if dark_periods:
+        for start_mjd, stop_mjd in dark_periods:
+            start_dt = mjd_to_datetime(start_mjd)
+            stop_dt = mjd_to_datetime(stop_mjd)
+            # Add all months spanned by this dark period
+            current = start_dt.replace(day=1)
+            end = stop_dt.replace(day=1)
+            while current <= end:
+                dark_months.add(current.strftime("%Y-%m"))
+                # Move to next month
+                if current.month == 12:
+                    current = current.replace(year=current.year + 1, month=1)
+                else:
+                    current = current.replace(month=current.month + 1)
 
     ordered_months = sorted(scheduled_months | dark_months)
     num_months = len(ordered_months)
@@ -53,17 +68,20 @@ def build_monthly_timeline(
     month_to_position = {month: idx for idx, month in enumerate(ordered_months)}
 
     # Add both dark and light period overlays
-    if dark_periods is not None and not dark_periods.empty:
+    if dark_periods:
+        # Convert dark periods to DataFrame-like structure for compatibility
+        dark_df = _dark_periods_to_dataframe(dark_periods)
+        
         # Add light periods (inverted from dark periods)
-        light_segments = _invert_to_light_periods(dark_periods)
+        light_segments = _invert_to_light_periods(dark_df)
         _add_light_period_traces(fig, light_segments, month_to_position)
 
         # Add dark periods (observable times)
-        dark_segments = _split_dark_periods_by_month(dark_periods)
+        dark_segments = _split_dark_periods_by_month(dark_df)
         _add_dark_period_traces(fig, dark_segments, month_to_position)
 
     # Add observation traces
-    _add_observation_traces(fig, df, month_to_position, priority_min, priority_max)
+    _add_observation_traces_from_blocks(fig, blocks, month_to_position, priority_min, priority_max)
 
     # Add colorbar legend
     _add_colorbar(fig, priority_min, priority_max)
@@ -73,7 +91,7 @@ def build_monthly_timeline(
 
     # Update layout
     fig.update_layout(
-        title=f"Scheduled Timeline by Month ({len(df):,} observations)",
+        title=f"Scheduled Timeline by Month ({len(blocks):,} observations)",
         xaxis=dict(
             title="Day of month",
             showgrid=True,
@@ -604,3 +622,226 @@ def _datetime_to_day_fraction(dt: pd.Timestamp) -> float:
     base += dt.second / 86_400.0
     base += dt.microsecond / 86_400_000_000.0
     return cast(float, base)
+
+
+def _dark_periods_to_dataframe(dark_periods: list[tuple[float, float]]) -> pd.DataFrame:
+    """Convert dark periods list to DataFrame format for compatibility with existing functions."""
+    from tsi.services.time_utils import mjd_to_datetime
+    
+    data = []
+    for start_mjd, stop_mjd in dark_periods:
+        start_dt = mjd_to_datetime(start_mjd)
+        stop_dt = mjd_to_datetime(stop_mjd)
+        duration_hours = (stop_mjd - start_mjd) * 24.0
+        
+        # Get months spanned by this period
+        months = []
+        current = start_dt.replace(day=1)
+        end = stop_dt.replace(day=1)
+        while current <= end:
+            months.append(current.strftime("%Y-%m"))
+            if current.month == 12:
+                current = current.replace(year=current.year + 1, month=1)
+            else:
+                current = current.replace(month=current.month + 1)
+        
+        data.append({
+            "start_dt": start_dt,
+            "stop_dt": stop_dt,
+            "duration_hours": duration_hours,
+            "months": months,
+        })
+    
+    return pd.DataFrame(data)
+
+
+def _add_observation_traces_from_blocks(
+    fig: go.Figure,
+    blocks: list,
+    month_to_position: dict,
+    priority_min: float,
+    priority_max: float,
+) -> None:
+    """Add observation traces to figure from ScheduleTimelineBlock objects."""
+    from tsi.services.time_utils import mjd_to_datetime
+    
+    for block in blocks:
+        block_id = block.scheduling_block_id
+        priority = block.priority
+        start_dt = mjd_to_datetime(block.scheduled_start_mjd)
+        stop_dt = mjd_to_datetime(block.scheduled_stop_mjd)
+        duration_hours = (block.scheduled_stop_mjd - block.scheduled_start_mjd) * 24.0
+
+        # Normalize priority to [0, 1] for colorscale
+        normalized_priority = (priority - priority_min) / (priority_max - priority_min)
+
+        # Check if observation spans multiple months
+        start_month_label = start_dt.strftime("%Y-%m")
+        stop_month_label = stop_dt.strftime("%Y-%m")
+
+        if start_month_label != stop_month_label:
+            _add_multi_month_observation_from_block(
+                fig,
+                block,
+                start_dt,
+                stop_dt,
+                month_to_position,
+                normalized_priority,
+                block_id,
+                priority,
+                duration_hours,
+            )
+        else:
+            _add_single_month_observation_from_block(
+                fig,
+                block,
+                start_dt,
+                stop_dt,
+                month_to_position,
+                normalized_priority,
+                block_id,
+                priority,
+                duration_hours,
+                start_month_label,
+            )
+
+
+def _add_multi_month_observation_from_block(
+    fig: go.Figure,
+    block,
+    start_dt: pd.Timestamp,
+    stop_dt: pd.Timestamp,
+    month_to_position: dict[str, int],
+    normalized_priority: float,
+    block_id: int,
+    priority: float,
+    duration_hours: float,
+) -> None:
+    """Add observation that spans multiple months."""
+    # Part 1: From start to end of start month
+    start_month_label = start_dt.strftime("%Y-%m")
+    if start_month_label in month_to_position:
+        y_pos = month_to_position[start_month_label]
+        y_bottom = y_pos - 0.4
+        y_top = y_pos + 0.4
+
+        # Calculate last day of start month
+        if start_dt.month == 12:
+            end_of_month = pd.Timestamp(year=start_dt.year + 1, month=1, day=1, tz='UTC') - pd.Timedelta(seconds=1)
+        else:
+            end_of_month = pd.Timestamp(year=start_dt.year, month=start_dt.month + 1, day=1, tz='UTC') - pd.Timedelta(seconds=1)
+
+        start_day = start_dt.day + start_dt.hour / 24.0 + start_dt.minute / 1440.0
+        end_day = end_of_month.day + 23.0 / 24.0 + 59.0 / 1440.0
+
+        fig.add_trace(
+            go.Scatter(
+                name=f"Block {block_id} (part 1)",
+                x=[start_day, end_day, end_day, start_day, start_day],
+                y=[y_bottom, y_bottom, y_top, y_top, y_bottom],
+                fill="toself",
+                fillcolor=f"rgba({_viridis_color(normalized_priority)}, 0.85)",
+                line=dict(
+                    color=f"rgba({_viridis_color(normalized_priority)}, 1.0)",
+                    width=1,
+                ),
+                hovertemplate=(
+                    f"<b>📡 Block {block_id}</b> (crosses months)<br><br>"
+                    f"<b>Month:</b> {start_month_label}<br>"
+                    f"<b>Priority:</b> {priority:.2f}<br>"
+                    f"<b>Total duration:</b> {duration_hours:.2f} hours<br><br>"
+                    f"<b>Start:</b> {format_datetime_utc(start_dt)}<br>"
+                    f"<b>Total end:</b> {format_datetime_utc(stop_dt)}<br>"
+                    "<extra></extra>"
+                ),
+                showlegend=False,
+                mode="lines",
+            )
+        )
+
+    # Part 2: From start of stop month to actual stop
+    stop_month_label = stop_dt.strftime("%Y-%m")
+    if stop_month_label in month_to_position:
+        y_pos = month_to_position[stop_month_label]
+        y_bottom = y_pos - 0.4
+        y_top = y_pos + 0.4
+
+        start_day = 1.0
+        stop_day = stop_dt.day + stop_dt.hour / 24.0 + stop_dt.minute / 1440.0
+
+        fig.add_trace(
+            go.Scatter(
+                name=f"Block {block_id} (part 2)",
+                x=[start_day, stop_day, stop_day, start_day, start_day],
+                y=[y_bottom, y_bottom, y_top, y_top, y_bottom],
+                fill="toself",
+                fillcolor=f"rgba({_viridis_color(normalized_priority)}, 0.85)",
+                line=dict(
+                    color=f"rgba({_viridis_color(normalized_priority)}, 1.0)",
+                    width=1,
+                ),
+                hovertemplate=(
+                    f"<b>📡 Block {block_id}</b> (crosses months)<br><br>"
+                    f"<b>Month:</b> {stop_month_label}<br>"
+                    f"<b>Priority:</b> {priority:.2f}<br>"
+                    f"<b>Total duration:</b> {duration_hours:.2f} hours<br><br>"
+                    f"<b>Total start:</b> {format_datetime_utc(start_dt)}<br>"
+                    f"<b>End:</b> {format_datetime_utc(stop_dt)}<br>"
+                    "<extra></extra>"
+                ),
+                showlegend=False,
+                mode="lines",
+            )
+        )
+
+
+def _add_single_month_observation_from_block(
+    fig: go.Figure,
+    block,
+    start_dt: pd.Timestamp,
+    stop_dt: pd.Timestamp,
+    month_to_position: dict,
+    normalized_priority: float,
+    block_id: int,
+    priority: float,
+    duration_hours: float,
+    month_label: str,
+) -> None:
+    """Add observation within a single month."""
+    y_pos = month_to_position[month_label]
+    y_bottom = y_pos - 0.4
+    y_top = y_pos + 0.4
+
+    start_day = start_dt.day + start_dt.hour / 24.0 + start_dt.minute / 1440.0
+    stop_day = stop_dt.day + stop_dt.hour / 24.0 + stop_dt.minute / 1440.0
+
+    fig.add_trace(
+        go.Scatter(
+            name=f"Block {block_id}",
+            x=[start_day, stop_day, stop_day, start_day, start_day],
+            y=[y_bottom, y_bottom, y_top, y_top, y_bottom],
+            fill="toself",
+            fillcolor=f"rgba({_viridis_color(normalized_priority)}, 0.85)",
+            line=dict(
+                color=f"rgba({_viridis_color(normalized_priority)}, 1.0)",
+                width=1,
+            ),
+            hovertemplate=(
+                f"<b>📡 Block {block_id}</b><br><br>"
+                f"<b>Month:</b> {month_label}<br>"
+                f"<b>Days:</b> {start_dt.day} → {stop_dt.day}<br>"
+                f"<b>Priority:</b> {priority:.2f}<br>"
+                f"<b>Duration:</b> {duration_hours:.2f} hours<br><br>"
+                f"<b>Start:</b> {format_datetime_utc(start_dt)}<br>"
+                f"<b>End:</b> {format_datetime_utc(stop_dt)}<br>"
+                f"<b>RA:</b> {block.ra_deg:.2f}°<br>"
+                f"<b>Dec:</b> {block.dec_deg:.2f}°<br>"
+                f"<b>Requested:</b> {block.requested_hours:.2f}h<br>"
+                f"<b>Visibility:</b> {block.total_visibility_hours:.2f}h ({block.num_visibility_periods} periods)<br>"
+                "<extra></extra>"
+            ),
+            showlegend=False,
+            mode="lines",
+        )
+    )
+

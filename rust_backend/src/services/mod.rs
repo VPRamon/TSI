@@ -6,7 +6,9 @@
 
 pub mod distributions;
 pub mod sky_map;
+pub mod timeline;
 pub mod visibility;
 
 pub use distributions::py_get_distribution_data;
 pub use sky_map::py_get_sky_map_data;
+pub use timeline::py_get_schedule_timeline_data;

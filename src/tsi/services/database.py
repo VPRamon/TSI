@@ -8,7 +8,7 @@ import pandas as pd
 
 
 if TYPE_CHECKING:
-    from tsi_rust import LightweightBlock, SkyMapData, VisibilityMapData
+    from tsi_rust import LightweightBlock, SkyMapData, VisibilityMapData, ScheduleTimelineData
 
 
 def _import_rust():
@@ -166,6 +166,33 @@ def get_distribution_data(
         DistributionData object with all required data and pre-computed statistics
     """
     return _rust_call("py_get_distribution_data", schedule_id, filter_impossible)
+
+
+def get_schedule_timeline_data(
+    *,
+    schedule_id: int,
+):
+    """
+    Get complete schedule timeline data with computed statistics and metadata.
+    
+    This is the main function for the scheduled timeline feature. It returns a ScheduleTimelineData
+    object containing:
+    - blocks: List of ScheduleTimelineBlock objects with scheduled times and coordinates
+    - priority_min, priority_max: Priority range
+    - total_count, scheduled_count: Statistics
+    - unique_months: List of unique month labels (YYYY-MM format)
+    - dark_periods: List of (start_mjd, stop_mjd) tuples for dark periods
+    
+    All processing (querying, statistics computation, month extraction) is done in Rust
+    for maximum performance. The frontend just needs to render the timeline.
+    
+    Args:
+        schedule_id: Database ID of the schedule to load
+    
+    Returns:
+        ScheduleTimelineData object with all required data and pre-computed statistics
+    """
+    return _rust_call("py_get_schedule_timeline_data", schedule_id)
 
 
 def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:

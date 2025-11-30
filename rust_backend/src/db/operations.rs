@@ -1960,3 +1960,124 @@ pub async fn get_schedule_time_range(schedule_id: i64) -> Result<Option<(f64, f6
         Ok(None)
     }
 }
+
+/// Fetch scheduled timeline blocks for a schedule.
+/// This returns only scheduled blocks with valid start/stop times and all required fields
+/// for the monthly timeline visualization.
+pub async fn fetch_schedule_timeline_blocks(
+    schedule_id: i64,
+) -> Result<Vec<super::models::ScheduleTimelineBlock>, String> {
+    use super::models::ScheduleTimelineBlock;
+
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT 
+            sb.scheduling_block_id,
+            sb.priority,
+            ssb.start_time_mjd,
+            ssb.stop_time_mjd,
+            t.ra_deg,
+            t.dec_deg,
+            sb.requested_duration_sec,
+            sb.visibility_periods_json
+        FROM dbo.schedule_scheduling_blocks ssb
+        JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+        JOIN dbo.targets t ON sb.target_id = t.target_id
+        WHERE ssb.schedule_id = @P1
+          AND ssb.start_time_mjd IS NOT NULL
+          AND ssb.stop_time_mjd IS NOT NULL
+        ORDER BY ssb.start_time_mjd
+        "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch timeline blocks: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read timeline blocks: {e}"))?;
+
+    let mut blocks = Vec::with_capacity(rows.len());
+
+    for row in rows {
+        let scheduling_block_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+
+        let priority: f64 = row
+            .get::<f64, _>(1)
+            .ok_or_else(|| "priority is NULL".to_string())?;
+
+        let scheduled_start_mjd: f64 = row
+            .get::<f64, _>(2)
+            .ok_or_else(|| "start_time_mjd is NULL".to_string())?;
+
+        let scheduled_stop_mjd: f64 = row
+            .get::<f64, _>(3)
+            .ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
+
+        let ra_deg: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
+        let dec_deg: f64 = row.get::<f64, _>(5).unwrap_or(0.0);
+
+        // Convert requested duration from seconds to hours
+        // Handle both i32 and f64 types from database
+        let requested_hours = if let Some(val) = row.get::<i32, _>(6) {
+            val as f64 / 3600.0
+        } else if let Some(val) = row.get::<f64, _>(6) {
+            val / 3600.0
+        } else {
+            0.0
+        };
+
+        // Parse visibility periods to calculate total visibility hours and period count
+        let visibility_json: Option<&str> = row.get(7);
+        let (total_visibility_hours, num_visibility_periods) = if let Some(json) = visibility_json
+        {
+            match serde_json::from_str::<Vec<serde_json::Value>>(json) {
+                Ok(periods) => {
+                    let mut total_hours = 0.0;
+                    let mut count = 0;
+                    for period in &periods {
+                        if let (Some(start), Some(stop)) =
+                            (period["start"].as_f64(), period["stop"].as_f64())
+                        {
+                            let duration_days = stop - start;
+                            let duration_hours = duration_days * 24.0;
+                            total_hours += duration_hours;
+                            count += 1;
+                        }
+                    }
+                    (total_hours, count)
+                }
+                Err(_) => (0.0, 0),
+            }
+        } else {
+            (0.0, 0)
+        };
+
+        blocks.push(ScheduleTimelineBlock {
+            scheduling_block_id,
+            priority,
+            scheduled_start_mjd,
+            scheduled_stop_mjd,
+            ra_deg,
+            dec_deg,
+            requested_hours,
+            total_visibility_hours,
+            num_visibility_periods,
+        });
+    }
+
+    Ok(blocks)
+}
+
