@@ -831,3 +831,137 @@ impl DistributionData {
         )
     }
 }
+
+// =========================================================
+// Visibility Histogram Types
+// =========================================================
+
+/// Lightweight block summary for the visibility map.
+/// Provides just enough information for filtering and statistics.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct VisibilityBlockSummary {
+    pub scheduling_block_id: i64,
+    pub priority: f64,
+    pub num_visibility_periods: usize,
+    pub scheduled: bool,
+}
+
+#[pymethods]
+impl VisibilityBlockSummary {
+    #[getter]
+    pub fn scheduling_block_id(&self) -> i64 {
+        self.scheduling_block_id
+    }
+
+    #[getter]
+    pub fn priority(&self) -> f64 {
+        self.priority
+    }
+
+    #[getter]
+    pub fn num_visibility_periods(&self) -> usize {
+        self.num_visibility_periods
+    }
+
+    #[getter]
+    pub fn scheduled(&self) -> bool {
+        self.scheduled
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "VisibilityBlockSummary(id={}, priority={:.2}, periods={}, scheduled={})",
+            self.scheduling_block_id, self.priority, self.num_visibility_periods, self.scheduled
+        )
+    }
+}
+
+/// Data bundle for the visibility map UI.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct VisibilityMapData {
+    pub blocks: Vec<VisibilityBlockSummary>,
+    pub priority_min: f64,
+    pub priority_max: f64,
+    pub total_count: usize,
+    pub scheduled_count: usize,
+}
+
+#[pymethods]
+impl VisibilityMapData {
+    #[getter]
+    pub fn blocks(&self) -> Vec<VisibilityBlockSummary> {
+        self.blocks.clone()
+    }
+
+    #[getter]
+    pub fn priority_min(&self) -> f64 {
+        self.priority_min
+    }
+
+    #[getter]
+    pub fn priority_max(&self) -> f64 {
+        self.priority_max
+    }
+
+    #[getter]
+    pub fn total_count(&self) -> usize {
+        self.total_count
+    }
+
+    #[getter]
+    pub fn scheduled_count(&self) -> usize {
+        self.scheduled_count
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "VisibilityMapData(blocks={}, priority=[{:.2}, {:.2}], scheduled={}/{})",
+            self.total_count,
+            self.priority_min,
+            self.priority_max,
+            self.scheduled_count,
+            self.total_count
+        )
+    }
+}
+
+/// Represents a single time bin in a visibility histogram.
+/// Used internally in Rust for efficient computation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct VisibilityBin {
+    /// Start of the bin as Unix timestamp (seconds since epoch)
+    pub bin_start_unix: i64,
+    /// End of the bin as Unix timestamp (seconds since epoch)
+    pub bin_end_unix: i64,
+    /// Number of unique scheduling blocks visible in this bin
+    pub visible_count: u32,
+}
+
+impl VisibilityBin {
+    /// Create a new visibility bin
+    pub fn new(bin_start_unix: i64, bin_end_unix: i64, visible_count: u32) -> Self {
+        Self {
+            bin_start_unix,
+            bin_end_unix,
+            visible_count,
+        }
+    }
+
+    /// Check if a time period (in Unix timestamps) overlaps with this bin
+    pub fn overlaps_period(&self, period_start_unix: i64, period_end_unix: i64) -> bool {
+        period_start_unix < self.bin_end_unix && period_end_unix > self.bin_start_unix
+    }
+}
+
+/// A row from the database containing minimal data needed for histogram computation
+#[derive(Debug, Clone)]
+pub struct BlockHistogramData {
+    /// Scheduling block ID
+    pub scheduling_block_id: i64,
+    /// Priority of the block
+    pub priority: i32,
+    /// JSON string containing visibility periods: [{"start": mjd, "stop": mjd}, ...]
+    pub visibility_periods_json: Option<String>,
+}

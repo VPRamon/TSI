@@ -8,7 +8,7 @@ import pandas as pd
 
 
 if TYPE_CHECKING:
-    from tsi_rust import LightweightBlock, SkyMapData
+    from tsi_rust import LightweightBlock, SkyMapData, VisibilityMapData
 
 
 def _import_rust():
@@ -120,6 +120,22 @@ def get_sky_map_data(
     for maximum performance. The frontend just needs to plot the data.
     """
     return _rust_call("py_get_sky_map_data", schedule_id)
+
+
+def get_visibility_map_data(
+    *,
+    schedule_id: int,
+) -> VisibilityMapData:
+    """
+    Fetch visibility map metadata and block summaries from the Rust backend.
+
+    Returns a VisibilityMapData object containing:
+    - blocks: List of VisibilityBlockSummary with id, priority, num_visibility_periods, scheduled
+    - priority_min/priority_max: Priority range for the schedule
+    - total_count: Total blocks in the schedule
+    - scheduled_count: Number of scheduled blocks
+    """
+    return _rust_call("py_get_visibility_map_data", schedule_id)
 
 
 def get_distribution_data(
@@ -309,6 +325,109 @@ def _fetch_schedule_pyodbc(
     return None
 
 
+def get_visibility_histogram(
+    schedule_id: int,
+    start: pd.Timestamp,
+    end: pd.Timestamp,
+    bin_duration_minutes: int,
+    priority_range: tuple[int, int] | None = None,
+    block_ids: list[int] | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Compute visibility histogram from the backend.
+
+    Returns a list of time bins with counts of visible scheduling blocks.
+    This function offloads heavy computation to Rust and returns only
+    the minimal JSON-serializable payload needed for visualization.
+
+    Args:
+        schedule_id: Schedule ID to analyze
+        start: Start of time range
+        end: End of time range
+        bin_duration_minutes: Duration of each histogram bin in minutes
+        priority_range: Optional (min, max) priority filter (inclusive)
+        block_ids: Optional list of specific block IDs to include
+
+    Returns:
+        List of dicts with keys:
+        - bin_start_unix: Start of bin (Unix timestamp)
+        - bin_end_unix: End of bin (Unix timestamp)
+        - count: Number of unique blocks visible in this bin
+
+    Example:
+        >>> from datetime import datetime, timezone
+        >>> start = pd.Timestamp(datetime(2024, 1, 1, tzinfo=timezone.utc))
+        >>> end = pd.Timestamp(datetime(2024, 1, 2, tzinfo=timezone.utc))
+        >>> bins = get_visibility_histogram(
+        ...     schedule_id=1,
+        ...     start=start,
+        ...     end=end,
+        ...     bin_duration_minutes=60,
+        ...     priority_range=(5, 10),
+        ... )
+        >>> print(f"Total bins: {len(bins)}")
+        >>> print(f"Max visible: {max(b['count'] for b in bins)}")
+    """
+    # Convert pandas timestamps to Unix timestamps
+    start_unix = int(start.timestamp())
+    end_unix = int(end.timestamp())
+
+    # Extract priority min/max
+    priority_min = priority_range[0] if priority_range else None
+    priority_max = priority_range[1] if priority_range else None
+
+    # Call Rust backend
+    return _rust_call(
+        "py_get_visibility_histogram",
+        schedule_id,
+        start_unix,
+        end_unix,
+        bin_duration_minutes,
+        priority_min,
+        priority_max,
+        block_ids,
+    )
+
+
+def get_schedule_time_range(schedule_id: int) -> tuple[pd.Timestamp, pd.Timestamp] | None:
+    """
+    Get the time range (min/max timestamps) for a schedule's visibility periods.
+    
+    This function queries the database to find the earliest and latest times
+    across all visibility periods for the given schedule.
+    
+    Args:
+        schedule_id: Schedule ID to analyze
+        
+    Returns:
+        Tuple of (start_time, end_time) as pandas Timestamps, or None if no
+        visibility periods exist or if schedule not found.
+        
+    Raises:
+        RuntimeError: If database query fails
+        
+    Example:
+        >>> time_range = get_schedule_time_range(schedule_id=1)
+        >>> if time_range:
+        ...     start, end = time_range
+        ...     print(f"Schedule spans {(end - start).days} days")
+        ... else:
+        ...     print("No visibility periods found")
+    """
+    result = _rust_call("py_get_schedule_time_range", schedule_id)
+    
+    if result is None:
+        return None
+    
+    start_unix, end_unix = result
+    
+    # Convert Unix timestamps to pandas timestamps (UTC)
+    start_time = pd.Timestamp(start_unix, unit='s', tz='UTC')
+    end_time = pd.Timestamp(end_unix, unit='s', tz='UTC')
+    
+    return start_time, end_time
+
+
 __all__ = [
     "init_database",
     "db_health_check",
@@ -317,4 +436,6 @@ __all__ = [
     "list_schedules_db",
     "fetch_dark_periods_db",
     "fetch_possible_periods_db",
+    "get_visibility_histogram",
+    "get_schedule_time_range",
 ]

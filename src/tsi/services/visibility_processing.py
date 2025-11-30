@@ -2,20 +2,20 @@
 
 from __future__ import annotations
 
-import pandas as pd
+from typing import Any, Iterable, Sequence
 
 
-def get_all_block_ids(df: pd.DataFrame) -> list:
+def get_all_block_ids(blocks: Sequence[Any]) -> list[int]:
     """
-    Get sorted list of all block IDs from the dataframe.
+    Get sorted list of all block IDs from backend blocks.
 
     Args:
-        df: Source DataFrame
+        blocks: Sequence of VisibilityBlockSummary-like objects
 
     Returns:
         Sorted list of block IDs
     """
-    return sorted(df["schedulingBlockId"].dropna().unique())
+    return sorted({int(getattr(block, "scheduling_block_id")) for block in blocks})
 
 
 def compute_effective_priority_range(
@@ -37,3 +37,35 @@ def compute_effective_priority_range(
     effective_min = max(sidebar_range[0], settings_range[0])
     effective_max = min(sidebar_range[1], settings_range[1])
     return (effective_min, effective_max)
+
+
+def filter_visibility_blocks(
+    blocks: Iterable[Any],
+    *,
+    priority_range: tuple[float, float],
+    block_ids: list[int] | None = None,
+) -> list[Any]:
+    """
+    Filter visibility blocks by priority range and optional block IDs.
+
+    Args:
+        blocks: VisibilityBlockSummary objects
+        priority_range: Inclusive priority range (min, max)
+        block_ids: Optional list of block IDs to include
+
+    Returns:
+        Filtered list of blocks
+    """
+    min_priority, max_priority = priority_range
+    allowed_ids = {int(bid) for bid in block_ids} if block_ids else None
+
+    def _matches(block: Any) -> bool:
+        priority = float(getattr(block, "priority"))
+        block_id = int(getattr(block, "scheduling_block_id"))
+        if priority < min_priority or priority > max_priority:
+            return False
+        if allowed_ids is not None and block_id not in allowed_ids:
+            return False
+        return True
+
+    return [block for block in blocks if _matches(block)]

@@ -2,35 +2,39 @@
 
 from __future__ import annotations
 
-import pandas as pd
+from typing import Any, Sequence
+
 import streamlit as st
 
 
-def render_dataset_statistics(df: pd.DataFrame, filtered_df: pd.DataFrame) -> None:
+def render_dataset_statistics(all_blocks: Sequence[Any], filtered_blocks: Sequence[Any]) -> None:
     """
     Render dataset statistics metrics.
 
     Args:
-        df: Full DataFrame
-        filtered_df: Filtered DataFrame
+        all_blocks: All blocks returned by the backend
+        filtered_blocks: Blocks after applying page filters
     """
     st.subheader("📊 Dataset Statistics")
 
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("Total Blocks", f"{len(df):,}")
+        st.metric("Total Blocks", f"{len(all_blocks):,}")
 
     with col2:
-        st.metric("Filtered Blocks", f"{len(filtered_df):,}")
+        st.metric("Filtered Blocks", f"{len(filtered_blocks):,}")
 
     with col3:
-        scheduled_count = filtered_df["scheduled_flag"].sum()
+        scheduled_count = sum(1 for block in filtered_blocks if getattr(block, "scheduled", False))
         st.metric("Scheduled", f"{int(scheduled_count):,}")
 
     with col4:
-        avg_vis_periods = filtered_df["num_visibility_periods"].mean()
-        if pd.notna(avg_vis_periods):
+        if filtered_blocks:
+            total_periods = sum(
+                float(getattr(block, "num_visibility_periods", 0) or 0) for block in filtered_blocks
+            )
+            avg_vis_periods = total_periods / len(filtered_blocks)
             st.metric("Avg Visibility Periods", f"{avg_vis_periods:.1f}")
         else:
             st.metric("Avg Visibility Periods", "N/A")
