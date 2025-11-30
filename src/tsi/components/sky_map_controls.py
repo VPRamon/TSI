@@ -18,7 +18,7 @@ from tsi.services.time_utils import ModifiedJulianDate
 from tsi_rust import Period
 
 if TYPE_CHECKING:
-    from tsi_rust import SkyMapBlock, SkyMapData
+    from tsi_rust import LightweightBlock, SkyMapData
 
 
 def render_sidebar_controls(
@@ -106,7 +106,7 @@ def _render_color_selector() -> str:
     return color_options[color_choice]
 
 
-def _render_schedule_window_control(blocks: list[SkyMapBlock]) -> Period | None:
+def _render_schedule_window_control(blocks: list[LightweightBlock]) -> Period | None:
     """Render slider to filter by scheduled start datetime."""
 
     scheduled_periods = [

@@ -181,7 +181,7 @@ CREATE TABLE dbo.scheduling_blocks (
         REFERENCES dbo.targets(target_id),
     constraints_id         BIGINT NULL
         REFERENCES dbo.constraints(constraints_id),
-    priority               NUMERIC(4,1) NOT NULL,  -- Relative scheduling priority
+    priority               FLOAT NOT NULL,        -- Scheduling priority
     min_observation_sec    INT NOT NULL,          -- Minimum viable observation time
     requested_duration_sec INT NOT NULL,          -- Ideal requested duration
     visibility_periods_json NVARCHAR(MAX) NULL,   -- JSON array of visibility periods [{"start": mjd, "stop": mjd}, ...]

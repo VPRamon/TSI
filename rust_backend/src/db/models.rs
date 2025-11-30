@@ -210,7 +210,7 @@ pub struct SchedulingBlock {
     pub id: SchedulingBlockId,
     pub target: ICRS,
     pub constraints: Constraints,
-    pub priority: f32, // NUMERIC(4,1) as f32
+    pub priority: f64,
     pub min_observation: Seconds,
     pub requested_duration: Seconds,
     pub visibility_periods: Vec<Period>,
@@ -226,7 +226,7 @@ impl SchedulingBlock {
         ra_deg: f64,
         dec_deg: f64,
         constraints: Constraints,
-        priority: f32,
+        priority: f64,
         min_observation_seconds: f64,
         requested_duration_seconds: f64,
         visibility_periods: Vec<Period>,
@@ -265,7 +265,7 @@ impl SchedulingBlock {
     }
 
     #[getter]
-    pub fn priority(&self) -> f32 {
+    pub fn priority(&self) -> f64 {
         self.priority
     }
 
@@ -465,7 +465,7 @@ impl ScheduleInfo {
 /// Contains only the essential fields needed for plotting.
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
-pub struct SkyMapBlock {
+pub struct LightweightBlock {
     pub id: SchedulingBlockId,
     pub priority: f64,
     pub priority_bin: String,
@@ -476,7 +476,7 @@ pub struct SkyMapBlock {
 }
 
 #[pymethods]
-impl SkyMapBlock {
+impl LightweightBlock {
     #[getter]
     pub fn id(&self) -> SchedulingBlockId {
         self.id
@@ -514,7 +514,7 @@ impl SkyMapBlock {
 
     fn __repr__(&self) -> String {
         format!(
-            "SkyMapBlock(id={}, priority={:.2}, ra={:.2}, dec={:.2}, scheduled={})",
+            "LightweightBlock(id={}, priority={:.2}, ra={:.2}, dec={:.2}, scheduled={})",
             self.id.0,
             self.priority,
             self.target_ra_deg,
@@ -569,7 +569,7 @@ impl PriorityBinInfo {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct SkyMapData {
-    pub blocks: Vec<SkyMapBlock>,
+    pub blocks: Vec<LightweightBlock>,
     pub priority_bins: Vec<PriorityBinInfo>,
     pub priority_min: f64,
     pub priority_max: f64,
@@ -586,7 +586,7 @@ pub struct SkyMapData {
 #[pymethods]
 impl SkyMapData {
     #[getter]
-    pub fn blocks(&self) -> Vec<SkyMapBlock> {
+    pub fn blocks(&self) -> Vec<LightweightBlock> {
         self.blocks.clone()
     }
 

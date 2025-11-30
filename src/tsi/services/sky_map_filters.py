@@ -8,10 +8,10 @@ from typing import Any, TYPE_CHECKING
 from tsi.services.time_utils import ModifiedJulianDate
 
 if TYPE_CHECKING:
-    from tsi_rust import Period, SkyMapBlock
+    from tsi_rust import Period, LightweightBlock
 
 def filter_blocks(
-    blocks: list[SkyMapBlock],
+    blocks: list[LightweightBlock],
     priority_range: tuple[float, float],
     scheduled_filter: str,
     selected_bins: Sequence[str],
