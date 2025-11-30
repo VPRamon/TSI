@@ -10,6 +10,7 @@ from tsi import state
 from tsi.components.toolbar.toolbar import (
     render_number_input,
     render_priority_range_control,
+    render_priority_filter,
     render_reset_filters_button,
 )
 
@@ -101,16 +102,13 @@ def _render_priority_filter_section(
 ) -> tuple[float, float]:
     """Render priority filter section."""
     st.subheader("🎯 Priority Filter")
-    priority_filter_range = st.slider(
-        "Filter by Priority Range",
+    return render_priority_filter(
+        key="visibility_histogram_priority_filter",
         min_value=priority_min,
         max_value=priority_max,
-        value=(priority_min, priority_max),
-        step=0.1,
-        key="visibility_histogram_priority_filter",
-        help="Filter blocks by priority range for the histogram",
+        default=(priority_min, priority_max),
+        label="Filter by Priority Range",
     )
-    return priority_filter_range
 
 
 def _render_block_id_filter_section(all_block_ids: list) -> list | None:
