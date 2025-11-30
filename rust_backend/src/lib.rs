@@ -131,6 +131,10 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Register transformation functions
     python::transformations::register_transformation_functions(m)?;
 
+    // Register time conversion functions
+    m.add_function(wrap_pyfunction!(python::mjd_to_datetime, m)?)?;
+    m.add_function(wrap_pyfunction!(python::datetime_to_mjd, m)?)?;
+
     // Register database functions
     m.add_function(wrap_pyfunction!(python::py_init_database, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_db_health_check, m)?)?;

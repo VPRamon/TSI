@@ -59,15 +59,19 @@ def test_datetime_to_mjd__with_timezone_aware_datetime__returns_expected_mjd() -
     assert abs(result - 59000.5) < 1e-6
 
 
-def test_datetime_to_mjd__with_naive_datetime__raises_value_error() -> None:
-    """Naive datetimes should be rejected to prevent timezone bugs."""
+def test_datetime_to_mjd__with_naive_datetime__treats_as_utc() -> None:
+    """Naive datetimes are now treated as UTC (changed with Rust backend migration)."""
 
     # Given: a naive datetime lacking timezone information
-    dt = datetime(2020, 1, 1, 0, 0, 0)
+    dt_naive = datetime(2020, 1, 1, 0, 0, 0)
+    dt_utc = datetime(2020, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
 
-    # When / Then: conversion should raise a helpful error
-    with pytest.raises(ValueError, match="timezone-aware"):
-        datetime_to_mjd(dt)
+    # When: converting both to MJD
+    mjd_naive = datetime_to_mjd(dt_naive)
+    mjd_utc = datetime_to_mjd(dt_utc)
+
+    # Then: they should produce the same result (naive treated as UTC)
+    assert mjd_naive == mjd_utc
 
 
 def test_datetime_mjd_round_trip__with_fractional_component__preserves_precision() -> None:

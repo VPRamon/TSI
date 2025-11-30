@@ -1,8 +1,14 @@
 """
 Example usage of the Rust-backed schedule preprocessing helpers.
 
-This script shows how to call :func:`core.loaders.load_schedule_from_json`
-to convert raw scheduling exports into CSV files compatible with the Streamlit app.
+⚠️ LEGACY EXAMPLE - Uses deprecated API
+
+This script demonstrates the old core.loaders API which has been replaced by
+the Rust backend. For current usage, see:
+- tsi_rust_api.py (TSIBackend class)
+- Rust backend functions in tsi_rust module
+
+This example is kept for reference but may not work with current codebase.
 """
 
 from __future__ import annotations
@@ -28,34 +34,24 @@ SRC_PATH = PROJECT_ROOT / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
-from core.loaders import ScheduleLoadResult, load_schedule_from_json
+# LEGACY: core.loaders no longer exists - use tsi_rust_api.TSIBackend instead
+# from core.loaders import ScheduleLoadResult, load_schedule_from_json
+from tsi_rust_api import TSIBackend
 
 
-def _print_validation_summary(result: ScheduleLoadResult) -> None:
+def _print_validation_summary(result: dict) -> None:
     """Pretty-print the validation payload returned by Rust."""
 
-    validation = result.validation
-    print("\nValidation")
-    print(f"  Status   : {'PASS' if validation.is_valid else 'FAIL'}")
-    print(f"  Errors   : {len(validation.errors)}")
-    if validation.errors:
-        for error in validation.errors[:3]:
-            print(f"    • {error}")
-    print(f"  Warnings : {len(validation.warnings)}")
-    if validation.warnings:
-        for warning in validation.warnings[:3]:
-            print(f"    • {warning}")
-
-    if validation.stats:
-        print("\nStats")
-        for key, value in validation.stats.items():
-            print(f"  - {key}: {value}")
+    # Adapted for new API
+    print("\nSchedule loaded successfully")
+    if isinstance(result, dict):
+        print(f"  Keys: {list(result.keys())}")
 
 
-def _export_csv(result: ScheduleLoadResult, output_path: Path) -> None:
+def _export_csv(df: pd.DataFrame, output_path: Path) -> None:
     """Persist the dataframe as CSV, stringifying visibility lists."""
 
-    df_export = result.dataframe.copy()
+    df_export = df.copy()
     if "visibility" in df_export.columns:
         df_export["visibility"] = df_export["visibility"].apply(str)
 
@@ -69,7 +65,7 @@ def example_single_file() -> None:
     """Process schedule and visibility JSON files from disk."""
 
     print("=" * 70)
-    print("EXAMPLE 1: Process JSON files with the Rust backend")
+    print("EXAMPLE 1: Process JSON files with the Rust backend (NEW API)")
     print("=" * 70)
 
     schedule_path = Path("data/schedule.json")
@@ -80,21 +76,23 @@ def example_single_file() -> None:
         print(f"\n⚠️  Schedule file not found: {schedule_path}")
         return
 
-    result = load_schedule_from_json(
-        schedule_path,
-        visibility_path if visibility_path.exists() else None,
+    backend = TSIBackend()
+    result_dict = backend.load_schedule(
+        str(schedule_path),
+        str(visibility_path) if visibility_path.exists() else None,
     )
 
-    print(f"\n✓ Loaded {len(result.dataframe)} rows with {len(result.dataframe.columns)} columns")
-    _print_validation_summary(result)
-    _export_csv(result, output_path)
+    df = pd.DataFrame(result_dict.get("blocks", []))
+    print(f"\n✓ Loaded {len(df)} rows with {len(df.columns)} columns")
+    _print_validation_summary(result_dict)
+    _export_csv(df, output_path)
 
 
 def example_uploaded_files() -> None:
     """Simulate Streamlit uploads using in-memory buffers."""
 
     print("\n" + "=" * 70)
-    print("EXAMPLE 2: Process uploaded JSON buffers")
+    print("EXAMPLE 2: Process uploaded JSON buffers (NEW API)")
     print("=" * 70)
 
     schedule_path = Path("data/schedule.json")
@@ -102,27 +100,28 @@ def example_uploaded_files() -> None:
         print(f"\n⚠️  Schedule file not found: {schedule_path}")
         return
 
+    # For new API, read and pass as strings
     with open(schedule_path) as sf:
-        schedule_buffer = io.StringIO(sf.read())
-        schedule_buffer.name = "uploaded_schedule.json"
+        schedule_json = sf.read()
 
-    visibility_buffer: io.StringIO | None = None
+    visibility_json: str | None = None
     visibility_path = Path("data/possible_periods.json")
     if visibility_path.exists():
         with open(visibility_path) as vf:
-            visibility_buffer = io.StringIO(vf.read())
-            visibility_buffer.name = "uploaded_visibility.json"
+            visibility_json = vf.read()
 
-    result = load_schedule_from_json(schedule_buffer, visibility_buffer)
-    print(f"\n✓ Uploaded files processed: {len(result.dataframe)} rows")
-    _print_validation_summary(result)
+    backend = TSIBackend()
+    result_dict = backend.load_schedule_from_string(schedule_json, visibility_json)
+    df = pd.DataFrame(result_dict.get("blocks", []))
+    print(f"\n✓ Uploaded files processed: {len(df)} rows")
+    _print_validation_summary(result_dict)
 
 
 def example_batch_processing() -> None:
     """Process multiple schedule files inside a directory."""
 
     print("\n" + "=" * 70)
-    print("EXAMPLE 3: Batch preprocessing to CSV")
+    print("EXAMPLE 3: Batch preprocessing to CSV (NEW API)")
     print("=" * 70)
 
     batch_dir = Path("data/batch_schedules")
@@ -143,6 +142,7 @@ def example_batch_processing() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     successful = 0
     failed = 0
+    backend = TSIBackend()
 
     for schedule_file in schedule_files:
         visibility_file = batch_dir / f"{schedule_file.stem}_visibility.json"
@@ -150,12 +150,13 @@ def example_batch_processing() -> None:
             visibility_file = batch_dir / "possible_periods.json"
 
         try:
-            result = load_schedule_from_json(
-                schedule_file,
-                visibility_file if visibility_file.exists() else None,
+            result_dict = backend.load_schedule(
+                str(schedule_file),
+                str(visibility_file) if visibility_file.exists() else None,
             )
+            df = pd.DataFrame(result_dict.get("blocks", []))
             csv_path = output_dir / f"{schedule_file.stem}_processed.csv"
-            _export_csv(result, csv_path)
+            _export_csv(df, csv_path)
             successful += 1
         except Exception as exc:  # pragma: no cover - demo script
             failed += 1

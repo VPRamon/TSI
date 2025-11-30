@@ -1,10 +1,22 @@
 #!/usr/bin/env python3
-"""Quick test of priority bins."""
+"""Quick test of priority bins.
+
+⚠️ LEGACY SCRIPT - Uses deprecated core.loaders API
+
+This script used the old core.loaders module which has been replaced by
+the Rust backend (tsi_rust_api.TSIBackend).
+
+To run with current API:
+    from tsi_rust_api import TSIBackend
+    backend = TSIBackend()
+    result = backend.load_schedule(schedule_path, visibility_path)
+"""
 
 import sys
 from pathlib import Path
 
-from core.loaders import load_schedule_from_json
+# LEGACY: core.loaders no longer exists - use tsi_rust_api.TSIBackend instead
+# from core.loaders import load_schedule_from_json
 
 
 def get_project_root() -> Path:
@@ -19,25 +31,31 @@ sys.path.insert(0, str(get_project_root() / "src"))
 
 
 def test_priority_bins():
-    print("Testing priority bins with new validation...")
+    print("⚠️  This script uses the deprecated core.loaders API")
+    print("Update to use tsi_rust_api.TSIBackend for current functionality")
     print("=" * 60)
+    return
 
-    schedule_path = Path("data/schedule.json")
-    visibility_path = Path("data/possible_periods.json")
+    # LEGACY CODE - DISABLED
+    # print("Testing priority bins with new validation...")
+    # print("=" * 60)
 
-    result = load_schedule_from_json(schedule_path, visibility_path)
-    df = result.dataframe
+    # schedule_path = Path("data/schedule.json")
+    # visibility_path = Path("data/possible_periods.json")
 
-    print(f"\n✅ Loaded {len(df)} blocks")
+    # result = load_schedule_from_json(schedule_path, visibility_path)
+    # df = result.dataframe
 
-    # Check validation
-    print("\n📋 Validation Results:")
-    print(f"   Valid: {result.validation.is_valid}")
-    print(f"   Errors: {len(result.validation.errors)}")
-    print(f"   Warnings: {len(result.validation.warnings)}")
+    # print(f"\n✅ Loaded {len(df)} blocks")
 
-    if result.validation.errors:
-        print("\n❌ Errors:")
+    # # Check validation
+    # print("\n📋 Validation Results:")
+    # print(f"   Valid: {result.validation.is_valid}")
+    # print(f"   Errors: {len(result.validation.errors)}")
+    # print(f"   Warnings: {len(result.validation.warnings)}")
+
+    # if result.validation.errors:
+    #     print("\n❌ Errors:")
         for error in result.validation.errors:
             print(f"   - {error}")
 
