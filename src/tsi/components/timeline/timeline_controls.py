@@ -15,7 +15,7 @@ def render_search_filters(blocks: list) -> dict:
     Returns:
         Dictionary with filter values
     """
-    from tsi.services.time_utils import mjd_to_datetime
+    from tsi.services.utils.time import mjd_to_datetime
     
     # Extract unique months from blocks
     unique_months = set()

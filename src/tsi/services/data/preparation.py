@@ -9,7 +9,7 @@ from typing import Literal
 import numpy as np
 import pandas as pd
 
-from tsi.services.time_utils import parse_optional_mjd, parse_visibility_periods
+from tsi.services.utils.time import parse_optional_mjd, parse_visibility_periods
 
 NumericColumns = [
     "priority",

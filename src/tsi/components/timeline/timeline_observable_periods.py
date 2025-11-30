@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from tsi.services.time_utils import format_datetime_utc, mjd_to_datetime
+from tsi.services.utils.time import format_datetime_utc, mjd_to_datetime
 
 
 def render_observable_periods_info(dark_periods: list[tuple[float, float]]) -> None:

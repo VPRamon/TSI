@@ -5,10 +5,8 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi import state
-from tsi.services.loaders import prepare_dataframe
 from tsi.services.database import (
     fetch_dark_periods_db,
-    fetch_schedule_db,
     list_schedules_db,
 )
 
@@ -56,18 +54,15 @@ def load_schedule_from_db(schedule_id: int, schedule_name: str) -> None:
     """
     try:
         with st.spinner("Loading schedule from database..."):
-            # Fetch schedule data
-            raw_df = fetch_schedule_db(schedule_id=schedule_id)
-
-            # Prepare and enrich
-            prepared_df = prepare_dataframe(raw_df)
-
-            # Store in session state
-            state.set_prepared_data(prepared_df)
+            # Modern architecture: Store only the schedule_id and metadata
+            # Each page will fetch its own data directly from Rust backend
             state.set_schedule_id(schedule_id)
             state.set_schedule_name(schedule_name)
             state.set_data_filename(schedule_name)
             st.session_state[state.KEY_DATA_SOURCE] = "database"
+            
+            # No need to fetch the full schedule DataFrame anymore!
+            # Pages use py_get_sky_map_data(), py_get_distribution_data(), etc.
 
             # Load dark periods for this schedule (with global fallback)
             try:

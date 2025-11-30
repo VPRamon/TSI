@@ -15,7 +15,7 @@ from tsi.plots.compare_plots import (
     create_time_distribution_plot,
 )
 from tsi.services.database import get_compare_data, compute_compare_data
-from tsi.services.loaders import prepare_dataframe
+from tsi.services.data.loaders import prepare_dataframe
 from tsi.theme import add_vertical_space
 
 

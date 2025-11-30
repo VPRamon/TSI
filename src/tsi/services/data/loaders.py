@@ -9,9 +9,9 @@ from typing import Any, cast
 import pandas as pd
 
 from tsi.config import REQUIRED_COLUMNS
-from tsi.services.preparation import PreparationResult
-from tsi.services.preparation import prepare_dataframe as core_prepare_dataframe
-from tsi.services.preparation import validate_schema as core_validate_schema
+from tsi.services.data.preparation import PreparationResult
+from tsi.services.data.preparation import prepare_dataframe as core_prepare_dataframe
+from tsi.services.data.preparation import validate_schema as core_validate_schema
 from tsi.services.rust_backend import BACKEND, load_schedule_from_any
 
 logger = logging.getLogger(__name__)

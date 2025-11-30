@@ -152,6 +152,13 @@ def fetch_schedule_db(
     """
     Fetch a stored schedule as a pandas DataFrame.
     
+    **DEPRECATED**: This function is kept for backward compatibility only.
+    Modern pages should use schedule_id directly with page-specific functions like:
+    - py_get_sky_map_data(schedule_id)
+    - py_get_distribution_data(schedule_id)
+    - py_get_schedule_timeline_data(schedule_id)
+    - etc.
+    
     Backend: Rust (tiberius)
     
     Args:
@@ -168,35 +175,10 @@ def fetch_schedule_db(
     if schedule_id is None and schedule_name is None:
         raise ValueError("Either schedule_id or schedule_name must be provided")
 
-    try:
-        schedule = _rust_call("py_get_schedule", schedule_id, schedule_name)
-        # Convert Rust Schedule object to DataFrame
-        blocks = schedule.blocks if hasattr(schedule, 'blocks') else []
-        
-        if not blocks:
-            raise RuntimeError(f"Schedule not found (id={schedule_id}, name={schedule_name})")
-        
-        # Convert blocks to DataFrame
-        df_data = []
-        for block in blocks:
-            block_dict = {
-                "scheduling_block_id": block.block_id,
-                "priority": block.priority,
-                "requestedDurationSec": block.requested_duration_sec,
-            }
-            # Add other attributes as needed
-            if hasattr(block, 'target'):
-                block_dict["name"] = block.target.name
-                block_dict["raInDeg"] = block.target.ra_deg
-                block_dict["decInDeg"] = block.target.dec_deg
-            df_data.append(block_dict)
-        
-        df = pd.DataFrame(df_data)
-        return _standardize_schedule_df(df)
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to fetch schedule (id={schedule_id}, name={schedule_name}): {e}"
-        ) from e
+    raise NotImplementedError(
+        "fetch_schedule_db() is deprecated. Use schedule_id with page-specific "
+        "data functions like py_get_sky_map_data(schedule_id) instead."
+    )
 
 
 def list_schedules_db() -> list[dict[str, Any]]:

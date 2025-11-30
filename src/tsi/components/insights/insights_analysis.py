@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from tsi.plots.distributions import build_correlation_heatmap
-from tsi.services.analytics import generate_correlation_insights
+from tsi.services.data.analytics import generate_correlation_insights
 
 if TYPE_CHECKING:
     from typing import Any

@@ -10,7 +10,7 @@ from tsi.components.sky_map.sky_map_stats import render_stats
 from tsi.components.sky_map.sky_map_figure import render_sky_map_figure
 from tsi.plots.sky_map import build_figure
 from tsi.services.database import get_sky_map_data
-from tsi.services.sky_map_filters import filter_blocks
+from tsi.services.filters.sky_map import filter_blocks
 
 
 def render() -> None:

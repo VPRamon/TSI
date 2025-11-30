@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from tsi.services.time_utils import mjd_to_datetime
+from tsi.services.utils.time import mjd_to_datetime
 
 
 def _apply_filters(blocks: list, filters: dict) -> list:

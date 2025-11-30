@@ -13,7 +13,7 @@ from tsi.components.toolbar.toolbar import (
     render_reset_filters_button,
     render_toggle,
 )
-from tsi.services.time_utils import ModifiedJulianDate
+from tsi.services.utils.time import ModifiedJulianDate
 
 from tsi_rust import Period
 

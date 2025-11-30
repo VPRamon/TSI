@@ -3,7 +3,7 @@
 import pandas as pd
 import streamlit as st
 
-from tsi.services.impossible_filters import check_filter_support
+from tsi.services.filters.impossible import check_filter_support
 
 
 def render_priority_filter(
