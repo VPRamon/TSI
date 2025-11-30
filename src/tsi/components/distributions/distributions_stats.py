@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import pandas as pd
 import streamlit as st
 
 
-def render_statistical_summary(df: pd.DataFrame) -> None:
+def render_statistical_summary(distribution_data) -> None:
     """
-    Render statistical summary for the filtered dataset.
+    Render statistical summary for the distribution data.
 
     Args:
-        df: Filtered DataFrame to display statistics for
+        distribution_data: DistributionData object with pre-computed statistics
     """
     st.divider()
     st.subheader("Statistical Summary")
@@ -19,34 +18,34 @@ def render_statistical_summary(df: pd.DataFrame) -> None:
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        _render_priority_stats(df)
+        _render_priority_stats(distribution_data.priority_stats)
 
     with col2:
-        _render_visibility_stats(df)
+        _render_visibility_stats(distribution_data.visibility_stats)
 
     with col3:
-        _render_requested_hours_stats(df)
+        _render_requested_hours_stats(distribution_data.requested_hours_stats)
 
 
-def _render_priority_stats(df: pd.DataFrame) -> None:
+def _render_priority_stats(stats) -> None:
     """Render priority statistics."""
     st.markdown("**Priority**")
-    st.write(f"Mean: {df['priority'].mean():.2f}")
-    st.write(f"Median: {df['priority'].median():.2f}")
-    st.write(f"Std Dev: {df['priority'].std():.2f}")
+    st.write(f"Mean: {stats.mean:.2f}")
+    st.write(f"Median: {stats.median:.2f}")
+    st.write(f"Std Dev: {stats.std_dev:.2f}")
 
 
-def _render_visibility_stats(df: pd.DataFrame) -> None:
+def _render_visibility_stats(stats) -> None:
     """Render visibility hours statistics."""
     st.markdown("**Visibility Hours**")
-    st.write(f"Mean: {df['total_visibility_hours'].mean():.1f}")
-    st.write(f"Median: {df['total_visibility_hours'].median():.1f}")
-    st.write(f"Total: {df['total_visibility_hours'].sum():,.0f}")
+    st.write(f"Mean: {stats.mean:.1f}")
+    st.write(f"Median: {stats.median:.1f}")
+    st.write(f"Total: {stats.sum:,.0f}")
 
 
-def _render_requested_hours_stats(df: pd.DataFrame) -> None:
+def _render_requested_hours_stats(stats) -> None:
     """Render requested hours statistics."""
     st.markdown("**Requested Hours**")
-    st.write(f"Mean: {df['requested_hours'].mean():.2f}")
-    st.write(f"Median: {df['requested_hours'].median():.2f}")
-    st.write(f"Total: {df['requested_hours'].sum():,.1f}")
+    st.write(f"Mean: {stats.mean:.2f}")
+    st.write(f"Median: {stats.median:.2f}")
+    st.write(f"Total: {stats.sum:,.1f}")

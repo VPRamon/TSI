@@ -657,3 +657,177 @@ impl SkyMapData {
         )
     }
 }
+
+/// Lightweight scheduling block for distribution visualizations.
+/// Contains only the fields needed for statistical plots and histograms.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct DistributionBlock {
+    pub priority: f64,
+    pub total_visibility_hours: f64,
+    pub requested_hours: f64,
+    pub elevation_range_deg: f64,
+    pub scheduled: bool,
+}
+
+#[pymethods]
+impl DistributionBlock {
+    #[getter]
+    pub fn priority(&self) -> f64 {
+        self.priority
+    }
+
+    #[getter]
+    pub fn total_visibility_hours(&self) -> f64 {
+        self.total_visibility_hours
+    }
+
+    #[getter]
+    pub fn requested_hours(&self) -> f64 {
+        self.requested_hours
+    }
+
+    #[getter]
+    pub fn elevation_range_deg(&self) -> f64 {
+        self.elevation_range_deg
+    }
+
+    #[getter]
+    pub fn scheduled(&self) -> bool {
+        self.scheduled
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "DistributionBlock(priority={:.2}, visibility={:.1}h, requested={:.1}h, elevation={:.1}°, scheduled={})",
+            self.priority,
+            self.total_visibility_hours,
+            self.requested_hours,
+            self.elevation_range_deg,
+            self.scheduled
+        )
+    }
+}
+
+/// Statistical summary for a group of distribution blocks.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct DistributionStats {
+    pub count: usize,
+    pub mean: f64,
+    pub median: f64,
+    pub std_dev: f64,
+    pub min: f64,
+    pub max: f64,
+    pub sum: f64,
+}
+
+#[pymethods]
+impl DistributionStats {
+    #[getter]
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
+    #[getter]
+    pub fn mean(&self) -> f64 {
+        self.mean
+    }
+
+    #[getter]
+    pub fn median(&self) -> f64 {
+        self.median
+    }
+
+    #[getter]
+    pub fn std_dev(&self) -> f64 {
+        self.std_dev
+    }
+
+    #[getter]
+    pub fn min(&self) -> f64 {
+        self.min
+    }
+
+    #[getter]
+    pub fn max(&self) -> f64 {
+        self.max
+    }
+
+    #[getter]
+    pub fn sum(&self) -> f64 {
+        self.sum
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "DistributionStats(count={}, mean={:.2}, median={:.2}, std={:.2})",
+            self.count, self.mean, self.median, self.std_dev
+        )
+    }
+}
+
+/// Complete distribution data with blocks and computed statistics.
+/// This structure contains everything the frontend needs for distribution visualizations.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct DistributionData {
+    pub blocks: Vec<DistributionBlock>,
+    pub priority_stats: DistributionStats,
+    pub visibility_stats: DistributionStats,
+    pub requested_hours_stats: DistributionStats,
+    pub total_count: usize,
+    pub scheduled_count: usize,
+    pub unscheduled_count: usize,
+    pub impossible_count: usize,
+}
+
+#[pymethods]
+impl DistributionData {
+    #[getter]
+    pub fn blocks(&self) -> Vec<DistributionBlock> {
+        self.blocks.clone()
+    }
+
+    #[getter]
+    pub fn priority_stats(&self) -> DistributionStats {
+        self.priority_stats.clone()
+    }
+
+    #[getter]
+    pub fn visibility_stats(&self) -> DistributionStats {
+        self.visibility_stats.clone()
+    }
+
+    #[getter]
+    pub fn requested_hours_stats(&self) -> DistributionStats {
+        self.requested_hours_stats.clone()
+    }
+
+    #[getter]
+    pub fn total_count(&self) -> usize {
+        self.total_count
+    }
+
+    #[getter]
+    pub fn scheduled_count(&self) -> usize {
+        self.scheduled_count
+    }
+
+    #[getter]
+    pub fn unscheduled_count(&self) -> usize {
+        self.unscheduled_count
+    }
+
+    #[getter]
+    pub fn impossible_count(&self) -> usize {
+        self.impossible_count
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "DistributionData(total={}, scheduled={}, impossible={})",
+            self.total_count, self.scheduled_count, self.impossible_count
+        )
+    }
+}

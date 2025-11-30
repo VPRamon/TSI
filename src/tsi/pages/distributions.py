@@ -7,7 +7,7 @@ from tsi.components.distributions.distributions_controls import render_filter_co
 from tsi.components.distributions.distributions_layout import render_figure_layout
 from tsi.components.distributions.distributions_stats import render_statistical_summary
 from tsi.plots.distributions import build_figures
-from tsi.services.distributions_filters import filter_impossible_observations
+from tsi.services.database import get_distribution_data
 
 
 def render() -> None:
@@ -18,36 +18,49 @@ def render() -> None:
     with col1:
         st.title("📊 Distributions")
 
-    df = state.get_prepared_data()
-
-    if df is None:
-        st.warning("No data loaded. Please return to the landing page.")
-        return
-
     st.markdown(
         """
         Statistical analysis and distribution visualizations of key scheduling parameters.
         """
     )
 
-    # Render filter control
+    schedule_id = state.get_schedule_id()
+
+    if schedule_id is None:
+        st.info("Load a schedule from the database to view distributions.")
+        return
+
+    schedule_id = int(schedule_id)
+
+    # Render filter control (simplified - just the impossible filter toggle)
     with col2:
-        filter_mode, filter_supported = render_filter_control(df)
+        filter_impossible = st.checkbox(
+            "Exclude Impossible",
+            value=False,
+            help="Exclude observations with zero visibility hours"
+        )
 
-    # Apply filtering
-    filtered_df = filter_impossible_observations(df, filter_mode)
+    try:
+        with st.spinner("Loading distribution data..."):
+            distribution_data = get_distribution_data(
+                schedule_id=schedule_id,
+                filter_impossible=filter_impossible
+            )
+    except Exception as exc:
+        st.error(f"Failed to load distribution data from the backend: {exc}")
+        return
 
-    if filtered_df.empty:
+    if distribution_data.total_count == 0:
         st.warning("⚠️ No observations available with the selected filter.")
         return
 
     # Build all distribution figures
     priority_bins = 20  # Default bins value
     with st.spinner("Generating plots..."):
-        figures = build_figures(filtered_df, priority_bins=priority_bins)
+        figures = build_figures(distribution_data, priority_bins=priority_bins)
 
     # Display figures in organized layout
     render_figure_layout(figures)
 
-    # Display statistical summary
-    render_statistical_summary(filtered_df)
+    # Display statistical summary with pre-computed stats
+    render_statistical_summary(distribution_data)

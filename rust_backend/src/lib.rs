@@ -157,6 +157,7 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     
     // Register service functions
     m.add_function(wrap_pyfunction!(services::py_get_sky_map_data, m)?)?;
+    m.add_function(wrap_pyfunction!(services::py_get_distribution_data, m)?)?;
 
     // Register classes
     //m.add_class::<python::PyValidationResult>()?;
@@ -176,6 +177,9 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<db::models::LightweightBlock>()?;
     m.add_class::<db::models::PriorityBinInfo>()?;
     m.add_class::<db::models::SkyMapData>()?;
+    m.add_class::<db::models::DistributionBlock>()?;
+    m.add_class::<db::models::DistributionStats>()?;
+    m.add_class::<db::models::DistributionData>()?;
 
     Ok(())
 }
