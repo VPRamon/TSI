@@ -5,5 +5,7 @@
 //! business logic, data processing, and transformations.
 
 pub mod sky_map;
+pub mod distributions;
 
 pub use sky_map::py_get_sky_map_data;
+pub use distributions::py_get_distribution_data;

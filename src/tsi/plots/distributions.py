@@ -1,6 +1,5 @@
 """Distribution plotting functionality."""
 
-import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -8,12 +7,12 @@ from tsi.config import PLOT_HEIGHT
 
 
 @st.cache_data(show_spinner=False, ttl=3600)
-def build_figures(df: pd.DataFrame, priority_bins: int = 20) -> dict[str, go.Figure]:
+def build_figures(_distribution_data, priority_bins: int = 20) -> dict[str, go.Figure]:
     """
-    Build multiple distribution plots.
+    Build multiple distribution plots from DistributionData.
 
     Args:
-        df: Prepared DataFrame
+        _distribution_data: DistributionData object from Rust backend (unhashed by Streamlit)
         priority_bins: Number of bins for priority histogram
 
     Returns:
@@ -21,43 +20,45 @@ def build_figures(df: pd.DataFrame, priority_bins: int = 20) -> dict[str, go.Fig
     """
     figures = {}
 
+    # Extract blocks from the distribution data
+    blocks = _distribution_data.blocks
+
     # 1. Priority distribution
-    figures["priority_hist"] = _build_priority_histogram(df, priority_bins)
+    figures["priority_hist"] = _build_priority_histogram(blocks, _distribution_data, priority_bins)
 
     # 2. Visibility hours distribution
-    figures["visibility_hist"] = _build_visibility_histogram(df)
+    figures["visibility_hist"] = _build_visibility_histogram(blocks, _distribution_data)
 
     # 3. Requested duration distribution
-    figures["duration_hist"] = _build_duration_histogram(df)
+    figures["duration_hist"] = _build_duration_histogram(blocks, _distribution_data)
 
     # 4. Elevation range distribution
-    figures["elevation_hist"] = _build_elevation_histogram(df)
+    figures["elevation_hist"] = _build_elevation_histogram(blocks, _distribution_data)
 
     # 5. Scheduled vs Unscheduled counts
-    figures["scheduled_bar"] = _build_scheduled_bar(df)
+    figures["scheduled_bar"] = _build_scheduled_bar(_distribution_data)
 
     # 6. Priority by scheduled status (violin/box)
-    figures["priority_violin"] = _build_priority_comparison(df)
+    figures["priority_violin"] = _build_priority_comparison(blocks, _distribution_data)
 
     return figures
 
 
-def _build_priority_histogram(df: pd.DataFrame, bins: int) -> go.Figure:
+def _build_priority_histogram(blocks, distribution_data, bins: int) -> go.Figure:
     """Build priority distribution histogram with scheduled/unscheduled breakdown."""
-    # Calculate scheduled observations
-    scheduled_count = df["scheduled_flag"].sum()
-    total_count = len(df)
+    scheduled_count = distribution_data.scheduled_count
+    total_count = distribution_data.total_count
 
     # Separate data by scheduled status
-    scheduled_df = df[df["scheduled_flag"]]
-    unscheduled_df = df[~df["scheduled_flag"]]
+    scheduled_priorities = [b.priority for b in blocks if b.scheduled]
+    unscheduled_priorities = [b.priority for b in blocks if not b.scheduled]
 
     fig = go.Figure()
 
     # Add unscheduled observations (bottom layer)
     fig.add_trace(
         go.Histogram(
-            x=unscheduled_df["priority"],
+            x=unscheduled_priorities,
             nbinsx=bins,
             marker=dict(color="#ff7f0e", line=dict(color="white", width=1)),
             name="Unscheduled",
@@ -68,7 +69,7 @@ def _build_priority_histogram(df: pd.DataFrame, bins: int) -> go.Figure:
     # Add scheduled observations (top layer)
     fig.add_trace(
         go.Histogram(
-            x=scheduled_df["priority"],
+            x=scheduled_priorities,
             nbinsx=bins,
             marker=dict(color="#1f77b4", line=dict(color="white", width=1)),
             name="Scheduled",
@@ -92,22 +93,21 @@ def _build_priority_histogram(df: pd.DataFrame, bins: int) -> go.Figure:
     return fig
 
 
-def _build_visibility_histogram(df: pd.DataFrame) -> go.Figure:
+def _build_visibility_histogram(blocks, distribution_data) -> go.Figure:
     """Build total visibility hours distribution with scheduled/unscheduled breakdown."""
-    # Calculate scheduled observations
-    scheduled_count = df["scheduled_flag"].sum()
-    total_count = len(df)
+    scheduled_count = distribution_data.scheduled_count
+    total_count = distribution_data.total_count
 
     # Separate data by scheduled status
-    scheduled_df = df[df["scheduled_flag"]]
-    unscheduled_df = df[~df["scheduled_flag"]]
+    scheduled_visibility = [b.total_visibility_hours for b in blocks if b.scheduled]
+    unscheduled_visibility = [b.total_visibility_hours for b in blocks if not b.scheduled]
 
     fig = go.Figure()
 
     # Add unscheduled observations (bottom layer)
     fig.add_trace(
         go.Histogram(
-            x=unscheduled_df["total_visibility_hours"],
+            x=unscheduled_visibility,
             nbinsx=30,
             marker=dict(color="#ff7f0e", line=dict(color="white", width=1)),
             name="Unscheduled",
@@ -118,7 +118,7 @@ def _build_visibility_histogram(df: pd.DataFrame) -> go.Figure:
     # Add scheduled observations (top layer)
     fig.add_trace(
         go.Histogram(
-            x=scheduled_df["total_visibility_hours"],
+            x=scheduled_visibility,
             nbinsx=30,
             marker=dict(color="#1f77b4", line=dict(color="white", width=1)),
             name="Scheduled",
@@ -142,22 +142,21 @@ def _build_visibility_histogram(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def _build_duration_histogram(df: pd.DataFrame) -> go.Figure:
+def _build_duration_histogram(blocks, distribution_data) -> go.Figure:
     """Build requested duration distribution with scheduled/unscheduled breakdown."""
-    # Calculate scheduled observations
-    scheduled_count = df["scheduled_flag"].sum()
-    total_count = len(df)
+    scheduled_count = distribution_data.scheduled_count
+    total_count = distribution_data.total_count
 
     # Separate data by scheduled status
-    scheduled_df = df[df["scheduled_flag"]]
-    unscheduled_df = df[~df["scheduled_flag"]]
+    scheduled_duration = [b.requested_hours for b in blocks if b.scheduled]
+    unscheduled_duration = [b.requested_hours for b in blocks if not b.scheduled]
 
     fig = go.Figure()
 
     # Add unscheduled observations (bottom layer)
     fig.add_trace(
         go.Histogram(
-            x=unscheduled_df["requested_hours"],
+            x=unscheduled_duration,
             nbinsx=25,
             marker=dict(color="#ff7f0e", line=dict(color="white", width=1)),
             name="Unscheduled",
@@ -168,7 +167,7 @@ def _build_duration_histogram(df: pd.DataFrame) -> go.Figure:
     # Add scheduled observations (top layer)
     fig.add_trace(
         go.Histogram(
-            x=scheduled_df["requested_hours"],
+            x=scheduled_duration,
             nbinsx=25,
             marker=dict(color="#1f77b4", line=dict(color="white", width=1)),
             name="Scheduled",
@@ -192,22 +191,21 @@ def _build_duration_histogram(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def _build_elevation_histogram(df: pd.DataFrame) -> go.Figure:
+def _build_elevation_histogram(blocks, distribution_data) -> go.Figure:
     """Build elevation constraint range distribution with scheduled/unscheduled breakdown."""
-    # Calculate scheduled observations
-    scheduled_count = df["scheduled_flag"].sum()
-    total_count = len(df)
+    scheduled_count = distribution_data.scheduled_count
+    total_count = distribution_data.total_count
 
     # Separate data by scheduled status
-    scheduled_df = df[df["scheduled_flag"]]
-    unscheduled_df = df[~df["scheduled_flag"]]
+    scheduled_elevation = [b.elevation_range_deg for b in blocks if b.scheduled]
+    unscheduled_elevation = [b.elevation_range_deg for b in blocks if not b.scheduled]
 
     fig = go.Figure()
 
     # Add unscheduled observations (bottom layer)
     fig.add_trace(
         go.Histogram(
-            x=unscheduled_df["elevation_range_deg"],
+            x=unscheduled_elevation,
             nbinsx=20,
             marker=dict(color="#ff7f0e", line=dict(color="white", width=1)),
             name="Unscheduled",
@@ -218,7 +216,7 @@ def _build_elevation_histogram(df: pd.DataFrame) -> go.Figure:
     # Add scheduled observations (top layer)
     fig.add_trace(
         go.Histogram(
-            x=scheduled_df["elevation_range_deg"],
+            x=scheduled_elevation,
             nbinsx=20,
             marker=dict(color="#1f77b4", line=dict(color="white", width=1)),
             name="Scheduled",
@@ -242,27 +240,34 @@ def _build_elevation_histogram(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def _build_scheduled_bar(df: pd.DataFrame) -> go.Figure:
+def _build_scheduled_bar(distribution_data) -> go.Figure:
     """Build scheduled vs unscheduled bar chart."""
-    scheduled_counts = df["scheduled_flag"].value_counts()
+    scheduled_count = distribution_data.scheduled_count
+    unscheduled_count = distribution_data.unscheduled_count
 
     fig = go.Figure()
 
-    colors = {True: "#1f77b4", False: "#ff7f0e"}
-    labels = {True: "Scheduled", False: "Unscheduled"}
+    fig.add_trace(
+        go.Bar(
+            x=["Scheduled"],
+            y=[scheduled_count],
+            name="Scheduled",
+            marker=dict(color="#1f77b4"),
+            text=[scheduled_count],
+            textposition="outside",
+        )
+    )
 
-    for status in [True, False]:
-        if status in scheduled_counts.index:
-            fig.add_trace(
-                go.Bar(
-                    x=[labels[status]],
-                    y=[scheduled_counts[status]],
-                    name=labels[status],
-                    marker=dict(color=colors[status]),
-                    text=[scheduled_counts[status]],
-                    textposition="outside",
-                )
-            )
+    fig.add_trace(
+        go.Bar(
+            x=["Unscheduled"],
+            y=[unscheduled_count],
+            name="Unscheduled",
+            marker=dict(color="#ff7f0e"),
+            text=[unscheduled_count],
+            textposition="outside",
+        )
+    )
 
     fig.update_layout(
         title="Scheduled vs Unscheduled Observations",
@@ -278,18 +283,18 @@ def _build_scheduled_bar(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def _build_priority_comparison(df: pd.DataFrame) -> go.Figure:
+def _build_priority_comparison(blocks, distribution_data) -> go.Figure:
     """Build violin/box plot comparing priority by scheduled status."""
     fig = go.Figure()
 
-    scheduled_df = df[df["scheduled_flag"]]
-    unscheduled_df = df[~df["scheduled_flag"]]
+    scheduled_priorities = [b.priority for b in blocks if b.scheduled]
+    unscheduled_priorities = [b.priority for b in blocks if not b.scheduled]
 
     # Add violin plots
-    if len(scheduled_df) > 0:
+    if len(scheduled_priorities) > 0:
         fig.add_trace(
             go.Violin(
-                y=scheduled_df["priority"],
+                y=scheduled_priorities,
                 name="Scheduled",
                 box_visible=True,
                 meanline_visible=True,
@@ -298,10 +303,10 @@ def _build_priority_comparison(df: pd.DataFrame) -> go.Figure:
             )
         )
 
-    if len(unscheduled_df) > 0:
+    if len(unscheduled_priorities) > 0:
         fig.add_trace(
             go.Violin(
-                y=unscheduled_df["priority"],
+                y=unscheduled_priorities,
                 name="Unscheduled",
                 box_visible=True,
                 meanline_visible=True,
@@ -322,7 +327,7 @@ def _build_priority_comparison(df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-def build_correlation_heatmap(corr_matrix: pd.DataFrame) -> go.Figure:
+def build_correlation_heatmap(corr_matrix) -> go.Figure:
     """
     Build correlation heatmap.
 

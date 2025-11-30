@@ -122,6 +122,36 @@ def get_sky_map_data(
     return _rust_call("py_get_sky_map_data", schedule_id)
 
 
+def get_distribution_data(
+    *,
+    schedule_id: int,
+    filter_impossible: bool = False,
+):
+    """
+    Get complete distribution data with computed statistics.
+    
+    This is the main function for the distributions feature. It returns a DistributionData
+    object containing:
+    - blocks: List of DistributionBlock objects with only required fields
+    - priority_stats: DistributionStats with mean, median, std, min, max, sum
+    - visibility_stats: DistributionStats for total_visibility_hours
+    - requested_hours_stats: DistributionStats for requested_hours
+    - total_count, scheduled_count, unscheduled_count: Counts
+    - impossible_count: Number of blocks with zero visibility
+    
+    All processing (querying, statistics computation) is done in Rust
+    for maximum performance. The frontend just needs to plot the data.
+    
+    Args:
+        schedule_id: Database ID of the schedule to load
+        filter_impossible: If True, excludes blocks with zero visibility hours
+    
+    Returns:
+        DistributionData object with all required data and pre-computed statistics
+    """
+    return _rust_call("py_get_distribution_data", schedule_id, filter_impossible)
+
+
 def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:
     """Fetch dark periods for a schedule (with global fallback)."""
     df_polars = _rust_call("py_fetch_dark_periods", schedule_id)
