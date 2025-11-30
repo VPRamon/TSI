@@ -30,12 +30,17 @@ result = store_schedule_db(name, schedule_json, visibility_json)
 ## Configuration
 
 ### Environment Variables
-- `DATABASE_URL`: Connection string for the database
+- `DATABASE_URL`: Full connection string for the database
 - Or set individual components:
   - `DB_SERVER`: Database server address
   - `DB_DATABASE`: Database name
   - `DB_USERNAME`: Database username
   - `DB_PASSWORD`: Database password
+- `USE_AAD_AUTH`: Enable Azure AD authentication (default: False)
+- `DATABASE_CONNECTION_TIMEOUT`: Connection timeout in seconds (default: 30)
+- `DATABASE_MAX_RETRIES`: Max retry attempts for transient errors (default: 3)
+
+See `app_config.settings.Settings` for full configuration options.
 
 ## API Functions
 - `init_database()`: Initialize Rust connection pool
@@ -50,13 +55,23 @@ See individual function docstrings for details.
 
 from __future__ import annotations
 
+import logging
 from typing import Any, TYPE_CHECKING
 
 import pandas as pd
 
+from app_config import get_settings
+from tsi.exceptions import (
+    DatabaseConnectionError,
+    DatabaseQueryError,
+    BackendUnavailableError,
+)
+from tsi.error_handling import with_retry, log_error
 
 if TYPE_CHECKING:
     from tsi_rust import LightweightBlock, SkyMapData, VisibilityMapData, ScheduleTimelineData
+
+logger = logging.getLogger(__name__)
 
 
 def _import_rust():
@@ -64,20 +79,29 @@ def _import_rust():
     Import the Rust backend module.
     
     Raises:
-        RuntimeError: If tsi_rust module is not compiled/available
+        BackendUnavailableError: If tsi_rust module is not compiled/available
     """
+    settings = get_settings()
+    
+    if not settings.enable_rust_backend:
+        raise BackendUnavailableError(
+            "Rust backend is disabled in configuration",
+            details={"enable_rust_backend": False}
+        )
+    
     try:
         import tsi_rust  # type: ignore[import-not-found]
     except ImportError as e:
-        raise RuntimeError(
-            "Rust backend is not available. Please compile the extension before using database features."
+        raise BackendUnavailableError(
+            "Rust backend is not available. Please compile the extension before using database features.",
+            details={"install_command": "maturin develop --release"}
         ) from e
     return tsi_rust
 
 
 def _rust_call(method: str, *args: Any):
     """
-    Call a Rust backend function by name.
+    Call a Rust backend function by name with error handling.
     
     Args:
         method: Name of the Rust function (e.g., "py_init_database")
@@ -85,11 +109,33 @@ def _rust_call(method: str, *args: Any):
         
     Returns:
         Result from the Rust function
+        
+    Raises:
+        BackendUnavailableError: If Rust backend cannot be imported
+        DatabaseError: If the operation fails
     """
-    rust = _import_rust()
-    return getattr(rust, method)(*args)
+    try:
+        rust = _import_rust()
+        return getattr(rust, method)(*args)
+    except BackendUnavailableError:
+        # Re-raise backend unavailable errors as-is
+        raise
+    except AttributeError as e:
+        raise BackendUnavailableError(
+            f"Rust backend method '{method}' not found",
+            details={"method": method}
+        ) from e
+    except Exception as e:
+        # Log and re-raise other errors with context
+        log_error(
+            e,
+            f"Rust backend call '{method}' failed",
+            extra={"method": method, "args_count": len(args)}
+        )
+        raise
 
 
+@with_retry(max_attempts=3, backoff_factor=1.5)
 def init_database() -> None:
     """
     Initialize the Rust-backed database connection pool.
@@ -97,11 +143,26 @@ def init_database() -> None:
     This should be called once at application startup. It establishes a
     connection pool managed by bb8 in the Rust backend.
     
+    The function will retry up to 3 times on transient connection errors
+    with exponential backoff.
+    
     Backend: Rust (tiberius)
+    
+    Raises:
+        DatabaseConnectionError: If unable to initialize connection pool
+        BackendUnavailableError: If Rust backend is not available
     """
-    _rust_call("py_init_database")
+    try:
+        _rust_call("py_init_database")
+        logger.info("Database connection pool initialized successfully")
+    except Exception as e:
+        raise DatabaseConnectionError(
+            "Failed to initialize database connection pool",
+            details={"error": str(e)}
+        ) from e
 
 
+@with_retry(max_attempts=2, backoff_factor=1.5)
 def db_health_check() -> bool:
     """
     Check database connectivity.
@@ -112,13 +173,19 @@ def db_health_check() -> bool:
         True if database is reachable, False otherwise
         
     Raises:
-        RuntimeError: If health check fails with an error
+        DatabaseQueryError: If health check fails with an error
     """
     try:
-        return _rust_call("py_db_health_check")
+        result = _rust_call("py_db_health_check")
+        logger.debug("Database health check passed")
+        return result
     except Exception as e:
-        raise RuntimeError(f"Database health check failed: {e}") from e
+        raise DatabaseQueryError(
+            "Database health check failed",
+            details={"error": str(e)}
+        ) from e
 
+@with_retry(max_attempts=3, backoff_factor=1.5)
 def store_schedule_db(
     schedule_name: str,
     schedule_json: str,
@@ -136,13 +203,24 @@ def store_schedule_db(
         
     Returns:
         Dictionary with storage results including schedule_id
+        
+    Raises:
+        DatabaseQueryError: If storage operation fails
     """
-    return _rust_call(
-        "py_store_schedule",
-        schedule_name,
-        schedule_json,
-        visibility_json,
-    )
+    try:
+        result = _rust_call(
+            "py_store_schedule",
+            schedule_name,
+            schedule_json,
+            visibility_json,
+        )
+        logger.info(f"Successfully stored schedule '{schedule_name}'")
+        return result
+    except Exception as e:
+        raise DatabaseQueryError(
+            f"Failed to store schedule '{schedule_name}'",
+            details={"schedule_name": schedule_name, "error": str(e)}
+        ) from e
 
 
 def fetch_schedule_db(
@@ -181,12 +259,26 @@ def fetch_schedule_db(
     )
 
 
+@with_retry(max_attempts=3, backoff_factor=1.5)
 def list_schedules_db() -> list[dict[str, Any]]:
-    """List available schedules using the Rust backend (same connection as fetch)."""
+    """
+    List available schedules using the Rust backend.
+    
+    Returns:
+        List of schedule metadata dictionaries
+        
+    Raises:
+        DatabaseQueryError: If query fails
+    """
     try:
-        return _rust_call("py_list_schedules")
+        result = _rust_call("py_list_schedules")
+        logger.debug(f"Retrieved {len(result)} schedules from database")
+        return result
     except Exception as e:
-        raise RuntimeError(f"Failed to list schedules: {e}") from e
+        raise DatabaseQueryError(
+            "Failed to list schedules",
+            details={"error": str(e)}
+        ) from e
 
 
 def get_schedule_from_backend(

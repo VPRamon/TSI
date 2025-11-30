@@ -9,6 +9,8 @@ from typing import Any, cast
 import pandas as pd
 
 from tsi.config import REQUIRED_COLUMNS
+from tsi.exceptions import DataLoadError, SchemaError, DataValidationError
+from tsi.error_handling import with_retry, log_error
 from tsi.services.data.preparation import PreparationResult
 from tsi.services.data.preparation import prepare_dataframe as core_prepare_dataframe
 from tsi.services.data.preparation import validate_schema as core_validate_schema
@@ -27,11 +29,28 @@ def emit_warning(message: str) -> None:
         logger.warning(message)
 
 
+@with_retry(max_attempts=2, backoff_factor=1.5)
 def load_schedule_rust(path: str | Path | Any, format: str = "auto") -> pd.DataFrame:
     """
     Load schedule data using the Rust backend (supports file-like objects).
+    
+    Args:
+        path: Path to schedule file or file-like object
+        format: File format ('auto', 'csv', or 'json')
+        
+    Returns:
+        DataFrame with schedule data
+        
+    Raises:
+        DataLoadError: If loading fails
     """
-    return cast(pd.DataFrame, load_schedule_from_any(path, format=format))
+    try:
+        return cast(pd.DataFrame, load_schedule_from_any(path, format=format))
+    except Exception as e:
+        raise DataLoadError(
+            f"Failed to load schedule from {path}",
+            details={"path": str(path), "format": format, "error": str(e)}
+        ) from e
 
 
 def filter_by_priority(
@@ -57,18 +76,27 @@ def _load_csv_core(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
         Raw DataFrame from CSV
 
     Raises:
-        FileNotFoundError: If file doesn't exist
-        ValueError: If required columns are missing
+        DataLoadError: If file loading fails
+        SchemaError: If required columns are missing
     """
     try:
         df = load_schedule_rust(file_path_or_buffer, format="csv")
+    except DataLoadError:
+        # Re-raise DataLoadError as-is
+        raise
     except Exception as e:
-        raise ValueError(f"Failed to read CSV: {e}")
+        raise DataLoadError(
+            "Failed to read CSV",
+            details={"error": str(e)}
+        ) from e
 
     # Validate required columns
     missing_cols = set(REQUIRED_COLUMNS) - set(df.columns)
     if missing_cols:
-        raise ValueError(f"Missing required columns: {missing_cols}")
+        raise SchemaError(
+            f"Missing required columns",
+            details={"missing_columns": sorted(missing_cols), "found_columns": sorted(df.columns)}
+        )
 
     return cast(pd.DataFrame, df)
 

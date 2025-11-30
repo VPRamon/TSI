@@ -25,6 +25,7 @@ Example:
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -32,13 +33,17 @@ from typing import Any, Literal, cast
 import pandas as pd
 import polars as pl
 
+from tsi.exceptions import BackendUnavailableError, DataLoadError
+
+logger = logging.getLogger(__name__)
+
 try:
     import tsi_rust
-except ImportError:
-    raise ImportError(
-        "tsi_rust module not found. Please compile the Rust backend with: "
-        "maturin develop --release"
-    )
+except ImportError as e:
+    raise BackendUnavailableError(
+        "tsi_rust module not found. Please compile the Rust backend with: maturin develop --release",
+        details={"install_command": "maturin develop --release"}
+    ) from e
 
 
 class TSIBackend:

@@ -6,10 +6,10 @@ from typing import Any
 import plotly.graph_objects as go
 import streamlit as st
 
-from tsi.config import PLOT_HEIGHT, PLOT_MARGIN
+from tsi.config import PLOT_HEIGHT, PLOT_MARGIN, CACHE_TTL
 
 
-@st.cache_data(show_spinner=False, ttl=3600)
+@st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def build_figure(
     _blocks: list[Any],
     color_by: str = "priority_bin",

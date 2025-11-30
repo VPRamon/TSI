@@ -7,8 +7,10 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from tsi.config import CACHE_TTL
 
-@st.cache_data(show_spinner=False, ttl=3600)
+
+@st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def build_visibility_histogram(
     df: pd.DataFrame,
     num_bins: int | None = 50,

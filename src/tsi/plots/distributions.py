@@ -3,10 +3,10 @@
 import plotly.graph_objects as go
 import streamlit as st
 
-from tsi.config import PLOT_HEIGHT
+from tsi.config import PLOT_HEIGHT, CACHE_TTL
 
 
-@st.cache_data(show_spinner=False, ttl=3600)
+@st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def build_figures(_distribution_data, priority_bins: int = 20) -> dict[str, go.Figure]:
     """
     Build multiple distribution plots from DistributionData.
