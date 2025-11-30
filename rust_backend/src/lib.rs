@@ -154,7 +154,10 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_fetch_possible_periods, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_schedule, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_schedule_blocks, m)?)?;
-    
+    m.add_function(wrap_pyfunction!(python::py_get_visibility_histogram, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_schedule_time_range, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_get_visibility_map_data, m)?)?;
+
     // Register service functions
     m.add_function(wrap_pyfunction!(services::py_get_sky_map_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_distribution_data, m)?)?;
@@ -180,6 +183,8 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<db::models::DistributionBlock>()?;
     m.add_class::<db::models::DistributionStats>()?;
     m.add_class::<db::models::DistributionData>()?;
+    m.add_class::<db::models::VisibilityBlockSummary>()?;
+    m.add_class::<db::models::VisibilityMapData>()?;
 
     Ok(())
 }

@@ -58,13 +58,18 @@ fn compute_stats(values: &[f64]) -> DistributionStats {
 
 /// Compute distribution data with statistics from raw blocks.
 /// This function takes the blocks and computes all necessary statistics on the Rust side.
-pub fn compute_distribution_data(blocks: Vec<DistributionBlock>) -> Result<DistributionData, String> {
+pub fn compute_distribution_data(
+    blocks: Vec<DistributionBlock>,
+) -> Result<DistributionData, String> {
     let total_count = blocks.len();
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
     let unscheduled_count = total_count - scheduled_count;
-    
+
     // Count impossible observations (those with zero visibility)
-    let impossible_count = blocks.iter().filter(|b| b.total_visibility_hours == 0.0).count();
+    let impossible_count = blocks
+        .iter()
+        .filter(|b| b.total_visibility_hours == 0.0)
+        .count();
 
     // Collect values for statistics
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
@@ -90,14 +95,17 @@ pub fn compute_distribution_data(blocks: Vec<DistributionBlock>) -> Result<Distr
 
 /// Get complete distribution data with computed statistics.
 /// This function orchestrates fetching blocks from the database and computing statistics.
-pub async fn get_distribution_data(schedule_id: i64, filter_impossible: bool) -> Result<DistributionData, String> {
+pub async fn get_distribution_data(
+    schedule_id: i64,
+    filter_impossible: bool,
+) -> Result<DistributionData, String> {
     let mut blocks = operations::fetch_distribution_blocks(schedule_id).await?;
-    
+
     // Apply impossible filter if requested
     if filter_impossible {
         blocks.retain(|b| b.total_visibility_hours > 0.0);
     }
-    
+
     compute_distribution_data(blocks)
 }
 
@@ -129,7 +137,7 @@ mod tests {
     fn test_compute_stats() {
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let stats = compute_stats(&values);
-        
+
         assert_eq!(stats.count, 5);
         assert_eq!(stats.mean, 3.0);
         assert_eq!(stats.median, 3.0);
@@ -143,7 +151,7 @@ mod tests {
     fn test_compute_stats_empty() {
         let values = vec![];
         let stats = compute_stats(&values);
-        
+
         assert_eq!(stats.count, 0);
         assert_eq!(stats.mean, 0.0);
     }
@@ -175,7 +183,7 @@ mod tests {
         ];
 
         let result = compute_distribution_data(blocks).unwrap();
-        
+
         assert_eq!(result.total_count, 3);
         assert_eq!(result.scheduled_count, 2);
         assert_eq!(result.unscheduled_count, 1);

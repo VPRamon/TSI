@@ -62,7 +62,7 @@ def route_to_page(page_name: str) -> None:
     page_map = {
         "Sky Map": ("tsi.pages.sky_map", "render"),
         "Distributions": ("tsi.pages.distributions", "render"),
-        "Visibility Map": ("tsi.pages.visibility_schedule", "render"),
+        "Visibility Map": ("tsi.pages.visibility_map", "render"),
         "Schedule": ("tsi.pages.scheduled_timeline", "render"),
         "Insights": ("tsi.pages.insights", "render"),
         "Trends": ("tsi.pages.scheduling_trends", "render"),

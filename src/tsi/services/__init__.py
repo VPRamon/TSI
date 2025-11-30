@@ -33,6 +33,7 @@ from tsi.services.database import (
     init_database,
     list_schedules_db,
     store_schedule_db,
+    get_visibility_map_data,
 )
 
 # Time conversions now use Rust backend (8x faster)
@@ -49,7 +50,11 @@ from tsi.services.sky_map_filters import (
     build_palette,
     filter_blocks,
 )
-from tsi.services.database import get_sky_map_data, get_distribution_data
+from tsi.services.database import (
+    get_distribution_data,
+    get_sky_map_data,
+    get_visibility_map_data,
+)
 from tsi.services.sky_map_blocks import (
     get_priority_range_from_blocks,
     prepare_priority_bins_from_blocks,
@@ -69,6 +74,7 @@ from tsi.services.trends_processing import (
 from tsi.services.priority_range import get_priority_range
 from tsi.services.visibility_processing import (
     compute_effective_priority_range,
+    filter_visibility_blocks,
     get_all_block_ids,
 )
 
@@ -113,6 +119,7 @@ __all__ = [
     "apply_insights_filter",
     # visibility_processing
     "compute_effective_priority_range",
+    "filter_visibility_blocks",
     "get_all_block_ids",
     # timeline_processing
     "prepare_scheduled_data",
@@ -133,4 +140,5 @@ __all__ = [
     "list_schedules_db",
     "fetch_dark_periods_db",
     "fetch_possible_periods_db",
+    "get_visibility_map_data",
 ]

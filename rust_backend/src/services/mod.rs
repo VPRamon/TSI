@@ -4,8 +4,9 @@
 //! and the Python bindings. Services orchestrate database calls and implement
 //! business logic, data processing, and transformations.
 
-pub mod sky_map;
 pub mod distributions;
+pub mod sky_map;
+pub mod visibility;
 
-pub use sky_map::py_get_sky_map_data;
 pub use distributions::py_get_distribution_data;
+pub use sky_map::py_get_sky_map_data;

@@ -1469,7 +1469,7 @@ pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<(i64, f64, f
 /// This is optimized to fetch only the minimal data needed for visualization,
 /// avoiding the overhead of loading full scheduling blocks with visibility periods.
 pub async fn fetch_lightweight_blocks(
-    schedule_id: i64
+    schedule_id: i64,
 ) -> Result<Vec<super::models::LightweightBlock>, String> {
     use super::models::LightweightBlock;
 
@@ -1533,12 +1533,10 @@ pub async fn fetch_lightweight_blocks(
 
         // Handle optional scheduled period
         let scheduled_period = match (row.get::<f64, _>(5), row.get::<f64, _>(6)) {
-            (Some(start_mjd), Some(stop_mjd)) => {
-                super::models::Period::new(
-                    ModifiedJulianDate::new(start_mjd),
-                    ModifiedJulianDate::new(stop_mjd),
-                )
-            }
+            (Some(start_mjd), Some(stop_mjd)) => super::models::Period::new(
+                ModifiedJulianDate::new(start_mjd),
+                ModifiedJulianDate::new(stop_mjd),
+            ),
             _ => None,
         };
 
@@ -1559,7 +1557,7 @@ pub async fn fetch_lightweight_blocks(
 /// Fetch distribution blocks for a schedule with computed statistics.
 /// This is optimized for the distributions page, loading only the fields needed for histograms.
 pub async fn fetch_distribution_blocks(
-    schedule_id: i64
+    schedule_id: i64,
 ) -> Result<Vec<super::models::DistributionBlock>, String> {
     use super::models::DistributionBlock;
 
@@ -1617,20 +1615,17 @@ pub async fn fetch_distribution_blocks(
         let visibility_json: Option<&str> = row.get(3);
         let total_visibility_hours = if let Some(json) = visibility_json {
             match serde_json::from_str::<Vec<serde_json::Value>>(json) {
-                Ok(periods) => {
-                    periods.iter().fold(0.0, |acc, period| {
-                        if let (Some(start), Some(stop)) = (
-                            period["start"].as_f64(),
-                            period["stop"].as_f64()
-                        ) {
-                            let duration_days = stop - start;
-                            let duration_hours = duration_days * 24.0;
-                            acc + duration_hours
-                        } else {
-                            acc
-                        }
-                    })
-                }
+                Ok(periods) => periods.iter().fold(0.0, |acc, period| {
+                    if let (Some(start), Some(stop)) =
+                        (period["start"].as_f64(), period["stop"].as_f64())
+                    {
+                        let duration_days = stop - start;
+                        let duration_hours = duration_days * 24.0;
+                        acc + duration_hours
+                    } else {
+                        acc
+                    }
+                }),
                 Err(_) => 0.0,
             }
         } else {
@@ -1655,4 +1650,313 @@ pub async fn fetch_distribution_blocks(
     }
 
     Ok(blocks)
+}
+
+/// Fetch lightweight visibility data for the visibility map page.
+/// This returns only the fields needed for filtering and statistics.
+pub async fn fetch_visibility_map_data(
+    schedule_id: i64,
+) -> Result<super::models::VisibilityMapData, String> {
+    use super::models::{VisibilityBlockSummary, VisibilityMapData};
+
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT 
+            sb.scheduling_block_id,
+            sb.priority,
+            sb.visibility_periods_json,
+            ssb.start_time_mjd,
+            ssb.stop_time_mjd
+        FROM dbo.schedule_scheduling_blocks ssb
+        JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+        WHERE ssb.schedule_id = @P1
+        ORDER BY sb.scheduling_block_id
+        "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch visibility blocks: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read visibility blocks: {e}"))?;
+
+    let mut blocks = Vec::with_capacity(rows.len());
+    let mut priority_min = f64::INFINITY;
+    let mut priority_max = f64::NEG_INFINITY;
+    let mut scheduled_count = 0usize;
+
+    for row in rows {
+        let scheduling_block_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+
+        let priority: f64 = row
+            .get::<f64, _>(1)
+            .ok_or_else(|| "priority is NULL".to_string())?;
+
+        let visibility_json: Option<&str> = row.get(2);
+        let num_visibility_periods = if let Some(json) = visibility_json {
+            match serde_json::from_str::<Vec<serde_json::Value>>(json) {
+                Ok(periods) => periods
+                    .iter()
+                    .filter(|period| {
+                        period.get("start").and_then(|v| v.as_f64()).is_some()
+                            && period.get("stop").and_then(|v| v.as_f64()).is_some()
+                    })
+                    .count(),
+                Err(_) => 0,
+            }
+        } else {
+            0
+        };
+
+        let scheduled = match (row.get::<f64, _>(3), row.get::<f64, _>(4)) {
+            (Some(_), Some(_)) => true,
+            _ => false,
+        };
+
+        if scheduled {
+            scheduled_count += 1;
+        }
+
+        priority_min = priority_min.min(priority);
+        priority_max = priority_max.max(priority);
+
+        blocks.push(VisibilityBlockSummary {
+            scheduling_block_id,
+            priority,
+            num_visibility_periods,
+            scheduled,
+        });
+    }
+
+    // Handle empty datasets gracefully
+    if !priority_min.is_finite() {
+        priority_min = 0.0;
+    }
+    if !priority_max.is_finite() {
+        priority_max = 0.0;
+    }
+
+    Ok(VisibilityMapData {
+        total_count: blocks.len(),
+        blocks,
+        priority_min,
+        priority_max,
+        scheduled_count,
+    })
+}
+
+/// Fetch minimal block data needed for visibility histogram computation.
+///
+/// This function fetches only the columns needed for histogram generation:
+/// - scheduling_block_id
+/// - priority
+/// - visibility_periods_json
+///
+/// ## Arguments
+/// * `schedule_id` - Schedule ID to fetch blocks from
+/// * `priority_min` - Optional minimum priority (inclusive)
+/// * `priority_max` - Optional maximum priority (inclusive)
+/// * `block_ids` - Optional list of specific block IDs to fetch
+///
+/// ## Returns
+/// Vector of BlockHistogramData with minimal fields
+pub async fn fetch_blocks_for_histogram(
+    schedule_id: i64,
+    priority_min: Option<i32>,
+    priority_max: Option<i32>,
+    block_ids: Option<&[i64]>,
+) -> Result<Vec<crate::db::models::BlockHistogramData>, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    // Build dynamic WHERE clause
+    let mut where_clauses = vec!["ssb.schedule_id = @P1".to_string()];
+    let mut param_index = 2;
+
+    if priority_min.is_some() {
+        where_clauses.push(format!("sb.priority >= @P{}", param_index));
+        param_index += 1;
+    }
+
+    if priority_max.is_some() {
+        where_clauses.push(format!("sb.priority <= @P{}", param_index));
+        param_index += 1;
+    }
+
+    if let Some(ids) = block_ids {
+        if !ids.is_empty() {
+            let placeholders: Vec<String> = (0..ids.len())
+                .map(|i| format!("@P{}", param_index + i))
+                .collect();
+            where_clauses.push(format!(
+                "sb.scheduling_block_id IN ({})",
+                placeholders.join(", ")
+            ));
+        }
+    }
+
+    let where_clause = where_clauses.join(" AND ");
+
+    let sql = format!(
+        r#"
+        SELECT 
+            sb.scheduling_block_id,
+            sb.priority,
+            sb.visibility_periods_json
+        FROM dbo.schedule_scheduling_blocks ssb
+        INNER JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+        WHERE {}
+        "#,
+        where_clause
+    );
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    if let Some(min_p) = priority_min {
+        query.bind(Numeric::new_with_scale((min_p * 10) as i128, 1));
+    }
+
+    if let Some(max_p) = priority_max {
+        query.bind(Numeric::new_with_scale((max_p * 10) as i128, 1));
+    }
+
+    if let Some(ids) = block_ids {
+        for &id in ids {
+            query.bind(id);
+        }
+    }
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch blocks for histogram: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read histogram blocks: {e}"))?;
+
+    let mut blocks = Vec::with_capacity(rows.len());
+
+    for row in rows {
+        let scheduling_block_id: i64 = row
+            .get(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+
+        // Priority is stored as DECIMAL(3,1) in DB (already scaled by 10)
+        // We read it as f64 and convert to i32 (representing priority * 10)
+        let priority_decimal: f64 = row.get(1).ok_or_else(|| "priority is NULL".to_string())?;
+        let priority = priority_decimal.round() as i32;
+
+        let visibility_periods_json: Option<&str> = row.get(2);
+
+        blocks.push(crate::db::models::BlockHistogramData {
+            scheduling_block_id,
+            priority,
+            visibility_periods_json: visibility_periods_json.map(|s| s.to_string()),
+        });
+    }
+
+    info!(
+        "Fetched {} blocks for histogram (schedule {})",
+        blocks.len(),
+        schedule_id
+    );
+
+    Ok(blocks)
+}
+
+/// Get the time range (min/max MJD) for a schedule's visibility periods.
+///
+/// This function queries all visibility periods for a schedule and returns
+/// the minimum start time and maximum stop time across all periods.
+///
+/// ## Arguments
+/// * `schedule_id` - Schedule ID to analyze
+///
+/// ## Returns
+/// Tuple of (min_mjd, max_mjd) as Option<(f64, f64)>. Returns None if no
+/// visibility periods exist or if schedule not found.
+pub async fn get_schedule_time_range(schedule_id: i64) -> Result<Option<(f64, f64)>, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT 
+            sb.visibility_periods_json
+        FROM dbo.schedule_scheduling_blocks ssb
+        INNER JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+        WHERE ssb.schedule_id = @P1
+        AND sb.visibility_periods_json IS NOT NULL
+        "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch visibility periods for time range: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read visibility periods: {e}"))?;
+
+    let mut min_mjd: Option<f64> = None;
+    let mut max_mjd: Option<f64> = None;
+
+    for row in rows {
+        if let Some(json_str) = row.get::<&str, _>(0) {
+            match serde_json::from_str::<Vec<serde_json::Value>>(json_str) {
+                Ok(periods) => {
+                    for period in periods {
+                        if let (Some(start), Some(stop)) =
+                            (period["start"].as_f64(), period["stop"].as_f64())
+                        {
+                            min_mjd = Some(min_mjd.map_or(start, |v| v.min(start)));
+                            max_mjd = Some(max_mjd.map_or(stop, |v| v.max(stop)));
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::warn!("Failed to parse visibility JSON for time range: {}", e);
+                }
+            }
+        }
+    }
+
+    if let (Some(min), Some(max)) = (min_mjd, max_mjd) {
+        debug!(
+            "Time range for schedule {}: MJD {} to {} ({:.2} days)",
+            schedule_id,
+            min,
+            max,
+            max - min
+        );
+        Ok(Some((min, max)))
+    } else {
+        debug!("No visibility periods found for schedule {}", schedule_id);
+        Ok(None)
+    }
 }

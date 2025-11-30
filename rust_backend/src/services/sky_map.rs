@@ -1,4 +1,4 @@
-use crate::db::models::{PriorityBinInfo, LightweightBlock, SkyMapData};
+use crate::db::models::{LightweightBlock, PriorityBinInfo, SkyMapData};
 use crate::db::operations;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
@@ -58,7 +58,7 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
     // Compute 4 priority bins proportional to min/max values
     let bin_count = 4;
     let bin_width = (priority_max - priority_min) / bin_count as f64;
-    
+
     // Define colors for the 4 bins (from low to high priority)
     let bin_colors = vec![
         "#2ca02c".to_string(), // Green - Low priority
@@ -77,7 +77,7 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
         };
 
         let label = format!("Bin {} [{:.1}-{:.1}]", i + 1, bin_min, bin_max);
-        
+
         priority_bins.push(PriorityBinInfo {
             label,
             min_priority: bin_min,
@@ -97,9 +97,10 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
         } else {
             ((priority - priority_min) / bin_width).floor() as usize
         };
-        block.priority_bin = format!("Bin {} [{:.1}-{:.1}]", 
-            bin_index + 1, 
-            priority_bins[bin_index].min_priority, 
+        block.priority_bin = format!(
+            "Bin {} [{:.1}-{:.1}]",
+            bin_index + 1,
+            priority_bins[bin_index].min_priority,
             priority_bins[bin_index].max_priority
         );
     }
@@ -131,9 +132,7 @@ pub async fn get_sky_map_data(schedule_id: i64) -> Result<SkyMapData, String> {
 /// This is the main function for the sky map feature, computing priority bins
 /// and all necessary metadata on the Rust side.
 #[pyfunction]
-pub fn py_get_sky_map_data(
-    schedule_id: i64,
-) -> PyResult<SkyMapData> {
+pub fn py_get_sky_map_data(schedule_id: i64) -> PyResult<SkyMapData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
