@@ -2281,3 +2281,72 @@ pub async fn fetch_schedule_timeline_blocks(
     Ok(blocks)
 }
 
+/// Fetch compare blocks for schedule comparison.
+/// This returns only the fields needed for comparing two schedules.
+pub async fn fetch_compare_blocks(
+    schedule_id: i64,
+) -> Result<Vec<super::models::CompareBlock>, String> {
+    use super::models::CompareBlock;
+
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT 
+            sb.scheduling_block_id,
+            sb.priority,
+            sb.requested_duration_sec,
+            ssb.start_time_mjd,
+            ssb.stop_time_mjd
+        FROM dbo.schedule_scheduling_blocks ssb
+        JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+        WHERE ssb.schedule_id = @P1
+        ORDER BY sb.scheduling_block_id
+        "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch compare blocks: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read compare blocks: {e}"))?;
+
+    let mut blocks = Vec::with_capacity(rows.len());
+
+    for row in rows {
+        let scheduling_block_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+
+        let priority: f64 = row
+            .get::<f64, _>(1)
+            .ok_or_else(|| "priority is NULL".to_string())?;
+
+        let requested_duration: i32 = row
+            .get::<i32, _>(2)
+            .ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
+
+        let requested_hours = (requested_duration as f64) / 3600.0;
+
+        // Check if scheduled (start and stop times are present)
+        let scheduled = row.get::<f64, _>(3).is_some() && row.get::<f64, _>(4).is_some();
+
+        blocks.push(CompareBlock {
+            scheduling_block_id: scheduling_block_id.to_string(),
+            priority,
+            scheduled,
+            requested_hours,
+        });
+    }
+
+    Ok(blocks)
+}

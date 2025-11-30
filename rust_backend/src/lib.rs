@@ -152,6 +152,7 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_list_schedules, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_fetch_dark_periods, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_fetch_possible_periods, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_fetch_compare_blocks, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_schedule, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_schedule_blocks, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_visibility_histogram, m)?)?;
@@ -164,6 +165,8 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(services::py_get_schedule_timeline_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_insights_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_trends_data, m)?)?;
+    m.add_function(wrap_pyfunction!(services::py_get_compare_data, m)?)?;
+    m.add_function(wrap_pyfunction!(services::py_compute_compare_data, m)?)?;
 
     // Register classes
     //m.add_class::<python::PyValidationResult>()?;
@@ -202,6 +205,10 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<db::models::HeatmapBin>()?;
     m.add_class::<db::models::TrendsMetrics>()?;
     m.add_class::<db::models::TrendsData>()?;
+    m.add_class::<db::models::CompareBlock>()?;
+    m.add_class::<db::models::CompareStats>()?;
+    m.add_class::<db::models::SchedulingChange>()?;
+    m.add_class::<db::models::CompareData>()?;
 
     Ok(())
 }
