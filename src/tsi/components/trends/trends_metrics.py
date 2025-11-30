@@ -2,30 +2,31 @@
 
 from __future__ import annotations
 
-import pandas as pd
+from typing import TYPE_CHECKING
+
 import streamlit as st
 
+if TYPE_CHECKING:
+    from tsi_rust import TrendsMetrics
 
-def render_overview_metrics(df: pd.DataFrame) -> None:
+
+def render_overview_metrics(metrics: TrendsMetrics) -> None:
     """
     Display overview metrics for scheduling trends analysis.
 
     Args:
-        df: Filtered DataFrame
+        metrics: TrendsMetrics from Rust backend
     """
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("Total observations", f"{len(df):,}")
+        st.metric("Total observations", f"{metrics.total_count:,}")
 
     with col2:
-        n_scheduled = int(df["scheduled_flag"].sum())
-        st.metric("Scheduled", f"{n_scheduled:,}")
+        st.metric("Scheduled", f"{metrics.scheduled_count:,}")
 
     with col3:
-        rate_scheduled = df["scheduled_flag"].mean() * 100
-        st.metric("% Scheduled", f"{rate_scheduled:.1f}%")
+        st.metric("% Scheduled", f"{metrics.scheduling_rate * 100:.1f}%")
 
     with col4:
-        zero_vis = (df["total_visibility_hours"] == 0).sum()
-        st.metric("Visibility = 0", f"{zero_vis:,}")
+        st.metric("Visibility = 0", f"{metrics.zero_visibility_count:,}")

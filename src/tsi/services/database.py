@@ -226,6 +226,45 @@ def get_insights_data(
     return _rust_call("py_get_insights_data", schedule_id, filter_impossible)
 
 
+def get_trends_data(
+    *,
+    schedule_id: int,
+    filter_impossible: bool = False,
+    n_bins: int = 10,
+    bandwidth: float = 0.3,
+    n_smooth_points: int = 100,
+):
+    """
+    Get complete trends data with computed empirical rates, smoothed curves, and heatmap bins.
+    
+    This is the main function for the trends feature. It returns a TrendsData
+    object containing:
+    - blocks: List of TrendsBlock objects with scheduling data
+    - metrics: TrendsMetrics with comprehensive statistics
+    - by_priority: List of EmpiricalRatePoint objects for scheduling rates by priority
+    - by_visibility: List of EmpiricalRatePoint objects binned by visibility hours
+    - by_time: List of EmpiricalRatePoint objects binned by requested time
+    - smoothed_visibility: List of SmoothedPoint objects for visibility trend
+    - smoothed_time: List of SmoothedPoint objects for requested time trend
+    - heatmap_bins: List of HeatmapBin objects for 2D visualization
+    - priority_values: Unique priority values for filtering
+    
+    All processing (querying, binning, smoothing, heatmap computation) is done in Rust
+    for maximum performance. The frontend just needs to render the data.
+    
+    Args:
+        schedule_id: Database ID of the schedule to load
+        filter_impossible: If True, excludes blocks with zero visibility hours
+        n_bins: Number of bins for continuous variables (default: 10)
+        bandwidth: Bandwidth for smoothing as fraction of range (default: 0.3)
+        n_smooth_points: Number of points in smoothed curves (default: 100)
+    
+    Returns:
+        TrendsData object with all required data and pre-computed analytics
+    """
+    return _rust_call("py_get_trends_data", schedule_id, filter_impossible, n_bins, bandwidth, n_smooth_points)
+
+
 def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:
     """Fetch dark periods for a schedule (with global fallback)."""
     df_polars = _rust_call("py_fetch_dark_periods", schedule_id)

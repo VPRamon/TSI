@@ -1759,6 +1759,99 @@ pub async fn fetch_insights_blocks(
     Ok(blocks)
 }
 
+/// Fetch trends blocks for scheduling trends analysis.
+/// This returns the minimal fields needed for empirical rates, smoothing, and heatmaps.
+pub async fn fetch_trends_blocks(
+    schedule_id: i64,
+) -> Result<Vec<super::models::TrendsBlock>, String> {
+    use super::models::TrendsBlock;
+
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT 
+            sb.scheduling_block_id,
+            sb.priority,
+            sb.requested_duration_sec,
+            sb.visibility_periods_json,
+            ssb.start_time_mjd,
+            ssb.stop_time_mjd
+        FROM dbo.schedule_scheduling_blocks ssb
+        JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+        WHERE ssb.schedule_id = @P1
+        ORDER BY sb.scheduling_block_id
+        "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch trends blocks: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read trends blocks: {e}"))?;
+
+    let mut blocks = Vec::with_capacity(rows.len());
+
+    for row in rows {
+        let scheduling_block_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+
+        let priority: f64 = row
+            .get::<f64, _>(1)
+            .ok_or_else(|| "priority is NULL".to_string())?;
+
+        let requested_duration: i32 = row
+            .get::<i32, _>(2)
+            .ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
+
+        let requested_hours = (requested_duration as f64) / 3600.0;
+
+        // Parse visibility periods JSON to compute total hours
+        let visibility_json: Option<&str> = row.get(3);
+        let total_visibility_hours = if let Some(json) = visibility_json {
+            match serde_json::from_str::<Vec<serde_json::Value>>(json) {
+                Ok(periods) => periods.iter().fold(0.0, |acc, period| {
+                    if let (Some(start), Some(stop)) =
+                        (period["start"].as_f64(), period["stop"].as_f64())
+                    {
+                        let duration_days = stop - start;
+                        let duration_hours = duration_days * 24.0;
+                        acc + duration_hours
+                    } else {
+                        acc
+                    }
+                }),
+                Err(_) => 0.0,
+            }
+        } else {
+            0.0
+        };
+
+        // Check if scheduled
+        let scheduled = row.get::<f64, _>(4).is_some() && row.get::<f64, _>(5).is_some();
+
+        blocks.push(TrendsBlock {
+            scheduling_block_id,
+            priority,
+            total_visibility_hours,
+            requested_hours,
+            scheduled,
+        });
+    }
+
+    Ok(blocks)
+}
+
 /// Fetch lightweight visibility data for the visibility map page.
 /// This returns only the fields needed for filtering and statistics.
 pub async fn fetch_visibility_map_data(

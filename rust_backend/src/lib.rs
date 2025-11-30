@@ -163,6 +163,7 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(services::py_get_distribution_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_schedule_timeline_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_insights_data, m)?)?;
+    m.add_function(wrap_pyfunction!(services::py_get_trends_data, m)?)?;
 
     // Register classes
     //m.add_class::<python::PyValidationResult>()?;
@@ -195,6 +196,12 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<db::models::ConflictRecord>()?;
     m.add_class::<db::models::TopObservation>()?;
     m.add_class::<db::models::InsightsData>()?;
+    m.add_class::<db::models::TrendsBlock>()?;
+    m.add_class::<db::models::EmpiricalRatePoint>()?;
+    m.add_class::<db::models::SmoothedPoint>()?;
+    m.add_class::<db::models::HeatmapBin>()?;
+    m.add_class::<db::models::TrendsMetrics>()?;
+    m.add_class::<db::models::TrendsData>()?;
 
     Ok(())
 }

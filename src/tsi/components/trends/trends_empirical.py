@@ -2,35 +2,50 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 import streamlit as st
 
-try:
-    from tsi.plots.trends import empirical_proportions_plot
-except Exception:  # pragma: no cover - plotting library may evolve
-    empirical_proportions_plot = None
+if TYPE_CHECKING:
+    from tsi_rust import EmpiricalRatePoint
 
 
-def render_empirical_proportions(df: pd.DataFrame, plot_library: str) -> None:
+def render_empirical_proportions(
+    empirical_points: list[EmpiricalRatePoint], 
+    x_var_name: str
+) -> None:
     """
     Render empirical proportions plot section.
 
     Args:
-        df: Filtered DataFrame
-        plot_library: 'altair' or 'plotly'
+        empirical_points: List of EmpiricalRatePoint from Rust backend
+        x_var_name: Name of the x variable ('priority', 'total_visibility_hours', or 'requested_hours')
     """
-    st.subheader("1️⃣ Empirical proportions by visibility")
-    st.caption("Shows the observed scheduling proportion as a function of visibility.")
-
-    if empirical_proportions_plot is None:
-        st.error("❌ Empirical proportions plotting function is not available in `tsi.plots.trends`.")
+    if not empirical_points:
+        st.warning(f"No data available for {x_var_name}")
         return
 
-    try:
-        fig = empirical_proportions_plot(df, library=plot_library)
-        if plot_library == "altair":
-            st.altair_chart(fig, width="stretch")
-        else:
-            st.plotly_chart(fig, width="stretch")
-    except Exception as e:
-        st.error(f"❌ Error generating empirical proportions: {e}")
+    # Convert to DataFrame for plotting
+    df = pd.DataFrame([
+        {
+            "x": p.mid_value,
+            "rate": p.scheduled_rate,
+            "count": p.count,
+            "label": p.bin_label,
+        }
+        for p in empirical_points
+    ])
+
+    # Create simple plot with Streamlit
+    st.markdown(f"**Empirical Scheduling Rate by {x_var_name}**")
+    
+    # Display as a table and bar chart
+    display_df = df.copy()
+    display_df.columns = [x_var_name, "Rate", "Count", "Scheduled"]
+    display_df["Rate"] = display_df["Rate"].apply(lambda x: f"{x:.1%}")
+    
+    st.bar_chart(df.set_index("x")["rate"])
+    
+    with st.expander("View data table"):
+        st.dataframe(display_df, width="stretch")
