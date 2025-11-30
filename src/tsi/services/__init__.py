@@ -47,9 +47,13 @@ from tsi.services.time_utils import (
 )
 from tsi.services.sky_map_filters import (
     build_palette,
-    filter_dataframe,
-    prepare_priority_bins,
-    to_utc_timestamp,
+    filter_blocks,
+)
+from tsi.services.sky_map_data import load_sky_map_data
+from tsi.services.sky_map_blocks import (
+    get_priority_range_from_blocks,
+    prepare_priority_bins_from_blocks,
+    get_scheduled_time_range,
 )
 from tsi.services.timeline_processing import (
     apply_search_filters,
@@ -94,10 +98,13 @@ __all__ = [
     # priority
     "get_priority_range",
     # sky_map_filters
-    "filter_dataframe",
-    "prepare_priority_bins",
+    "filter_blocks",
     "build_palette",
-    "to_utc_timestamp",
+    "load_sky_map_data",
+    # sky_map_blocks
+    "get_priority_range_from_blocks",
+    "prepare_priority_bins_from_blocks",
+    "get_scheduled_time_range",
     # impossible_filters (consolidated)
     "filter_impossible_observations",
     "compute_impossible_mask",

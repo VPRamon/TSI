@@ -8,12 +8,8 @@ from tsi import state
 from tsi.components.sky_map_controls import render_sidebar_controls
 from tsi.components.sky_map_stats import render_stats
 from tsi.plots.sky_map import build_figure
-from tsi.services import get_priority_range
-from tsi.services.sky_map_filters import (
-    build_palette,
-    filter_dataframe,
-    prepare_priority_bins,
-)
+from tsi.services.sky_map_data import load_sky_map_data
+from tsi.services.sky_map_filters import filter_blocks
 
 
 def render() -> None:
@@ -27,46 +23,63 @@ def render() -> None:
         """
     )
 
-    df = state.get_prepared_data()
+    schedule_id = state.get_schedule_id()
+    schedule_name = state.get_schedule_name()
 
-    # Prepare data
-    priority_min, priority_max = get_priority_range(df)
-    df, priority_bins = prepare_priority_bins(df)
-
-    if not priority_bins:
-        st.warning("No original priority bins available in the dataset.")
+    if schedule_id is None and not schedule_name:
+        st.info("Load a schedule from the database to view the Sky Map.")
         return
+
+    try:
+        sky_map_data = load_sky_map_data(schedule_id=schedule_id, schedule_name=schedule_name)
+    except Exception as exc:
+        st.error(f"Failed to load sky map data from the backend: {exc}")
+        return
+
+    if not sky_map_data or sky_map_data.total_count == 0:
+        st.warning("No scheduling blocks were returned for this schedule.")
+        return
+
+    blocks = sky_map_data.blocks
+    priority_bins = sky_map_data.priority_bins
+    
+    # Extract bin labels for filtering
+    bin_labels = [bin_info.label for bin_info in priority_bins]
 
     # Panel lateral izquierdo y sky map derecho
     sidebar_col, map_col = st.columns([1, 3], gap="large")
 
     with sidebar_col:
         controls = render_sidebar_controls(
-            df=df,
-            priority_min=priority_min,
-            priority_max=priority_max,
-            priority_bins=priority_bins,
+            blocks=blocks,
+            priority_min=sky_map_data.priority_min,
+            priority_max=sky_map_data.priority_max,
+            priority_bins=bin_labels,
         )
 
     with map_col:
-        filtered_df = filter_dataframe(
-            df,
+        filtered_blocks = filter_blocks(
+            blocks,
             priority_range=controls["priority_range"],
             scheduled_filter=controls["scheduled_filter"],
             selected_bins=controls["selected_bins"],
             schedule_window=controls["schedule_window"],
         )
 
-        if filtered_df.empty:
+        if not filtered_blocks:
             st.warning("No targets match the selected filters.")
             return
 
+        # Build color palette from priority bins computed in Rust
         category_palette = None
         if controls["color_column"] == "priority_bin":
-            category_palette = build_palette(priority_bins)
+            category_palette = {
+                bin_info.label: bin_info.color
+                for bin_info in priority_bins
+            }
 
         fig = build_figure(
-            df=filtered_df,
+            _blocks=filtered_blocks,
             color_by=controls["color_column"],
             size_by="requested_hours",
             flip_ra=controls["flip_ra"],
@@ -75,4 +88,4 @@ def render() -> None:
 
         st.plotly_chart(fig, width='stretch', key="sky_map_chart")
         st.markdown("---")
-        render_stats(filtered_df)
+        render_stats(filtered_blocks)

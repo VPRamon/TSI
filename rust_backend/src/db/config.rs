@@ -99,10 +99,12 @@ impl DbConfig {
                     DbAuthMethod::SqlPassword
                 }
             }
-            other => return Err(format!(
+            other => {
+                return Err(format!(
                 "Unsupported DB_AUTH_METHOD '{}'. Use sql_password, aad_password, or aad_token.",
                 other
-            )),
+            ))
+            }
         };
 
         Ok(Self {

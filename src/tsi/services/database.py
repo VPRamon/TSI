@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 import pandas as pd
+
+
+if TYPE_CHECKING:
+    from tsi_rust import SkyMapBlock, SkyMapData
 
 
 def _import_rust():
@@ -81,6 +85,62 @@ def list_schedules_db() -> list[dict[str, Any]]:
         return _rust_call("py_list_schedules")
     except Exception as e:
         raise RuntimeError(f"Failed to list schedules: {e}") from e
+
+
+def get_schedule_from_backend(
+    *,
+    schedule_id: int | None = None,
+    schedule_name: str | None = None,
+):
+    """Fetch a fully materialized Schedule model via PyO3 bindings."""
+    return _rust_call("py_get_schedule", schedule_id, schedule_name)
+
+
+def get_schedule_blocks(schedule_id: int) -> list[Any]:
+    """Fetch scheduling block models via PyO3 bindings."""
+    return _rust_call("py_get_schedule_blocks", schedule_id)
+
+
+def get_sky_map_blocks(
+    *,
+    schedule_id: int | None = None,
+    schedule_name: str | None = None,
+) -> list[SkyMapBlock]:
+    """
+    Fetch lightweight sky map blocks optimized for visualization.
+    
+    This function returns minimal SkyMapBlock objects containing only:
+    - id, priority, priority_bin
+    - requested_duration_seconds
+    - target_ra_deg, target_dec_deg
+    - scheduled_period (if scheduled)
+    
+    This avoids the overhead of loading full Schedule objects with visibility
+    periods and dark periods, making the sky map page much faster.
+    """
+    return _rust_call("py_get_sky_map_blocks", schedule_id, schedule_name)
+
+def get_sky_map_data(
+    *,
+    schedule_id: int | None = None,
+    schedule_name: str | None = None,
+) -> SkyMapData:
+    """
+    Get complete sky map data with computed bins and metadata.
+    
+    This is the main function for the sky map feature. It returns a SkyMapData
+    object containing:
+    - blocks: List of SkyMapBlock objects with computed priority bins
+    - priority_bins: List of PriorityBinInfo objects (4 bins with ranges and colors)
+    - priority_min, priority_max: Priority range
+    - ra_min, ra_max, dec_min, dec_max: Coordinate ranges
+    - total_count, scheduled_count: Statistics
+    - scheduled_time_min, scheduled_time_max: Time range for scheduled blocks
+    
+    All processing (querying, bin computation, statistics) is done in Rust
+    for maximum performance. The frontend just needs to plot the data.
+    """
+    return _rust_call("py_get_sky_map_data", schedule_id, schedule_name)
 
 
 def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:

@@ -144,6 +144,11 @@ def get_schedule_window() -> Any:
     return st.session_state.get(KEY_SCHEDULE_WINDOW)
 
 
+def set_schedule_window(window: Any) -> None:
+    """Persist the selected scheduled time window."""
+    st.session_state[KEY_SCHEDULE_WINDOW] = window
+
+
 def get_data_filename() -> str | None:
     """Get the loaded dataset filename."""
     return st.session_state.get(KEY_DATA_FILENAME)
