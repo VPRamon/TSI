@@ -56,6 +56,7 @@ from tsi.services.database import (
     get_visibility_map_data,
 )
 from tsi.services.sky_map_blocks import (
+    get_priority_range,
     get_priority_range_from_blocks,
     prepare_priority_bins_from_blocks,
     get_scheduled_time_range,
@@ -71,7 +72,6 @@ from tsi.services.trends_processing import (
     apply_trends_filters,
     validate_required_columns,
 )
-from tsi.services.priority_range import get_priority_range
 from tsi.services.visibility_processing import (
     compute_effective_priority_range,
     filter_visibility_blocks,
@@ -101,14 +101,16 @@ __all__ = [
     "get_top_observations",
     "find_conflicts",
     "generate_insights",
-    # priority
+    # priority (consolidated in sky_map_blocks)
     "get_priority_range",
+    "get_priority_range_from_blocks",
     # sky_map_filters
     "filter_blocks",
     "build_palette",
     "get_sky_map_data",
     "get_distribution_data",
-    # sky_map_blocks
+    # sky_map_blocks (includes priority range)
+    "get_priority_range",
     "get_priority_range_from_blocks",
     "prepare_priority_bins_from_blocks",
     "get_scheduled_time_range",

@@ -116,23 +116,10 @@ pub mod transformations;
 /// ```
 #[pymodule]
 fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Register time conversion functions
-    //m.add_function(wrap_pyfunction!(python::mjd_to_datetime, m)?)?;
-    //m.add_function(wrap_pyfunction!(python::datetime_to_mjd, m)?)?;
-    //m.add_function(wrap_pyfunction!(python::parse_visibility_periods, m)?)?;
-
-    // Register data loading functions
-    //m.add_function(wrap_pyfunction!(python::load_schedule, m)?)?;
-    //m.add_function(wrap_pyfunction!(python::load_schedule_from_json, m)?)?;
-    //m.add_function(wrap_pyfunction!(python::load_schedule_from_json_str, m)?)?;
-    //m.add_function(wrap_pyfunction!(python::load_schedule_from_csv, m)?)?;
-    //m.add_function(wrap_pyfunction!(python::load_schedule_from_iteration, m)?)?;
-    //m.add_function(wrap_pyfunction!(python::load_dark_periods, m)?)?;
-
-    // Register preprocessing functions
-    //m.add_function(wrap_pyfunction!(python::py_preprocess_schedule, m)?)?;
-    //m.add_function(wrap_pyfunction!(python::py_preprocess_schedule_str, m)?)?;
-    //m.add_function(wrap_pyfunction!(python::py_validate_schedule, m)?)?;
+    // Note: Time conversion, data loading, and preprocessing functions are now
+    // exposed through the TSIBackend Python wrapper class (tsi_rust_api.py) which
+    // provides a more ergonomic, high-level API. Direct function exports below
+    // focus on core algorithms, transformations, and database operations.
 
     // Register algorithm functions
     m.add_function(wrap_pyfunction!(python::py_compute_metrics, m)?)?;
@@ -168,8 +155,7 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(services::py_get_compare_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_compute_compare_data, m)?)?;
 
-    // Register classes
-    //m.add_class::<python::PyValidationResult>()?;
+    // Register classes (PyO3 data structures exposed to Python)
     m.add_class::<python::PyAnalyticsSnapshot>()?;
     m.add_class::<python::PySchedulingConflict>()?;
     m.add_class::<python::PyOptimizationResult>()?;
