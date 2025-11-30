@@ -1790,3 +1790,210 @@ impl TrendsData {
         )
     }
 }
+
+/// Lightweight scheduling block for schedule comparison.
+/// Contains fields needed for comparing two schedules.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct CompareBlock {
+    pub scheduling_block_id: String,
+    pub priority: f64,
+    pub scheduled: bool,
+    pub requested_hours: f64,
+}
+
+#[pymethods]
+impl CompareBlock {
+    #[getter]
+    pub fn scheduling_block_id(&self) -> String {
+        self.scheduling_block_id.clone()
+    }
+
+    #[getter]
+    pub fn priority(&self) -> f64 {
+        self.priority
+    }
+
+    #[getter]
+    pub fn scheduled(&self) -> bool {
+        self.scheduled
+    }
+
+    #[getter]
+    pub fn requested_hours(&self) -> f64 {
+        self.requested_hours
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "CompareBlock(id={}, priority={:.2}, scheduled={}, hours={:.1})",
+            self.scheduling_block_id, self.priority, self.scheduled, self.requested_hours
+        )
+    }
+}
+
+/// Summary statistics for schedule comparison.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct CompareStats {
+    pub scheduled_count: usize,
+    pub unscheduled_count: usize,
+    pub total_priority: f64,
+    pub mean_priority: f64,
+    pub median_priority: f64,
+    pub total_hours: f64,
+}
+
+#[pymethods]
+impl CompareStats {
+    #[getter]
+    pub fn scheduled_count(&self) -> usize {
+        self.scheduled_count
+    }
+
+    #[getter]
+    pub fn unscheduled_count(&self) -> usize {
+        self.unscheduled_count
+    }
+
+    #[getter]
+    pub fn total_priority(&self) -> f64 {
+        self.total_priority
+    }
+
+    #[getter]
+    pub fn mean_priority(&self) -> f64 {
+        self.mean_priority
+    }
+
+    #[getter]
+    pub fn median_priority(&self) -> f64 {
+        self.median_priority
+    }
+
+    #[getter]
+    pub fn total_hours(&self) -> f64 {
+        self.total_hours
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "CompareStats(scheduled={}, mean_priority={:.2}, total_hours={:.1})",
+            self.scheduled_count, self.mean_priority, self.total_hours
+        )
+    }
+}
+
+/// Change tracking for blocks between schedules.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct SchedulingChange {
+    pub scheduling_block_id: String,
+    pub priority: f64,
+    pub change_type: String, // "newly_scheduled" or "newly_unscheduled"
+}
+
+#[pymethods]
+impl SchedulingChange {
+    #[getter]
+    pub fn scheduling_block_id(&self) -> String {
+        self.scheduling_block_id.clone()
+    }
+
+    #[getter]
+    pub fn priority(&self) -> f64 {
+        self.priority
+    }
+
+    #[getter]
+    pub fn change_type(&self) -> String {
+        self.change_type.clone()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "SchedulingChange(id={}, priority={:.2}, type={})",
+            self.scheduling_block_id, self.priority, self.change_type
+        )
+    }
+}
+
+/// Complete comparison data for two schedules.
+/// Contains blocks from both schedules and computed statistics.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct CompareData {
+    pub current_blocks: Vec<CompareBlock>,
+    pub comparison_blocks: Vec<CompareBlock>,
+    pub current_stats: CompareStats,
+    pub comparison_stats: CompareStats,
+    pub common_ids: Vec<String>,
+    pub only_in_current: Vec<String>,
+    pub only_in_comparison: Vec<String>,
+    pub scheduling_changes: Vec<SchedulingChange>,
+    pub current_name: String,
+    pub comparison_name: String,
+}
+
+#[pymethods]
+impl CompareData {
+    #[getter]
+    pub fn current_blocks(&self) -> Vec<CompareBlock> {
+        self.current_blocks.clone()
+    }
+
+    #[getter]
+    pub fn comparison_blocks(&self) -> Vec<CompareBlock> {
+        self.comparison_blocks.clone()
+    }
+
+    #[getter]
+    pub fn current_stats(&self) -> CompareStats {
+        self.current_stats.clone()
+    }
+
+    #[getter]
+    pub fn comparison_stats(&self) -> CompareStats {
+        self.comparison_stats.clone()
+    }
+
+    #[getter]
+    pub fn common_ids(&self) -> Vec<String> {
+        self.common_ids.clone()
+    }
+
+    #[getter]
+    pub fn only_in_current(&self) -> Vec<String> {
+        self.only_in_current.clone()
+    }
+
+    #[getter]
+    pub fn only_in_comparison(&self) -> Vec<String> {
+        self.only_in_comparison.clone()
+    }
+
+    #[getter]
+    pub fn scheduling_changes(&self) -> Vec<SchedulingChange> {
+        self.scheduling_changes.clone()
+    }
+
+    #[getter]
+    pub fn current_name(&self) -> String {
+        self.current_name.clone()
+    }
+
+    #[getter]
+    pub fn comparison_name(&self) -> String {
+        self.comparison_name.clone()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "CompareData(current={} blocks, comparison={} blocks, common={}, changes={})",
+            self.current_blocks.len(),
+            self.comparison_blocks.len(),
+            self.common_ids.len(),
+            self.scheduling_changes.len()
+        )
+    }
+}

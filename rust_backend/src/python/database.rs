@@ -218,6 +218,23 @@ pub fn py_fetch_possible_periods(schedule_id: i64) -> PyResult<PyObject> {
     })
 }
 
+/// Fetch compare blocks for a schedule (minimal data for comparison).
+#[pyfunction]
+pub fn py_fetch_compare_blocks(
+    schedule_id: i64,
+) -> PyResult<Vec<crate::db::models::CompareBlock>> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(operations::fetch_compare_blocks(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
 /// Compute visibility histogram for a schedule with filters.
 ///
 /// This function fetches minimal block data from the database and computes

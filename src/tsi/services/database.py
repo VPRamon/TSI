@@ -265,6 +265,68 @@ def get_trends_data(
     return _rust_call("py_get_trends_data", schedule_id, filter_impossible, n_bins, bandwidth, n_smooth_points)
 
 
+def get_compare_data(
+    *,
+    current_schedule_id: int,
+    comparison_schedule_id: int,
+    current_name: str,
+    comparison_name: str,
+):
+    """
+    Get complete comparison data for two schedules from the database.
+    
+    This is the main function for the schedule comparison feature. It returns a CompareData
+    object containing:
+    - current_blocks: List of CompareBlock objects from the current schedule
+    - comparison_blocks: List of CompareBlock objects from the comparison schedule
+    - current_stats: CompareStats with summary statistics for current schedule
+    - comparison_stats: CompareStats with summary statistics for comparison schedule
+    - common_ids: List of scheduling block IDs present in both schedules
+    - only_in_current: List of IDs only in the current schedule
+    - only_in_comparison: List of IDs only in the comparison schedule
+    - scheduling_changes: List of SchedulingChange objects tracking status changes
+    - current_name: Name of the current schedule
+    - comparison_name: Name of the comparison schedule
+    
+    All processing (querying, comparison, statistics computation) is done in Rust
+    for maximum performance. The frontend just needs to render the comparison.
+    
+    Args:
+        current_schedule_id: Database ID of the current schedule
+        comparison_schedule_id: Database ID of the schedule to compare with
+        current_name: Display name for the current schedule
+        comparison_name: Display name for the comparison schedule
+    
+    Returns:
+        CompareData object with all required data and pre-computed comparisons
+    """
+    return _rust_call("py_get_compare_data", current_schedule_id, comparison_schedule_id, current_name, comparison_name)
+
+
+def compute_compare_data(
+    current_blocks,
+    comparison_blocks,
+    current_name: str,
+    comparison_name: str,
+):
+    """
+    Compute comparison data from already-loaded block lists.
+    
+    This function is useful when one schedule is from a file upload rather than the database.
+    It takes pre-loaded CompareBlock lists and computes the comparison.
+    
+    Args:
+        current_blocks: List of CompareBlock objects from current schedule
+        comparison_blocks: List of CompareBlock objects from comparison schedule
+        current_name: Display name for the current schedule
+        comparison_name: Display name for the comparison schedule
+    
+    Returns:
+        CompareData object with all required data and pre-computed comparisons
+    """
+    return _rust_call("py_compute_compare_data", current_blocks, comparison_blocks, current_name, comparison_name)
+
+
 def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:
     """Fetch dark periods for a schedule (with global fallback)."""
     df_polars = _rust_call("py_fetch_dark_periods", schedule_id)
