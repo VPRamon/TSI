@@ -16,16 +16,18 @@ def build_figure(
     size_by: str = "requested_hours",
     flip_ra: bool = True,
     category_palette: dict | None = None,
+    cache_key: str | None = None,
 ) -> go.Figure:
     """
     Build an interactive sky map scatter plot with RA and Dec.
 
     Args:
-        blocks: List of SchedulingBlock PyO3 objects
+        _blocks: List of SchedulingBlock PyO3 objects (not hashed for caching)
         color_by: Column to use for color coding ("priority_bin" or "scheduled_flag")
         size_by: Column to use for marker size
         flip_ra: If True, reverse RA axis (astronomy convention)
         category_palette: Optional dict mapping category -> color
+        cache_key: Optional key for cache invalidation based on filtered data
 
     Returns:
         Plotly Figure object

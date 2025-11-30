@@ -7,6 +7,7 @@ import streamlit as st
 from tsi import state
 from tsi.components.sky_map.sky_map_controls import render_sidebar_controls
 from tsi.components.sky_map.sky_map_stats import render_stats
+from tsi.components.sky_map.sky_map_figure import render_sky_map_figure
 from tsi.plots.sky_map import build_figure
 from tsi.services.database import get_sky_map_data
 from tsi.services.sky_map_filters import filter_blocks
@@ -61,22 +62,11 @@ def render() -> None:
             schedule_window=controls["schedule_window"],
         )
 
-        # Build color palette from priority bins computed in Rust
-        category_palette = None
-        if controls["color_column"] == "priority_bin":
-            category_palette = {
-                bin_info.label: bin_info.color
-                for bin_info in sky_map_data.priority_bins
-            }
-
-        fig = build_figure(
-            _blocks=filtered_blocks,
-            color_by=controls["color_column"],
-            size_by="requested_hours",
-            flip_ra=controls["flip_ra"],
-            category_palette=category_palette,
+        fig = render_sky_map_figure(
+            blocks=filtered_blocks,
+            controls=controls,
+            priority_bins=sky_map_data.priority_bins,
         )
 
-        st.plotly_chart(fig, width='stretch', key="sky_map_chart")
         st.markdown("---")
         render_stats(filtered_blocks)
