@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
 
-import numpy as np
 import pandas as pd
 
 from tsi.services.utils.time import parse_optional_mjd, parse_visibility_periods
@@ -102,8 +99,22 @@ def validate_schema(
     required_columns: set[str],
     expected_dtypes: dict[str, str] | None = None,
 ) -> tuple[bool, list[str]]:
-    """Validate that *df* contains the requested columns and dtypes."""
+    """
+    Validate that *df* contains the requested columns and dtypes.
 
+    This is the canonical schema validation function. For full data validation
+    including content checks (coordinate ranges, priority validity, etc.),
+    use `tsi.services.data.loaders.validate_dataframe()` which combines
+    schema validation with Rust-backed data validation.
+
+    Args:
+        df: DataFrame to validate
+        required_columns: Set of column names that must be present
+        expected_dtypes: Optional mapping of column name to expected dtype string
+
+    Returns:
+        Tuple of (is_valid, list of error messages)
+    """
     errors: list[str] = []
     missing = required_columns - set(df.columns)
     if missing:
@@ -120,65 +131,9 @@ def validate_schema(
     return not errors, errors
 
 
-def validate_dataframe(df: pd.DataFrame) -> tuple[bool, list[str]]:
-    """Perform lightweight validation on the prepared dataframe."""
-
-    issues: list[str] = []
-    if "schedulingBlockId" in df.columns and df["schedulingBlockId"].isna().any():
-        issues.append("Some rows have missing schedulingBlockId")
-
-    if "priority" in df.columns:
-        priority_values = pd.to_numeric(df["priority"], errors="coerce")
-        invalid_mask = ~np.isfinite(priority_values)
-        if invalid_mask.any():
-            issues.append(f"{invalid_mask.sum()} rows have invalid priority values")
-
-    if "decInDeg" in df.columns:
-        invalid_dec = df[(df["decInDeg"] < -90) | (df["decInDeg"] > 90)]
-        if not invalid_dec.empty:
-            issues.append(f"{len(invalid_dec)} rows have invalid declination")
-
-    if "raInDeg" in df.columns:
-        invalid_ra = df[(df["raInDeg"] < 0) | (df["raInDeg"] >= 360)]
-        if not invalid_ra.empty:
-            issues.append(f"{len(invalid_ra)} rows have invalid right ascension")
-
-    return len(issues) == 0, issues
-
-
-def filter_dataframe(
-    df: pd.DataFrame,
-    *,
-    priority_range: tuple[float, float] = (0.0, 10.0),
-    scheduled_filter: Literal["All", "Scheduled", "Unscheduled"] = "All",
-    priority_bins: Sequence[str] | None = None,
-    block_ids: Sequence[str | int] | None = None,
-) -> pd.DataFrame:
-    """Return a filtered view of *df* according to UI criteria."""
-
-    min_priority, max_priority = priority_range
-    filtered = df[(df["priority"] >= min_priority) & (df["priority"] <= max_priority)]
-
-    if scheduled_filter == "Scheduled":
-        filtered = filtered[filtered["scheduled_flag"]]
-    elif scheduled_filter == "Unscheduled":
-        filtered = filtered[~filtered["scheduled_flag"]]
-
-    if priority_bins:
-        filtered = filtered[filtered["priority_bin"].isin(priority_bins)]
-
-    if block_ids:
-        # Filter by block IDs - handle both string and int types
-        filtered = filtered[filtered["schedulingBlockId"].isin(block_ids)]
-
-    return filtered
-
-
 __all__ = [
     "PreparationResult",
     "parse_visibility_for_rows",
     "prepare_dataframe",
     "validate_schema",
-    "validate_dataframe",
-    "filter_dataframe",
 ]

@@ -73,6 +73,7 @@ class TestServicesImports:
             apply_search_filters,
             apply_trends_filters,
             calculate_observation_gaps,
+            compute_priority_range,
             filter_dark_periods,
             filter_scheduled_data,
             get_priority_range,

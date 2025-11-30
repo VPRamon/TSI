@@ -65,9 +65,10 @@ from tsi.services.processors import (
     apply_search_filters,
     apply_trends_filters,
     calculate_observation_gaps,
+    compute_priority_range,
     filter_dark_periods,
     filter_scheduled_data,
-    get_priority_range,
+    get_priority_range,  # Backwards compatibility alias for compute_priority_range
     get_scheduled_time_range,
     prepare_display_dataframe,
     prepare_priority_bins_from_blocks,
@@ -133,7 +134,8 @@ __all__ = [
     "apply_search_filters",
     "validate_required_columns",
     "apply_trends_filters",
-    "get_priority_range",
+    "compute_priority_range",
+    "get_priority_range",  # Backwards compatibility alias
     "prepare_priority_bins_from_blocks",
     "get_scheduled_time_range",
     "calculate_observation_gaps",

@@ -7,9 +7,13 @@ from typing import Any
 import pandas as pd
 
 
-def get_priority_range(source: pd.DataFrame | list[Any]) -> tuple[float, float]:
+def compute_priority_range(source: pd.DataFrame | list[Any]) -> tuple[float, float]:
     """
-    Calculate the priority range from a DataFrame or list of scheduling blocks.
+    Compute the priority range from a DataFrame or list of scheduling blocks.
+
+    This function analyzes the data to determine the actual min/max priority values.
+    For retrieving user-selected priority filters from Streamlit session state,
+    use `tsi.state.get_priority_range()` instead.
 
     Handles edge cases:
     - Missing priority column (DataFrame) → returns (0.0, 10.0)
@@ -26,12 +30,12 @@ def get_priority_range(source: pd.DataFrame | list[Any]) -> tuple[float, float]:
     Examples:
         >>> # From DataFrame
         >>> df = pd.DataFrame({'priority': [1.0, 5.0, 10.0]})
-        >>> get_priority_range(df)
+        >>> compute_priority_range(df)
         (1.0, 10.0)
 
         >>> # From blocks list
         >>> blocks = [block1, block2, block3]  # PyO3 objects
-        >>> get_priority_range(blocks)
+        >>> compute_priority_range(blocks)
         (1.0, 10.0)
     """
     priorities = []
@@ -60,6 +64,10 @@ def get_priority_range(source: pd.DataFrame | list[Any]) -> tuple[float, float]:
         priority_max = priority_min + 1.0
 
     return priority_min, priority_max
+
+
+# Backwards compatibility alias
+get_priority_range = compute_priority_range
 
 
 def prepare_priority_bins_from_blocks(blocks: list[Any]) -> tuple[list[Any], list[str]]:
@@ -107,7 +115,8 @@ def get_scheduled_time_range(blocks: list[Any]) -> tuple[float | None, float | N
 
 
 __all__ = [
-    "get_priority_range",
+    "compute_priority_range",
+    "get_priority_range",  # Backwards compatibility alias
     "prepare_priority_bins_from_blocks",
     "get_scheduled_time_range",
 ]

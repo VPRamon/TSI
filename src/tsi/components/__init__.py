@@ -28,6 +28,11 @@ from .insights.insights_reports import render_report_downloads
 from .insights.insights_tables import render_integrity_checks, render_top_observations
 from .landing.landing_database import render_database_section
 from .landing.landing_upload import render_upload_section
+from .shared.filters import (
+    render_exclude_impossible_checkbox,
+    render_exclude_zero_visibility_checkbox,
+    render_status_filter,
+)
 from .sky_map.sky_map_controls import render_sidebar_controls, reset_sky_map_controls
 from .sky_map.sky_map_stats import render_stats
 from .timeline.timeline_controls import render_search_filters
@@ -52,6 +57,10 @@ from .visibility.visibility_controls import (
 from .visibility.visibility_stats import render_chart_info, render_dataset_statistics
 
 __all__ = [
+    # Shared components
+    "render_exclude_impossible_checkbox",
+    "render_exclude_zero_visibility_checkbox",
+    "render_status_filter",
     # Sky Map components
     "render_sidebar_controls",
     "reset_sky_map_controls",
