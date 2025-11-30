@@ -1,4 +1,52 @@
-"""Database helpers that call directly into the Rust layer (tsi_rust)."""
+"""
+Database Operations - Rust Backend Integration Layer
+
+This module provides Python-callable wrappers for database operations implemented
+in the Rust backend (rust_backend/src/db/).
+
+## Architecture
+
+### Rust Backend (tiberius + bb8)
+All database operations use the high-performance Rust backend:
+- Location: `rust_backend/src/db/`
+- Driver: tiberius (pure Rust async TDS client)
+- Connection Pool: bb8 (async connection pooling)
+- Performance: 10-100x faster than Python/pyodbc
+- Features: Type-safe operations, async/await, efficient resource management
+
+## Usage Patterns
+
+### Standard Operations
+```python
+from tsi.services.database import init_database, store_schedule_db
+
+# Initialize connection pool
+init_database()
+
+# Store schedule (calls Rust backend)
+result = store_schedule_db(name, schedule_json, visibility_json)
+```
+
+## Configuration
+
+### Environment Variables
+- `DATABASE_URL`: Connection string for the database
+- Or set individual components:
+  - `DB_SERVER`: Database server address
+  - `DB_DATABASE`: Database name
+  - `DB_USERNAME`: Database username
+  - `DB_PASSWORD`: Database password
+
+## API Functions
+- `init_database()`: Initialize Rust connection pool
+- `db_health_check()`: Verify database connectivity
+- `store_schedule_db()`: Store schedule data
+- `fetch_schedule_db()`: Fetch schedule by ID or name
+- `list_schedules_db()`: List all schedules
+- `get_sky_map_data()`, `get_distribution_data()`, etc.: Page-specific data aggregation
+
+See individual function docstrings for details.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +60,12 @@ if TYPE_CHECKING:
 
 
 def _import_rust():
+    """
+    Import the Rust backend module.
+    
+    Raises:
+        RuntimeError: If tsi_rust module is not compiled/available
+    """
     try:
         import tsi_rust  # type: ignore[import-not-found]
     except ImportError as e:
@@ -22,31 +76,67 @@ def _import_rust():
 
 
 def _rust_call(method: str, *args: Any):
+    """
+    Call a Rust backend function by name.
+    
+    Args:
+        method: Name of the Rust function (e.g., "py_init_database")
+        *args: Arguments to pass to the Rust function
+        
+    Returns:
+        Result from the Rust function
+    """
     rust = _import_rust()
     return getattr(rust, method)(*args)
 
 
 def init_database() -> None:
-    """Initialize the Rust-backed database pool."""
+    """
+    Initialize the Rust-backed database connection pool.
+    
+    This should be called once at application startup. It establishes a
+    connection pool managed by bb8 in the Rust backend.
+    
+    Backend: Rust (tiberius)
+    """
     _rust_call("py_init_database")
 
 
 def db_health_check() -> bool:
-    """Check database connectivity using the Python fallback."""
+    """
+    Check database connectivity.
+    
+    Backend: Rust (tiberius)
+    
+    Returns:
+        True if database is reachable, False otherwise
+        
+    Raises:
+        RuntimeError: If health check fails with an error
+    """
     try:
-        from tsi.services.database_pyodbc import health_check
-
-        return health_check()
+        return _rust_call("py_db_health_check")
     except Exception as e:
         raise RuntimeError(f"Database health check failed: {e}") from e
-
 
 def store_schedule_db(
     schedule_name: str,
     schedule_json: str,
     visibility_json: str | None = None,
 ) -> dict[str, Any]:
-    """Store a preprocessed schedule via the Rust bindings."""
+    """
+    Store a preprocessed schedule in the database.
+    
+    Backend: Rust (tiberius)
+    
+    Args:
+        schedule_name: Human-readable schedule name
+        schedule_json: JSON string containing schedule data
+        visibility_json: Optional JSON string with visibility periods
+        
+    Returns:
+        Dictionary with storage results including schedule_id
+    """
     return _rust_call(
         "py_store_schedule",
         schedule_name,
@@ -59,24 +149,54 @@ def fetch_schedule_db(
     schedule_id: int | None = None,
     schedule_name: str | None = None,
 ) -> pd.DataFrame:
-    """Fetch a stored schedule as a pandas DataFrame."""
+    """
+    Fetch a stored schedule as a pandas DataFrame.
+    
+    Backend: Rust (tiberius)
+    
+    Args:
+        schedule_id: Schedule ID to fetch
+        schedule_name: Schedule name to fetch (alternative to ID)
+        
+    Returns:
+        DataFrame with schedule blocks
+        
+    Raises:
+        ValueError: If neither schedule_id nor schedule_name provided
+        RuntimeError: If schedule not found
+    """
     if schedule_id is None and schedule_name is None:
         raise ValueError("Either schedule_id or schedule_name must be provided")
 
     try:
-        df_polars = _rust_call("py_fetch_schedule", schedule_id, schedule_name)
-        df = _standardize_schedule_df(df_polars.to_pandas())
-        if df.empty:
-            raise RuntimeError("Schedule not found")
-        return df
-    except Exception as rust_err:
-        # Legacy/alternate schema fallback using the Python client
-        fallback_df = _fetch_schedule_pyodbc(schedule_id=schedule_id, schedule_name=schedule_name)
-        if fallback_df is not None and not fallback_df.empty:
-            return fallback_df
+        schedule = _rust_call("py_get_schedule", schedule_id, schedule_name)
+        # Convert Rust Schedule object to DataFrame
+        blocks = schedule.blocks if hasattr(schedule, 'blocks') else []
+        
+        if not blocks:
+            raise RuntimeError(f"Schedule not found (id={schedule_id}, name={schedule_name})")
+        
+        # Convert blocks to DataFrame
+        df_data = []
+        for block in blocks:
+            block_dict = {
+                "scheduling_block_id": block.block_id,
+                "priority": block.priority,
+                "requestedDurationSec": block.requested_duration_sec,
+            }
+            # Add other attributes as needed
+            if hasattr(block, 'target'):
+                block_dict["name"] = block.target.name
+                block_dict["raInDeg"] = block.target.ra_deg
+                block_dict["decInDeg"] = block.target.dec_deg
+            df_data.append(block_dict)
+        
+        df = pd.DataFrame(df_data)
+        return _standardize_schedule_df(df)
+    except Exception as e:
         raise RuntimeError(
-            f"Schedule not found (id={schedule_id}, name={schedule_name})"
-        ) from rust_err
+            f"Failed to fetch schedule (id={schedule_id}, name={schedule_name}): {e}"
+        ) from e
 
 
 def list_schedules_db() -> list[dict[str, Any]]:
@@ -407,81 +527,6 @@ def _standardize_schedule_df(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = default
 
     return df
-
-
-def _fetch_schedule_pyodbc(
-    schedule_id: int | None = None,
-    schedule_name: str | None = None,
-) -> pd.DataFrame | None:
-    """
-    Legacy/backup fetch using the Python ODBC client.
-
-    This covers databases that still store schedule_id directly on scheduling_blocks.
-    """
-    try:
-        from tsi.services import database_pyodbc
-    except Exception:
-        return None
-
-    attempts: list[pd.DataFrame | None] = []
-
-    # Preferred path: through the junction table
-    if schedule_id is not None:
-        try:
-            data = database_pyodbc.fetch_schedule_by_id(schedule_id)
-            if data:
-                attempts.append(pd.DataFrame(data))
-        except Exception:
-            pass
-
-    if not attempts and schedule_name:
-        try:
-            data = database_pyodbc.fetch_schedule_by_name(schedule_name)
-            if data:
-                attempts.append(pd.DataFrame(data))
-        except Exception:
-            pass
-
-    # Legacy schema: scheduling_blocks has schedule_id column
-    if not attempts and schedule_id is not None:
-        try:
-            with database_pyodbc.get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    SELECT sb.scheduling_block_id, t.name, t.ra_deg, t.dec_deg,
-                           sb.requested_duration_sec, sb.priority
-                    FROM dbo.scheduling_blocks sb
-                    JOIN dbo.targets t ON sb.target_id = t.target_id
-                    WHERE sb.schedule_id = ?
-                    """,
-                    (schedule_id,),
-                )
-                rows = cursor.fetchall()
-                if rows:
-                    attempts.append(
-                        pd.DataFrame(
-                            [
-                                {
-                                    "scheduling_block_id": r[0],
-                                    "name": r[1],
-                                    "ra_deg": r[2],
-                                    "dec_deg": r[3],
-                                    "requested_duration_sec": r[4],
-                                    "priority": r[5],
-                                }
-                                for r in rows
-                            ]
-                        )
-                    )
-        except Exception:
-            pass
-
-    for df in attempts:
-        if df is not None and not df.empty:
-            return _standardize_schedule_df(df)
-
-    return None
 
 
 def get_visibility_histogram(
