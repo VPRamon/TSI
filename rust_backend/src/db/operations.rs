@@ -787,7 +787,7 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
     );
     let metadata = insert_full_schedule(&mut *conn, schedule).await?;
 
-    // Populate analytics table after successful schedule insertion
+    // Populate analytics tables after successful schedule insertion
     if let Some(schedule_id) = metadata.schedule_id {
         info!(
             "Successfully inserted schedule '{}' with id {} ({} blocks)",
@@ -796,7 +796,7 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
             schedule.blocks.len()
         );
 
-        // Populate analytics table (best-effort, log errors but don't fail upload)
+        // Phase 1: Populate block-level analytics table (best-effort, log errors but don't fail upload)
         match super::analytics::populate_schedule_analytics(schedule_id).await {
             Ok(analytics_count) => {
                 info!(
@@ -807,7 +807,25 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
             Err(e) => {
                 // Log warning but don't fail the upload - analytics is optional
                 log::warn!(
-                    "Failed to populate analytics for schedule_id={}: {}",
+                    "Failed to populate block-level analytics for schedule_id={}: {}",
+                    schedule_id, e
+                );
+            }
+        }
+
+        // Phase 2: Populate summary analytics tables (best-effort, log errors but don't fail upload)
+        // Use 10 bins as default for histogram binning
+        match super::analytics::populate_summary_analytics(schedule_id, 10).await {
+            Ok(()) => {
+                info!(
+                    "Populated summary analytics for schedule_id={}",
+                    schedule_id
+                );
+            }
+            Err(e) => {
+                // Log warning but don't fail the upload - summary analytics is optional
+                log::warn!(
+                    "Failed to populate summary analytics for schedule_id={}: {}",
                     schedule_id, e
                 );
             }

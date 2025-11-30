@@ -498,3 +498,162 @@ pub fn py_delete_analytics(schedule_id: i64) -> PyResult<usize> {
         .block_on(crate::db::analytics::delete_schedule_analytics(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
+
+// =============================================================================
+// Phase 2: Summary Analytics Functions
+// =============================================================================
+
+/// Populate summary analytics tables for a schedule.
+///
+/// This function is called automatically after schedule upload, but can also
+/// be triggered manually to refresh summary analytics data.
+///
+/// Args:
+///     schedule_id: The ID of the schedule to process
+///     n_bins: Number of bins for histograms (default 10)
+///
+/// Example:
+/// ```python
+/// # Manually refresh summary analytics for a schedule
+/// tsi_rust.py_populate_summary_analytics(schedule_id=42)
+/// ```
+#[pyfunction]
+#[pyo3(signature = (schedule_id, n_bins=10))]
+pub fn py_populate_summary_analytics(schedule_id: i64, n_bins: usize) -> PyResult<()> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::populate_summary_analytics(schedule_id, n_bins))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Check if summary analytics data exists for a schedule.
+///
+/// Args:
+///     schedule_id: The ID of the schedule to check
+///
+/// Returns:
+///     True if summary analytics data exists, False otherwise
+#[pyfunction]
+pub fn py_has_summary_analytics(schedule_id: i64) -> PyResult<bool> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::has_summary_analytics(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Delete summary analytics data for a schedule.
+///
+/// Args:
+///     schedule_id: The ID of the schedule whose summary analytics should be deleted
+///
+/// Returns:
+///     Number of rows deleted (summary + priority rates)
+#[pyfunction]
+pub fn py_delete_summary_analytics(schedule_id: i64) -> PyResult<usize> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::delete_summary_analytics(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Fetch schedule summary from the analytics table.
+///
+/// Args:
+///     schedule_id: The ID of the schedule
+///
+/// Returns:
+///     ScheduleSummary object if data exists, None otherwise
+#[pyfunction]
+pub fn py_get_schedule_summary(schedule_id: i64) -> PyResult<Option<crate::db::analytics::ScheduleSummary>> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::fetch_schedule_summary(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Fetch priority rates from the analytics table.
+///
+/// Args:
+///     schedule_id: The ID of the schedule
+///
+/// Returns:
+///     List of PriorityRate objects
+#[pyfunction]
+pub fn py_get_priority_rates(schedule_id: i64) -> PyResult<Vec<crate::db::analytics::PriorityRate>> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::fetch_priority_rates(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Fetch visibility histogram bins from the analytics table.
+///
+/// Args:
+///     schedule_id: The ID of the schedule
+///
+/// Returns:
+///     List of VisibilityBin objects
+#[pyfunction]
+pub fn py_get_visibility_bins(schedule_id: i64) -> PyResult<Vec<crate::db::analytics::VisibilityBin>> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::fetch_visibility_bins(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Fetch heatmap bins from the analytics table.
+///
+/// Args:
+///     schedule_id: The ID of the schedule
+///
+/// Returns:
+///     List of HeatmapBinData objects
+#[pyfunction]
+pub fn py_get_heatmap_bins(schedule_id: i64) -> PyResult<Vec<crate::db::analytics::HeatmapBinData>> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::fetch_heatmap_bins(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
