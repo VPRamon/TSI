@@ -168,6 +168,10 @@ class Settings(BaseSettings):
         default=True,
         description="Enable schedule comparison feature",
     )
+    use_analytics_table: bool = Field(
+        default=True,
+        description="Use pre-computed analytics table for improved query performance",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -421,3 +421,80 @@ pub fn py_get_visibility_map_data(
         .block_on(operations::fetch_visibility_map_data(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
+
+// =============================================================================
+// Analytics Table ETL Functions
+// =============================================================================
+
+/// Populate the analytics table for a schedule.
+///
+/// This function is called automatically after schedule upload, but can also
+/// be triggered manually to refresh analytics data.
+///
+/// Args:
+///     schedule_id: The ID of the schedule to process
+///
+/// Returns:
+///     Number of analytics rows created
+///
+/// Example:
+/// ```python
+/// # Manually refresh analytics for a schedule
+/// rows = tsi_rust.py_populate_analytics(schedule_id=42)
+/// print(f"Created {rows} analytics rows")
+/// ```
+#[pyfunction]
+pub fn py_populate_analytics(schedule_id: i64) -> PyResult<usize> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::populate_schedule_analytics(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Check if analytics data exists for a schedule.
+///
+/// Args:
+///     schedule_id: The ID of the schedule to check
+///
+/// Returns:
+///     True if analytics data exists, False otherwise
+#[pyfunction]
+pub fn py_has_analytics_data(schedule_id: i64) -> PyResult<bool> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::has_analytics_data(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Delete analytics data for a schedule.
+///
+/// Args:
+///     schedule_id: The ID of the schedule whose analytics should be deleted
+///
+/// Returns:
+///     Number of analytics rows deleted
+#[pyfunction]
+pub fn py_delete_analytics(schedule_id: i64) -> PyResult<usize> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::delete_schedule_analytics(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
