@@ -7,14 +7,14 @@ from types import SimpleNamespace
 import pandas as pd
 import pytest
 
-from tsi.services.processors.sky_map import get_priority_range
+from tsi.services.processors.sky_map import compute_priority_range, get_priority_range
 
 
 pytestmark = pytest.mark.unit
 
 
-class TestGetPriorityRange:
-    """Tests for the unified get_priority_range function."""
+class TestComputePriorityRange:
+    """Tests for the compute_priority_range function."""
 
     def test_dataframe_with_normal_priorities(self):
         """Should return min and max from DataFrame with normal priority values."""
@@ -94,3 +94,17 @@ class TestGetPriorityRange:
         df = pd.DataFrame({"priority": [1.5, 2.7, 9.3]})
         result = get_priority_range(df)
         assert result == (1.5, 9.3)
+
+
+class TestBackwardsCompatibilityAlias:
+    """Tests for backwards compatibility alias."""
+
+    def test_get_priority_range_is_alias(self):
+        """get_priority_range should be an alias for compute_priority_range."""
+        df = pd.DataFrame({"priority": [1.0, 5.0, 10.0]})
+        assert get_priority_range(df) == compute_priority_range(df)
+
+    def test_compute_priority_range_same_behavior(self):
+        """compute_priority_range should have same behavior as get_priority_range."""
+        df = pd.DataFrame({"priority": [1.0, 5.0, 10.0]})
+        assert compute_priority_range(df) == (1.0, 10.0)

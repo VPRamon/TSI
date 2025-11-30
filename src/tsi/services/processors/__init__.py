@@ -12,7 +12,8 @@ from tsi.services.processors.trends import (
     validate_required_columns,
 )
 from tsi.services.processors.sky_map import (
-    get_priority_range,
+    compute_priority_range,
+    get_priority_range,  # Backwards compatibility alias
     get_scheduled_time_range,
     prepare_priority_bins_from_blocks,
 )
@@ -31,7 +32,8 @@ __all__ = [
     "validate_required_columns",
     "apply_trends_filters",
     # sky_map (includes priority range)
-    "get_priority_range",
+    "compute_priority_range",
+    "get_priority_range",  # Backwards compatibility alias
     "prepare_priority_bins_from_blocks",
     "get_scheduled_time_range",
     # compare

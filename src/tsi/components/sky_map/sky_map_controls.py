@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 import streamlit as st
 
 from tsi import state
+from tsi.components.shared.filters import render_status_filter
 from tsi.components.toolbar.toolbar import (
     render_priority_range_control,
     render_reset_filters_button,
@@ -81,11 +82,7 @@ def render_sidebar_controls(
 
 def _render_status_selector() -> str:
     """Render scheduling status radio selector."""
-    scheduled_filter = st.radio(
-        "Scheduling Status",
-        options=["All", "Scheduled", "Unscheduled"],
-        key="sky_scheduled_filter",
-    )
+    scheduled_filter = render_status_filter(key="sky_scheduled_filter")
     state.set_scheduled_filter(scheduled_filter)
     return scheduled_filter
 
