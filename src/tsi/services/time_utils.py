@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pandas as pd
+import tsi_rust
 
 from tsi_rust_api import TSIBackend
 
@@ -25,13 +26,17 @@ def _ensure_utc(dt: datetime) -> datetime:
 
 @dataclass(frozen=True)
 class ModifiedJulianDate:
-    """Lightweight Modified Julian Date representation with datetime helpers."""
+    """Lightweight Modified Julian Date representation with datetime helpers.
+    
+    Note: Core MJD conversions now use Rust backend (tsi_rust.mjd_to_datetime,
+    tsi_rust.datetime_to_mjd) for better performance and accuracy.
+    """
 
     value: float
 
     def to_datetime(self) -> datetime:
-        """Convert to a timezone-aware UTC datetime."""
-        return MJD_EPOCH + timedelta(days=self.value)
+        """Convert to a timezone-aware UTC datetime using Rust backend."""
+        return tsi_rust.mjd_to_datetime(self.value)
 
     def to_timestamp(self) -> pd.Timestamp:
         """Convert to pandas Timestamp."""
@@ -39,10 +44,10 @@ class ModifiedJulianDate:
 
     @classmethod
     def from_datetime(cls, dt: datetime) -> ModifiedJulianDate:
-        """Create an MJD from a Python datetime."""
+        """Create an MJD from a Python datetime using Rust backend."""
         dt_utc = _ensure_utc(dt)
-        delta = dt_utc - MJD_EPOCH
-        return cls(delta.total_seconds() / SECONDS_PER_DAY)
+        mjd_value = tsi_rust.datetime_to_mjd(dt_utc)
+        return cls(mjd_value)
 
     @classmethod
     def from_timestamp(cls, ts: pd.Timestamp) -> ModifiedJulianDate:
@@ -58,23 +63,43 @@ class ModifiedJulianDate:
 
 
 def mjd_to_datetime(mjd: float) -> pd.Timestamp:
-    """Convert Modified Julian Date to a pandas Timestamp (UTC)."""
-    return ModifiedJulianDate(mjd).to_timestamp()
+    """Convert Modified Julian Date to a pandas Timestamp (UTC) using Rust backend."""
+    dt = tsi_rust.mjd_to_datetime(mjd)
+    return pd.Timestamp(dt)
 
 
 def datetime_to_mjd(dt: datetime) -> float:
-    """Convert a timezone-aware datetime to Modified Julian Date."""
-    return float(ModifiedJulianDate.from_datetime(dt).value)
+    """Convert a timezone-aware datetime to Modified Julian Date using Rust backend."""
+    dt_utc = _ensure_utc(dt)
+    return tsi_rust.datetime_to_mjd(dt_utc)
 
 
 def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
-    """Parse visibility periods into timestamp tuples."""
-    if not visibility_str or str(visibility_str).strip() == "":
+    """Parse visibility periods into timestamp tuples.
+    
+    Expected format: "[(mjd_start, mjd_stop), (mjd_start, mjd_stop), ...]"
+    """
+    if not visibility_str or str(visibility_str).strip() in ("", "[]"):
         return []
 
     try:
-        periods: list[tuple[Any, Any]] = TSIBackend.parse_visibility_periods(str(visibility_str))
-        return [(pd.Timestamp(start), pd.Timestamp(stop)) for start, stop in periods]
+        # Parse the string representation of a list of tuples
+        import ast
+        parsed = ast.literal_eval(str(visibility_str))
+        
+        if not isinstance(parsed, list):
+            return []
+        
+        result = []
+        for item in parsed:
+            if isinstance(item, (tuple, list)) and len(item) == 2:
+                start_mjd, stop_mjd = item
+                # Convert MJD values to timestamps using Rust backend
+                start_ts = mjd_to_datetime(float(start_mjd))
+                stop_ts = mjd_to_datetime(float(stop_mjd))
+                result.append((start_ts, stop_ts))
+        
+        return result
     except Exception:
         return []
 

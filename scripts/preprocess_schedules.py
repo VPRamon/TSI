@@ -2,11 +2,16 @@
 """
 Schedule Preprocessing CLI
 
-This script converts raw scheduling JSON files to preprocessed CSVs
-ready for analysis and visualization. It can process single files or
-batch process multiple files.
+⚠️ LEGACY SCRIPT - Uses deprecated API
 
-Usage:
+This script used the old core.loaders API which has been replaced by the Rust backend.
+For current usage, see:
+- tsi_rust_api.py (TSIBackend class)
+- Rust backend functions in tsi_rust module
+
+This script is kept for reference but may require updates to work with current codebase.
+
+Original Usage:
     # Process a single schedule JSON file
     python preprocess_schedules.py --schedule data/schedule.json --output data/schedule.csv
     
@@ -29,12 +34,16 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+import pandas as pd
+
 # Add project root to path for imports
 PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.core.loaders import load_schedule_from_json
+# LEGACY: core.loaders no longer exists - use tsi_rust_api.TSIBackend instead
+# from src.core.loaders import load_schedule_from_json
+from src.tsi_rust_api import TSIBackend
 
 # Configure logging
 logging.basicConfig(
@@ -58,7 +67,7 @@ def process_single_schedule(
         schedule_path: Path to schedule JSON file
         output_path: Path for output CSV
         visibility_path: Optional path to visibility/possible periods JSON
-        validate: Whether to validate data
+        validate: Whether to validate data (note: validation is now handled by Rust)
         verbose: Whether to print detailed stats
         
     Returns:
@@ -67,46 +76,36 @@ def process_single_schedule(
     try:
         logger.info(f"Processing {schedule_path.name}...")
         
-        # Load data using centralized loader
-        result = load_schedule_from_json(
-            schedule_path, 
-            visibility_path,
-            validate=validate
+        # Load data using Rust backend
+        backend = TSIBackend()
+        result_dict = backend.load_schedule(
+            str(schedule_path), 
+            str(visibility_path) if visibility_path else None,
         )
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(result_dict.get("blocks", []))
         
         # Ensure output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Export to CSV
-        df_export = result.dataframe.copy()
-        
-        # Convert visibility list to string representation for CSV storage
-        if 'visibility' in df_export.columns:
-            df_export['visibility'] = df_export['visibility'].apply(str)
+        # Export to CSV (stringify visibility column if present)
+        df_export = df.copy()
+        if "visibility" in df_export.columns:
+            df_export["visibility"] = df_export["visibility"].apply(str)
         
         df_export.to_csv(output_path, index=False)
         
         # Show stats if verbose
         if verbose:
-            validation = result.validation
-            
             logger.info(f"✓ Successfully processed {schedule_path.name}")
             logger.info(f"  Output: {output_path}")
-            logger.info(f"  Total blocks: {validation.stats.get('total_blocks', len(df_export))}")
-            logger.info(f"  Scheduled: {validation.stats.get('scheduled_blocks', 0)}")
-            logger.info(f"  Unscheduled: {validation.stats.get('unscheduled_blocks', 0)}")
+            logger.info(f"  Total blocks: {len(df_export)}")
+            logger.info(f"  Columns: {list(df_export.columns)}")
             
-            if 'blocks_with_visibility' in validation.stats:
-                logger.info(f"  Blocks with visibility: {validation.stats['blocks_with_visibility']}")
-                logger.info(f"  Avg visibility periods: {validation.stats['avg_visibility_periods']:.1f}")
-                logger.info(f"  Avg visibility hours: {validation.stats['avg_visibility_hours']:.1f}")
-            
-            if validation.warnings:
-                logger.warning(f"  Warnings: {len(validation.warnings)}")
-                for warning in validation.warnings[:3]:  # Show first 3
-                    logger.warning(f"    - {warning}")
-                if len(validation.warnings) > 3:
-                    logger.warning(f"    ... and {len(validation.warnings) - 3} more")
+            if 'visibility' in df_export.columns:
+                blocks_with_vis = df_export['visibility'].notna().sum()
+                logger.info(f"  Blocks with visibility: {blocks_with_vis}")
         else:
             logger.info(f"✓ Successfully processed {schedule_path.name} -> {output_path}")
         
