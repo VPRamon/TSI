@@ -55,8 +55,7 @@ def filter_blocks(
         if schedule_window and is_scheduled and block.scheduled_period:
             start_mjd = ModifiedJulianDate(block.scheduled_period.start_mjd)
             if not schedule_window.contains_mjd(float(start_mjd)):
-                if scheduled_filter != "All":
-                    continue
+                continue
 
         filtered.append(block)
 
