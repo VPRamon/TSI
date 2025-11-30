@@ -1,11 +1,11 @@
-"""Comprehensive unit tests for :mod:`tsi.services.preparation`."""
+"""Comprehensive unit tests for :mod:`tsi.services.data.preparation`."""
 
 from __future__ import annotations
 
 import pandas as pd
 import pytest
 
-from tsi.services.preparation import PreparationResult, parse_visibility_for_rows, prepare_dataframe
+from tsi.services.data.preparation import PreparationResult, parse_visibility_for_rows, prepare_dataframe
 
 pytestmark = pytest.mark.unit
 

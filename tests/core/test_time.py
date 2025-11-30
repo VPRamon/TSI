@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import pandas as pd
 import pytest
 
-from tsi.services.time_utils import (
+from tsi.services.utils.time import (
     datetime_to_mjd,
     format_datetime_utc,
     get_time_range,

@@ -1,2 +1,0 @@
-schedulingBlockId,priority,minObservationTimeInSec,requestedDurationSec,decInDeg,raInDeg,minAzimuthAngleInDeg,maxAzimuthAngleInDeg,minElevationAngleInDeg,maxElevationAngleInDeg,total_visibility_hours,num_visibility_periods,elevation_range_deg,visibility_efficiency,period_saturation,night_fraction,priority_bin
-OBS-001-UNSCHEDULED,5.0,1800,3600,45.0,180.0,0.0,360.0,30.0,85.0,2.5,2,55.0,0.65,0.85,0.70,Medium

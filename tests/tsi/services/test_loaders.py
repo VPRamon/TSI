@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`tsi.services.loaders`."""
+"""Unit tests for :mod:`tsi.services.data.loaders`."""
 
 from __future__ import annotations
 
@@ -8,7 +8,8 @@ from io import StringIO
 import pandas as pd
 import pytest
 
-from tsi.services.loaders import (
+from tsi.exceptions import SchemaError
+from tsi.services.data.loaders import (
     get_filtered_dataframe,
     load_csv,
     prepare_dataframe,
@@ -85,7 +86,7 @@ def test_load_csv__with_missing_columns__raises_value_error() -> None:
     buffer = StringIO("col1,col2\n1,2\n")
 
     # When / Then: the loader should raise a validation error
-    with pytest.raises(ValueError, match="Missing required columns"):
+    with pytest.raises(SchemaError, match="Missing required columns"):
         load_csv(buffer)
 
 

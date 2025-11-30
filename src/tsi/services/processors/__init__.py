@@ -13,7 +13,6 @@ from tsi.services.processors.trends import (
 )
 from tsi.services.processors.sky_map import (
     get_priority_range,
-    get_priority_range_from_blocks,
     get_scheduled_time_range,
     prepare_priority_bins_from_blocks,
 )
@@ -33,7 +32,6 @@ __all__ = [
     "apply_trends_filters",
     # sky_map (includes priority range)
     "get_priority_range",
-    "get_priority_range_from_blocks",
     "prepare_priority_bins_from_blocks",
     "get_scheduled_time_range",
     # compare

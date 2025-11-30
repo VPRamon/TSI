@@ -1,4 +1,4 @@
-"""Unit tests for :mod:`tsi.services.analytics`."""
+"""Unit tests for :mod:`tsi.services.data.analytics`."""
 
 from __future__ import annotations
 
@@ -8,14 +8,14 @@ from io import StringIO
 import pandas as pd
 import pytest
 
-from tsi.services.analytics import (
+from tsi.services.data.analytics import (
     compute_correlations,
     compute_metrics,
     find_conflicts,
     generate_insights,
     get_top_observations,
 )
-from tsi.services.loaders import load_csv, prepare_dataframe
+from tsi.services.data.loaders import load_csv, prepare_dataframe
 
 pytestmark = pytest.mark.unit
 
