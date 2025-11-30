@@ -1372,6 +1372,720 @@ pub async fn delete_summary_analytics(schedule_id: i64) -> Result<usize, String>
     Ok(total_deleted as usize)
 }
 
+// =============================================================================
+// Phase 3: Visibility Time Bins
+// =============================================================================
+
+/// Default bin duration for visibility time bins: 15 minutes (900 seconds)
+const DEFAULT_VISIBILITY_BIN_DURATION_SECONDS: i64 = 900;
+
+/// MJD epoch (1858-11-17 00:00:00 UTC) as Unix timestamp
+const MJD_EPOCH_UNIX: i64 = -3506716800;
+
+/// Convert Modified Julian Date to Unix timestamp (seconds since 1970-01-01)
+#[inline]
+fn mjd_to_unix(mjd: f64) -> i64 {
+    MJD_EPOCH_UNIX + (mjd * 86400.0) as i64
+}
+
+/// Visibility metadata for a schedule
+#[derive(Debug, Clone)]
+#[pyclass(get_all)]
+pub struct VisibilityTimeMetadata {
+    pub schedule_id: i64,
+    pub time_range_start_unix: i64,
+    pub time_range_end_unix: i64,
+    pub bin_duration_seconds: i32,
+    pub total_bins: i32,
+    pub total_blocks: i32,
+    pub blocks_with_visibility: i32,
+    pub priority_min: Option<f64>,
+    pub priority_max: Option<f64>,
+    pub max_visible_in_bin: i32,
+    pub mean_visible_per_bin: Option<f64>,
+}
+
+/// Pre-computed visibility time bin data
+#[derive(Debug, Clone)]
+#[pyclass(get_all)]
+pub struct VisibilityTimeBin {
+    pub bin_start_unix: i64,
+    pub bin_end_unix: i64,
+    pub bin_index: i32,
+    pub total_visible_count: i32,
+    pub priority_q1_count: i32,
+    pub priority_q2_count: i32,
+    pub priority_q3_count: i32,
+    pub priority_q4_count: i32,
+    pub scheduled_visible_count: i32,
+    pub unscheduled_visible_count: i32,
+}
+
+/// Parsed visibility period from JSON
+#[derive(Debug, Clone)]
+struct VisibilityPeriod {
+    start_unix: i64,
+    end_unix: i64,
+}
+
+/// Block data for visibility binning
+#[derive(Debug)]
+struct BlockVisibilityData {
+    scheduling_block_id: i64,
+    priority: f64,
+    priority_quartile: u8,
+    is_scheduled: bool,
+    periods: Vec<VisibilityPeriod>,
+}
+
+/// Parse visibility periods JSON into VisibilityPeriod structs.
+fn parse_visibility_periods_for_binning(json_str: &str) -> Vec<VisibilityPeriod> {
+    let periods_array: Vec<serde_json::Value> = match serde_json::from_str(json_str) {
+        Ok(arr) => arr,
+        Err(_) => return vec![],
+    };
+
+    let mut periods = Vec::with_capacity(periods_array.len());
+
+    for period_obj in periods_array {
+        let start_mjd = match period_obj["start"].as_f64() {
+            Some(v) => v,
+            None => continue,
+        };
+
+        let stop_mjd = match period_obj["stop"].as_f64() {
+            Some(v) => v,
+            None => continue,
+        };
+
+        let start_unix = mjd_to_unix(start_mjd);
+        let end_unix = mjd_to_unix(stop_mjd);
+
+        if start_unix < end_unix {
+            periods.push(VisibilityPeriod {
+                start_unix,
+                end_unix,
+            });
+        }
+    }
+
+    periods
+}
+
+/// Compute priority quartile (1-4) based on the schedule's priority range.
+fn compute_priority_quartile(priority: f64, min_priority: f64, range: Option<f64>) -> u8 {
+    match range {
+        Some(r) if r > 0.0 => {
+            let normalized = (priority - min_priority) / r;
+            match normalized {
+                x if x < 0.25 => 1,
+                x if x < 0.50 => 2,
+                x if x < 0.75 => 3,
+                _ => 4,
+            }
+        }
+        _ => 2, // Default to middle quartile when no range
+    }
+}
+
+/// Populate visibility time bins for a schedule.
+///
+/// This function:
+/// 1. Deletes existing visibility time bins for the schedule (idempotent)
+/// 2. Fetches all blocks with their visibility periods JSON
+/// 3. Parses visibility periods and computes which bins each block is visible in
+/// 4. Stores pre-computed counts per time bin
+///
+/// # Arguments
+/// * `schedule_id` - The ID of the schedule to process
+/// * `bin_duration_seconds` - Duration of each bin in seconds (default: 900 = 15 minutes)
+///
+/// # Returns
+/// * `Ok((metadata_count, bins_count))` - Number of metadata and bin rows inserted
+/// * `Err(String)` - Error description if the operation fails
+pub async fn populate_visibility_time_bins(
+    schedule_id: i64,
+    bin_duration_seconds: Option<i64>,
+) -> Result<(usize, usize), String> {
+    let start_time = std::time::Instant::now();
+    let bin_duration = bin_duration_seconds.unwrap_or(DEFAULT_VISIBILITY_BIN_DURATION_SECONDS);
+
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    info!(
+        "Populating visibility time bins for schedule_id={} with {}s bins",
+        schedule_id, bin_duration
+    );
+
+    // Delete existing data for this schedule
+    delete_visibility_time_bins_internal(&mut conn, schedule_id).await?;
+
+    // Fetch all blocks with visibility data
+    let sql = r#"
+        SELECT 
+            sb.scheduling_block_id,
+            sb.priority,
+            sb.visibility_periods_json,
+            CASE WHEN ssb.start_time_mjd IS NOT NULL THEN 1 ELSE 0 END as is_scheduled
+        FROM dbo.schedule_scheduling_blocks ssb
+        JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+        WHERE ssb.schedule_id = @P1
+        ORDER BY sb.scheduling_block_id
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch blocks: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read blocks: {e}"))?;
+
+    if rows.is_empty() {
+        warn!("No blocks found for schedule_id={}", schedule_id);
+        return Ok((0, 0));
+    }
+
+    // First pass: determine priority range and time range
+    let mut priority_min = f64::INFINITY;
+    let mut priority_max = f64::NEG_INFINITY;
+    let mut time_min = i64::MAX;
+    let mut time_max = i64::MIN;
+    let mut blocks_with_visibility = 0;
+
+    let mut raw_blocks: Vec<(i64, f64, Option<String>, bool)> = Vec::with_capacity(rows.len());
+
+    for row in &rows {
+        let block_id: i64 = row.get(0).ok_or("scheduling_block_id is NULL")?;
+        let priority: f64 = row.get::<f64, _>(1).unwrap_or(0.0);
+        let visibility_json: Option<&str> = row.get(2);
+        let is_scheduled: i32 = row.get(3).unwrap_or(0);
+
+        priority_min = priority_min.min(priority);
+        priority_max = priority_max.max(priority);
+
+        if let Some(json_str) = visibility_json {
+            if !json_str.is_empty() && json_str != "null" {
+                let periods = parse_visibility_periods_for_binning(json_str);
+                if !periods.is_empty() {
+                    blocks_with_visibility += 1;
+                    for p in &periods {
+                        time_min = time_min.min(p.start_unix);
+                        time_max = time_max.max(p.end_unix);
+                    }
+                }
+            }
+        }
+
+        raw_blocks.push((block_id, priority, visibility_json.map(|s| s.to_string()), is_scheduled != 0));
+    }
+
+    if time_min >= time_max {
+        warn!(
+            "No valid visibility periods for schedule_id={}",
+            schedule_id
+        );
+        return Ok((0, 0));
+    }
+
+    let priority_range = if (priority_max - priority_min).abs() < f64::EPSILON {
+        None
+    } else {
+        Some(priority_max - priority_min)
+    };
+
+    // Calculate number of bins
+    let time_range = time_max - time_min;
+    let num_bins = ((time_range + bin_duration - 1) / bin_duration) as usize;
+
+    info!(
+        "Processing {} blocks, {} with visibility, time range {}s, {} bins",
+        raw_blocks.len(),
+        blocks_with_visibility,
+        time_range,
+        num_bins
+    );
+
+    // Second pass: parse visibility and compute quartiles
+    let mut blocks: Vec<BlockVisibilityData> = Vec::with_capacity(raw_blocks.len());
+
+    for (block_id, priority, visibility_json, is_scheduled) in raw_blocks {
+        let quartile = compute_priority_quartile(priority, priority_min, priority_range);
+        let periods = visibility_json
+            .as_deref()
+            .map(parse_visibility_periods_for_binning)
+            .unwrap_or_default();
+
+        if !periods.is_empty() {
+            blocks.push(BlockVisibilityData {
+                scheduling_block_id: block_id,
+                priority,
+                priority_quartile: quartile,
+                is_scheduled,
+                periods,
+            });
+        }
+    }
+
+    // Initialize bins
+    let mut bin_data: Vec<(i64, i64, std::collections::HashSet<i64>, [i32; 4], i32, i32)> =
+        (0..num_bins)
+            .map(|i| {
+                let bin_start = time_min + (i as i64) * bin_duration;
+                let bin_end = std::cmp::min(bin_start + bin_duration, time_max);
+                (bin_start, bin_end, std::collections::HashSet::new(), [0; 4], 0, 0)
+            })
+            .collect();
+
+    // Populate bins with block visibility
+    for block in &blocks {
+        for period in &block.periods {
+            // Find overlapping bins
+            let start_bin = ((period.start_unix - time_min) / bin_duration).max(0) as usize;
+            let end_bin = (((period.end_unix - time_min) + bin_duration - 1) / bin_duration)
+                .min(num_bins as i64) as usize;
+
+            for bin_idx in start_bin..end_bin {
+                if bin_idx >= bin_data.len() {
+                    continue;
+                }
+
+                let (bin_start, bin_end, ref mut block_ids, ref mut quartile_counts, ref mut sched_count, ref mut unsched_count) =
+                    bin_data[bin_idx];
+
+                // Check if period actually overlaps with this bin
+                if period.start_unix < bin_end && period.end_unix > bin_start {
+                    if block_ids.insert(block.scheduling_block_id) {
+                        // First time this block is added to this bin
+                        let q_idx = (block.priority_quartile - 1) as usize;
+                        if q_idx < 4 {
+                            quartile_counts[q_idx] += 1;
+                        }
+                        if block.is_scheduled {
+                            *sched_count += 1;
+                        } else {
+                            *unsched_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Insert metadata
+    let mut max_visible = 0i32;
+    let mut total_visible = 0i64;
+
+    for (_, _, ref block_ids, _, _, _) in &bin_data {
+        let count = block_ids.len() as i32;
+        max_visible = max_visible.max(count);
+        total_visible += count as i64;
+    }
+
+    let mean_visible = if num_bins > 0 {
+        Some(total_visible as f64 / num_bins as f64)
+    } else {
+        None
+    };
+
+    let etl_duration_ms = start_time.elapsed().as_millis() as i32;
+
+    let metadata_sql = r#"
+        INSERT INTO analytics.schedule_visibility_metadata (
+            schedule_id, time_range_start_unix, time_range_end_unix,
+            bin_duration_seconds, total_bins, total_blocks, blocks_with_visibility,
+            priority_min, priority_max, max_visible_in_bin, mean_visible_per_bin,
+            etl_duration_ms
+        ) VALUES (@P1, @P2, @P3, @P4, @P5, @P6, @P7, @P8, @P9, @P10, @P11, @P12)
+    "#;
+
+    let mut metadata_query = Query::new(metadata_sql);
+    metadata_query.bind(schedule_id);
+    metadata_query.bind(time_min);
+    metadata_query.bind(time_max);
+    metadata_query.bind(bin_duration as i32);
+    metadata_query.bind(num_bins as i32);
+    metadata_query.bind(rows.len() as i32);
+    metadata_query.bind(blocks_with_visibility);
+    metadata_query.bind(priority_min);
+    metadata_query.bind(priority_max);
+    metadata_query.bind(max_visible);
+    metadata_query.bind(mean_visible);
+    metadata_query.bind(etl_duration_ms);
+
+    metadata_query
+        .execute(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to insert visibility metadata: {e}"))?;
+
+    // Batch insert bins
+    let bins_inserted = bulk_insert_visibility_bins(&mut conn, schedule_id, &bin_data).await?;
+
+    info!(
+        "Populated {} visibility time bins for schedule_id={} in {}ms",
+        bins_inserted, schedule_id, etl_duration_ms
+    );
+
+    Ok((1, bins_inserted))
+}
+
+/// Bulk insert visibility time bins.
+async fn bulk_insert_visibility_bins(
+    conn: &mut DbClient,
+    schedule_id: i64,
+    bin_data: &[(i64, i64, std::collections::HashSet<i64>, [i32; 4], i32, i32)],
+) -> Result<usize, String> {
+    if bin_data.is_empty() {
+        return Ok(0);
+    }
+
+    // SQL Server parameter limit: ~2100 params
+    // Each row uses 11 params, so max batch = 2100/11 ≈ 190
+    const BATCH_SIZE: usize = 150;
+
+    let mut total_inserted = 0;
+
+    for (chunk_idx, chunk) in bin_data.chunks(BATCH_SIZE).enumerate() {
+        let mut values_clauses = Vec::with_capacity(chunk.len());
+        for (i, _) in chunk.iter().enumerate() {
+            let base = i * 11;
+            values_clauses.push(format!(
+                "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
+                base + 1, base + 2, base + 3, base + 4, base + 5, base + 6,
+                base + 7, base + 8, base + 9, base + 10, base + 11
+            ));
+        }
+
+        let sql = format!(
+            r#"
+            INSERT INTO analytics.schedule_visibility_time_bins (
+                schedule_id, bin_start_unix, bin_end_unix, bin_index,
+                total_visible_count, priority_q1_count, priority_q2_count,
+                priority_q3_count, priority_q4_count, scheduled_visible_count,
+                unscheduled_visible_count
+            ) VALUES {}
+            "#,
+            values_clauses.join(", ")
+        );
+
+        let mut query = Query::new(sql);
+
+        for (bin_idx, (bin_start, bin_end, block_ids, quartile_counts, sched_count, unsched_count)) in
+            chunk.iter().enumerate()
+        {
+            let global_bin_idx = chunk_idx * BATCH_SIZE + bin_idx;
+            query.bind(schedule_id);
+            query.bind(*bin_start);
+            query.bind(*bin_end);
+            query.bind(global_bin_idx as i32);
+            query.bind(block_ids.len() as i32);
+            query.bind(quartile_counts[0]);
+            query.bind(quartile_counts[1]);
+            query.bind(quartile_counts[2]);
+            query.bind(quartile_counts[3]);
+            query.bind(*sched_count);
+            query.bind(*unsched_count);
+        }
+
+        query
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| format!("Failed to insert visibility bins batch: {e}"))?;
+
+        total_inserted += chunk.len();
+    }
+
+    Ok(total_inserted)
+}
+
+/// Delete visibility time bins for a schedule (internal helper).
+async fn delete_visibility_time_bins_internal(
+    conn: &mut DbClient,
+    schedule_id: i64,
+) -> Result<usize, String> {
+    let mut total_deleted = 0u64;
+
+    for table in &[
+        "analytics.schedule_visibility_time_bins",
+        "analytics.schedule_visibility_metadata",
+    ] {
+        let sql = format!("DELETE FROM {} WHERE schedule_id = @P1", table);
+        let mut query = Query::new(sql);
+        query.bind(schedule_id);
+
+        let result = query
+            .execute(&mut *conn)
+            .await
+            .map_err(|e| format!("Failed to delete from {}: {}", table, e))?;
+
+        total_deleted += result.rows_affected().iter().sum::<u64>();
+    }
+
+    if total_deleted > 0 {
+        debug!(
+            "Deleted {} visibility time bin rows for schedule_id={}",
+            total_deleted, schedule_id
+        );
+    }
+
+    Ok(total_deleted as usize)
+}
+
+/// Delete visibility time bins for a schedule (public API).
+pub async fn delete_visibility_time_bins(schedule_id: i64) -> Result<usize, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    delete_visibility_time_bins_internal(&mut conn, schedule_id).await
+}
+
+/// Check if visibility time bins exist for a schedule.
+pub async fn has_visibility_time_bins(schedule_id: i64) -> Result<bool, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT COUNT(*) FROM analytics.schedule_visibility_metadata
+        WHERE schedule_id = @P1
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to check visibility time bins: {e}"))?;
+
+    let row = stream
+        .into_row()
+        .await
+        .map_err(|e| format!("Failed to read count: {e}"))?;
+
+    match row {
+        Some(r) => {
+            let count: i32 = r.get(0).unwrap_or(0);
+            Ok(count > 0)
+        }
+        None => Ok(false),
+    }
+}
+
+/// Fetch visibility metadata for a schedule.
+pub async fn fetch_visibility_metadata(schedule_id: i64) -> Result<Option<VisibilityTimeMetadata>, String> {
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT 
+            schedule_id, time_range_start_unix, time_range_end_unix,
+            bin_duration_seconds, total_bins, total_blocks, blocks_with_visibility,
+            priority_min, priority_max, max_visible_in_bin, mean_visible_per_bin
+        FROM analytics.schedule_visibility_metadata
+        WHERE schedule_id = @P1
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch visibility metadata: {e}"))?;
+
+    let row = stream
+        .into_row()
+        .await
+        .map_err(|e| format!("Failed to read metadata: {e}"))?;
+
+    match row {
+        Some(r) => Ok(Some(VisibilityTimeMetadata {
+            schedule_id: r.get(0).unwrap_or(0),
+            time_range_start_unix: r.get(1).unwrap_or(0),
+            time_range_end_unix: r.get(2).unwrap_or(0),
+            bin_duration_seconds: r.get(3).unwrap_or(0),
+            total_bins: r.get(4).unwrap_or(0),
+            total_blocks: r.get(5).unwrap_or(0),
+            blocks_with_visibility: r.get(6).unwrap_or(0),
+            priority_min: r.get(7),
+            priority_max: r.get(8),
+            max_visible_in_bin: r.get(9).unwrap_or(0),
+            mean_visible_per_bin: r.get(10),
+        })),
+        None => Ok(None),
+    }
+}
+
+/// Fetch pre-computed visibility time bins and aggregate to target bin duration.
+///
+/// # Arguments
+/// * `schedule_id` - The schedule to query
+/// * `start_unix` - Start of query range (Unix timestamp)
+/// * `end_unix` - End of query range (Unix timestamp)
+/// * `target_bin_duration_seconds` - Desired bin duration (will aggregate base bins)
+///
+/// # Returns
+/// Vector of aggregated bins with counts
+pub async fn fetch_visibility_histogram_from_analytics(
+    schedule_id: i64,
+    start_unix: i64,
+    end_unix: i64,
+    target_bin_duration_seconds: i64,
+) -> Result<Vec<crate::db::models::VisibilityBin>, String> {
+    use crate::db::models::VisibilityBin;
+
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    // First get the base bin duration
+    let metadata = fetch_visibility_metadata_internal(&mut conn, schedule_id).await?;
+    
+    let base_bin_duration = match metadata {
+        Some(m) => m.bin_duration_seconds as i64,
+        None => return Err(format!("No visibility time bins found for schedule_id={}", schedule_id)),
+    };
+
+    // Fetch relevant base bins
+    let sql = r#"
+        SELECT 
+            bin_start_unix, bin_end_unix, total_visible_count
+        FROM analytics.schedule_visibility_time_bins
+        WHERE schedule_id = @P1
+          AND bin_start_unix >= @P2
+          AND bin_end_unix <= @P3
+        ORDER BY bin_start_unix
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+    query.bind(start_unix);
+    query.bind(end_unix);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch visibility bins: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read visibility bins: {e}"))?;
+
+    if rows.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // If target bin size equals base bin size, just return directly
+    if target_bin_duration_seconds == base_bin_duration {
+        let bins: Vec<VisibilityBin> = rows
+            .iter()
+            .map(|row| {
+                let bin_start: i64 = row.get(0).unwrap_or(0);
+                let bin_end: i64 = row.get(1).unwrap_or(0);
+                let count: i32 = row.get(2).unwrap_or(0);
+                VisibilityBin::new(bin_start, bin_end, count as u32)
+            })
+            .collect();
+        return Ok(bins);
+    }
+
+    // Aggregate base bins into target bins
+    let num_target_bins = ((end_unix - start_unix + target_bin_duration_seconds - 1)
+        / target_bin_duration_seconds) as usize;
+
+    let mut aggregated_bins: Vec<VisibilityBin> = (0..num_target_bins)
+        .map(|i| {
+            let bin_start = start_unix + (i as i64) * target_bin_duration_seconds;
+            let bin_end = std::cmp::min(bin_start + target_bin_duration_seconds, end_unix);
+            VisibilityBin::new(bin_start, bin_end, 0)
+        })
+        .collect();
+
+    // For each base bin, find which target bin it belongs to and take max
+    // (Using max because the same block may appear in multiple base bins within one target bin)
+    for row in rows {
+        let base_bin_start: i64 = row.get(0).unwrap_or(0);
+        let count: i32 = row.get(2).unwrap_or(0);
+
+        let target_idx = ((base_bin_start - start_unix) / target_bin_duration_seconds) as usize;
+        if target_idx < aggregated_bins.len() {
+            // For aggregation, we use MAX to avoid overcounting blocks
+            // that span multiple base bins within the same target bin
+            if count as u32 > aggregated_bins[target_idx].visible_count {
+                aggregated_bins[target_idx].visible_count = count as u32;
+            }
+        }
+    }
+
+    Ok(aggregated_bins)
+}
+
+/// Internal helper to fetch visibility metadata.
+async fn fetch_visibility_metadata_internal(
+    conn: &mut DbClient,
+    schedule_id: i64,
+) -> Result<Option<VisibilityTimeMetadata>, String> {
+    let sql = r#"
+        SELECT 
+            schedule_id, time_range_start_unix, time_range_end_unix,
+            bin_duration_seconds, total_bins, total_blocks, blocks_with_visibility,
+            priority_min, priority_max, max_visible_in_bin, mean_visible_per_bin
+        FROM analytics.schedule_visibility_metadata
+        WHERE schedule_id = @P1
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch visibility metadata: {e}"))?;
+
+    let row = stream
+        .into_row()
+        .await
+        .map_err(|e| format!("Failed to read metadata: {e}"))?;
+
+    match row {
+        Some(r) => Ok(Some(VisibilityTimeMetadata {
+            schedule_id: r.get(0).unwrap_or(0),
+            time_range_start_unix: r.get(1).unwrap_or(0),
+            time_range_end_unix: r.get(2).unwrap_or(0),
+            bin_duration_seconds: r.get(3).unwrap_or(0),
+            total_bins: r.get(4).unwrap_or(0),
+            total_blocks: r.get(5).unwrap_or(0),
+            blocks_with_visibility: r.get(6).unwrap_or(0),
+            priority_min: r.get(7),
+            priority_max: r.get(8),
+            max_visible_in_bin: r.get(9).unwrap_or(0),
+            mean_visible_per_bin: r.get(10),
+        })),
+        None => Ok(None),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -830,6 +830,24 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
                 );
             }
         }
+
+        // Phase 3: Populate visibility time bins (best-effort, log errors but don't fail upload)
+        // Use 15-minute bins (900 seconds) as default
+        match super::analytics::populate_visibility_time_bins(schedule_id, Some(900)).await {
+            Ok((metadata_count, bins_count)) => {
+                info!(
+                    "Populated {} visibility metadata and {} time bins for schedule_id={}",
+                    metadata_count, bins_count, schedule_id
+                );
+            }
+            Err(e) => {
+                // Log warning but don't fail the upload - visibility analytics is optional
+                log::warn!(
+                    "Failed to populate visibility time bins for schedule_id={}: {}",
+                    schedule_id, e
+                );
+            }
+        }
     } else {
         info!(
             "Successfully inserted schedule '{}' (id pending)",

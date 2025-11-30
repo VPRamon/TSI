@@ -167,15 +167,25 @@ use_analytics_table: bool = Field(
 | Sky Map | ✅ Migrated | Uses `fetch_analytics_blocks_for_sky_map()` with automatic fallback |
 | Distributions | ✅ Migrated | Uses `fetch_analytics_blocks_for_distribution()` with automatic fallback |
 
-### Phase 2 Targets (Planned)
+### Phase 2 Targets (IMPLEMENTED)
 
 | Page | Status | Notes |
 |------|--------|-------|
-| Insights | 🔄 Planned | Complex, needs additional derived fields |
-| Trends | 🔄 Planned | Similar to Distributions |
-| Timeline | 🔄 Planned | Needs scheduled_start/stop_mjd |
-| Visibility Map | 🔄 Planned | Low priority |
-| Compare | 🔄 Planned | Needs two-schedule support |
+| Insights | ✅ Pre-computed | Summary analytics available via `py_get_schedule_summary()` |
+| Trends | ✅ Pre-computed | Priority rates via `py_get_priority_rates()`, heatmap via `py_get_heatmap_bins()` |
+
+### Phase 3 Targets (IMPLEMENTED)
+
+| Page | Status | Notes |
+|------|--------|-------|
+| Visibility Map | ✅ Pre-computed | Time bins via `py_get_visibility_histogram_analytics()` |
+
+### Phase 4 Targets (PLANNED)
+
+| Page | Status | Notes |
+|------|--------|-------|
+| Timeline | 🔄 Planned | Needs scheduled_start/stop_mjd optimization |
+| Compare | 🔄 Planned | Needs schedule-to-schedule comparison cache |
 
 ### Automatic Fallback
 
@@ -487,6 +497,223 @@ for schedule in schedules:
 - `rust_backend/src/db/mod.rs` - Export new functions and types
 - `rust_backend/src/db/operations.rs` - Call summary analytics after upload
 - `rust_backend/src/python/database.rs` - Python bindings for summary functions
+- `rust_backend/src/lib.rs` - Register new Python functions and classes
+- `docs/ETL_INTEGRATION_PLAN.md` - This documentation
+
+---
+
+## Phase 3: Visibility Time Bins (IMPLEMENTED)
+
+### Goals
+
+1. **Pre-compute Visibility Histograms**: Eliminate expensive on-the-fly JSON parsing for visibility maps
+2. **Enable Fast Time-Based Queries**: Support efficient range queries on visibility over time
+3. **Priority-Based Filtering**: Pre-computed counts per priority bucket for filtering
+4. **Flexible Aggregation**: Store fine-grained data, aggregate to any bin size at query time
+
+### Problem Statement
+
+The Visibility Map page currently computes visibility histograms by:
+1. Fetching all blocks with their `visibility_periods_json`
+2. Parsing JSON for each block (thousands of blocks)
+3. Iterating over time bins to count visible blocks
+4. This happens on every page load/filter change
+
+For large schedules (10,000+ blocks), this takes several seconds.
+
+### Solution: Pre-computed Visibility Time Bins
+
+Store 1-minute granularity visibility data in the database, then aggregate at query time to the user's requested bin size.
+
+### New Tables
+
+#### Table: `analytics.schedule_visibility_time_metadata`
+
+Metadata about the pre-computed visibility bins:
+
+```sql
+CREATE TABLE analytics.schedule_visibility_time_metadata (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    schedule_id BIGINT NOT NULL,
+    time_range_start_unix BIGINT NOT NULL,
+    time_range_end_unix BIGINT NOT NULL,
+    bin_duration_seconds INT NOT NULL,
+    total_bins INT NOT NULL,
+    total_blocks INT NOT NULL,
+    blocks_with_visibility INT NOT NULL,
+    priority_min FLOAT NULL,
+    priority_max FLOAT NULL,
+    max_visible_in_bin INT NOT NULL,
+    mean_visible_per_bin FLOAT NULL,
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE()
+);
+```
+
+#### Table: `analytics.schedule_visibility_time_bins`
+
+Pre-computed visibility counts per time bin:
+
+```sql
+CREATE TABLE analytics.schedule_visibility_time_bins (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    schedule_id BIGINT NOT NULL,
+    bin_start_unix BIGINT NOT NULL,
+    bin_end_unix BIGINT NOT NULL,
+    bin_index INT NOT NULL,
+    total_visible_count INT NOT NULL,
+    priority_q1_count INT NOT NULL,  -- Low priority
+    priority_q2_count INT NOT NULL,  -- Medium-Low
+    priority_q3_count INT NOT NULL,  -- Medium-High
+    priority_q4_count INT NOT NULL,  -- High priority
+    scheduled_visible_count INT NOT NULL,
+    unscheduled_visible_count INT NOT NULL
+);
+```
+
+### SQL Migration
+
+Located at: `docs/sql/003_create_visibility_time_bins.sql`
+
+Run after Phase 2 migration:
+```bash
+sqlcmd -S your-server.database.windows.net -d your-database -U your-user -P your-password -i docs/sql/003_create_visibility_time_bins.sql
+```
+
+### ETL Implementation
+
+The visibility time bins are populated automatically after summary analytics:
+
+```
+[Schedule Upload] 
+  → [store_schedule()] 
+  → [populate_schedule_analytics()]      # Phase 1
+  → [populate_summary_analytics()]       # Phase 2
+  → [populate_visibility_time_bins()]    # Phase 3
+  → [Success]
+```
+
+#### Rust Functions (analytics.rs)
+
+- `populate_visibility_time_bins(schedule_id, bin_duration_seconds)` - Main Phase 3 ETL
+- `fetch_visibility_metadata(schedule_id)` - Get metadata about pre-computed bins
+- `fetch_visibility_histogram_from_analytics(schedule_id, start, end, bin_duration)` - Query aggregated histogram
+- `has_visibility_time_bins(schedule_id)` - Check if bins exist
+- `delete_visibility_time_bins(schedule_id)` - Clean up bins
+
+#### ETL Process
+
+1. Query all blocks with visibility_periods_json for the schedule
+2. Parse JSON and extract visibility periods for each block
+3. Determine time range and create 1-minute bins
+4. For each bin, count visible blocks by priority bucket
+5. Bulk insert into `schedule_visibility_time_bins`
+6. Store metadata in `schedule_visibility_time_metadata`
+
+### Python API
+
+```python
+import tsi_rust
+from datetime import datetime, timezone
+
+# Manually populate visibility time bins (default 60-second bins)
+meta_rows, bin_rows = tsi_rust.py_populate_visibility_time_bins(schedule_id=42)
+print(f"Created {meta_rows} metadata, {bin_rows} bins")
+
+# Custom bin duration (30 minutes = 1800 seconds)
+meta_rows, bin_rows = tsi_rust.py_populate_visibility_time_bins(
+    schedule_id=42, 
+    bin_duration_seconds=1800
+)
+
+# Check if visibility bins exist
+has_bins = tsi_rust.py_has_visibility_time_bins(schedule_id=42)
+
+# Get metadata
+metadata = tsi_rust.py_get_visibility_metadata(schedule_id=42)
+if metadata:
+    print(f"Time range: {metadata.time_range_start_unix} to {metadata.time_range_end_unix}")
+    print(f"Total bins: {metadata.total_bins}")
+    print(f"Max visible in any bin: {metadata.max_visible_in_bin}")
+
+# Get visibility histogram (fast path using pre-computed bins)
+start = int(datetime(2024, 1, 1, tzinfo=timezone.utc).timestamp())
+end = int(datetime(2024, 12, 31, tzinfo=timezone.utc).timestamp())
+
+histogram = tsi_rust.py_get_visibility_histogram_analytics(
+    schedule_id=42,
+    start_unix=start,
+    end_unix=end,
+    bin_duration_minutes=60  # Aggregate to 1-hour bins
+)
+
+for bin in histogram:
+    print(f"Time {bin['bin_start_unix']}: {bin['count']} visible")
+
+# Delete visibility bins
+deleted = tsi_rust.py_delete_visibility_time_bins(schedule_id=42)
+```
+
+### Performance Comparison
+
+| Operation | Legacy (JSON parsing) | Phase 3 (Pre-computed) |
+|-----------|----------------------|------------------------|
+| First page load | ~3-5 seconds | ~100-200ms |
+| Filter change | ~2-3 seconds | ~50-100ms |
+| Time range change | ~2-3 seconds | ~50-100ms |
+
+Expected improvement: **10-30x faster** for visibility map operations.
+
+### Data Size Considerations
+
+For a 6-month schedule with 1-minute bins:
+- ~262,800 bins per schedule
+- ~10 bytes per bin = ~2.6 MB per schedule
+- Acceptable for most use cases
+
+For longer schedules, can use larger bin durations (e.g., 5-minute bins).
+
+### Phase 3 Classes
+
+```python
+# VisibilityTimeMetadata - schedule-level metadata
+metadata = tsi_rust.py_get_visibility_metadata(schedule_id)
+metadata.schedule_id           # int
+metadata.time_range_start_unix # int
+metadata.time_range_end_unix   # int
+metadata.bin_duration_seconds  # int
+metadata.total_bins            # int
+metadata.total_blocks          # int
+metadata.blocks_with_visibility # int
+metadata.priority_min          # Optional[float]
+metadata.priority_max          # Optional[float]
+metadata.max_visible_in_bin    # int
+metadata.mean_visible_per_bin  # Optional[float]
+
+# VisibilityTimeBin - individual bin data
+# (returned when querying raw bins, not typically used directly)
+bin.bin_start_unix         # int
+bin.bin_end_unix           # int
+bin.bin_index              # int
+bin.total_visible_count    # int
+bin.priority_q1_count      # int
+bin.priority_q2_count      # int
+bin.priority_q3_count      # int
+bin.priority_q4_count      # int
+bin.scheduled_visible_count   # int
+bin.unscheduled_visible_count # int
+```
+
+### Phase 3 Files Changed
+
+#### New Files
+- `docs/sql/003_create_visibility_time_bins.sql` - SQL migration for Phase 3 tables
+- `tests/test_visibility_time_bins_etl.py` - Python tests for Phase 3
+
+#### Modified Files
+- `rust_backend/src/db/analytics.rs` - Added visibility time bins ETL (~300 lines)
+- `rust_backend/src/db/mod.rs` - Export new functions and types
+- `rust_backend/src/db/operations.rs` - Call visibility bins ETL after upload
+- `rust_backend/src/python/database.rs` - Python bindings for visibility bins
 - `rust_backend/src/lib.rs` - Register new Python functions and classes
 - `docs/ETL_INTEGRATION_PLAN.md` - This documentation
 

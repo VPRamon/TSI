@@ -657,3 +657,202 @@ pub fn py_get_heatmap_bins(schedule_id: i64) -> PyResult<Vec<crate::db::analytic
         .block_on(crate::db::analytics::fetch_heatmap_bins(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
+
+// =============================================================================
+// Phase 3: Visibility Time Bins Functions
+// =============================================================================
+
+/// Populate visibility time bins for a schedule.
+///
+/// This function is called automatically after schedule upload, but can also
+/// be triggered manually to refresh visibility time bin data.
+///
+/// Args:
+///     schedule_id: The ID of the schedule to process
+///     bin_duration_seconds: Duration of each bin in seconds (default 900 = 15 minutes)
+///
+/// Returns:
+///     Tuple of (metadata_rows, bin_rows) created
+///
+/// Example:
+/// ```python
+/// # Manually refresh visibility time bins for a schedule
+/// meta, bins = tsi_rust.py_populate_visibility_time_bins(schedule_id=42)
+/// print(f"Created {meta} metadata rows, {bins} bin rows")
+///
+/// # Use custom bin duration (30 minutes)
+/// meta, bins = tsi_rust.py_populate_visibility_time_bins(schedule_id=42, bin_duration_seconds=1800)
+/// ```
+#[pyfunction]
+#[pyo3(signature = (schedule_id, bin_duration_seconds=None))]
+pub fn py_populate_visibility_time_bins(
+    schedule_id: i64,
+    bin_duration_seconds: Option<i64>,
+) -> PyResult<(usize, usize)> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::populate_visibility_time_bins(
+            schedule_id,
+            bin_duration_seconds,
+        ))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Check if visibility time bins exist for a schedule.
+///
+/// Args:
+///     schedule_id: The ID of the schedule to check
+///
+/// Returns:
+///     True if visibility time bins exist, False otherwise
+#[pyfunction]
+pub fn py_has_visibility_time_bins(schedule_id: i64) -> PyResult<bool> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::has_visibility_time_bins(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Delete visibility time bins for a schedule.
+///
+/// Args:
+///     schedule_id: The ID of the schedule whose visibility bins should be deleted
+///
+/// Returns:
+///     Number of rows deleted
+#[pyfunction]
+pub fn py_delete_visibility_time_bins(schedule_id: i64) -> PyResult<usize> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::delete_visibility_time_bins(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Fetch visibility metadata for a schedule.
+///
+/// Args:
+///     schedule_id: The ID of the schedule
+///
+/// Returns:
+///     VisibilityTimeMetadata object if data exists, None otherwise
+#[pyfunction]
+pub fn py_get_visibility_metadata(
+    schedule_id: i64,
+) -> PyResult<Option<crate::db::analytics::VisibilityTimeMetadata>> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(crate::db::analytics::fetch_visibility_metadata(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Fetch pre-computed visibility histogram from analytics table.
+///
+/// This function retrieves pre-computed visibility time bins and aggregates
+/// them to the target bin duration. Much faster than computing on-the-fly
+/// for large schedules.
+///
+/// Args:
+///     schedule_id: Schedule ID to query
+///     start_unix: Start of time range (Unix timestamp)
+///     end_unix: End of time range (Unix timestamp)
+///     bin_duration_minutes: Target bin duration in minutes
+///
+/// Returns:
+///     List of dicts with keys: bin_start_unix, bin_end_unix, count
+///
+/// Example:
+/// ```python
+/// import tsi_rust
+/// from datetime import datetime, timezone
+///
+/// start = int(datetime(2024, 1, 1, tzinfo=timezone.utc).timestamp())
+/// end = int(datetime(2024, 1, 2, tzinfo=timezone.utc).timestamp())
+///
+/// # Fast path: uses pre-computed bins
+/// bins = tsi_rust.py_get_visibility_histogram_analytics(
+///     schedule_id=1,
+///     start_unix=start,
+///     end_unix=end,
+///     bin_duration_minutes=60
+/// )
+///
+/// for bin in bins:
+///     print(f"Time: {bin['bin_start_unix']}, Visible: {bin['count']}")
+/// ```
+#[pyfunction]
+pub fn py_get_visibility_histogram_analytics(
+    py: Python,
+    schedule_id: i64,
+    start_unix: i64,
+    end_unix: i64,
+    bin_duration_minutes: i64,
+) -> PyResult<PyObject> {
+    // Validate inputs
+    if start_unix >= end_unix {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "start_unix must be less than end_unix",
+        ));
+    }
+    if bin_duration_minutes <= 0 {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "bin_duration_minutes must be positive",
+        ));
+    }
+
+    let bin_duration_seconds = bin_duration_minutes * 60;
+
+    // Release GIL for database operations
+    let bins = py.allow_threads(|| -> PyResult<_> {
+        let runtime = Runtime::new().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to create async runtime: {}",
+                e
+            ))
+        })?;
+
+        runtime
+            .block_on(crate::db::analytics::fetch_visibility_histogram_from_analytics(
+                schedule_id,
+                start_unix,
+                end_unix,
+                bin_duration_seconds,
+            ))
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+    })?;
+
+    // Convert to Python list of dicts (JSON-serializable)
+    let list = PyList::empty(py);
+    for bin in bins {
+        let dict = PyDict::new(py);
+        dict.set_item("bin_start_unix", bin.bin_start_unix)?;
+        dict.set_item("bin_end_unix", bin.bin_end_unix)?;
+        dict.set_item("count", bin.visible_count)?;
+        list.append(dict)?;
+    }
+
+    Ok(list.into())
+}

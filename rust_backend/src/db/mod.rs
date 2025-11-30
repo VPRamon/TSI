@@ -23,6 +23,13 @@ pub use analytics::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin,
 };
 
+// Phase 3: Visibility time bins
+pub use analytics::{
+    delete_visibility_time_bins, fetch_visibility_histogram_from_analytics,
+    fetch_visibility_metadata, has_visibility_time_bins, populate_visibility_time_bins,
+    VisibilityTimeBin, VisibilityTimeMetadata,
+};
+
 pub use checksum::calculate_checksum;
 pub use config::{DbAuthMethod, DbConfig};
 pub use models::{ScheduleInfo, ScheduleMetadata};
