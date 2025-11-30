@@ -1460,3 +1460,333 @@ impl InsightsData {
         )
     }
 }
+
+// =========================================================
+// Trends Types
+// =========================================================
+
+/// Lightweight block for trends analysis with required metrics.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct TrendsBlock {
+    pub scheduling_block_id: i64,
+    pub priority: f64,
+    pub total_visibility_hours: f64,
+    pub requested_hours: f64,
+    pub scheduled: bool,
+}
+
+#[pymethods]
+impl TrendsBlock {
+    #[getter]
+    pub fn scheduling_block_id(&self) -> i64 {
+        self.scheduling_block_id
+    }
+
+    #[getter]
+    pub fn priority(&self) -> f64 {
+        self.priority
+    }
+
+    #[getter]
+    pub fn total_visibility_hours(&self) -> f64 {
+        self.total_visibility_hours
+    }
+
+    #[getter]
+    pub fn requested_hours(&self) -> f64 {
+        self.requested_hours
+    }
+
+    #[getter]
+    pub fn scheduled(&self) -> bool {
+        self.scheduled
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "TrendsBlock(id={}, priority={:.2}, scheduled={})",
+            self.scheduling_block_id, self.priority, self.scheduled
+        )
+    }
+}
+
+/// Empirical rate data point for a single bin.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct EmpiricalRatePoint {
+    pub bin_label: String,
+    pub mid_value: f64,
+    pub scheduled_rate: f64,
+    pub count: usize,
+}
+
+#[pymethods]
+impl EmpiricalRatePoint {
+    #[getter]
+    pub fn bin_label(&self) -> String {
+        self.bin_label.clone()
+    }
+
+    #[getter]
+    pub fn mid_value(&self) -> f64 {
+        self.mid_value
+    }
+
+    #[getter]
+    pub fn scheduled_rate(&self) -> f64 {
+        self.scheduled_rate
+    }
+
+    #[getter]
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "EmpiricalRatePoint(mid={:.2}, rate={:.2}, n={})",
+            self.mid_value, self.scheduled_rate, self.count
+        )
+    }
+}
+
+/// Smoothed trend data point.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct SmoothedPoint {
+    pub x: f64,
+    pub y_smoothed: f64,
+    pub n_samples: usize,
+}
+
+#[pymethods]
+impl SmoothedPoint {
+    #[getter]
+    pub fn x(&self) -> f64 {
+        self.x
+    }
+
+    #[getter]
+    pub fn y_smoothed(&self) -> f64 {
+        self.y_smoothed
+    }
+
+    #[getter]
+    pub fn n_samples(&self) -> usize {
+        self.n_samples
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "SmoothedPoint(x={:.2}, y={:.3}, n={})",
+            self.x, self.y_smoothed, self.n_samples
+        )
+    }
+}
+
+/// Heatmap bin for 2D probability visualization.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct HeatmapBin {
+    pub visibility_mid: f64,
+    pub time_mid: f64,
+    pub scheduled_rate: f64,
+    pub count: usize,
+}
+
+#[pymethods]
+impl HeatmapBin {
+    #[getter]
+    pub fn visibility_mid(&self) -> f64 {
+        self.visibility_mid
+    }
+
+    #[getter]
+    pub fn time_mid(&self) -> f64 {
+        self.time_mid
+    }
+
+    #[getter]
+    pub fn scheduled_rate(&self) -> f64 {
+        self.scheduled_rate
+    }
+
+    #[getter]
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "HeatmapBin(vis={:.1}, time={:.1}, rate={:.2})",
+            self.visibility_mid, self.time_mid, self.scheduled_rate
+        )
+    }
+}
+
+/// Overview metrics for trends analysis.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct TrendsMetrics {
+    pub total_count: usize,
+    pub scheduled_count: usize,
+    pub scheduling_rate: f64,
+    pub zero_visibility_count: usize,
+    pub priority_min: f64,
+    pub priority_max: f64,
+    pub priority_mean: f64,
+    pub visibility_min: f64,
+    pub visibility_max: f64,
+    pub visibility_mean: f64,
+    pub time_min: f64,
+    pub time_max: f64,
+    pub time_mean: f64,
+}
+
+#[pymethods]
+impl TrendsMetrics {
+    #[getter]
+    pub fn total_count(&self) -> usize {
+        self.total_count
+    }
+
+    #[getter]
+    pub fn scheduled_count(&self) -> usize {
+        self.scheduled_count
+    }
+
+    #[getter]
+    pub fn scheduling_rate(&self) -> f64 {
+        self.scheduling_rate
+    }
+
+    #[getter]
+    pub fn zero_visibility_count(&self) -> usize {
+        self.zero_visibility_count
+    }
+
+    #[getter]
+    pub fn priority_min(&self) -> f64 {
+        self.priority_min
+    }
+
+    #[getter]
+    pub fn priority_max(&self) -> f64 {
+        self.priority_max
+    }
+
+    #[getter]
+    pub fn priority_mean(&self) -> f64 {
+        self.priority_mean
+    }
+
+    #[getter]
+    pub fn visibility_min(&self) -> f64 {
+        self.visibility_min
+    }
+
+    #[getter]
+    pub fn visibility_max(&self) -> f64 {
+        self.visibility_max
+    }
+
+    #[getter]
+    pub fn visibility_mean(&self) -> f64 {
+        self.visibility_mean
+    }
+
+    #[getter]
+    pub fn time_min(&self) -> f64 {
+        self.time_min
+    }
+
+    #[getter]
+    pub fn time_max(&self) -> f64 {
+        self.time_max
+    }
+
+    #[getter]
+    pub fn time_mean(&self) -> f64 {
+        self.time_mean
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "TrendsMetrics(total={}, scheduled={}, rate={:.2})",
+            self.total_count, self.scheduled_count, self.scheduling_rate
+        )
+    }
+}
+
+/// Complete trends data with empirical rates, smoothed curves, and heatmap bins.
+#[pyclass(module = "tsi_rust")]
+#[derive(Debug, Clone)]
+pub struct TrendsData {
+    pub blocks: Vec<TrendsBlock>,
+    pub metrics: TrendsMetrics,
+    pub by_priority: Vec<EmpiricalRatePoint>,
+    pub by_visibility: Vec<EmpiricalRatePoint>,
+    pub by_time: Vec<EmpiricalRatePoint>,
+    pub smoothed_visibility: Vec<SmoothedPoint>,
+    pub smoothed_time: Vec<SmoothedPoint>,
+    pub heatmap_bins: Vec<HeatmapBin>,
+    pub priority_values: Vec<f64>,
+}
+
+#[pymethods]
+impl TrendsData {
+    #[getter]
+    pub fn blocks(&self) -> Vec<TrendsBlock> {
+        self.blocks.clone()
+    }
+
+    #[getter]
+    pub fn metrics(&self) -> TrendsMetrics {
+        self.metrics.clone()
+    }
+
+    #[getter]
+    pub fn by_priority(&self) -> Vec<EmpiricalRatePoint> {
+        self.by_priority.clone()
+    }
+
+    #[getter]
+    pub fn by_visibility(&self) -> Vec<EmpiricalRatePoint> {
+        self.by_visibility.clone()
+    }
+
+    #[getter]
+    pub fn by_time(&self) -> Vec<EmpiricalRatePoint> {
+        self.by_time.clone()
+    }
+
+    #[getter]
+    pub fn smoothed_visibility(&self) -> Vec<SmoothedPoint> {
+        self.smoothed_visibility.clone()
+    }
+
+    #[getter]
+    pub fn smoothed_time(&self) -> Vec<SmoothedPoint> {
+        self.smoothed_time.clone()
+    }
+
+    #[getter]
+    pub fn heatmap_bins(&self) -> Vec<HeatmapBin> {
+        self.heatmap_bins.clone()
+    }
+
+    #[getter]
+    pub fn priority_values(&self) -> Vec<f64> {
+        self.priority_values.clone()
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "TrendsData(total={}, scheduled={}, rate={:.2})",
+            self.metrics.total_count,
+            self.metrics.scheduled_count,
+            self.metrics.scheduling_rate
+        )
+    }
+}

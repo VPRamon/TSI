@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-import pandas as pd
+from typing import TYPE_CHECKING
+
 import streamlit as st
 
+if TYPE_CHECKING:
+    from tsi_rust import TrendsData
 
-def render_sidebar_controls(df: pd.DataFrame) -> dict:
+
+def render_sidebar_controls(trends_data: TrendsData) -> dict:
     """
     Render sidebar configuration controls for scheduling trends analysis.
 
     Args:
-        df: Source DataFrame
+        trends_data: TrendsData from Rust backend
 
     Returns:
         Dictionary with all control values
@@ -21,9 +25,19 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
 
         st.subheader("Data Filters")
 
+        # Extract ranges from blocks
+        blocks = trends_data.blocks
+        if not blocks:
+            st.warning("No data available")
+            return {}
+        
+        vis_values = [b.total_visibility_hours for b in blocks]
+        time_values = [b.requested_hours for b in blocks]
+        priority_values = sorted(set(b.priority for b in blocks))
+
         # Visibility range
-        vis_min = float(df["total_visibility_hours"].min())
-        vis_max = float(df["total_visibility_hours"].max())
+        vis_min = min(vis_values)
+        vis_max = max(vis_values)
 
         # Handle edge case where min == max
         if vis_min == vis_max:
@@ -39,8 +53,8 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
             )
 
         # Requested time range
-        time_min = float(df["requested_hours"].min())
-        time_max = float(df["requested_hours"].max())
+        time_min = min(time_values)
+        time_max = max(time_values)
 
         # Handle edge case where min == max
         if time_min == time_max:
@@ -56,25 +70,16 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
             )
 
         # Priority level selector
-        priority_levels = sorted(df["priority"].dropna().unique())
         selected_priorities = st.multiselect(
             "Priority levels",
-            options=priority_levels,
-            default=priority_levels,
+            options=priority_values,
+            default=priority_values,
             key="selected_priorities",
         )
 
         st.divider()
 
         st.subheader("Plot Configuration")
-
-        # Library selector
-        plot_library = st.selectbox(
-            "Plot library",
-            options=["altair", "plotly"],
-            index=0,
-            key="plot_library",
-        )
 
         # Number of bins
         n_bins = st.slider(
@@ -116,27 +121,12 @@ def render_sidebar_controls(df: pd.DataFrame) -> dict:
             key="class_weight",
         )
 
-        # Fixed time for prediction
-        if time_min == time_max:
-            fixed_time = time_min
-            st.info(f"Fixed requested time: {fixed_time:.1f} hours")
-        else:
-            fixed_time = st.slider(
-                "Fixed requested time (for prediction)",
-                min_value=time_min,
-                max_value=time_max,
-                value=(time_min + time_max) / 2,
-                key="fixed_time",
-            )
-
     return {
         "vis_range": vis_range,
         "time_range": time_range,
         "selected_priorities": selected_priorities,
-        "plot_library": plot_library,
         "n_bins": n_bins,
         "bandwidth": bandwidth,
         "exclude_zero_vis": exclude_zero_vis,
         "class_weight": class_weight_option,
-        "fixed_time": fixed_time,
     }

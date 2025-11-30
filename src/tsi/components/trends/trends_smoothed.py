@@ -2,75 +2,46 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
+import pandas as pd
 import streamlit as st
 
 if TYPE_CHECKING:
-    from altair import Chart
-
-from tsi.plots.trends import loess_trend
+    from tsi_rust import SmoothedPoint
 
 
 def render_smoothed_trends(
-    smooth_vis: tuple | None,
-    error_vis: str | None,
-    smooth_time: tuple | None,
-    error_time: str | None,
-    plot_library: str,
+    smoothed_points: list[SmoothedPoint],
+    x_var_name: str,
 ) -> None:
     """
-    Display smoothed trends section with visibility and requested time curves.
+    Display smoothed trends section.
 
     Args:
-        smooth_vis: Smoothed visibility trend data
-        error_vis: Error message for visibility trend
-        smooth_time: Smoothed requested time trend data
-        error_time: Error message for requested time trend
-        plot_library: Plotting library to use ('altair' or 'plotly')
+        smoothed_points: List of SmoothedPoint from Rust backend
+        x_var_name: Name of the x variable ('total_visibility_hours' or 'requested_hours')
     """
-    st.subheader("2️⃣ Smoothed curves (trends)")
-    st.caption(
-        "📈 Smoothed trends using weighted moving average (similar to LOESS). "
-        "Shows how the scheduling rate varies with visibility and requested time."
-    )
+    if not smoothed_points:
+        st.warning(f"No smoothed data available for {x_var_name}")
+        return
 
-    col1, col2 = st.columns(2)
+    # Convert to DataFrame for plotting
+    df = pd.DataFrame([
+        {
+            "x": p.x,
+            "rate": p.y_smoothed,
+            "n_samples": p.n_samples,
+        }
+        for p in smoothed_points
+    ])
 
-    with col1:
-        st.markdown("**Visibility → Scheduling rate**")
-
-        if error_vis:
-            st.warning(f"⚠️ {error_vis}")
-        elif smooth_vis is not None:
-            fig_vis = loess_trend(
-                smooth_vis,
-                library=plot_library,
-                title="Trend: Visibility",
-                x_label="Visibility (hours)",
-                y_label="Scheduling rate",
-            )
-
-            if plot_library == "altair":
-                st.altair_chart(cast("Chart", fig_vis), width='stretch')
-            else:
-                st.plotly_chart(fig_vis, width='stretch')
-
-    with col2:
-        st.markdown("**Requested time → Scheduling rate**")
-
-        if error_time:
-            st.warning(f"⚠️ {error_time}")
-        elif smooth_time is not None:
-            fig_time = loess_trend(
-                smooth_time,
-                library=plot_library,
-                title="Trend: Requested time",
-                x_label="Requested time (hours)",
-                y_label="Scheduling rate",
-            )
-
-            if plot_library == "altair":
-                st.altair_chart(cast("Chart", fig_time), width='stretch')
-            else:
-                st.plotly_chart(fig_time, width='stretch')
+    # Create simple line chart
+    st.markdown(f"**Smoothed Scheduling Rate by {x_var_name}**")
+    st.line_chart(df.set_index("x")["rate"])
+    
+    with st.expander("View smoothed data"):
+        display_df = df.copy()
+        display_df.columns = [x_var_name, "Rate", "Samples"]
+        display_df["Rate"] = display_df["Rate"].apply(lambda x: f"{x:.1%}")
+        st.dataframe(display_df, width="stretch")

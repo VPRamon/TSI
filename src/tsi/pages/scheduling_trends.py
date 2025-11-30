@@ -21,42 +21,53 @@ from tsi.components.trends.trends_model import (
     render_prediction_plot,
 )
 from tsi.components.trends.trends_smoothed import render_smoothed_trends
-from tsi.modeling.trends import (
-    compute_empirical_rates,
-    fit_logistic_with_interactions,
-    smooth_trend,
-)
-from tsi.services.trends_processing import apply_trends_filters, validate_required_columns
+from tsi.modeling.trends import fit_logistic_with_interactions
+from tsi.services.database import get_trends_data
 
 
-@st.cache_resource(show_spinner="Computing empirical rates...")
-def _compute_empirical_cached(df_hash: int, n_bins: int) -> Any:
-    """Compute empirical rates with cache."""
-    df = state.get_prepared_data()
-    return compute_empirical_rates(df, n_bins=n_bins)
-
-
-@st.cache_data(show_spinner="Computing smoothed trend...")
-def _smooth_trend_cached(df_hash: int, x_col: str, bandwidth: float) -> tuple[Any, str | None]:
-    """Compute smoothed trend with cache."""
-    df = state.get_prepared_data()
-    try:
-        result = smooth_trend(df, x_col=x_col, bandwidth=bandwidth)
-        return result, None
-    except Exception as e:
-        return None, str(e)
-
-
-@st.cache_resource(show_spinner="Training logistic model...")
+@st.cache_data(show_spinner="Training logistic model...")
 def _fit_model_cached(
-    df_hash: int, exclude_zero_visibility: bool, class_weight: str
+    schedule_id: int,
+    exclude_zero_vis: bool,
+    class_weight: str,
+    vis_range: tuple[float, float],
+    time_range: tuple[float, float],
+    selected_priorities: list[float],
 ) -> tuple[Any, str | None]:
-    """Train logistic model with cache."""
-    df = state.get_prepared_data()
+    """Train logistic model with cache using Rust-loaded data."""
     try:
+        # Load data from Rust backend
+        trends_data = get_trends_data(schedule_id=schedule_id, filter_impossible=exclude_zero_vis)
+        
+        # Filter blocks based on controls
+        blocks = trends_data.blocks
+        filtered_blocks = [
+            b for b in blocks
+            if (b.total_visibility_hours >= vis_range[0] and
+                b.total_visibility_hours <= vis_range[1] and
+                b.requested_hours >= time_range[0] and
+                b.requested_hours <= time_range[1] and
+                b.priority in selected_priorities)
+        ]
+        
+        if len(filtered_blocks) < 20:
+            return None, f"Insufficient data for model training: {len(filtered_blocks)} blocks (minimum 20 required)"
+        
+        # Convert to DataFrame for model training
+        import pandas as pd
+        df_model = pd.DataFrame([
+            {
+                "priority": b.priority,
+                "total_visibility_hours": b.total_visibility_hours,
+                "requested_hours": b.requested_hours,
+                "scheduled_flag": 1 if b.scheduled else 0,
+            }
+            for b in filtered_blocks
+        ])
+        
         model_result = fit_logistic_with_interactions(
-            df,
-            exclude_zero_visibility=exclude_zero_visibility,
+            df_model,
+            exclude_zero_visibility=False,  # Already filtered if requested
             class_weight=class_weight if class_weight != "None" else None,
         )
         return model_result, None
@@ -75,126 +86,110 @@ def render() -> None:
         """
     )
 
-    df = state.get_prepared_data()
+    schedule_id = state.get_schedule_id()
 
-    if df is None:
-        st.warning("⚠️ No data loaded. Please return to the landing page.")
+    if schedule_id is None:
+        st.info("Load a schedule from the database to view trends.")
         return
 
-    # Validate required columns
-    is_valid, missing_cols = validate_required_columns(df)
+    schedule_id = int(schedule_id)
 
-    if not is_valid:
-        st.error(
-            f"""
-            ❌ **Missing required columns:** {', '.join(missing_cols)}
+    # Load trends data from Rust backend
+    try:
+        with st.spinner("Loading trends data..."):
+            trends_data = get_trends_data(
+                schedule_id=schedule_id,
+                filter_impossible=False,
+                n_bins=10,  # Will be updated based on controls
+                bandwidth=0.3,  # Will be updated based on controls
+                n_smooth_points=100,
+            )
+    except Exception as exc:
+        st.error(f"Failed to load trends data from the backend: {exc}")
+        return
 
-            This analysis requires the columns: priority, total_visibility_hours,
-            requested_hours, scheduled_flag.
-            """
-        )
+    if trends_data.metrics.total_count == 0:
+        st.warning("⚠️ No observations available.")
         return
 
     # Render sidebar controls
-    controls = render_sidebar_controls(df)
-
-    # Apply filters
-    df_filtered = apply_trends_filters(
-        df,
-        controls["vis_range"],
-        controls["time_range"],
-        controls["selected_priorities"],
-    )
-
-    if len(df_filtered) < 10:
-        st.warning(
-            f"""
-            ⚠️ **Insufficient data after filtering:** {len(df_filtered)} rows.
-
-            Adjust the filters in the sidebar to include more data.
-            """
-        )
+    controls = render_sidebar_controls(trends_data)
+    
+    # Reload with updated parameters if controls changed
+    if (controls["n_bins"] != 10 or 
+        controls["bandwidth"] != 0.3 or 
+        controls["exclude_zero_vis"]):
+        with st.spinner("Recomputing with updated parameters..."):
+            trends_data = get_trends_data(
+                schedule_id=schedule_id,
+                filter_impossible=controls["exclude_zero_vis"],
+                n_bins=controls["n_bins"],
+                bandwidth=controls["bandwidth"],
+                n_smooth_points=100,
+            )
+    
+    # Filter blocks based on controls
+    filtered_blocks = [
+        b for b in trends_data.blocks
+        if (b.total_visibility_hours >= controls["vis_range"][0] and
+            b.total_visibility_hours <= controls["vis_range"][1] and
+            b.requested_hours >= controls["time_range"][0] and
+            b.requested_hours <= controls["time_range"][1] and
+            b.priority in controls["selected_priorities"])
+    ]
+    
+    if len(filtered_blocks) == 0:
+        st.warning("⚠️ No observations match the selected filters.")
         return
 
-    # Dataframe hash for caching
-    df_hash = hash(tuple(df_filtered.index))
+    # Display overview metrics
+    st.header("📊 Overview Metrics")
+    render_overview_metrics(trends_data.metrics)
 
-    # Overview metrics
-    st.divider()
-    render_overview_metrics(df_filtered)
-    st.divider()
+    # Empirical trends by priority
+    st.header("Priority-Based Scheduling")
+    render_empirical_proportions(trends_data.by_priority, "priority")
 
-    # Section 1: Empirical proportions
-    empirical = _compute_empirical_cached(df_hash, controls["n_bins"])
-    render_empirical_proportions(empirical, controls["plot_library"])
-    st.divider()
+    # Display empirical trends by bins
+    st.header("📐 Empirical Proportions (Binned)")
+    render_empirical_proportions(trends_data.by_visibility, "total_visibility_hours")
+    render_empirical_proportions(trends_data.by_time, "requested_hours")
 
-    # Section 2: Smoothed curves
-    smooth_vis, error_vis = _smooth_trend_cached(
-        df_hash,
-        x_col="total_visibility_hours",
-        bandwidth=controls["bandwidth"],
-    )
-    smooth_time, error_time = _smooth_trend_cached(
-        df_hash,
-        x_col="requested_hours",
-        bandwidth=controls["bandwidth"],
-    )
-    render_smoothed_trends(
-        smooth_vis,
-        error_vis,
-        smooth_time,
-        error_time,
-        controls["plot_library"],
-    )
-    st.divider()
+    # Smoothed trends
+    st.header("🌊 Smoothed Trends")
+    render_smoothed_trends(trends_data.smoothed_visibility, "total_visibility_hours")
+    render_smoothed_trends(trends_data.smoothed_time, "requested_hours")
 
-    # Section 3: 2D Heatmap
-    render_heatmap_section(df_filtered, controls["plot_library"], controls["n_bins"])
-    st.divider()
+    # Heatmap section
+    st.header("🔥 Heatmap: Visibility × Requested Time")
+    render_heatmap_section(trends_data.heatmap_bins, n_bins=controls["n_bins"])
 
-    # Section 4: Logistic model
-    st.subheader("4️⃣ Logistic model with interactions")
-    st.caption(
-        "🤖 Multivariable logistic model with 3 predictor variables: "
-        "**priority**, **visibility**, and **requested time**. "
-        "Includes interaction terms (priority × visibility, visibility × time) "
-        "to capture non-linear effects. "
-        "Predicts the **estimated probability** of scheduling."
-    )
+    # Logistic model section
+    st.header("🎯 Logistic Regression Model")
 
-    # Train model
-    model_result, model_error = _fit_model_cached(
-        df_hash,
-        controls["exclude_zero_vis"],
-        controls["class_weight"],
-    )
+    with st.spinner("Training logistic model..."):
+        model_result, error = _fit_model_cached(
+            schedule_id,
+            exclude_zero_vis=controls["exclude_zero_vis"],
+            class_weight=controls["class_weight"],
+            vis_range=controls["vis_range"],
+            time_range=controls["time_range"],
+            selected_priorities=controls["selected_priorities"],
+        )
 
-    if model_error:
-        st.error(f"❌ Error training model: {model_error}")
+    if error:
+        st.error(f"❌ Model training failed: {error}")
         return
 
     if model_result is None:
-        st.warning("⚠️ Could not train the model.")
+        st.warning("⚠️ Insufficient data to fit the model.")
         return
 
-    # Display model metrics
+    # Render model metrics
     render_model_metrics(model_result)
 
-    # Display prediction plot
-    render_prediction_plot(
-        df_filtered,
-        model_result,
-        controls["vis_range"],
-        controls["fixed_time"],
-        controls["plot_library"],
-    )
+    # Render model information in expander
+    render_model_information(model_result)
 
-    st.divider()
-
-    # Model information
-    render_model_information(
-        model_result,
-        controls["class_weight"],
-        controls["exclude_zero_vis"],
-    )
+    # Render prediction plot
+    render_prediction_plot(model_result)
