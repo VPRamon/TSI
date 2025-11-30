@@ -6,9 +6,9 @@ import pandas as pd
 import streamlit as st
 
 from tsi import state
-from tsi.components.compare_tables import render_comparison_tables
-from tsi.components.compare_upload import render_file_upload
-from tsi.components.compare_validation import (
+from tsi.components.compare.compare_tables import render_comparison_tables
+from tsi.components.compare.compare_upload import render_file_upload
+from tsi.components.compare.compare_validation import (
     compute_scheduling_changes,
     validate_and_display_discrepancies,
 )

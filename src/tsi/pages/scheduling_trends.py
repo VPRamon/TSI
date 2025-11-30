@@ -11,16 +11,16 @@ from typing import Any
 import streamlit as st
 
 from tsi import state
-from tsi.components.trends_controls import render_sidebar_controls
-from tsi.components.trends_empirical import render_empirical_proportions
-from tsi.components.trends_heatmap import render_heatmap_section
-from tsi.components.trends_metrics import render_overview_metrics
-from tsi.components.trends_model import (
+from tsi.components.trends.trends_controls import render_sidebar_controls
+from tsi.components.trends.trends_empirical import render_empirical_proportions
+from tsi.components.trends.trends_heatmap import render_heatmap_section
+from tsi.components.trends.trends_metrics import render_overview_metrics
+from tsi.components.trends.trends_model import (
     render_model_information,
     render_model_metrics,
     render_prediction_plot,
 )
-from tsi.components.trends_smoothed import render_smoothed_trends
+from tsi.components.trends.trends_smoothed import render_smoothed_trends
 from tsi.modeling.trends import (
     compute_empirical_rates,
     fit_logistic_with_interactions,

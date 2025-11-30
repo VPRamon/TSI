@@ -5,8 +5,8 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi import state
-from tsi.components.sky_map_controls import render_sidebar_controls
-from tsi.components.sky_map_stats import render_stats
+from tsi.components.sky_map.sky_map_controls import render_sidebar_controls
+from tsi.components.sky_map.sky_map_stats import render_stats
 from tsi.plots.sky_map import build_figure
 from tsi.services.database import get_sky_map_data
 from tsi.services.sky_map_filters import filter_blocks

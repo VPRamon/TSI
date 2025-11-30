@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from tsi.components.data_preview import render_conflicts_table, render_data_preview
+from tsi.components.data.data_preview import render_conflicts_table, render_data_preview
 
 
 def render_top_observations(

@@ -3,8 +3,8 @@
 import streamlit as st
 
 from tsi import state
-from tsi.components.timeline_controls import render_search_filters
-from tsi.components.timeline_stats import (
+from tsi.components.timeline.timeline_controls import render_search_filters
+from tsi.components.timeline.timeline_stats import (
     render_dark_period_summary,
     render_download_button,
     render_key_metrics,

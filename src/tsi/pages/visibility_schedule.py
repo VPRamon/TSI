@@ -3,12 +3,12 @@
 import streamlit as st
 
 from tsi import state
-from tsi.components.visibility_controls import (
+from tsi.components.visibility.visibility_controls import (
     render_generate_button,
     render_histogram_settings,
     render_sidebar_controls,
 )
-from tsi.components.visibility_stats import render_chart_info, render_dataset_statistics
+from tsi.components.visibility.visibility_stats import render_chart_info, render_dataset_statistics
 from tsi.plots.timeline import build_visibility_histogram
 from tsi.services import get_priority_range
 from tsi.services.loaders import get_filtered_dataframe

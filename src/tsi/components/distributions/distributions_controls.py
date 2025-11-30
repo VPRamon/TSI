@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from tsi import state
-from tsi.components.toolbar import render_impossible_filter_control
+from tsi.components.toolbar.toolbar import render_impossible_filter_control
 
 
 def render_filter_control(df: pd.DataFrame) -> tuple[str, bool]:

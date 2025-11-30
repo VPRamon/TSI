@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 
-from tsi.components.landing_database import render_database_section
-from tsi.components.landing_upload import render_upload_section
+from tsi.components.landing.landing_database import render_database_section
+from tsi.components.landing.landing_upload import render_upload_section
 from tsi.services.database import init_database
 from tsi.theme import add_vertical_space, render_landing_title
 

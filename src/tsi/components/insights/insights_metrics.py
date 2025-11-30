@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from tsi.components.metrics import render_comparison_metrics
+from tsi.components.metrics.metrics import render_comparison_metrics
 from tsi.models.schemas import AnalyticsMetrics
 
 
