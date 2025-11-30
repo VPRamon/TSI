@@ -15,7 +15,7 @@ from tsi.services import (
     load_csv,
     validate_dataframe,
 )
-from tsi.services.loaders import filter_by_priority, filter_by_scheduled, load_schedule_rust
+from tsi.services.data.loaders import filter_by_priority, filter_by_scheduled, load_schedule_rust
 from tsi.models.schemas import AnalyticsMetrics
 from tsi.services.rust_backend import BACKEND
 
