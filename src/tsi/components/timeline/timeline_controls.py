@@ -2,33 +2,40 @@
 
 from __future__ import annotations
 
-import pandas as pd
 import streamlit as st
 
 
-def render_search_filters(filtered_df: pd.DataFrame) -> dict:
+def render_search_filters(blocks: list) -> dict:
     """
     Render search and filter controls for the observation table.
 
     Args:
-        filtered_df: Filtered DataFrame containing observations
+        blocks: List of ScheduleTimelineBlock objects
 
     Returns:
         Dictionary with filter values
     """
+    from tsi.services.time_utils import mjd_to_datetime
+    
+    # Extract unique months from blocks
+    unique_months = set()
+    for block in blocks:
+        month_label = mjd_to_datetime(block.scheduled_start_mjd).strftime("%Y-%m")
+        unique_months.add(month_label)
+    
     col_search1, col_search2, col_search3 = st.columns(3)
 
     with col_search1:
         search_id = st.text_input(
             "🔍 Search by ID",
             key="timeline_search_id",
-            placeholder="e.g., SB001",
+            placeholder="e.g., 12345",
         )
 
     with col_search2:
         search_month = st.selectbox(
             "📅 Month",
-            options=["All"] + sorted(filtered_df["scheduled_month_label"].unique().tolist()),
+            options=["All"] + sorted(unique_months),
             key="timeline_search_month",
         )
 
@@ -43,7 +50,7 @@ def render_search_filters(filtered_df: pd.DataFrame) -> dict:
         )
 
     return {
-        "search_id": search_id,
-        "search_month": search_month,
-        "min_priority_filter": min_priority_filter,
+        "search_id": search_id if search_id else None,
+        "search_month": search_month if search_month != "All" else None,
+        "min_priority_filter": min_priority_filter if min_priority_filter > 0 else None,
     }

@@ -4,20 +4,11 @@ import streamlit as st
 
 from tsi import state
 from tsi.components.timeline.timeline_controls import render_search_filters
-from tsi.components.timeline.timeline_stats import (
-    render_dark_period_summary,
-    render_download_button,
-    render_key_metrics,
-)
-from tsi.plots.timeline_monthly import build_monthly_timeline
-from tsi.services import get_priority_range
-from tsi.services.timeline_processing import (
-    apply_search_filters,
-    filter_dark_periods,
-    filter_scheduled_data,
-    prepare_display_dataframe,
-    prepare_scheduled_data,
-)
+from tsi.components.timeline.timeline_figure import render_timeline_figure
+from tsi.components.timeline.timeline_observable_periods import render_observable_periods_info
+from tsi.components.timeline.timeline_observation_details import render_observation_details_table
+from tsi.components.timeline.timeline_summary import render_timeline_summary
+from tsi.services.database import get_schedule_timeline_data
 
 
 def render() -> None:
@@ -27,104 +18,44 @@ def render() -> None:
     st.markdown(
         """
         Monthly chronological view of scheduled observations. Each row represents a month
-        and the horizontal axis shows the days (1-31) of that specific month, avoiding visual
-        overflow. Colors represent the priority of each block (darker = lower priority).
+        and the horizontal axis shows the days (1-31) of that specific month.
+        Colors represent the priority of each block (darker = lower priority).
         """
     )
 
-    df = state.get_prepared_data()
-    dark_periods_df = state.get_dark_periods()
+    schedule_id = state.get_schedule_id()
 
-    if df is None:
-        st.warning("No data loaded. Please return to the landing page.")
+    if schedule_id is None:
+        st.info("Load a schedule from the database to view the Scheduled Timeline.")
         return
 
-    # Prepare scheduled data
-    scheduled_df = prepare_scheduled_data(df)
+    schedule_id = int(schedule_id)
 
-    if scheduled_df is None:
+    try:
+        timeline_data = get_schedule_timeline_data(schedule_id=schedule_id)
+    except Exception as exc:
+        st.error(f"Failed to load schedule timeline data from the backend: {exc}")
+        return
+
+    if timeline_data.total_count == 0:
         st.warning("There are no scheduled observations with valid dates.")
         return
 
-    # Calculate priority range
-    priority_min, priority_max = get_priority_range(scheduled_df)
-
-    # Get unique months
-    all_months = sorted(scheduled_df["scheduled_month_label"].unique())
-
-    # Apply filters (using defaults for now)
-    priority_range = (priority_min, priority_max)
-    selected_months = all_months
-
-    filtered_df = filter_scheduled_data(
-        scheduled_df,
-        priority_range=priority_range,
-        selected_months=selected_months,
-    )
-
-    if len(filtered_df) == 0:
-        st.warning("There are no scheduled observations for the selected criteria.")
-        return
-
-    # Filter dark periods
-    filtered_dark_periods = filter_dark_periods(dark_periods_df, selected_months)
-
     # Build and display the monthly timeline figure
-    fig = build_monthly_timeline(filtered_df, priority_range, filtered_dark_periods)
-
-    config = {
-        "displayModeBar": True,
-        "displaylogo": False,
-        "modeBarButtonsToRemove": ["lasso2d", "select2d"],
-        "scrollZoom": True,
-    }
-    st.plotly_chart(fig, width='stretch', config=config)
-
-    # Show dark period summary if available
-    if filtered_dark_periods is not None:
-        render_dark_period_summary(filtered_dark_periods)
-
-    # Observation details table
-    st.markdown("---")
-    st.subheader("📊 Observation Details")
-
-    # Prepare display DataFrame
-    display_df = prepare_display_dataframe(filtered_df)
-
-    # Add search/filter capability
-    filters = render_search_filters(filtered_df)
-
-    # Apply search filters
-    filtered_display = apply_search_filters(
-        display_df,
-        filters["search_id"],
-        filters["search_month"],
-        filters["min_priority_filter"],
+    priority_range = (timeline_data.priority_min, timeline_data.priority_max)
+    render_timeline_figure(
+        blocks=timeline_data.blocks,
+        priority_range=priority_range,
+        dark_periods=timeline_data.dark_periods,
     )
 
-    # Display count
-    st.caption(f"Showing {len(filtered_display):,} of {len(display_df):,} observations")
+    # Show observable periods information if available
+    if timeline_data.dark_periods:
+        render_observable_periods_info(timeline_data.dark_periods)
 
-    # Display the table with formatting
-    st.dataframe(
-        filtered_display.style.format(
-            {
-                "Priority": "{:.2f}",
-                "Duration (h)": "{:.2f}",
-                "RA (°)": "{:.2f}",
-                "Dec (°)": "{:.2f}",
-                "Requested (h)": "{:.2f}",
-                "Total Visibility (h)": "{:.2f}",
-            },
-            na_rep="-",
-        ),
-        width="stretch",
-        height=400,
-        hide_index=True,
-    )
+    # Render observation details table with filters
+    filters = render_search_filters(timeline_data.blocks)
+    render_observation_details_table(timeline_data.blocks, filters)
 
-    # Download button
-    render_download_button(filtered_display)
-
-    # Display key metrics
-    render_key_metrics(filtered_df)
+    # Display summary metrics
+    render_timeline_summary(timeline_data.blocks, timeline_data.unique_months)

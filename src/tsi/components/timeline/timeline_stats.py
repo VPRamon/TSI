@@ -8,72 +8,93 @@ import streamlit as st
 from tsi.services.time_utils import format_datetime_utc
 
 
-def render_dark_period_summary(dark_periods_df: pd.DataFrame) -> None:
+def render_dark_period_summary(dark_periods: list[tuple[float, float]]) -> None:
     """
     Render dark period summary information.
 
     Args:
-        dark_periods_df: DataFrame containing dark period information
+        dark_periods: List of (start_mjd, stop_mjd) tuples for dark periods
     """
+    if not dark_periods:
+        return
+    
+    from tsi.services.time_utils import mjd_to_datetime
+    
     st.markdown("---")
     st.subheader("ℹ️ Observable periods information")
 
-    dark_count = len(dark_periods_df)
-    total_dark_hours = dark_periods_df["duration_hours"].sum()
-    min_dark = dark_periods_df["start_dt"].min()
-    max_dark = dark_periods_df["stop_dt"].max()
+    dark_count = len(dark_periods)
+    total_dark_hours = sum((stop - start) * 24.0 for start, stop in dark_periods)
+    min_dark = min(start for start, _ in dark_periods)
+    max_dark = max(stop for _, stop in dark_periods)
 
     st.caption(
         f"Detected {dark_count:,} dark/nocturnal OBSERVABLE periods (total {total_dark_hours:,.1f} h). "
         f"The chart shows DAYTIME periods (non-observable) in light yellow."
-        f" Time range: {format_datetime_utc(min_dark)} → {format_datetime_utc(max_dark)}."
+        f" Time range: {format_datetime_utc(mjd_to_datetime(min_dark))} → {format_datetime_utc(mjd_to_datetime(max_dark))}."
     )
 
-    dark_display = dark_periods_df.copy()
-    dark_display["Start"] = dark_display["start_dt"].dt.strftime("%Y-%m-%d %H:%M")
-    dark_display["End"] = dark_display["stop_dt"].dt.strftime("%Y-%m-%d %H:%M")
-    dark_display = dark_display[["Start", "End", "duration_hours", "months"]]
-    dark_display = dark_display.rename(
-        columns={"duration_hours": "Duration (h)", "months": "Months"}
-    )
+    # Convert to display format
+    display_data = []
+    for start_mjd, stop_mjd in dark_periods:
+        start_dt = mjd_to_datetime(start_mjd)
+        stop_dt = mjd_to_datetime(stop_mjd)
+        duration_hours = (stop_mjd - start_mjd) * 24.0
+        month_label = start_dt.strftime("%Y-%m")
+        display_data.append({
+            "Start": start_dt.strftime("%Y-%m-%d %H:%M"),
+            "End": stop_dt.strftime("%Y-%m-%d %H:%M"),
+            "Duration (h)": duration_hours,
+            "Month": month_label,
+        })
+    
+    dark_display = pd.DataFrame(display_data)
 
     st.dataframe(
         dark_display,
-        width="stretch",
+        use_container_width=True,
         hide_index=True,
         height=min(300, 60 + 24 * min(len(dark_display), 8)),
     )
 
 
-def render_key_metrics(filtered_df: pd.DataFrame) -> None:
+def render_key_metrics(blocks: list, unique_months: list[str]) -> None:
     """
     Render key metrics about scheduled observations.
 
     Args:
-        filtered_df: Filtered DataFrame containing observations
+        blocks: List of ScheduleTimelineBlock objects
+        unique_months: List of unique month labels
     """
+    from tsi.services.time_utils import mjd_to_datetime
+    
     st.markdown("---")
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("Scheduled blocks", f"{len(filtered_df):,}")
+        st.metric("Scheduled blocks", f"{len(blocks):,}")
 
     with col2:
-        total_hours = filtered_df["duration_hours"].sum()
+        total_hours = sum((block.scheduled_stop_mjd - block.scheduled_start_mjd) * 24.0 for block in blocks)
         st.metric("Total hours", f"{total_hours:,.1f}")
 
     with col3:
-        avg_duration = filtered_df["duration_hours"].mean()
-        st.metric("Average duration", f"{avg_duration:.2f} h")
+        if blocks:
+            avg_duration = total_hours / len(blocks)
+            st.metric("Average duration", f"{avg_duration:.2f} h")
+        else:
+            st.metric("Average duration", "N/A")
 
     with col4:
-        num_months = filtered_df["scheduled_month_label"].nunique()
-        st.metric("Months covered", f"{num_months}")
+        st.metric("Months covered", f"{len(unique_months)}")
 
     # Date range info
-    min_date = filtered_df["scheduled_start_dt"].min()
-    max_date = filtered_df["scheduled_stop_dt"].max()
-    st.caption(f"**Time range:** {format_datetime_utc(min_date)} → {format_datetime_utc(max_date)}")
+    if blocks:
+        min_mjd = min(block.scheduled_start_mjd for block in blocks)
+        max_mjd = max(block.scheduled_stop_mjd for block in blocks)
+        min_date = mjd_to_datetime(min_mjd)
+        max_date = mjd_to_datetime(max_mjd)
+        st.caption(f"**Time range:** {format_datetime_utc(min_date)} → {format_datetime_utc(max_date)}")
 
 
 def render_download_button(display_df: pd.DataFrame) -> None:
