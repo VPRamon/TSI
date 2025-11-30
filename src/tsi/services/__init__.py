@@ -49,7 +49,7 @@ from tsi.services.sky_map_filters import (
     build_palette,
     filter_blocks,
 )
-from tsi.services.sky_map_data import load_sky_map_data
+from tsi.services.database import get_sky_map_data
 from tsi.services.sky_map_blocks import (
     get_priority_range_from_blocks,
     prepare_priority_bins_from_blocks,
@@ -100,7 +100,7 @@ __all__ = [
     # sky_map_filters
     "filter_blocks",
     "build_palette",
-    "load_sky_map_data",
+    "get_sky_map_data",
     # sky_map_blocks
     "get_priority_range_from_blocks",
     "prepare_priority_bins_from_blocks",

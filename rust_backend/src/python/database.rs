@@ -143,8 +143,7 @@ pub fn py_get_schedule_blocks(schedule_id: i64) -> PyResult<Vec<SchedulingBlock>
 /// avoiding the overhead of loading full scheduling blocks with visibility periods.
 #[pyfunction]
 pub fn py_get_sky_map_blocks(
-    schedule_id: Option<i64>,
-    schedule_name: Option<&str>,
+    schedule_id: i64
 ) -> PyResult<Vec<crate::db::models::SkyMapBlock>> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
@@ -153,12 +152,8 @@ pub fn py_get_sky_map_blocks(
         ))
     })?;
 
-    let owned_name = schedule_name.map(|s| s.to_string());
     runtime
-        .block_on(operations::get_sky_map_blocks(
-            schedule_id,
-            owned_name.as_deref(),
-        ))
+        .block_on(operations::get_sky_map_blocks(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
@@ -167,8 +162,7 @@ pub fn py_get_sky_map_blocks(
 /// and all necessary metadata on the Rust side.
 #[pyfunction]
 pub fn py_get_sky_map_data(
-    schedule_id: Option<i64>,
-    schedule_name: Option<&str>,
+    schedule_id: i64,
 ) -> PyResult<crate::db::models::SkyMapData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
@@ -177,12 +171,8 @@ pub fn py_get_sky_map_data(
         ))
     })?;
 
-    let owned_name = schedule_name.map(|s| s.to_string());
     runtime
-        .block_on(operations::get_sky_map_data(
-            schedule_id,
-            owned_name.as_deref(),
-        ))
+        .block_on(operations::get_sky_map_data(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 

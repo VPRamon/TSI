@@ -1518,17 +1518,10 @@ pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<(i64, f64, f
 /// This is optimized to fetch only the minimal data needed for the sky map page,
 /// avoiding the overhead of loading full scheduling blocks with visibility periods.
 pub async fn get_sky_map_blocks(
-    schedule_id: Option<i64>,
-    schedule_name: Option<&str>,
+    schedule_id: i64
 ) -> Result<Vec<super::models::SkyMapBlock>, String> {
-    use super::models::SkyMapBlock;
-
-    if schedule_id.is_none() && schedule_name.is_none() {
-        return Err("Either schedule_id or schedule_name must be provided".to_string());
-    }
-
     // Try with flat periods first, fallback to joined periods if needed
-    match get_sky_map_blocks_internal(schedule_id, schedule_name, true).await {
+    match get_sky_map_blocks_internal(schedule_id, true).await {
         Ok(blocks) => Ok(blocks),
         Err(e) => {
             let err_msg = e.to_string();
@@ -1536,7 +1529,7 @@ pub async fn get_sky_map_blocks(
                 && (err_msg.contains("start_time_mjd") || err_msg.contains("stop_time_mjd"));
 
             if missing_flat_columns {
-                get_sky_map_blocks_internal(schedule_id, schedule_name, false).await
+                get_sky_map_blocks_internal(schedule_id, false).await
             } else {
                 Err(e)
             }
@@ -1545,8 +1538,7 @@ pub async fn get_sky_map_blocks(
 }
 
 async fn get_sky_map_blocks_internal(
-    schedule_id: Option<i64>,
-    schedule_name: Option<&str>,
+    schedule_id: i64,
     use_flat_periods: bool,
 ) -> Result<Vec<super::models::SkyMapBlock>, String> {
     use super::models::SkyMapBlock;
@@ -1568,51 +1560,26 @@ async fn get_sky_map_blocks_internal(
         "LEFT JOIN dbo.periods p ON ssb.scheduled_period_id = p.period_id"
     };
 
-    let sql = if schedule_id.is_some() {
-        format!(
-            r#"
-            SELECT 
-                sb.scheduling_block_id,
-                sb.priority,
-                sb.requested_duration_sec,
-                t.ra_deg,
-                t.dec_deg,
-                {period_columns}
-            FROM dbo.schedule_scheduling_blocks ssb
-            JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
-            JOIN dbo.targets t ON sb.target_id = t.target_id
-            {period_join}
-            WHERE ssb.schedule_id = @P1
-            ORDER BY sb.scheduling_block_id
-            "#
-        )
-    } else {
-        format!(
-            r#"
-            SELECT 
-                sb.scheduling_block_id,
-                sb.priority,
-                sb.requested_duration_sec,
-                t.ra_deg,
-                t.dec_deg,
-                {period_columns}
-            FROM dbo.schedules s
-            JOIN dbo.schedule_scheduling_blocks ssb ON s.schedule_id = ssb.schedule_id
-            JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
-            JOIN dbo.targets t ON sb.target_id = t.target_id
-            {period_join}
-            WHERE s.schedule_name = @P1
-            ORDER BY sb.scheduling_block_id
-            "#
-        )
-    };
+    let sql = format!(
+        r#"
+        SELECT 
+            sb.scheduling_block_id,
+            sb.priority,
+            sb.requested_duration_sec,
+            t.ra_deg,
+            t.dec_deg,
+            {period_columns}
+        FROM dbo.schedule_scheduling_blocks ssb
+        JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
+        JOIN dbo.targets t ON sb.target_id = t.target_id
+        {period_join}
+        WHERE ssb.schedule_id = @P1
+        ORDER BY sb.scheduling_block_id
+        "#
+    );
 
     let mut query = Query::new(sql);
-    if let Some(id) = schedule_id {
-        query.bind(id);
-    } else {
-        query.bind(schedule_name.unwrap());
-    }
+    query.bind(schedule_id);
 
     let stream = query
         .query(&mut *conn)
@@ -1801,9 +1768,8 @@ pub fn compute_sky_map_data(
 /// Get complete sky map data with computed bins and metadata.
 /// This is the main entry point for the sky map feature.
 pub async fn get_sky_map_data(
-    schedule_id: Option<i64>,
-    schedule_name: Option<&str>,
+    schedule_id: i64,
 ) -> Result<super::models::SkyMapData, String> {
-    let blocks = get_sky_map_blocks(schedule_id, schedule_name).await?;
+    let blocks = get_sky_map_blocks(schedule_id).await?;
     compute_sky_map_data(blocks)
 }

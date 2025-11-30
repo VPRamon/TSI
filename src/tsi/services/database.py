@@ -122,8 +122,7 @@ def get_sky_map_blocks(
 
 def get_sky_map_data(
     *,
-    schedule_id: int | None = None,
-    schedule_name: str | None = None,
+    schedule_id: int,
 ) -> SkyMapData:
     """
     Get complete sky map data with computed bins and metadata.
@@ -140,7 +139,7 @@ def get_sky_map_data(
     All processing (querying, bin computation, statistics) is done in Rust
     for maximum performance. The frontend just needs to plot the data.
     """
-    return _rust_call("py_get_sky_map_data", schedule_id, schedule_name)
+    return _rust_call("py_get_sky_map_data", schedule_id)
 
 
 def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:
