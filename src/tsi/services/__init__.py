@@ -30,6 +30,23 @@ from tsi.services.database import (
 )
 
 # ============================================================================
+# Data Source Orchestration (Legacy / ETL routing)
+# ============================================================================
+from tsi.services.data_source import (
+    get_sky_map_data_unified,
+    get_sky_map_data_legacy,
+    get_sky_map_data_etl,
+    get_distribution_data_unified,
+    get_distribution_data_legacy,
+    get_distribution_data_etl,
+    get_schedule_timeline_data_unified,
+    get_insights_data_unified,
+    get_trends_data_unified,
+    get_compare_data_unified,
+    get_visibility_map_data_unified,
+)
+
+# ============================================================================
 # Data: Loading, Preparation, Analytics
 # ============================================================================
 from tsi.services.data import (
@@ -106,6 +123,18 @@ __all__ = [
     "get_visibility_map_data",
     "get_distribution_data",
     "get_sky_map_data",
+    # Data Source Orchestration (for migration phase)
+    "get_sky_map_data_unified",
+    "get_sky_map_data_legacy",
+    "get_sky_map_data_etl",
+    "get_distribution_data_unified",
+    "get_distribution_data_legacy",
+    "get_distribution_data_etl",
+    "get_schedule_timeline_data_unified",
+    "get_insights_data_unified",
+    "get_trends_data_unified",
+    "get_compare_data_unified",
+    "get_visibility_map_data_unified",
     # Data
     "load_csv",
     "prepare_dataframe",

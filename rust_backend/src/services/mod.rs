@@ -13,8 +13,16 @@ pub mod trends;
 pub mod visibility;
 
 pub use compare::{py_compute_compare_data, py_get_compare_data};
-pub use distributions::py_get_distribution_data;
+pub use distributions::{
+    py_get_distribution_data, 
+    py_get_distribution_data_analytics,
+    py_get_distribution_data_legacy,
+};
 pub use insights::py_get_insights_data;
-pub use sky_map::py_get_sky_map_data;
+pub use sky_map::{
+    py_get_sky_map_data,
+    py_get_sky_map_data_analytics,
+    py_get_sky_map_data_legacy,
+};
 pub use timeline::py_get_schedule_timeline_data;
 pub use trends::py_get_trends_data;

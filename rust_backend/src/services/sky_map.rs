@@ -185,3 +185,36 @@ pub fn py_get_sky_map_data(schedule_id: i64) -> PyResult<SkyMapData> {
         .block_on(get_sky_map_data(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
+
+/// Get sky map data using only the legacy join path.
+/// This is provided for explicit data source selection.
+#[pyfunction]
+pub fn py_get_sky_map_data_legacy(schedule_id: i64) -> PyResult<SkyMapData> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(get_sky_map_data_legacy(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Get sky map data using only the analytics table.
+/// This is provided for explicit data source selection.
+/// Returns an error if analytics data is not available.
+#[pyfunction]
+pub fn py_get_sky_map_data_analytics(schedule_id: i64) -> PyResult<SkyMapData> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(get_sky_map_data_analytics(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
