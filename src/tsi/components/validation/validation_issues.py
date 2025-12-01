@@ -72,14 +72,8 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
         # Use original_block_id if available, otherwise fall back to block_id
         block_display_id = error.get("original_block_id") or str(error.get("block_id", "N/A"))
         
-        # Determine criticality based on error type
-        error_type = error.get("error_type", "")
-        if "out of range" in error_type.lower() or "negative" in error_type.lower():
-            criticality = "High"
-        elif "invalid" in error_type.lower():
-            criticality = "Medium"
-        else:
-            criticality = "Medium"
+        # Use criticality from backend (don't recalculate based on keywords)
+        criticality = error.get("criticality", "Medium")
         
         expected = error.get("expected_range", error.get("issue", ""))
         
@@ -98,12 +92,8 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
         # Use original_block_id if available, otherwise fall back to block_id
         block_display_id = warning.get("original_block_id") or str(warning.get("block_id", "N/A"))
         
-        # Determine criticality based on warning type
-        warning_type = warning.get("warning_type", "")
-        if "narrow" in warning_type.lower():
-            criticality = "Medium"
-        else:
-            criticality = "Low"
+        # Use criticality from backend (don't recalculate based on keywords)
+        criticality = warning.get("criticality", "Low")
         
         all_issues.append({
             "Criticality": criticality,
