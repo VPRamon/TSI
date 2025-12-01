@@ -63,10 +63,10 @@ echo "📥 Installing dependencies..."
 pip install -q -r requirements.txt
 
 # Check data file
-if [ ! -f "data/schedule.csv" ]; then
+if [ ! -f "data/schedule.json" ]; then
     echo ""
     echo "⚠️  WARNING: Data file not found!"
-    echo "Expected location: data/schedule.csv"
+    echo "Expected location: data/schedule.json"
     echo ""
     echo "Please ensure the data file exists before continuing."
     read -p "Press Enter to continue anyway or Ctrl+C to exit..."

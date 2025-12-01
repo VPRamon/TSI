@@ -19,7 +19,7 @@ Analyze and visualize astronomical scheduling outputs with an interactive Stream
 ```
 .
 ├── data/
-│   ├── schedule.csv              # Sample preprocessed dataset (used by the app)
+│   ├── schedule.json              # Sample preprocessed dataset (used by the app)
 │   ├── schedule.json             # Raw schedule (example)
 │   ├── possible_periods.json     # Optional visibility periods
 │   └── dark_periods.json         # Optional dark periods (auto-detected by the app)
@@ -100,7 +100,7 @@ streamlit run src/tsi/app.py
 The app opens at http://localhost:8501. On the landing page you can:
 - Upload a preprocessed CSV (fastest), or
 - Upload a raw schedule.json (+ optional possible_periods.json). JSON is processed in‑memory, or
-- Load the bundled sample dataset at `data/schedule.csv`.
+- Load the bundled sample dataset at `data/schedule.json`.
 
 Dark periods: if `data/dark_periods.json` exists, it is auto‑loaded; you can also upload it later on the landing page. The Scheduled Timeline page then shades nighttime (observable) vs daytime (non‑observable) periods.
 
@@ -112,13 +112,13 @@ The dashboard can process JSON directly, but for repeat analysis and faster load
 # Single file
 python scripts/preprocess_schedules.py \
   --schedule data/schedule.json \
-  --output data/schedule.csv
+  --output data/schedule.json
 
 # With visibility/possible periods
 python scripts/preprocess_schedules.py \
   --schedule data/schedule.json \
   --visibility data/possible_periods.json \
-  --output data/schedule.csv \
+  --output data/schedule.json \
   --verbose
 
 # Batch directory
@@ -202,12 +202,12 @@ Runtime settings are managed via `pydantic-settings` in `src/app_config/settings
 
 Key variables
 - DATA_ROOT: base data directory (default: data)
-- SAMPLE_DATASET: path to the sample CSV (default: data/schedule.csv)
+- SAMPLE_DATASET: path to the sample CSV (default: data/schedule.json)
 - CACHE_TTL_SECONDS: cache TTL for loaders (default: 600)
 
 Example `.env`
 ```
-SAMPLE_DATASET=data/schedule.csv
+SAMPLE_DATASET=data/schedule.json
 DATA_ROOT=data
 CACHE_TTL_SECONDS=900
 ```

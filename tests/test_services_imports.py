@@ -37,7 +37,7 @@ class TestServicesImports:
             generate_insights,
             get_filtered_dataframe,
             get_top_observations,
-            load_csv,
+            load_json,
             load_dark_periods,
             load_schedule_rust,
             prepare_dataframe,
@@ -47,7 +47,7 @@ class TestServicesImports:
         # Test direct subpackage import
         from tsi.services.data import loaders, analytics, preparation
         
-        assert hasattr(loaders, 'load_csv')
+        assert hasattr(loaders, 'load_json')
         assert hasattr(analytics, 'compute_metrics')
 
     def test_filters_imports(self):
@@ -115,11 +115,11 @@ class TestServicesImports:
     def test_backward_compatibility(self):
         """Test that old import patterns still work via __init__ re-exports."""
         # These should work because services/__init__.py re-exports everything
-        from tsi.services import load_csv, compute_metrics, filter_blocks
+        from tsi.services import load_json, compute_metrics, filter_blocks
         from tsi.services import mjd_to_datetime, get_priority_range
         
         # All should be callable/usable
-        assert callable(load_csv)
+        assert callable(load_json)
         assert callable(compute_metrics)
         assert callable(filter_blocks)
         assert callable(mjd_to_datetime)

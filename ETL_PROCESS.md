@@ -2,7 +2,7 @@
 
 ## Resumen Ejecutivo
 
-El sistema TSI implementa un proceso ETL (Extract, Transform, Load) híbrido de alto rendimiento que combina Python con Rust para procesar, transformar y almacenar datos astronómicos de programación de telescopios. El pipeline ETL maneja la ingesta de archivos JSON/CSV, la normalización de datos, el enriquecimiento con información derivada, y la carga en Azure SQL Database con tablas analíticas pre-computadas para consultas de alto rendimiento.
+El sistema TSI implementa un proceso ETL (Extract, Transform, Load) híbrido de alto rendimiento que combina Python con Rust para procesar, transformar y almacenar datos astronómicos de programación de telescopios. El pipeline ETL maneja la ingesta de archivos JSON/JSON, la normalización de datos, el enriquecimiento con información derivada, y la carga en Azure SQL Database con tablas analíticas pre-computadas para consultas de alto rendimiento.
 
 **Características Clave:**
 - **Rendimiento**: Procesamiento 10x más rápido que pandas mediante backend en Rust
@@ -25,8 +25,8 @@ El sistema TSI implementa un proceso ETL (Extract, Transform, Load) híbrido de 
                     ┌───────────────┴───────────────┐
                     │                               │
             ┌───────▼──────┐                ┌──────▼──────┐
-            │  JSON Files  │                │  CSV Files  │
-            │ (schedule.json)                │(schedule.csv)│
+            │  JSON Files  │                │  JSON Files  │
+            │ (schedule.json)                │(schedule.json)│
             │ (possible_periods.json)        │             │
             │ (dark_periods.json)            │             │
             └───────┬──────┘                └──────┬──────┘
@@ -102,7 +102,7 @@ El sistema TSI implementa un proceso ETL (Extract, Transform, Load) híbrido de 
 
 | Componente | Tecnología | Responsabilidad |
 |------------|-----------|-----------------|
-| **Loaders** | Rust (serde_json, polars) | Parseo de JSON/CSV con validación de esquema |
+| **Loaders** | Rust (serde_json, polars) | Parseo de JSON/JSON con validación de esquema |
 | **Transformers** | Rust + Python | Limpieza, enriquecimiento, validación de datos |
 | **Database Layer** | Rust (Tokio + Tiberius) | Operaciones CRUD asíncronas en Azure SQL |
 | **Analytics ETL** | Rust (async) | Pre-cálculo de métricas y desnormalización |
@@ -183,15 +183,15 @@ pub struct SchedulingBlock {
 }
 ```
 
-### 2.2 Carga de Archivos CSV
+### 2.2 Carga de Archivos JSON
 
 **Módulo:** `src/tsi/backend/loaders.py` + `tsi_rust` (backend)
 
-El sistema utiliza **Polars** (biblioteca Rust) para cargar CSV, logrando rendimiento 10x superior a pandas:
+El sistema utiliza **Polars** (biblioteca Rust) para cargar JSON, logrando rendimiento 10x superior a pandas:
 
 ```python
 def load_schedule_file(path: str | Path, format: str = "auto") -> pd.DataFrame:
-    """Load schedule data from CSV using Rust backend."""
+    """Load schedule data from JSON using Rust backend."""
     if format == "csv":
         df_pandas = pd.read_csv(path)  # Fallback
         return df_pandas
@@ -899,8 +899,8 @@ python scripts/preprocess_schedules.py \
 **Salida:**
 ```
 Found 5 schedule files to process
-✓ Successfully processed schedule_2024_01.json -> schedule_2024_01.csv
-✓ Successfully processed schedule_2024_02.json -> schedule_2024_02.csv
+✓ Successfully processed schedule_2024_01.json -> schedule_2024_01.json
+✓ Successfully processed schedule_2024_02.json -> schedule_2024_02.json
 ...
 Batch processing complete: 5 successful, 0 failed
 ```

@@ -22,14 +22,14 @@ def get_project_root() -> Path:
 sys.path.insert(0, str(get_project_root() / "src"))
 
 
-def load_csv(csv_path: Path) -> pd.DataFrame:
+def load_json(csv_path: Path) -> pd.DataFrame:
     """Simple CSV loader."""
-    return pd.read_csv(csv_path)
+    return pd.read_json(csv_path)
 
 
 def benchmark_load():
     """Measure loading and preparation time."""
-    csv_path = Path("data/schedule.csv")
+    csv_path = Path("data/schedule.json")
 
     print("🚀 Benchmarking Data Loading Performance")
     print("=" * 60)
@@ -37,7 +37,7 @@ def benchmark_load():
     # Test 1: CSV reading
     print("\n1️⃣  Loading CSV from disk...")
     start = time.time()
-    raw_df = load_csv(csv_path)
+    raw_df = load_json(csv_path)
     csv_time = time.time() - start
     print(f"   ✅ Loaded {len(raw_df):,} rows in {csv_time:.3f}s")
 

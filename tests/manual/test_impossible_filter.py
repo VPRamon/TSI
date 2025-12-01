@@ -9,7 +9,7 @@ def test_impossible_filter():
 
     # Load data
     print("Loading data...")
-    df = pd.read_csv("data/schedule.csv")
+    df = pd.read_json("data/schedule.json")
     print(f"Total observations: {len(df):,}")
 
     # Check required columns

@@ -39,7 +39,7 @@ class TestSettingsDefaults:
         settings = Settings()
         
         assert settings.data_root == Path("data")
-        assert settings.sample_dataset == Path("data") / "schedule.csv"
+        assert settings.sample_dataset == Path("data") / "schedule.json"
         assert settings.artifacts_dir == Path("src/tsi/modeling/artifacts")
 
     def test_ui_defaults(self):
@@ -255,9 +255,9 @@ class TestPathConversion:
 
     def test_sample_dataset_string_conversion(self):
         """Test that sample dataset path is converted."""
-        settings = Settings(sample_dataset="custom/schedule.csv")
+        settings = Settings(sample_dataset="custom/schedule.json")
         assert isinstance(settings.sample_dataset, Path)
-        assert settings.sample_dataset == Path("custom/schedule.csv")
+        assert settings.sample_dataset == Path("custom/schedule.json")
 
 
 class TestValidationConstraints:

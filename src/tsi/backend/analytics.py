@@ -34,7 +34,7 @@ def compute_metrics(df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
         - scheduled_percentage: percentage of scheduled blocks
 
     Example:
-        >>> df = load_schedule_file("data/schedule.csv")
+        >>> df = load_schedule_file("data/schedule.json")
         >>> metrics = compute_metrics(df)
         >>> print(f"Scheduled: {metrics['scheduled_percentage']:.1f}%")
     """

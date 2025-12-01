@@ -24,27 +24,29 @@ sys.path.insert(0, str(PROJECT_ROOT / 'src'))
 import tsi_rust
 
 
-def example_1_load_from_csv():
-    """Example 1: Load from preprocessed CSV file."""
+def example_1_load_from_json():
+    """Example 1: Load from JSON file."""
     print("\n" + "="*60)
-    print("Example 1: Loading from CSV")
+    print("Example 1: Loading from JSON")
     print("="*60)
     
-    csv_path = Path("data/schedule.csv")
+    json_path = Path("data/schedule.json")
     
-    if not csv_path.exists():
-        print(f"⚠️  CSV file not found: {csv_path}")
-        print("To create a preprocessed CSV, run:")
-        print("  python preprocess_schedules.py --schedule data/schedule.json --visibility data/possible_periods.json --output data/schedule.csv")
+    if not json_path.exists():
+        print(f"⚠️  JSON file not found: {json_path}")
         return None
     
     # Load using Rust backend
-    df_polars = tsi_rust.load_schedule_from_csv(str(csv_path))
-    df = df_polars.to_pandas()
+    content = json_path.read_text()
+    import json
+    data = json.loads(content)
+    import pandas as pd
+    blocks = data.get("SchedulingBlock", data.get("schedulingBlocks", data))
+    df = pd.DataFrame(blocks)
     
     print(f"✅ Loaded {len(df)} scheduling blocks")
-    print(f"📊 Source: CSV")
-    print(f"📁 Path: {csv_path}")
+    print(f"📊 Source: JSON")
+    print(f"📁 Path: {json_path}")
     
     return df
 
@@ -128,7 +130,7 @@ def main():
     print("🌌" * 30)
     
     # Example 1: CSV (fastest, recommended)
-    df = example_1_load_from_csv()
+    df = example_1_load_from_json()
     
     # Example 2: Direct JSON loading (flexible)
     if df is None:
@@ -144,8 +146,7 @@ def main():
         example_4_analyze_data(df)
     else:
         print("\n❌ No data could be loaded. Please check the data directory.")
-        print("\nTo create sample data, run:")
-        print("  python preprocess_schedules.py --schedule data/schedule.json --visibility data/possible_periods.json --output data/schedule.csv")
+        print("\nTo load sample data, ensure you have data/schedule.json file.")
     
     print("\n" + "="*60)
     print("✅ Examples complete!")

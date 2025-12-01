@@ -14,10 +14,12 @@ BACKEND = TSIBackend(use_pandas=True)
 
 
 def load_schedule_from_any(
-    source: str | Path | Any, format: Literal["auto", "csv", "json"] = "auto"
+    source: str | Path | Any, format: Literal["auto", "json"] = "auto"
 ) -> pd.DataFrame:
     """
     Load schedule data from a path or file-like object via the Rust backend.
+    
+    Note: CSV format is no longer supported - use JSON only.
     """
     if hasattr(source, "read"):
         content = source.read()
@@ -30,10 +32,6 @@ def load_schedule_from_any(
             raise ValueError("Format must be specified when reading from a buffer")
         if format == "json":
             return cast(pd.DataFrame, BACKEND.load_schedule_from_string(content, format="json"))
-        if format == "csv":
-            import io
-
-            return pd.read_csv(io.StringIO(content))
         raise ValueError(f"Unsupported format: {format}")
 
     return cast(pd.DataFrame, BACKEND.load_schedule(Path(source), format=format))

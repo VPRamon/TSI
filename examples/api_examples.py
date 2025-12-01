@@ -19,7 +19,7 @@ def example_1_basic_loading():
     print("=" * 60)
     
     # Load CSV file
-    df = backend.load_schedule(DATA_DIR / "schedule.csv")
+    df = backend.load_schedule(DATA_DIR / "schedule.json")
     
     print(f"\nLoaded {len(df)} observations")
     print(f"Columns: {list(df.columns)}")
@@ -37,7 +37,7 @@ def example_2_analytics():
     print("Example 2: Analytics & Metrics")
     print("=" * 60)
     
-    df = backend.load_schedule(DATA_DIR / "schedule.csv")
+    df = backend.load_schedule(DATA_DIR / "schedule.json")
     
     # Compute comprehensive metrics
     metrics = backend.compute_metrics(df)
@@ -58,7 +58,7 @@ def example_3_filtering():
     print("Example 3: Filtering Data")
     print("=" * 60)
     
-    df = backend.load_schedule(DATA_DIR / "schedule.csv")
+    df = backend.load_schedule(DATA_DIR / "schedule.json")
     
     # Filter by priority
     high_priority = backend.filter_by_priority(df, min_priority=15.0)
@@ -86,7 +86,7 @@ def example_4_top_observations():
     print("Example 4: Top Observations")
     print("=" * 60)
     
-    df = backend.load_schedule(DATA_DIR / "schedule.csv")
+    df = backend.load_schedule(DATA_DIR / "schedule.json")
     
     # Top 10 by priority
     top_priority = backend.get_top_observations(df, n=10, by="priority")
@@ -101,7 +101,7 @@ def example_5_conflicts():
     print("Example 5: Conflict Detection")
     print("=" * 60)
     
-    df = backend.load_schedule(DATA_DIR / "schedule.csv")
+    df = backend.load_schedule(DATA_DIR / "schedule.json")
     
     # Find conflicts
     conflicts = backend.find_conflicts(df)
@@ -118,7 +118,7 @@ def example_6_data_cleaning():
     print("Example 6: Data Cleaning")
     print("=" * 60)
     
-    df = backend.load_schedule(DATA_DIR / "schedule.csv")
+    df = backend.load_schedule(DATA_DIR / "schedule.json")
     
     print(f"\nOriginal data: {len(df)} rows")
     
@@ -165,7 +165,7 @@ def example_8_optimization():
     print("Example 8: Scheduling Optimization")
     print("=" * 60)
     
-    df = backend.load_schedule(DATA_DIR / "schedule.csv")
+    df = backend.load_schedule(DATA_DIR / "schedule.json")
     
     # Run greedy scheduler
     result = backend.greedy_schedule(df, max_iterations=500)
@@ -189,7 +189,7 @@ def example_9_convenience_functions():
     print("=" * 60)
     
     # Load without creating backend instance
-    df = load_schedule(DATA_DIR / "schedule.csv")
+    df = load_schedule(DATA_DIR / "schedule.json")
     print(f"\nLoaded {len(df)} observations (convenience function)")
     
     # Compute metrics without instance
@@ -206,7 +206,7 @@ def example_10_polars_mode():
     # Use Polars for zero-copy performance
     backend_polars = TSIBackend(use_pandas=False)
     
-    df_polars = backend_polars.load_schedule(DATA_DIR / "schedule.csv")
+    df_polars = backend_polars.load_schedule(DATA_DIR / "schedule.json")
     print(f"\nLoaded as Polars DataFrame: {len(df_polars)} rows")
     print(f"Type: {type(df_polars)}")
     

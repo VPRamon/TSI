@@ -1,12 +1,14 @@
 """
 TSI Backend Loaders - Data loading utilities.
 
-This module contains functions for loading schedule data from files
+This module contains functions for loading schedule data from JSON files
 and strings via the Rust backend or fallback to pandas.
 
 Note: The Rust backend is primarily designed to work with a database.
       File loading functions fall back to pandas when direct Rust file
       loading is not available.
+
+      CSV format is no longer supported - use JSON only.
 """
 
 from __future__ import annotations
@@ -26,37 +28,32 @@ import tsi_rust
 
 def load_schedule_file(
     path: str | Path,
-    format: Literal["auto", "csv", "json"] = "auto",
+    format: Literal["auto", "json"] = "auto",
     use_pandas: bool = True,
 ) -> pd.DataFrame | pl.DataFrame:
     """
-    Load schedule data from CSV or JSON file.
+    Load schedule data from JSON file.
 
     Args:
         path: Path to the schedule file
-        format: File format ('auto', 'csv', or 'json'). Auto-detects from extension.
+        format: File format ('auto' or 'json'). Auto-detects from extension.
         use_pandas: If True, return pandas DataFrame. If False, return Polars DataFrame.
 
     Returns:
         DataFrame with scheduling blocks and derived columns
 
     Example:
-        >>> df = load_schedule_file("data/schedule.csv")
+        >>> df = load_schedule_file("data/schedule.json")
         >>> print(df.columns)
     """
     path = Path(path)
 
     if format == "auto":
-        format = "json" if path.suffix == ".json" else "csv"
+        if path.suffix != ".json":
+            raise ValueError(f"Only JSON files are supported. Got: {path.suffix}")
+        format = "json"
 
-    # Try Rust backend first, fall back to pandas
-    if format == "csv":
-        # Rust backend doesn't have direct CSV file loading, use pandas
-        df_pandas = pd.read_csv(path)
-        if use_pandas:
-            return df_pandas
-        return pl.from_pandas(df_pandas)
-    elif format == "json":
+    if format == "json":
         # Try Rust's JSON string loading via reading file first
         content = path.read_text()
         return load_schedule_from_string(content, format="json", use_pandas=use_pandas)
@@ -66,15 +63,15 @@ def load_schedule_file(
 
 def load_schedule_from_string(
     content: str,
-    format: Literal["csv", "json"] = "json",
+    format: Literal["json"] = "json",
     use_pandas: bool = True,
 ) -> pd.DataFrame | pl.DataFrame:
     """
-    Load schedule data from string content.
+    Load schedule data from JSON string content.
 
     Args:
-        content: JSON or CSV string content
-        format: Format of the content ('csv' or 'json')
+        content: JSON string content
+        format: Format of the content ('json' only)
         use_pandas: If True, return pandas DataFrame. If False, return Polars DataFrame.
 
     Returns:
@@ -85,30 +82,24 @@ def load_schedule_from_string(
         >>> df = load_schedule_from_string(json_str, format="json")
     """
     import json as json_module
-    import io
 
-    if format == "json":
-        # Parse JSON and extract scheduling blocks
-        data = json_module.loads(content)
-        # Handle different JSON structures
-        if "SchedulingBlock" in data:
-            blocks = data["SchedulingBlock"]
-        elif "schedulingBlocks" in data:
-            blocks = data["schedulingBlocks"]
-        else:
-            blocks = data if isinstance(data, list) else [data]
-        
-        df_pandas = pd.DataFrame(blocks)
-        if use_pandas:
-            return df_pandas
-        return pl.from_pandas(df_pandas)
-    elif format == "csv":
-        df_pandas = pd.read_csv(io.StringIO(content))
-        if use_pandas:
-            return df_pandas
-        return pl.from_pandas(df_pandas)
+    if format != "json":
+        raise ValueError(f"Only JSON format is supported. Got: {format}")
+
+    # Parse JSON and extract scheduling blocks
+    data = json_module.loads(content)
+    # Handle different JSON structures
+    if "SchedulingBlock" in data:
+        blocks = data["SchedulingBlock"]
+    elif "schedulingBlocks" in data:
+        blocks = data["schedulingBlocks"]
     else:
-        raise ValueError(f"Format {format} not supported for string loading")
+        blocks = data if isinstance(data, list) else [data]
+    
+    df_pandas = pd.DataFrame(blocks)
+    if use_pandas:
+        return df_pandas
+    return pl.from_pandas(df_pandas)
 
 
 def load_dark_periods(path: str | Path) -> pd.DataFrame:
@@ -145,7 +136,7 @@ def load_dark_periods(path: str | Path) -> pd.DataFrame:
 
 def load_schedule_from_any(
     source: str | Path | Any,
-    format: Literal["auto", "csv", "json"] = "auto",
+    format: Literal["auto", "json"] = "auto",
     use_pandas: bool = True,
 ) -> pd.DataFrame:
     """
@@ -156,7 +147,7 @@ def load_schedule_from_any(
 
     Args:
         source: File path (str/Path) or file-like object with read() method
-        format: File format ('auto', 'csv', or 'json'). Must be specified for buffers.
+        format: File format ('auto' or 'json'). Must be specified for buffers.
         use_pandas: If True, return pandas DataFrame.
 
     Returns:
@@ -173,9 +164,6 @@ def load_schedule_from_any(
             raise ValueError("Format must be specified when reading from a buffer")
         if format == "json":
             return cast(pd.DataFrame, load_schedule_from_string(content, format="json", use_pandas=use_pandas))
-        if format == "csv":
-            import io
-            return pd.read_csv(io.StringIO(content))
         raise ValueError(f"Unsupported format: {format}")
 
     return cast(pd.DataFrame, load_schedule_file(Path(source), format=format, use_pandas=use_pandas))
