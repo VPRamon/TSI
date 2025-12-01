@@ -1,7 +1,7 @@
 use crate::db::models::{
     EmpiricalRatePoint, HeatmapBin, SmoothedPoint, TrendsBlock, TrendsData, TrendsMetrics,
 };
-use crate::db::operations;
+use crate::db::{analytics, operations};
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
@@ -397,6 +397,7 @@ pub fn compute_trends_data(
 }
 
 /// Get complete trends data with computed analytics.
+/// Uses pre-computed analytics table when available for ~10-100x faster performance.
 pub async fn get_trends_data(
     schedule_id: i64,
     filter_impossible: bool,
@@ -404,7 +405,14 @@ pub async fn get_trends_data(
     bandwidth: f64,
     n_smooth_points: usize,
 ) -> Result<TrendsData, String> {
-    let mut blocks = operations::fetch_trends_blocks(schedule_id).await?;
+    // Try analytics table first (much faster - no JOINs, pre-computed metrics)
+    let mut blocks = match analytics::fetch_analytics_blocks_for_trends(schedule_id).await {
+        Ok(b) if !b.is_empty() => b,
+        Ok(_) | Err(_) => {
+            // Fall back to operations table if analytics not populated
+            operations::fetch_trends_blocks(schedule_id).await?
+        }
+    };
 
     // Apply impossible filter if requested
     if filter_impossible {
