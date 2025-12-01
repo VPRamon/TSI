@@ -165,6 +165,61 @@ pub fn py_get_distribution_data(
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
+/// Get distribution data using only the legacy join path.
+/// This is provided for explicit data source selection.
+#[pyfunction]
+pub fn py_get_distribution_data_legacy(
+    schedule_id: i64,
+    filter_impossible: bool,
+) -> PyResult<DistributionData> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    runtime
+        .block_on(get_distribution_data_legacy(schedule_id, filter_impossible))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+/// Get distribution data using only the analytics table.
+/// This is provided for explicit data source selection.
+/// Returns an error if analytics data is not available.
+#[pyfunction]
+pub fn py_get_distribution_data_analytics(
+    schedule_id: i64,
+    filter_impossible: bool,
+) -> PyResult<DistributionData> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    let blocks = runtime
+        .block_on(async {
+            analytics::fetch_analytics_blocks_for_distribution(schedule_id).await
+        })
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
+
+    if blocks.is_empty() {
+        return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+            format!("No analytics data available for schedule_id={}", schedule_id)
+        ));
+    }
+
+    let mut filtered_blocks = blocks;
+    if filter_impossible {
+        filtered_blocks.retain(|b| b.total_visibility_hours > 0.0);
+    }
+
+    compute_distribution_data(filtered_blocks)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
