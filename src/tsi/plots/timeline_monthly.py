@@ -72,12 +72,15 @@ def build_monthly_timeline(
         # Convert dark periods to DataFrame-like structure for compatibility
         dark_df = _dark_periods_to_dataframe(dark_periods)
         
-        # Add light periods (inverted from dark periods)
-        light_segments = _invert_to_light_periods(dark_df)
+        # Split dark periods by month boundaries FIRST
+        dark_segments = _split_dark_periods_by_month(dark_df)
+        
+        # Then invert the SPLIT dark segments to get light periods
+        # This ensures light/dark boundaries align properly
+        light_segments = _invert_to_light_periods_from_segments(dark_segments, ordered_months)
         _add_light_period_traces(fig, light_segments, month_to_position)
 
         # Add dark periods (observable times)
-        dark_segments = _split_dark_periods_by_month(dark_df)
         _add_dark_period_traces(fig, dark_segments, month_to_position)
 
     # Add observation traces
@@ -503,6 +506,88 @@ def _split_dark_periods_by_month(
     return segments
 
 
+def _invert_to_light_periods_from_segments(
+    dark_segments: list[tuple[str, pd.Timestamp, pd.Timestamp]],
+    ordered_months: list[str],
+) -> list[tuple[str, pd.Timestamp, pd.Timestamp]]:
+    """
+    Invert dark (observable) periods to obtain light (non-observable) periods.
+    
+    This function works with ALREADY SPLIT dark segments (split by month boundaries),
+    ensuring that light and dark periods align properly without overlaps.
+
+    Args:
+        dark_segments: List of (month_label, start, stop) tuples for dark periods (already split by month)
+        ordered_months: List of all month labels to process
+
+    Returns:
+        List of tuples: (month_label, start, stop) for each light period
+    """
+    import calendar
+    
+    light_segments: list[tuple[str, pd.Timestamp, pd.Timestamp]] = []
+
+    # Group dark segments by month
+    dark_by_month: dict[str, list[tuple[pd.Timestamp, pd.Timestamp]]] = {}
+    for month_label, seg_start, seg_stop in dark_segments:
+        if month_label not in dark_by_month:
+            dark_by_month[month_label] = []
+        dark_by_month[month_label].append((seg_start, seg_stop))
+    
+    # Sort dark periods within each month
+    for month_label in dark_by_month:
+        dark_by_month[month_label].sort(key=lambda x: x[0])
+
+    # For each month, find gaps between dark periods
+    for month_label in ordered_months:
+        year, month = map(int, month_label.split("-"))
+        month_start = pd.Timestamp(year=year, month=month, day=1, hour=0, minute=0, tz="UTC")
+        
+        # Compute the last instant of the current month
+        last_day = calendar.monthrange(year, month)[1]
+        month_end = pd.Timestamp(year=year, month=month, day=last_day, hour=23, minute=59, second=59, microsecond=999999, tz="UTC")
+
+        # Get dark periods for this month (may be empty)
+        dark_periods_in_month = dark_by_month.get(month_label, [])
+
+        if not dark_periods_in_month:
+            # No dark periods in this month - entire month is light
+            light_segments.append((month_label, month_start, month_end))
+            continue
+
+        # Create light periods between dark periods
+        # Note: We add 1 microsecond gaps to avoid overlaps
+        
+        # 1. Gap from start of month to first dark period
+        first_dark_start = dark_periods_in_month[0][0]
+        if month_start < first_dark_start:
+            # End light period 1 microsecond before dark period starts
+            light_end = first_dark_start - pd.Timedelta(microseconds=1)
+            light_segments.append((month_label, month_start, light_end))
+
+        # 2. Gaps between consecutive dark periods
+        for i in range(len(dark_periods_in_month) - 1):
+            current_dark_end = dark_periods_in_month[i][1]
+            next_dark_start = dark_periods_in_month[i + 1][0]
+
+            if current_dark_end < next_dark_start:
+                # Start light period 1 microsecond after dark period ends
+                # End light period 1 microsecond before next dark period starts
+                light_start = current_dark_end + pd.Timedelta(microseconds=1)
+                light_end = next_dark_start - pd.Timedelta(microseconds=1)
+                if light_start < light_end:
+                    light_segments.append((month_label, light_start, light_end))
+
+        # 3. Gap from last dark period to end of month
+        last_dark_end = dark_periods_in_month[-1][1]
+        if last_dark_end < month_end:
+            # Start light period 1 microsecond after dark period ends
+            light_start = last_dark_end + pd.Timedelta(microseconds=1)
+            light_segments.append((month_label, light_start, month_end))
+
+    return light_segments
+
+
 def _invert_to_light_periods(
     dark_df: pd.DataFrame,
 ) -> list[tuple[str, pd.Timestamp, pd.Timestamp]]:
@@ -535,14 +620,13 @@ def _invert_to_light_periods(
             continue
 
         # Get month boundaries
+        import calendar
         year, month = map(int, month_label.split("-"))
         month_start = pd.Timestamp(year=year, month=month, day=1, hour=0, minute=0, tz="UTC")
 
-        # Compute the first instant of the next month
-        if month == 12:
-            month_end = pd.Timestamp(year=year + 1, month=1, day=1, hour=0, minute=0, tz="UTC")
-        else:
-            month_end = pd.Timestamp(year=year, month=month + 1, day=1, hour=0, minute=0, tz="UTC")
+        # Compute the last instant of the current month (not the first instant of next month)
+        last_day = calendar.monthrange(year, month)[1]
+        month_end = pd.Timestamp(year=year, month=month, day=last_day, hour=23, minute=59, second=59, microsecond=999999, tz="UTC")
 
         # Collect all dark periods of the month in order
         dark_periods_in_month = []
@@ -559,10 +643,14 @@ def _invert_to_light_periods(
             continue
 
         # Create light periods between dark periods
+        # Note: We subtract 1 microsecond from light period ends to avoid overlap with dark period starts
+        
         # 1. Gap from the start of the month to the first dark period
         first_dark_start = dark_periods_in_month[0][0]
         if month_start < first_dark_start:
-            light_segments.append((month_label, month_start, first_dark_start))
+            # End light period 1 microsecond before dark period starts
+            light_end = first_dark_start - pd.Timedelta(microseconds=1)
+            light_segments.append((month_label, month_start, light_end))
 
         # 2. Gaps between consecutive dark periods
         for i in range(len(dark_periods_in_month) - 1):
@@ -570,12 +658,19 @@ def _invert_to_light_periods(
             next_dark_start = dark_periods_in_month[i + 1][0]
 
             if current_dark_end < next_dark_start:
-                light_segments.append((month_label, current_dark_end, next_dark_start))
+                # Start light period 1 microsecond after dark period ends
+                # End light period 1 microsecond before next dark period starts
+                light_start = current_dark_end + pd.Timedelta(microseconds=1)
+                light_end = next_dark_start - pd.Timedelta(microseconds=1)
+                if light_start < light_end:
+                    light_segments.append((month_label, light_start, light_end))
 
         # 3. Gap from the last dark period to the end of the month
         last_dark_end = dark_periods_in_month[-1][1]
         if last_dark_end < month_end:
-            light_segments.append((month_label, last_dark_end, month_end))
+            # Start light period 1 microsecond after dark period ends
+            light_start = last_dark_end + pd.Timedelta(microseconds=1)
+            light_segments.append((month_label, light_start, month_end))
 
     return light_segments
 
@@ -584,20 +679,32 @@ def _iter_month_segments(
     start_dt: pd.Timestamp, stop_dt: pd.Timestamp
 ) -> list[tuple[str, pd.Timestamp, pd.Timestamp]]:
     """Yield (month, start, stop) segments clipped to month boundaries."""
+    import calendar
     segments: list[tuple[str, pd.Timestamp, pd.Timestamp]] = []
     current_start = start_dt
 
     while current_start < stop_dt:
         month_label = current_start.strftime("%Y-%m")
-        next_month_start = _start_of_next_month(current_start)
-        month_end = min(stop_dt, next_month_start - pd.Timedelta(seconds=1))
+        # Get the last moment of the current month
+        last_day = calendar.monthrange(current_start.year, current_start.month)[1]
+        month_last_moment = pd.Timestamp(
+            year=current_start.year,
+            month=current_start.month,
+            day=last_day,
+            hour=23,
+            minute=59,
+            second=59,
+            microsecond=999999,
+            tz=current_start.tzinfo or "UTC"
+        )
+        month_end = min(stop_dt, month_last_moment)
 
         segments.append((month_label, current_start, month_end))
 
         if month_end >= stop_dt:
             break
 
-        current_start = next_month_start
+        current_start = _start_of_next_month(current_start)
 
     return segments
 
