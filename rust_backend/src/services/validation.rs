@@ -428,8 +428,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
         let constraint_duration_days = stop_mjd - start_mjd;
         let constraint_duration_hours = constraint_duration_days * 24.0;
         let requested_hours = block.requested_duration_sec as f64 / 3600.0;
+        // Add small tolerance to account for floating point precision (0.001 hours = 3.6 seconds)
+        let tolerance_hours = 0.001;
 
-        if constraint_duration_hours < requested_hours {
+        if constraint_duration_hours + tolerance_hours < requested_hours {
             results.push(ValidationResult::error(
                 block.schedule_id,
                 block.scheduling_block_id,
@@ -469,9 +471,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
         let scheduled_duration_days = sched_stop - sched_start;
         let scheduled_duration_hours = scheduled_duration_days * 24.0;
         let requested_hours = block.requested_duration_sec as f64 / 3600.0;
+        // Allow 1% tolerance for rounding and scheduler flexibility
+        let tolerance_factor = 1.01;
 
-        if scheduled_duration_hours > requested_hours * 1.01 {
-            // Allow 1% tolerance
+        if scheduled_duration_hours > requested_hours * tolerance_factor {
             results.push(ValidationResult::warning(
                 block.schedule_id,
                 block.scheduling_block_id,
@@ -490,8 +493,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
         // Check 17: Scheduled period outside time constraint
         if let (Some(constraint_start), Some(constraint_stop)) = 
             (block.constraint_start_mjd, block.constraint_stop_mjd) {
+            // Add small epsilon tolerance for floating point comparisons (0.0001 days ≈ 8.64 seconds)
+            let epsilon = 0.0001;
             
-            if sched_start < constraint_start || sched_stop > constraint_stop {
+            if sched_start < constraint_start - epsilon || sched_stop > constraint_stop + epsilon {
                 results.push(ValidationResult::error(
                     block.schedule_id,
                     block.scheduling_block_id,
