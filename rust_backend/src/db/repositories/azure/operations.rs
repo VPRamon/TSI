@@ -315,12 +315,12 @@ impl<'a> ScheduleInserter<'a> {
                 ));
             }
 
-            // Bulk INSERT with OUTPUT to get all scheduling_block_ids
+            // Bulk INSERT with OUTPUT to get all scheduling_block_ids AND original_block_id for proper matching
             let sql = format!(
                 r#"
                 INSERT INTO dbo.scheduling_blocks 
                     (target_id, constraints_id, priority, min_observation_sec, requested_duration_sec, visibility_periods_json, original_block_id)
-                OUTPUT inserted.scheduling_block_id
+                OUTPUT inserted.scheduling_block_id, inserted.original_block_id
                 VALUES {}
                 "#,
                 values_clauses.join(", ")
@@ -353,20 +353,31 @@ impl<'a> ScheduleInserter<'a> {
                 .await
                 .map_err(|e| format!("Failed to read bulk insert results: {e}"))?;
 
-            // Now link all blocks to schedule
-            let mut sb_ids: Vec<i64> = Vec::new();
+            // Build a map from original_block_id to scheduling_block_id for proper matching
+            use std::collections::HashMap;
+            let mut id_map: HashMap<Option<String>, i64> = HashMap::new();
             for row in rows {
                 let sb_id: i64 = row
                     .get::<i64, _>(0)
                     .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-                sb_ids.push(sb_id);
+                let original_id: Option<&str> = row.get(1);
+                id_map.insert(original_id.map(|s| s.to_string()), sb_id);
             }
 
-            // Bulk insert into schedule_scheduling_blocks
+            // Bulk insert into schedule_scheduling_blocks using the mapping to ensure correct pairing
             let mut link_values = Vec::new();
             let mut link_params = Vec::new();
 
-            for (i, (block, sb_id)) in chunk.iter().zip(sb_ids.iter()).enumerate() {
+            for (i, block) in chunk.iter().enumerate() {
+                // Look up the correct scheduling_block_id using original_block_id
+                let sb_id = id_map
+                    .get(&block.original_block_id)
+                    .ok_or_else(|| {
+                        format!(
+                            "Failed to find scheduling_block_id for original_block_id: {:?}",
+                            block.original_block_id
+                        )
+                    })?;
                 let (start_mjd, stop_mjd) = if let Some(period) = &block.scheduled_period {
                     (Some(period.start.value()), Some(period.stop.value()))
                 } else {
