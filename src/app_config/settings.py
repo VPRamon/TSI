@@ -170,13 +170,7 @@ class Settings(BaseSettings):
     )
     use_analytics_table: bool = Field(
         default=True,
-        description="Use pre-computed analytics table for improved query performance",
-    )
-    
-    # ===== Database Migration Configuration =====
-    data_source: str = Field(
-        default="legacy",
-        description="Data source for database operations: 'legacy' (normalized tables) or 'etl' (analytics tables)",
+        description="Use pre-computed analytics table for improved query performance (ETL)",
     )
 
     model_config = SettingsConfigDict(
@@ -192,15 +186,6 @@ class Settings(BaseSettings):
         """Convert string paths to Path objects."""
         if isinstance(v, str):
             return Path(v)
-        return v
-
-    @field_validator("data_source")
-    @classmethod
-    def validate_data_source(cls, v: str) -> str:
-        """Validate data_source is either 'legacy' or 'etl'."""
-        v = v.lower()
-        if v not in ("legacy", "etl"):
-            raise ValueError(f"data_source must be 'legacy' or 'etl', got '{v}'")
         return v
 
     def get_database_url(self) -> Optional[str]:
@@ -268,6 +253,6 @@ def get_settings() -> Settings:
     logger.info(f"Data root: {settings.data_root}")
     logger.info(f"Cache TTL: {settings.cache_ttl}s")
     logger.info(f"Rust backend enabled: {settings.enable_rust_backend}")
-    logger.info(f"Data source: {settings.data_source}")
+    logger.info(f"Using ETL analytics tables for all database operations")
     
     return settings

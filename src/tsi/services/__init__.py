@@ -30,20 +30,16 @@ from tsi.services.database import (
 )
 
 # ============================================================================
-# Data Source Orchestration (Legacy / ETL routing)
+# ETL Data Access Layer
 # ============================================================================
-from tsi.services.data_source import (
-    get_sky_map_data_unified,
-    get_sky_map_data_legacy,
-    get_sky_map_data_etl,
-    get_distribution_data_unified,
-    get_distribution_data_legacy,
-    get_distribution_data_etl,
-    get_schedule_timeline_data_unified,
-    get_insights_data_unified,
-    get_trends_data_unified,
-    get_compare_data_unified,
-    get_visibility_map_data_unified,
+from tsi.services.data_access import (
+    get_sky_map_data as get_sky_map_data_etl,
+    get_distribution_data as get_distribution_data_etl,
+    get_schedule_timeline_data,
+    get_insights_data,
+    get_trends_data,
+    get_compare_data,
+    get_visibility_map_data as get_visibility_map_data_etl,
 )
 
 # ============================================================================
@@ -123,18 +119,14 @@ __all__ = [
     "get_visibility_map_data",
     "get_distribution_data",
     "get_sky_map_data",
-    # Data Source Orchestration (for migration phase)
-    "get_sky_map_data_unified",
-    "get_sky_map_data_legacy",
+    # ETL Data Access
     "get_sky_map_data_etl",
-    "get_distribution_data_unified",
-    "get_distribution_data_legacy",
     "get_distribution_data_etl",
-    "get_schedule_timeline_data_unified",
-    "get_insights_data_unified",
-    "get_trends_data_unified",
-    "get_compare_data_unified",
-    "get_visibility_map_data_unified",
+    "get_visibility_map_data_etl",
+    "get_schedule_timeline_data",
+    "get_insights_data",
+    "get_trends_data",
+    "get_compare_data",
     # Data
     "load_csv",
     "prepare_dataframe",

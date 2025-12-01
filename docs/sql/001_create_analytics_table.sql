@@ -55,9 +55,9 @@ CREATE TABLE analytics.schedule_blocks_analytics (
     min_azimuth_deg FLOAT NULL,
     max_azimuth_deg FLOAT NULL,
     
-    -- Fixed Time Constraint (from dbo.constraints)
-    fixed_time_start_mjd FLOAT NULL,
-    fixed_time_stop_mjd FLOAT NULL,
+    -- Constraint Time Window (from dbo.constraints)
+    constraint_start_mjd FLOAT NULL,
+    constraint_stop_mjd FLOAT NULL,
     
     -- Scheduling Status (from dbo.schedule_scheduling_blocks)
     is_scheduled BIT NOT NULL DEFAULT 0,
@@ -155,8 +155,8 @@ BEGIN
         max_altitude_deg,
         min_azimuth_deg,
         max_azimuth_deg,
-        fixed_time_start_mjd,
-        fixed_time_stop_mjd,
+        constraint_start_mjd,
+        constraint_stop_mjd,
         is_scheduled,
         scheduled_start_mjd,
         scheduled_stop_mjd,
@@ -183,8 +183,8 @@ BEGIN
         ac.max_alt_deg,
         azc.min_az_deg,
         azc.max_az_deg,
-        c.fixed_time_start_mjd,
-        c.fixed_time_stop_mjd,
+        c.start_time_mjd as constraint_start_mjd,
+        c.stop_time_mjd as constraint_stop_mjd,
         CASE WHEN ssb.start_time_mjd IS NOT NULL THEN 1 ELSE 0 END,
         ssb.start_time_mjd,
         ssb.stop_time_mjd,
