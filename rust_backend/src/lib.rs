@@ -8,7 +8,7 @@
 //!
 //! ## Features
 //!
-//! - **Data Loading**: Parse observation schedules from JSON and CSV formats
+//! - **Data Loading**: Parse observation schedules from JSON format
 //! - **Preprocessing**: Validate, enrich, and transform scheduling data
 //! - **Analysis**: Compute metrics, correlations, and identify scheduling conflicts
 //! - **Optimization**: Greedy scheduling algorithms for observation planning
@@ -20,7 +20,7 @@
 //! The crate is organized into several logical modules:
 //!
 //! - [`core`]: Domain models for scheduling blocks and time periods
-//! - [`parsing`]: JSON/CSV parsers and visibility period handling
+//! - [`parsing`]: JSON parsers and visibility period handling
 //! - [`preprocessing`]: Data validation, enrichment, and pipeline orchestration
 //! - [`algorithms`]: Analytics, conflict detection, and optimization routines
 //! - [`transformations`]: Data transformation utilities
@@ -81,10 +81,9 @@ pub mod transformations;
 /// - `parse_visibility_periods`: Parse visibility period strings
 ///
 /// ## Data Loading Functions
-/// - `load_schedule`: Auto-detect and load schedule from JSON or CSV
+/// - `load_schedule`: Load schedule from JSON file
 /// - `load_schedule_from_json`: Load schedule from JSON file
 /// - `load_schedule_from_json_str`: Load schedule from JSON string
-/// - `load_schedule_from_csv`: Load schedule from CSV file
 /// - `load_schedule_from_iteration`: Load schedule from iteration directory
 /// - `load_dark_periods`: Load dark period constraints
 ///

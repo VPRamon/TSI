@@ -29,21 +29,21 @@ def get_project_root() -> Path:
 sys.path.insert(0, str(get_project_root() / "src"))
 
 
-def load_csv(csv_path: Path) -> pd.DataFrame:
+def load_json(csv_path: Path) -> pd.DataFrame:
     """Simple CSV loader."""
-    return pd.read_csv(csv_path)
+    return pd.read_json(csv_path)
 
 
 def benchmark_strategies():
     """Compare the 3 visibility parsing strategies."""
-    csv_path = Path("data/schedule.csv")
+    csv_path = Path("data/schedule.json")
 
     print("🎯 Visibility Parsing Strategy Benchmark")
     print("=" * 70)
 
     # Load raw data
     print("\n📂 Loading raw CSV...")
-    raw_df = load_csv(csv_path)
+    raw_df = load_json(csv_path)
     print(f"   Loaded {len(raw_df):,} rows, {len(raw_df.columns)} columns")
 
     # Strategy 1: Landing page (no parsing)

@@ -90,7 +90,7 @@ class Settings(BaseSettings):
         description="Base directory for data files",
     )
     sample_dataset: Path = Field(
-        default=Path("data") / "schedule.csv",
+        default=Path("data") / "schedule.json",
         description="Default sample schedule dataset path",
     )
     artifacts_dir: Path = Field(

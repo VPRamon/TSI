@@ -15,7 +15,7 @@ from tsi.services.data.analytics import (
     generate_insights,
     get_top_observations,
 )
-from tsi.services.data.loaders import load_csv, prepare_dataframe
+from tsi.services.data.loaders import load_json, prepare_dataframe
 
 pytestmark = pytest.mark.unit
 
@@ -56,7 +56,7 @@ def prepared_dataframe(streamlit_mock: None) -> pd.DataFrame:
         "1000005,9.8,1000,1000,,,45.0,295.0,0.0,360.0,70.0,90.0,61896.15,61896.16,"
         '"[(61896.14, 61896.17)]",1,96.0,High (7-10),True,0.2777777778,20.0\n'
     )
-    df = load_csv(StringIO(csv_data))
+    df = load_json(StringIO(csv_data))
     return prepare_dataframe(df)
 
 

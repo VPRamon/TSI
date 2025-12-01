@@ -13,16 +13,16 @@ This script is kept for reference but may require updates to work with current c
 
 Original Usage:
     # Process a single schedule JSON file
-    python preprocess_schedules.py --schedule data/schedule.json --output data/schedule.csv
+    python preprocess_schedules.py --schedule data/schedule.json --output data/schedule.json
     
     # Process with visibility/possible periods data
-    python preprocess_schedules.py --schedule data/schedule.json --visibility data/possible_periods.json --output data/schedule.csv
+    python preprocess_schedules.py --schedule data/schedule.json --visibility data/possible_periods.json --output data/schedule.json
     
     # Batch process multiple schedule files in a directory
     python preprocess_schedules.py --batch-dir data/schedules --output-dir data/preprocessed
     
     # Process with validation disabled (faster but not recommended)
-    python preprocess_schedules.py --schedule data/schedule.json --output data/schedule.csv --no-validate
+    python preprocess_schedules.py --schedule data/schedule.json --output data/schedule.json --no-validate
     
     # Batch process with pattern matching
     python preprocess_schedules.py --batch-dir data/schedules --pattern "schedule_*.json" --output-dir data/preprocessed
@@ -167,8 +167,8 @@ def batch_process(
     failed = 0
     
     for schedule_file in sorted(schedule_files):
-        # Determine output path
-        output_name = schedule_file.stem + '.csv'
+        # Determine output path - keep as JSON
+        output_name = schedule_file.stem + '.json'
         output_path = output_dir / output_name
         
         # Try to find matching visibility file

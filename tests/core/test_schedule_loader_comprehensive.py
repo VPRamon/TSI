@@ -329,7 +329,7 @@ class TestLoadScheduleFromCsv:
         self, tmp_path: Path, valid_csv_content: str
     ) -> None:
         """Load from valid CSV file."""
-        csv_file = tmp_path / "schedule.csv"
+        csv_file = tmp_path / "schedule.json"
         csv_file.write_text(valid_csv_content)
 
         result = load_schedule_from_csv(csv_file)
@@ -355,7 +355,7 @@ class TestLoadScheduleFromCsv:
         self, tmp_path: Path, csv_with_visibility_string: str
     ) -> None:
         """Parse visibility column from string representation."""
-        csv_file = tmp_path / "schedule.csv"
+        csv_file = tmp_path / "schedule.json"
         csv_file.write_text(csv_with_visibility_string)
 
         result = load_schedule_from_csv(csv_file)
@@ -370,7 +370,7 @@ class TestLoadScheduleFromCsv:
         csv_content = """schedulingBlockId,priority,requestedDurationSec,scheduled_period.start,scheduled_period.stop,scheduled_flag,visibility
 SB001,5.0,3600.0,,,False,"invalid{string"
 """
-        csv_file = tmp_path / "schedule.csv"
+        csv_file = tmp_path / "schedule.json"
         csv_file.write_text(csv_content)
 
         result = load_schedule_from_csv(csv_file)
@@ -383,7 +383,7 @@ SB001,5.0,3600.0,,,False,"invalid{string"
         csv_content = """schedulingBlockId,priority,requestedDurationSec,scheduled_period.start,scheduled_period.stop,scheduled_flag,visibility
 SB001,5.0,3600.0,,,False,
 """
-        csv_file = tmp_path / "schedule.csv"
+        csv_file = tmp_path / "schedule.json"
         csv_file.write_text(csv_content)
 
         result = load_schedule_from_csv(csv_file)
@@ -394,7 +394,7 @@ SB001,5.0,3600.0,,,False,
         self, tmp_path: Path, csv_missing_required_columns: str
     ) -> None:
         """Validation fails when required columns missing."""
-        csv_file = tmp_path / "schedule.csv"
+        csv_file = tmp_path / "schedule.json"
         csv_file.write_text(csv_missing_required_columns)
 
         result = load_schedule_from_csv(csv_file, validate=True)
@@ -405,7 +405,7 @@ SB001,5.0,3600.0,,,False,
         self, tmp_path: Path, valid_csv_content: str
     ) -> None:
         """Skip validation when validate=False."""
-        csv_file = tmp_path / "schedule.csv"
+        csv_file = tmp_path / "schedule.json"
         csv_file.write_text(valid_csv_content)
 
         result = load_schedule_from_csv(csv_file, validate=False)
@@ -415,7 +415,7 @@ SB001,5.0,3600.0,,,False,
         self, tmp_path: Path, valid_csv_content: str
     ) -> None:
         """Compute scheduled/unscheduled stats."""
-        csv_file = tmp_path / "schedule.csv"
+        csv_file = tmp_path / "schedule.json"
         csv_file.write_text(valid_csv_content)
 
         result = load_schedule_from_csv(csv_file)

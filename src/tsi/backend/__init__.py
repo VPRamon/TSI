@@ -12,12 +12,12 @@ TSI scheduling backend. It is organized into modules by concern:
 Example:
     >>> from tsi.backend import TSIBackend
     >>> backend = TSIBackend()
-    >>> df = backend.load_schedule("data/schedule.csv")
+    >>> df = backend.load_schedule("data/schedule.json")
     >>> metrics = backend.compute_metrics(df)
 
 Or using the functional API:
     >>> from tsi.backend import load_schedule_file, compute_metrics
-    >>> df = load_schedule_file("data/schedule.csv")
+    >>> df = load_schedule_file("data/schedule.json")
     >>> metrics = compute_metrics(df)
 """
 

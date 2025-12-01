@@ -121,7 +121,7 @@ def test_csv_loading():
     df.to_csv(csv_path, index=False)
     
     # Now load it back
-    df_polars2 = tsi_rust.load_schedule_from_csv(csv_path)
+    df_polars2 = tsi_rust.load_schedule_from_json(csv_path)
     df2 = df_polars2.to_pandas()
     
     print(f"✅ Saved and reloaded {len(df2)} blocks")

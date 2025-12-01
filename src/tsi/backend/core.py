@@ -8,7 +8,7 @@ conversion, and coordination between the various backend operations.
 Example:
     >>> from tsi.backend import TSIBackend
     >>> backend = TSIBackend()
-    >>> df = backend.load_schedule("data/schedule.csv")
+    >>> df = backend.load_schedule("data/schedule.json")
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ class TSIBackend:
 
     Example:
         >>> backend = TSIBackend()
-        >>> df = backend.load_schedule("data/schedule.csv")
+        >>> df = backend.load_schedule("data/schedule.json")
         >>> metrics = backend.compute_metrics(df)
     """
 
@@ -85,7 +85,7 @@ class TSIBackend:
             DataFrame with scheduling blocks and derived columns
 
         Example:
-            >>> df = backend.load_schedule("data/schedule.csv")
+            >>> df = backend.load_schedule("data/schedule.json")
             >>> print(df.columns)
         """
         from tsi.backend.loaders import load_schedule_file

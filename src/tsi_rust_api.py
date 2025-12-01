@@ -17,7 +17,7 @@ Example:
     >>> backend = TSIBackend()
     >>>
     >>> # Load schedule data
-    >>> df = backend.load_schedule("data/schedule.csv")
+    >>> df = backend.load_schedule("data/schedule.json")
     >>> print(f"Loaded {len(df)} observations")
     >>>
     >>> # Compute analytics
