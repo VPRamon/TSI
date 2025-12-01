@@ -546,6 +546,185 @@ pub async fn fetch_analytics_blocks_for_distribution(
     Ok(blocks)
 }
 
+/// Fetch schedule timeline blocks from the analytics table.
+/// This is much faster than fetch_schedule_timeline_blocks as it avoids JOINs
+/// and uses pre-computed visibility metrics.
+pub async fn fetch_analytics_blocks_for_timeline(
+    schedule_id: i64,
+) -> Result<Vec<super::models::ScheduleTimelineBlock>, String> {
+    use super::models::ScheduleTimelineBlock;
+
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    // Only select scheduled blocks (where scheduled times exist)
+    let sql = r#"
+        SELECT 
+            scheduling_block_id,
+            priority,
+            scheduled_start_mjd,
+            scheduled_stop_mjd,
+            target_ra_deg,
+            target_dec_deg,
+            requested_hours,
+            total_visibility_hours,
+            visibility_period_count
+        FROM analytics.schedule_blocks_analytics
+        WHERE schedule_id = @P1
+          AND is_scheduled = 1
+          AND scheduled_start_mjd IS NOT NULL
+          AND scheduled_stop_mjd IS NOT NULL
+        ORDER BY scheduled_start_mjd
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch timeline blocks from analytics: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read timeline blocks: {e}"))?;
+
+    let mut blocks = Vec::with_capacity(rows.len());
+
+    for row in rows {
+        let scheduling_block_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+        let priority: f64 = row.get::<f64, _>(1).unwrap_or(0.0);
+        let scheduled_start_mjd: f64 = row
+            .get::<f64, _>(2)
+            .ok_or_else(|| "scheduled_start_mjd is NULL".to_string())?;
+        let scheduled_stop_mjd: f64 = row
+            .get::<f64, _>(3)
+            .ok_or_else(|| "scheduled_stop_mjd is NULL".to_string())?;
+        let ra_deg: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
+        let dec_deg: f64 = row.get::<f64, _>(5).unwrap_or(0.0);
+        let requested_hours: f64 = row.get::<f64, _>(6).unwrap_or(0.0);
+        let total_visibility_hours: f64 = row.get::<f64, _>(7).unwrap_or(0.0);
+        let visibility_period_count: i32 = row.get::<i32, _>(8).unwrap_or(0);
+
+        blocks.push(ScheduleTimelineBlock {
+            scheduling_block_id,
+            priority,
+            scheduled_start_mjd,
+            scheduled_stop_mjd,
+            ra_deg,
+            dec_deg,
+            requested_hours,
+            total_visibility_hours,
+            num_visibility_periods: visibility_period_count as usize,
+        });
+    }
+
+    debug!(
+        "Fetched {} timeline blocks from analytics for schedule_id={}",
+        blocks.len(),
+        schedule_id
+    );
+
+    Ok(blocks)
+}
+
+/// Fetch visibility map data from the analytics table.
+/// This is much faster than fetch_visibility_map_data as it avoids JOINs
+/// and JSON parsing, using pre-computed visibility metrics instead.
+pub async fn fetch_analytics_blocks_for_visibility_map(
+    schedule_id: i64,
+) -> Result<super::models::VisibilityMapData, String> {
+    use super::models::{VisibilityBlockSummary, VisibilityMapData};
+
+    let pool = pool::get_pool()?;
+    let mut conn = pool
+        .get()
+        .await
+        .map_err(|e| format!("Failed to get connection: {e}"))?;
+
+    let sql = r#"
+        SELECT 
+            scheduling_block_id,
+            priority,
+            visibility_period_count,
+            is_scheduled
+        FROM analytics.schedule_blocks_analytics
+        WHERE schedule_id = @P1
+        ORDER BY scheduling_block_id
+    "#;
+
+    let mut query = Query::new(sql);
+    query.bind(schedule_id);
+
+    let stream = query
+        .query(&mut *conn)
+        .await
+        .map_err(|e| format!("Failed to fetch visibility blocks from analytics: {e}"))?;
+
+    let rows = stream
+        .into_first_result()
+        .await
+        .map_err(|e| format!("Failed to read visibility blocks: {e}"))?;
+
+    let mut blocks = Vec::with_capacity(rows.len());
+    let mut priority_min = f64::INFINITY;
+    let mut priority_max = f64::NEG_INFINITY;
+    let mut scheduled_count = 0usize;
+
+    for row in rows {
+        let scheduling_block_id: i64 = row
+            .get::<i64, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+        let priority: f64 = row
+            .get::<f64, _>(1)
+            .ok_or_else(|| "priority is NULL".to_string())?;
+        let num_visibility_periods: i32 = row.get::<i32, _>(2).unwrap_or(0);
+        let scheduled: bool = row.get::<bool, _>(3).unwrap_or(false);
+
+        if scheduled {
+            scheduled_count += 1;
+        }
+
+        priority_min = priority_min.min(priority);
+        priority_max = priority_max.max(priority);
+
+        blocks.push(VisibilityBlockSummary {
+            scheduling_block_id,
+            priority,
+            num_visibility_periods: num_visibility_periods as usize,
+            scheduled,
+        });
+    }
+
+    // Handle empty datasets gracefully
+    if !priority_min.is_finite() {
+        priority_min = 0.0;
+    }
+    if !priority_max.is_finite() {
+        priority_max = 0.0;
+    }
+
+    debug!(
+        "Fetched {} visibility blocks from analytics for schedule_id={}",
+        blocks.len(),
+        schedule_id
+    );
+
+    Ok(VisibilityMapData {
+        total_count: blocks.len(),
+        blocks,
+        priority_min,
+        priority_max,
+        scheduled_count,
+    })
+}
+
 /// Check if analytics data exists for a schedule.
 pub async fn has_analytics_data(schedule_id: i64) -> Result<bool, String> {
     let pool = pool::get_pool()?;

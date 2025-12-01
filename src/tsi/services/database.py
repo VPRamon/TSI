@@ -590,6 +590,11 @@ def get_visibility_histogram(
     Returns a list of time bins with counts of visible scheduling blocks.
     This function offloads heavy computation to Rust and returns only
     the minimal JSON-serializable payload needed for visualization.
+    
+    Performance Note:
+        When no filters (priority_range, block_ids) are applied, uses pre-computed
+        analytics bins which is ~10-100x faster. With filters, falls back to
+        real-time computation which parses visibility JSON.
 
     Args:
         schedule_id: Schedule ID to analyze
@@ -622,12 +627,29 @@ def get_visibility_histogram(
     # Convert pandas timestamps to Unix timestamps
     start_unix = int(start.timestamp())
     end_unix = int(end.timestamp())
+    
+    # Try fast analytics path when no filters are applied
+    # (pre-computed bins are much faster but don't support filtering)
+    if priority_range is None and block_ids is None:
+        try:
+            result = _rust_call(
+                "py_get_visibility_histogram_analytics",
+                schedule_id,
+                start_unix,
+                end_unix,
+                bin_duration_minutes,
+            )
+            if result:
+                logger.debug(f"Using pre-computed visibility histogram for schedule {schedule_id}")
+                return result
+        except Exception as e:
+            logger.debug(f"Analytics histogram not available, falling back: {e}")
 
     # Extract priority min/max
     priority_min = priority_range[0] if priority_range else None
     priority_max = priority_range[1] if priority_range else None
 
-    # Call Rust backend
+    # Fall back to real-time computation (slower but supports filters)
     return _rust_call(
         "py_get_visibility_histogram",
         schedule_id,
