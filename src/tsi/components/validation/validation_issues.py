@@ -127,7 +127,10 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
     df["_sort_order"] = df["Criticality"].map(criticality_order)
     df = df.sort_values("_sort_order").drop("_sort_order", axis=1)
     
-    # Add emoji to criticality column
+    # Store original criticality for filtering before adding emojis
+    df["_criticality_plain"] = df["Criticality"]
+    
+    # Add emoji to criticality column for display
     df["Criticality"] = df["Criticality"].apply(
         lambda x: f"{_get_criticality_emoji(x)} {x}"
     )
@@ -136,11 +139,14 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
     col1, col2 = st.columns([1, 3])
     
     with col1:
-        # Filter by criticality
-        criticality_options = ["All"] + sorted(df["Criticality"].unique().tolist())
+        # Filter by criticality - use plain values for dropdown
+        criticality_plain_options = ["All", "Critical", "High", "Medium", "Low"]
+        # Only show options that exist in the data
+        available_options = ["All"] + [c for c in ["Critical", "High", "Medium", "Low"] 
+                                       if c in df["_criticality_plain"].values]
         selected_criticality = st.selectbox(
             "Filter by Criticality",
-            options=criticality_options,
+            options=available_options,
             key="criticality_filter"
         )
     
@@ -153,12 +159,15 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
             key="issue_type_filter"
         )
     
-    # Apply filters
+    # Apply filters using plain criticality
     filtered_df = df.copy()
     if selected_criticality != "All":
-        filtered_df = filtered_df[filtered_df["Criticality"] == selected_criticality]
+        filtered_df = filtered_df[filtered_df["_criticality_plain"] == selected_criticality]
     if selected_issue_type != "All":
         filtered_df = filtered_df[filtered_df["Issue Type"] == selected_issue_type]
+    
+    # Drop the helper column before display
+    filtered_df = filtered_df.drop("_criticality_plain", axis=1)
     
     # Show count
     st.info(f"Showing {len(filtered_df)} of {len(df)} issues")
