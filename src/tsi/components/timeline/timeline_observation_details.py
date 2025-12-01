@@ -112,7 +112,7 @@ def render_observation_details_table(blocks: list, filters: dict) -> pd.DataFram
                 },
                 na_rep="-",
             ),
-            use_container_width=True,
+            width='stretch',
             height=400,
             hide_index=True,
         )
