@@ -1,14 +1,31 @@
-//! Database module for Azure SQL Server integration.
+//! Database module for schedule data storage.
 //!
-//! This module provides connection pooling, health checks, and CRUD operations
-//! for schedule data storage in Azure SQL Server database.
+//! This module provides abstractions for database operations via the Repository pattern,
+//! allowing different storage backends to be swapped easily. It also maintains the legacy
+//! direct database access functions for backward compatibility.
+//!
+//! # Repository Pattern
+//! The module now includes:
+//! - `repository`: Trait definition for database operations
+//! - `repositories::azure`: Azure SQL Server implementation
+//! - `repositories::test`: In-memory mock for unit testing
+//!
+//! # Legacy Direct Access
+//! The existing database modules remain available for backward compatibility:
+//! - `operations`: Direct database CRUD operations
+//! - `analytics`: Analytics ETL operations
+//! - `validation`: Validation result storage
+//! - `pool`: Connection pooling
 
 pub mod analytics;
 pub mod checksum;
 pub mod config;
+pub mod factory;
 pub mod models;
 pub mod operations;
 pub mod pool;
+pub mod repository;
+pub mod repositories;
 pub mod validation;
 
 // Phase 1: Block-level analytics
@@ -41,3 +58,8 @@ pub use checksum::calculate_checksum;
 pub use config::{DbAuthMethod, DbConfig};
 pub use models::{ScheduleInfo, ScheduleMetadata};
 pub use pool::DbPool;
+
+// Repository pattern exports
+pub use repository::{RepositoryError, RepositoryResult, ScheduleRepository};
+pub use repositories::{AzureRepository, TestRepository};
+pub use factory::{RepositoryBuilder, RepositoryFactory, RepositoryType};
