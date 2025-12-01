@@ -6,7 +6,6 @@ from tsi import state
 from tsi.components.distributions.distributions_controls import render_filter_control
 from tsi.components.distributions.distributions_layout import render_figure_layout
 from tsi.components.distributions.distributions_stats import render_statistical_summary
-from tsi.components.shared.filters import render_exclude_impossible_checkbox
 from tsi.plots.distributions import build_figures
 from tsi.services.database import get_distribution_data
 
@@ -33,17 +32,10 @@ def render() -> None:
 
     schedule_id = int(schedule_id)
 
-    # Render filter control using shared component
-    with col2:
-        filter_impossible = render_exclude_impossible_checkbox(
-            help_text="Exclude observations with zero visibility hours"
-        )
-
     try:
         with st.spinner("Loading distribution data..."):
             distribution_data = get_distribution_data(
                 schedule_id=schedule_id,
-                filter_impossible=filter_impossible
             )
     except Exception as exc:
         st.error(f"Failed to load distribution data from the backend: {exc}")

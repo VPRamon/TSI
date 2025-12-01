@@ -97,9 +97,10 @@ pub fn compute_distribution_data(
 /// 
 /// This function retrieves blocks from the analytics.schedule_blocks_analytics table
 /// which contains pre-computed, denormalized data for optimal performance.
+/// 
+/// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 pub async fn get_distribution_data(
     schedule_id: i64,
-    filter_impossible: bool,
 ) -> Result<DistributionData, String> {
     let mut blocks = analytics::fetch_analytics_blocks_for_distribution(schedule_id).await?;
     
@@ -110,20 +111,19 @@ pub async fn get_distribution_data(
         ));
     }
 
-    // Apply impossible filter if requested
-    if filter_impossible {
-        blocks.retain(|b| b.total_visibility_hours > 0.0);
-    }
+    // Filter out impossible blocks (zero visibility)
+    blocks.retain(|b| b.total_visibility_hours > 0.0);
 
     compute_distribution_data(blocks)
 }
 
 /// Get complete distribution data with computed statistics and metadata.
 /// This is the main Python-callable function for the distributions feature.
+/// 
+/// **Note**: Impossible blocks are automatically excluded.
 #[pyfunction]
 pub fn py_get_distribution_data(
     schedule_id: i64,
-    filter_impossible: bool,
 ) -> PyResult<DistributionData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
@@ -133,7 +133,7 @@ pub fn py_get_distribution_data(
     })?;
 
     runtime
-        .block_on(get_distribution_data(schedule_id, filter_impossible))
+        .block_on(get_distribution_data(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
@@ -141,9 +141,8 @@ pub fn py_get_distribution_data(
 #[pyfunction]
 pub fn py_get_distribution_data_analytics(
     schedule_id: i64,
-    filter_impossible: bool,
 ) -> PyResult<DistributionData> {
-    py_get_distribution_data(schedule_id, filter_impossible)
+    py_get_distribution_data(schedule_id)
 }
 
 #[cfg(test)]

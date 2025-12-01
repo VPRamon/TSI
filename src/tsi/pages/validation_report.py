@@ -18,6 +18,9 @@ def render() -> None:
         """
         Review data quality issues, impossible scheduling blocks, and validation warnings
         to understand potential problems in the uploaded schedule.
+        
+        **Note:** Validation is performed automatically during schedule upload as part of the ETL process.
+        Impossible blocks (zero/insufficient visibility) are automatically excluded from analytics pages.
         """
     )
 
@@ -50,7 +53,19 @@ def render() -> None:
     
     if total_issues == 0:
         st.success("✅ All validation checks passed! No issues found in the schedule data.")
+        st.info(
+            "ℹ️ All blocks in this schedule passed validation. "
+            "No impossible blocks were found, and all data is clean."
+        )
         return
+    
+    # Show info about filtering
+    impossible_count = len(validation_data.get("impossible_blocks", []))
+    if impossible_count > 0:
+        st.warning(
+            f"⚠️ **{impossible_count} impossible block(s) found** and automatically excluded from analytics pages. "
+            "These blocks have zero visibility or insufficient visibility for the requested observation duration."
+        )
 
     # Show criticality statistics
     render_criticality_stats(validation_data)

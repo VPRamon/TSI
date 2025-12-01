@@ -32,6 +32,13 @@ PRINT '';
 GO
 
 -- Drop tables in correct order (respecting FK constraints)
+-- Must drop analytics tables FIRST since they reference dbo.schedules
+IF OBJECT_ID('analytics.schedule_validation_results', 'U') IS NOT NULL 
+    DROP TABLE analytics.schedule_validation_results;
+IF OBJECT_ID('analytics.schedule_blocks_analytics', 'U') IS NOT NULL 
+    DROP TABLE analytics.schedule_blocks_analytics;
+
+-- Now drop base schema tables
 IF OBJECT_ID('dbo.schedule_scheduling_blocks', 'U') IS NOT NULL 
     DROP TABLE dbo.schedule_scheduling_blocks;
 IF OBJECT_ID('dbo.visibility_periods', 'U') IS NOT NULL 
@@ -175,13 +182,7 @@ ELSE
     PRINT '  ✓ Schema exists: analytics';
 GO
 
--- Drop existing analytics table if it exists (for clean setup)
-IF OBJECT_ID('analytics.schedule_blocks_analytics', 'U') IS NOT NULL
-BEGIN
-    DROP TABLE analytics.schedule_blocks_analytics;
-    PRINT '  Dropped existing analytics.schedule_blocks_analytics';
-END
-GO
+-- Note: Analytics tables already dropped in Part 1 to respect FK dependencies
 
 -- ============================================================================
 -- Main Analytics Table: schedule_blocks_analytics
@@ -233,6 +234,9 @@ CREATE TABLE analytics.schedule_blocks_analytics (
     total_visibility_hours FLOAT NOT NULL DEFAULT 0.0,
     visibility_period_count INT NOT NULL DEFAULT 0,
     
+    -- Validation Results (set during ETL Phase 4 based on validation rules)
+    validation_impossible BIT NULL DEFAULT NULL,  -- Set to 1 if validation marks block as impossible
+    
     -- Metadata
     created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
     
@@ -282,6 +286,63 @@ CREATE INDEX IX_analytics_impossible
     ON analytics.schedule_blocks_analytics (schedule_id, total_visibility_hours)
     WHERE total_visibility_hours = 0;
 PRINT '  ✓ Created index: IX_analytics_impossible';
+GO
+
+-- ============================================================================
+-- Table: analytics.schedule_validation_results
+-- Stores validation results for each scheduling block after ETL processing
+-- ============================================================================
+
+CREATE TABLE analytics.schedule_validation_results (
+    id BIGINT IDENTITY(1,1) PRIMARY KEY,
+    schedule_id BIGINT NOT NULL,
+    scheduling_block_id BIGINT NOT NULL,
+    
+    -- Validation status
+    validation_status VARCHAR(20) NOT NULL,  -- 'valid', 'impossible', 'error', 'warning'
+    
+    -- Issue details
+    issue_type VARCHAR(100) NULL,
+    issue_category VARCHAR(50) NULL,  -- 'visibility', 'constraint', 'coordinate', 'priority', 'duration'
+    criticality VARCHAR(20) NULL,     -- 'Critical', 'High', 'Medium', 'Low'
+    
+    -- Field information
+    field_name VARCHAR(50) NULL,
+    current_value NVARCHAR(200) NULL,
+    expected_value NVARCHAR(200) NULL,
+    
+    -- Description
+    description NVARCHAR(MAX) NULL,
+    
+    -- Metadata
+    created_at DATETIME2 NOT NULL DEFAULT GETUTCDATE(),
+    
+    -- Foreign key to schedules
+    CONSTRAINT FK_validation_schedule FOREIGN KEY (schedule_id) 
+        REFERENCES dbo.schedules(schedule_id) ON DELETE CASCADE,
+    
+    -- Constraints
+    CONSTRAINT CHK_validation_status CHECK (validation_status IN ('valid', 'impossible', 'error', 'warning')),
+    CONSTRAINT CHK_criticality CHECK (criticality IN ('Critical', 'High', 'Medium', 'Low') OR criticality IS NULL)
+);
+PRINT '  ✓ Created table: analytics.schedule_validation_results';
+GO
+
+-- Index for primary access pattern: all validation results for a schedule
+CREATE INDEX IX_validation_schedule_id 
+    ON analytics.schedule_validation_results (schedule_id, validation_status)
+    INCLUDE (scheduling_block_id, issue_type, criticality);
+PRINT '  ✓ Created index: IX_validation_schedule_id';
+
+-- Index for querying by status
+CREATE INDEX IX_validation_status 
+    ON analytics.schedule_validation_results (schedule_id, validation_status, criticality);
+PRINT '  ✓ Created index: IX_validation_status';
+
+-- Index for querying by block
+CREATE INDEX IX_validation_block_id 
+    ON analytics.schedule_validation_results (scheduling_block_id, validation_status);
+PRINT '  ✓ Created index: IX_validation_block_id';
 GO
 
 -- ============================================================================
@@ -464,12 +525,12 @@ WHERE s.name = 'dbo' AND t.name IN (
 SELECT @analytics_tables = COUNT(*)
 FROM sys.tables t
 JOIN sys.schemas s ON t.schema_id = s.schema_id
-WHERE s.name = 'analytics' AND t.name = 'schedule_blocks_analytics';
+WHERE s.name = 'analytics' AND t.name IN ('schedule_blocks_analytics', 'schedule_validation_results');
 
 PRINT '  Base tables created: ' + CAST(@base_tables AS NVARCHAR(10)) + '/9';
-PRINT '  Analytics tables created: ' + CAST(@analytics_tables AS NVARCHAR(10)) + '/1';
+PRINT '  Analytics tables created: ' + CAST(@analytics_tables AS NVARCHAR(10)) + '/2';
 
-IF @base_tables = 9 AND @analytics_tables = 1
+IF @base_tables = 9 AND @analytics_tables = 2
 BEGIN
     PRINT '';
     PRINT '============================================================================';
@@ -487,6 +548,7 @@ BEGIN
     PRINT '   - dbo.visibility_periods';
     PRINT '   - dbo.schedule_dark_periods';
     PRINT '   - analytics.schedule_blocks_analytics';
+    PRINT '   - analytics.schedule_validation_results';
     PRINT '';
     PRINT ' Next Steps:';
     PRINT '   1. Configure connection in .env file';

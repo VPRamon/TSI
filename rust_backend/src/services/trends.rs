@@ -398,9 +398,10 @@ pub fn compute_trends_data(
 
 /// Get complete trends data with computed analytics.
 /// Uses pre-computed analytics table when available for ~10-100x faster performance.
+/// 
+/// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 pub async fn get_trends_data(
     schedule_id: i64,
-    filter_impossible: bool,
     n_bins: usize,
     bandwidth: f64,
     n_smooth_points: usize,
@@ -414,19 +415,18 @@ pub async fn get_trends_data(
         }
     };
 
-    // Apply impossible filter if requested
-    if filter_impossible {
-        blocks.retain(|b| b.total_visibility_hours > 0.0);
-    }
+    // Filter out impossible blocks (zero visibility)
+    blocks.retain(|b| b.total_visibility_hours > 0.0);
 
     compute_trends_data(blocks, n_bins, bandwidth, n_smooth_points)
 }
 
 /// Get complete trends data with computed analytics and metadata.
+/// 
+/// **Note**: Impossible blocks are automatically excluded.
 #[pyfunction]
 pub fn py_get_trends_data(
     schedule_id: i64,
-    filter_impossible: bool,
     n_bins: usize,
     bandwidth: f64,
     n_smooth_points: usize,
@@ -441,7 +441,6 @@ pub fn py_get_trends_data(
     runtime
         .block_on(get_trends_data(
             schedule_id,
-            filter_impossible,
             n_bins,
             bandwidth,
             n_smooth_points,

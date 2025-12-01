@@ -181,6 +181,9 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(services::py_get_trends_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_compare_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_compute_compare_data, m)?)?;
+    
+    // Validation report function
+    m.add_function(wrap_pyfunction!(services::py_get_validation_report, m)?)?;
 
     // Register classes (PyO3 data structures exposed to Python)
     m.add_class::<python::PyAnalyticsSnapshot>()?;
@@ -232,6 +235,10 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Phase 3: Visibility time bins classes
     m.add_class::<db::VisibilityTimeMetadata>()?;
     m.add_class::<db::VisibilityTimeBin>()?;
+    
+    // Validation report classes
+    m.add_class::<services::PyValidationIssue>()?;
+    m.add_class::<services::PyValidationReportData>()?;
 
     Ok(())
 }

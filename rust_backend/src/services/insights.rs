@@ -290,9 +290,11 @@ pub fn compute_insights_data(blocks: Vec<InsightsBlock>) -> Result<InsightsData,
 
 /// Get complete insights data with computed analytics.
 /// Uses pre-computed analytics table when available for ~10-100x faster performance.
+/// 
+/// **Note**: Impossible blocks (zero visibility) are automatically excluded during ETL.
+/// Validation results are stored separately and can be retrieved via py_get_validation_report.
 pub async fn get_insights_data(
     schedule_id: i64,
-    filter_impossible: bool,
 ) -> Result<InsightsData, String> {
     // Try analytics table first (much faster - no JOINs, pre-computed metrics)
     let mut blocks = match analytics::fetch_analytics_blocks_for_insights(schedule_id).await {
@@ -303,10 +305,9 @@ pub async fn get_insights_data(
         }
     };
 
-    // Apply impossible filter if requested
-    if filter_impossible {
-        blocks.retain(|b| b.total_visibility_hours > 0.0);
-    }
+    // Filter out impossible blocks (zero visibility)
+    // These are tracked in the validation results table
+    blocks.retain(|b| b.total_visibility_hours > 0.0);
 
     compute_insights_data(blocks)
 }
@@ -314,8 +315,11 @@ pub async fn get_insights_data(
 /// Get complete insights data with computed analytics and metadata.
 /// This is the main function for the insights feature, computing all analytics
 /// on the Rust side for maximum performance.
+/// 
+/// **Note**: Impossible blocks (zero visibility) are automatically excluded.
+/// To see validation issues, use py_get_validation_report.
 #[pyfunction]
-pub fn py_get_insights_data(schedule_id: i64, filter_impossible: bool) -> PyResult<InsightsData> {
+pub fn py_get_insights_data(schedule_id: i64) -> PyResult<InsightsData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -324,7 +328,7 @@ pub fn py_get_insights_data(schedule_id: i64, filter_impossible: bool) -> PyResu
     })?;
 
     runtime
-        .block_on(get_insights_data(schedule_id, filter_impossible))
+        .block_on(get_insights_data(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 

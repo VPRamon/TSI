@@ -8,10 +8,8 @@ from tsi.components.insights.insights_controls import render_filter_controls
 from tsi.components.insights.insights_metrics import render_key_metrics, render_priority_analysis
 from tsi.components.insights.insights_reports import render_report_downloads
 from tsi.components.insights.insights_tables import render_integrity_checks, render_top_observations
-from tsi.components.shared.filters import render_exclude_impossible_checkbox
 from tsi.services.data.analytics import generate_insights
 from tsi.services.database import get_insights_data
-
 
 def render() -> None:
     """Render the Insights & Conclusions page."""
@@ -36,17 +34,10 @@ def render() -> None:
 
     schedule_id = int(schedule_id)
 
-    # Render filter control using shared component
-    with col2:
-        filter_impossible = render_exclude_impossible_checkbox(
-            help_text="Exclude observations with zero visibility hours"
-        )
-
     try:
         with st.spinner("Loading insights data..."):
             insights_data = get_insights_data(
                 schedule_id=schedule_id,
-                filter_impossible=filter_impossible
             )
     except Exception as exc:
         st.error(f"Failed to load insights data from the backend: {exc}")

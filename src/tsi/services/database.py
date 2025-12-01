@@ -301,7 +301,6 @@ def get_visibility_map_data(
 def get_distribution_data(
     *,
     schedule_id: int,
-    filter_impossible: bool = False,
 ):
     """
     Get complete distribution data with computed statistics.
@@ -317,18 +316,20 @@ def get_distribution_data(
     - total_count, scheduled_count, unscheduled_count: Counts
     - impossible_count: Number of blocks with zero visibility
     
+    Note:
+        Impossible blocks (zero visibility) are automatically excluded during ETL.
+    
     All processing (querying, statistics computation) is done in Rust
     for maximum performance. The frontend just needs to plot the data.
     
     Args:
         schedule_id: Database ID of the schedule to load
-        filter_impossible: If True, excludes blocks with zero visibility hours
     
     Returns:
         DistributionData object with all required data and pre-computed statistics
     """
     from tsi.services.data_access import get_distribution_data as get_data
-    return get_data(schedule_id, filter_impossible)
+    return get_data(schedule_id)
 
 
 def get_schedule_timeline_data(
@@ -362,7 +363,6 @@ def get_schedule_timeline_data(
 def get_insights_data(
     *,
     schedule_id: int,
-    filter_impossible: bool = False,
 ):
     """
     Get complete insights data with computed analytics and metadata.
@@ -377,24 +377,25 @@ def get_insights_data(
     - conflicts: List of ConflictRecord objects for overlapping scheduled observations
     - total_count, scheduled_count, impossible_count: Summary statistics
     
+    Note:
+        Impossible blocks (zero visibility) are automatically excluded during ETL.
+    
     All processing (querying, analytics computation, correlations, conflict detection)
     is done in Rust for maximum performance. The frontend just needs to render the data.
     
     Args:
         schedule_id: Database ID of the schedule to load
-        filter_impossible: If True, excludes blocks with zero visibility hours
     
     Returns:
         InsightsData object with all required data and pre-computed analytics
     """
     from tsi.services.data_access import get_insights_data as get_data
-    return get_data(schedule_id, filter_impossible)
+    return get_data(schedule_id)
 
 
 def get_trends_data(
     *,
     schedule_id: int,
-    filter_impossible: bool = False,
     n_bins: int = 10,
     bandwidth: float = 0.3,
     n_smooth_points: int = 100,
@@ -414,12 +415,14 @@ def get_trends_data(
     - heatmap_bins: List of HeatmapBin objects for 2D visualization
     - priority_values: Unique priority values for filtering
     
+    Note:
+        Impossible blocks (zero visibility) are automatically excluded during ETL.
+    
     All processing (querying, binning, smoothing, heatmap computation) is done in Rust
     for maximum performance. The frontend just needs to render the data.
     
     Args:
         schedule_id: Database ID of the schedule to load
-        filter_impossible: If True, excludes blocks with zero visibility hours
         n_bins: Number of bins for continuous variables (default: 10)
         bandwidth: Bandwidth for smoothing as fraction of range (default: 0.3)
         n_smooth_points: Number of points in smoothed curves (default: 100)
@@ -428,7 +431,7 @@ def get_trends_data(
         TrendsData object with all required data and pre-computed analytics
     """
     from tsi.services.data_access import get_trends_data as get_data
-    return get_data(schedule_id, filter_impossible, n_bins, bandwidth, n_smooth_points)
+    return get_data(schedule_id, n_bins, bandwidth, n_smooth_points)
 
 
 def get_compare_data(
@@ -705,9 +708,10 @@ def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
     """
     Get validation report data for a schedule.
     
-    This function analyzes the schedule data and returns information about:
-    - Blocks that are impossible to schedule
-    - Validation errors (constraint violations)
+    This function retrieves validation results computed during the ETL Transform stage.
+    Validation results are persisted to the database and include:
+    - Blocks that are impossible to schedule (zero/insufficient visibility)
+    - Validation errors (constraint violations, invalid values)
     - Warnings (potential data quality issues)
     
     Args:
@@ -715,7 +719,7 @@ def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
         
     Returns:
         Dictionary containing:
-        - metrics: Overall statistics
+        - metrics: Overall statistics (total_blocks, valid_blocks, etc.)
         - impossible_blocks: List of blocks that cannot be scheduled
         - validation_errors: List of data validation errors
         - validation_warnings: List of data warnings
@@ -723,26 +727,87 @@ def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
     Example:
         >>> data = get_validation_report_data(schedule_id=1)
         >>> print(f"Found {len(data['impossible_blocks'])} impossible blocks")
+        
+    Note:
+        Validation is performed automatically during schedule upload as part of the ETL process.
+        Impossible blocks are automatically filtered from analytics queries.
     """
-    try:
-        # Try to get validation data from Rust backend
-        result = _rust_call("py_get_validation_report", schedule_id)
-        return result
-    except Exception as e:
-        # If Rust function not available, compute from raw data
-        logger.warning(f"Rust validation function not available, computing manually: {e}")
-        return _compute_validation_report_fallback(schedule_id)
+    # Get validation data from Rust backend
+    report = _rust_call("py_get_validation_report", schedule_id)
+    
+    # Convert Rust objects to Python dictionaries for backward compatibility
+    impossible_blocks = []
+    for issue in report.impossible_blocks:
+        impossible_blocks.append({
+            "block_id": issue.block_id,
+            "issue_type": issue.issue_type,
+            "category": issue.category,
+            "criticality": issue.criticality,
+            "field_name": issue.field_name,
+            "current_value": issue.current_value,
+            "expected_value": issue.expected_value,
+            "description": issue.description,
+            # Legacy fields for compatibility
+            "priority": 0.0,  # Not stored in validation results
+            "reason": issue.issue_type,
+            "requested_duration_hours": 0.0,  # Not stored
+            "total_visibility_hours": 0.0,  # Not stored
+            "min_duration_hours": 0.0,  # Not stored
+            "details": issue.description,
+        })
+    
+    validation_errors = []
+    for issue in report.validation_errors:
+        validation_errors.append({
+            "block_id": issue.block_id,
+            "error_type": issue.issue_type,
+            "field": issue.field_name or "",
+            "value": issue.current_value or "",
+            "expected_range": issue.expected_value or "",
+            "issue": issue.description,
+            "description": issue.description,
+            "criticality": issue.criticality,
+        })
+    
+    validation_warnings = []
+    for issue in report.validation_warnings:
+        validation_warnings.append({
+            "block_id": issue.block_id,
+            "warning_type": issue.issue_type,
+            "field": issue.field_name or "",
+            "value": issue.current_value or "",
+            "note": issue.description,
+            "description": issue.description,
+            "criticality": issue.criticality,
+        })
+    
+    return {
+        "metrics": {
+            "total_blocks": report.total_blocks,
+            "valid_blocks": report.valid_blocks,
+            "impossible_count": report.impossible_count,
+            "errors_count": report.errors_count,
+            "warnings_count": report.warnings_count,
+        },
+        "impossible_blocks": impossible_blocks,
+        "validation_errors": validation_errors,
+        "validation_warnings": validation_warnings,
+    }
 
 
 def _compute_validation_report_fallback(schedule_id: int) -> dict[str, Any]:
     """
-    Fallback implementation for validation report computation.
+    DEPRECATED: Fallback implementation for validation report computation.
     
-    This is used when the Rust backend function is not available.
-    InsightsBlock attributes: scheduling_block_id, priority, scheduled, 
-    total_visibility_hours, requested_hours, elevation_range_deg, 
-    scheduled_start_mjd, scheduled_stop_mjd
+    This function is no longer used. Validation is now performed during the ETL
+    Transform stage and results are stored in the database.
+    
+    Kept for reference only.
     """
+    logger.warning(
+        "DEPRECATED: _compute_validation_report_fallback called. "
+        "Validation is now performed during ETL. This fallback should not be used."
+    )
     from tsi.services.data_access import get_insights_data
     
     # Get raw data

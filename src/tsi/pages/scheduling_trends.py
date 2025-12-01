@@ -28,7 +28,6 @@ from tsi.services.database import get_trends_data
 @st.cache_data(show_spinner="Training logistic model...")
 def _fit_model_cached(
     schedule_id: int,
-    exclude_zero_vis: bool,
     class_weight: str,
     vis_range: tuple[float, float],
     time_range: tuple[float, float],
@@ -36,8 +35,8 @@ def _fit_model_cached(
 ) -> tuple[Any, str | None]:
     """Train logistic model with cache using Rust-loaded data."""
     try:
-        # Load data from Rust backend
-        trends_data = get_trends_data(schedule_id=schedule_id, filter_impossible=exclude_zero_vis)
+        # Load data from Rust backend (impossible blocks already filtered during ETL)
+        trends_data = get_trends_data(schedule_id=schedule_id)
         
         # Filter blocks based on controls
         blocks = trends_data.blocks
@@ -99,7 +98,6 @@ def render() -> None:
         with st.spinner("Loading trends data..."):
             trends_data = get_trends_data(
                 schedule_id=schedule_id,
-                filter_impossible=False,
                 n_bins=10,  # Will be updated based on controls
                 bandwidth=0.3,  # Will be updated based on controls
                 n_smooth_points=100,
@@ -117,12 +115,10 @@ def render() -> None:
     
     # Reload with updated parameters if controls changed
     if (controls["n_bins"] != 10 or 
-        controls["bandwidth"] != 0.3 or 
-        controls["exclude_zero_vis"]):
+        controls["bandwidth"] != 0.3):
         with st.spinner("Recomputing with updated parameters..."):
             trends_data = get_trends_data(
                 schedule_id=schedule_id,
-                filter_impossible=controls["exclude_zero_vis"],
                 n_bins=controls["n_bins"],
                 bandwidth=controls["bandwidth"],
                 n_smooth_points=100,
@@ -170,7 +166,6 @@ def render() -> None:
     with st.spinner("Training logistic model..."):
         model_result, error = _fit_model_cached(
             schedule_id,
-            exclude_zero_vis=controls["exclude_zero_vis"],
             class_weight=controls["class_weight"],
             vis_range=controls["vis_range"],
             time_range=controls["time_range"],
