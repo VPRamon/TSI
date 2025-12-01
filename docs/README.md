@@ -1,24 +1,22 @@
-# Documentation Overview
+# TSI Documentation
 
-This folder contains the active documentation for the Streamlit dashboard and its supporting Python + Rust backend. Use this page to navigate to topics, or see `docs/index.md` for a consolidated index.
+This directory contains the active docs for the Telescope Scheduling Intelligence (TSI) dashboard and its Python + Rust backend.
 
-## Dashboard Pages
-- [Sky Map](./sky-map.md)
-- [Distributions](./distributions.md)
-- [Visibility Map & Schedule](./visibility-map.md)
-- [Scheduled Timeline](./schedule.md)
-- [Insights & Conclusions](./insights.md)
-- [Scheduling Trends](./trends.md)
-- [Compare Schedules](./compare.md)
+The index below reflects the current repository state and avoids links to non-existent pages.
 
-## Setup & Usage
-- [Setup](./SETUP.md)
-- [Upload Schedule – Quickstart](./upload_schedule_quickstart.md)
-- [Upload Schedule – Rust](./upload_schedule_rust.md)
+## Quick Links
+- Setup Guide: [SETUP.md](./SETUP.md)
+- Build Rust backend: `./build_rust.sh` (see script help with `--help`)
+- Run dashboard: `./run_dashboard.sh`
+- Database setup script: `../scripts/azure-setup-complete.sql`
+- Scripts overview: `../scripts/README.md`
 
-## API & Backend
-- [Python API](./PYTHON_API.md)
-- [Rust Optimization Plan](./rust-optimization-plan.md)
-- [Rust Schedule Preprocessor Implementation](./rust-schedule-preprocessor-implementation.md)
+## What’s Here
+- Streamlit dashboard in `src/tsi/`
+- Rust backend crate `rust_backend/` producing the `tsi_rust` Python module via PyO3/Maturin
+- Helper scripts in `scripts/` for DB setup, uploads, and verification
 
-For project-wide installation and preprocessing, see the top-level `README.md`.
+## Getting Started
+Start with the Setup Guide for environment, database, build, and run instructions: [SETUP.md](./SETUP.md)
+
+For top-level project context, see the repository `README.md`.

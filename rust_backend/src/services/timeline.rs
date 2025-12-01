@@ -1,5 +1,5 @@
 use crate::db::models::{ScheduleTimelineBlock, ScheduleTimelineData};
-use crate::db::operations;
+use crate::db::{analytics, operations};
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 use std::collections::HashSet;
@@ -72,9 +72,17 @@ pub fn compute_schedule_timeline_data(
 /// Get complete schedule timeline data with computed statistics and metadata.
 /// This function orchestrates fetching blocks and dark periods from the database
 /// and computing the timeline data.
+/// 
+/// Uses the analytics table for optimal performance when available.
 pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<ScheduleTimelineData, String> {
-    // Fetch scheduled blocks
-    let blocks = operations::fetch_schedule_timeline_blocks(schedule_id).await?;
+    // Try analytics table first (much faster - no JOINs, pre-computed metrics)
+    let blocks = match analytics::fetch_analytics_blocks_for_timeline(schedule_id).await {
+        Ok(b) if !b.is_empty() => b,
+        Ok(_) | Err(_) => {
+            // Fall back to operations table if analytics not populated
+            operations::fetch_schedule_timeline_blocks(schedule_id).await?
+        }
+    };
 
     // Fetch dark periods
     let dark_periods = operations::fetch_dark_periods_public(Some(schedule_id)).await?;

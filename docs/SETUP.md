@@ -36,16 +36,19 @@ code .
 
 Requirements:
 - Python 3.11+
-- Rust 1.70+ (for building the backend)
-- ODBC Driver 18 for SQL Server
+- Rust toolchain (via rustup) + Cargo
+- Maturin (installed automatically by the build script if missing)
 
 ```bash
+# Create and activate a virtual environment (Linux)
+python3 -m venv venv
+source venv/bin/activate
+
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Build Rust backend
-cd rust_backend
-maturin develop --release
+# Build the Rust backend (from repo root)
+./build_rust.sh --release
 ```
 
 ---
@@ -109,20 +112,33 @@ Tables:
 Create a `.env` file in the project root:
 
 ```bash
-# Database Connection
-DB_HOST=<your-server>.database.windows.net
-DB_PORT=1433
-DB_NAME=db-schedules
-DB_USER=<your-username>
+# Option A: Full connection string
+DATABASE_URL="mssql://<user>:<pass>@<server>.database.windows.net/<database>"
+
+# Option B: Individual components
+DB_SERVER=<your-server>.database.windows.net
+DB_DATABASE=db-schedules
+DB_USERNAME=<your-username>
 DB_PASSWORD=<your-password>
 
-# Application Settings
+# Auth and app settings
+USE_AAD_AUTH=false
 USE_ANALYTICS_TABLE=true
-RUST_BACKEND_ENABLED=true
+ENABLE_RUST_BACKEND=true
 
-# Optional: Connection Pool Settings
-DB_POOL_MIN_SIZE=2
-DB_POOL_MAX_SIZE=10
+# Optional: Connection tuning
+DATABASE_CONNECTION_TIMEOUT=30
+DATABASE_MAX_RETRIES=3
+```
+
+Alternative: you can also keep credentials in `scripts/db_credentials.py`. The `./run_dashboard.sh` script will read it and export compatible environment variables automatically:
+
+```python
+# scripts/db_credentials.py
+server = "<your-server>.database.windows.net"
+database = "db-schedules"
+username = "<user>@<tenant>"  # or SQL user
+password = "<password>"
 ```
 
 ### Configure Azure Firewall
@@ -151,9 +167,7 @@ az sql server firewall-rule create \
 ### Build Rust Backend
 
 ```bash
-cd rust_backend
-maturin develop --release
-cd ..
+./build_rust.sh --release
 ```
 
 This compiles the high-performance Rust backend and installs it as a Python module.
@@ -323,13 +337,16 @@ Update `.env` to use this user for the application.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DB_HOST` | Yes | - | SQL Server hostname |
-| `DB_PORT` | No | 1433 | SQL Server port |
-| `DB_NAME` | Yes | - | Database name |
-| `DB_USER` | Yes | - | Database username |
-| `DB_PASSWORD` | Yes | - | Database password |
-| `USE_ANALYTICS_TABLE` | No | true | Use pre-computed analytics |
-| `RUST_BACKEND_ENABLED` | No | true | Enable Rust backend |
+| `DATABASE_URL` | No | - | Full connection string (overrides individual parts) |
+| `DB_SERVER` | Cond. | - | SQL Server hostname (used if no `DATABASE_URL`) |
+| `DB_DATABASE` | Cond. | - | Database name (used if no `DATABASE_URL`) |
+| `DB_USERNAME` | Cond. | - | Username (used if no `DATABASE_URL`) |
+| `DB_PASSWORD` | Cond. | - | Password (used if no `DATABASE_URL`) |
+| `USE_AAD_AUTH` | No | `false` | Use Azure AD (sets trusted connection) |
+| `USE_ANALYTICS_TABLE` | No | `true` | Use pre-computed analytics tables |
+| `ENABLE_RUST_BACKEND` | No | `true` | Enable Rust-backed DB operations |
+| `DATABASE_CONNECTION_TIMEOUT` | No | `30` | Connection timeout (seconds) |
+| `DATABASE_MAX_RETRIES` | No | `3` | Retries for transient DB errors |
 
 ### Useful Commands
 
@@ -338,10 +355,13 @@ Update `.env` to use this user for the application.
 streamlit run src/tsi/app.py
 
 # Build Rust backend
-cd rust_backend && maturin develop --release
+./build_rust.sh --release
 
 # Run tests
 pytest tests/ -v
+
+# Run Rust tests
+(cd rust_backend && cargo test)
 
 # Check database connection
 python -c "from tsi.services import db_health_check; print(db_health_check())"

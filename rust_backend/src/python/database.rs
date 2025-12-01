@@ -406,6 +406,7 @@ pub fn py_get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64
 }
 
 /// Fetch visibility map data (priority range, block metadata) in one backend call.
+/// Uses the analytics table for optimal performance when available.
 #[pyfunction]
 pub fn py_get_visibility_map_data(
     schedule_id: i64,
@@ -417,9 +418,18 @@ pub fn py_get_visibility_map_data(
         ))
     })?;
 
-    runtime
-        .block_on(operations::fetch_visibility_map_data(schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+    // Try analytics table first (much faster - no JOINs, pre-computed metrics)
+    let result = runtime.block_on(async {
+        match crate::db::analytics::fetch_analytics_blocks_for_visibility_map(schedule_id).await {
+            Ok(data) if data.total_count > 0 => Ok(data),
+            Ok(_) | Err(_) => {
+                // Fall back to operations table if analytics not populated
+                operations::fetch_visibility_map_data(schedule_id).await
+            }
+        }
+    });
+
+    result.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 // =============================================================================
