@@ -472,8 +472,8 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
 /// This replaces the join-based fetch_lightweight_blocks function.
 pub async fn fetch_analytics_blocks_for_sky_map(
     schedule_id: i64,
-) -> Result<Vec<super::models::LightweightBlock>, String> {
-    use super::models::LightweightBlock;
+) -> Result<Vec<crate::db::models::LightweightBlock>, String> {
+    use crate::db::models::LightweightBlock;
     use siderust::astro::ModifiedJulianDate;
 
     let pool = pool::get_pool()?;
@@ -530,7 +530,7 @@ pub async fn fetch_analytics_blocks_for_sky_map(
             .ok_or_else(|| "target_dec_deg is NULL".to_string())?;
 
         let scheduled_period = match (row.get::<f64, _>(5), row.get::<f64, _>(6)) {
-            (Some(start_mjd), Some(stop_mjd)) => super::models::Period::new(
+            (Some(start_mjd), Some(stop_mjd)) => crate::db::models::Period::new(
                 ModifiedJulianDate::new(start_mjd),
                 ModifiedJulianDate::new(stop_mjd),
             ),
@@ -538,7 +538,7 @@ pub async fn fetch_analytics_blocks_for_sky_map(
         };
 
         blocks.push(LightweightBlock {
-            id: super::models::SchedulingBlockId(id),
+            id: crate::db::models::SchedulingBlockId(id),
             priority,
             priority_bin: String::new(), // Will be computed by service layer
             requested_duration_seconds: requested_duration as f64,
@@ -555,8 +555,8 @@ pub async fn fetch_analytics_blocks_for_sky_map(
 /// This replaces the join-based fetch_distribution_blocks function.
 pub async fn fetch_analytics_blocks_for_distribution(
     schedule_id: i64,
-) -> Result<Vec<super::models::DistributionBlock>, String> {
-    use super::models::DistributionBlock;
+) -> Result<Vec<crate::db::models::DistributionBlock>, String> {
+    use crate::db::models::DistributionBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -616,8 +616,8 @@ pub async fn fetch_analytics_blocks_for_distribution(
 /// and uses pre-computed visibility metrics.
 pub async fn fetch_analytics_blocks_for_timeline(
     schedule_id: i64,
-) -> Result<Vec<super::models::ScheduleTimelineBlock>, String> {
-    use super::models::ScheduleTimelineBlock;
+) -> Result<Vec<crate::db::models::ScheduleTimelineBlock>, String> {
+    use crate::db::models::ScheduleTimelineBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -705,8 +705,8 @@ pub async fn fetch_analytics_blocks_for_timeline(
 /// and JSON parsing, using pre-computed visibility metrics instead.
 pub async fn fetch_analytics_blocks_for_visibility_map(
     schedule_id: i64,
-) -> Result<super::models::VisibilityMapData, String> {
-    use super::models::{VisibilityBlockSummary, VisibilityMapData};
+) -> Result<crate::db::models::VisibilityMapData, String> {
+    use crate::db::models::{VisibilityBlockSummary, VisibilityMapData};
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -797,8 +797,8 @@ pub async fn fetch_analytics_blocks_for_visibility_map(
 /// and JSON parsing, using pre-computed metrics instead.
 pub async fn fetch_analytics_blocks_for_insights(
     schedule_id: i64,
-) -> Result<Vec<super::models::InsightsBlock>, String> {
-    use super::models::InsightsBlock;
+) -> Result<Vec<crate::db::models::InsightsBlock>, String> {
+    use crate::db::models::InsightsBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -875,8 +875,8 @@ pub async fn fetch_analytics_blocks_for_insights(
 /// and JSON parsing, using pre-computed metrics instead.
 pub async fn fetch_analytics_blocks_for_trends(
     schedule_id: i64,
-) -> Result<Vec<super::models::TrendsBlock>, String> {
-    use super::models::TrendsBlock;
+) -> Result<Vec<crate::db::models::TrendsBlock>, String> {
+    use crate::db::models::TrendsBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
