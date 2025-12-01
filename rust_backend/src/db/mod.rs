@@ -9,6 +9,7 @@ pub mod config;
 pub mod models;
 pub mod operations;
 pub mod pool;
+pub mod validation;
 
 // Phase 1: Block-level analytics
 pub use analytics::{
@@ -28,6 +29,12 @@ pub use analytics::{
     delete_visibility_time_bins, fetch_visibility_histogram_from_analytics,
     fetch_visibility_metadata, has_visibility_time_bins, populate_visibility_time_bins,
     VisibilityTimeBin, VisibilityTimeMetadata,
+};
+
+// Validation
+pub use validation::{
+    delete_validation_results, fetch_validation_results, has_validation_results,
+    insert_validation_results, ValidationIssue, ValidationReportData,
 };
 
 pub use checksum::calculate_checksum;

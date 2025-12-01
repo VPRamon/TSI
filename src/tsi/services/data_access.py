@@ -133,7 +133,6 @@ def get_sky_map_data(schedule_id: int) -> SkyMapData:
 
 def get_distribution_data(
     schedule_id: int,
-    filter_impossible: bool = False,
 ) -> DistributionData:
     """
     Get distribution data from ETL analytics tables.
@@ -143,9 +142,11 @@ def get_distribution_data(
     - Pre-computed priority metrics
     - Pre-computed elevation ranges
     
+    Note:
+        Impossible blocks (zero visibility) are automatically excluded during ETL.
+    
     Args:
         schedule_id: Database ID of the schedule
-        filter_impossible: If True, exclude blocks with zero visibility
         
     Returns:
         DistributionData with computed statistics
@@ -157,7 +158,7 @@ def get_distribution_data(
     try:
         return cast(
             "DistributionData",
-            _rust_call("py_get_distribution_data_analytics", schedule_id, filter_impossible)
+            _rust_call("py_get_distribution_data_analytics", schedule_id)
         )
     except DatabaseQueryError as e:
         if "No analytics data available" in str(e):
@@ -196,7 +197,6 @@ def get_schedule_timeline_data(schedule_id: int) -> ScheduleTimelineData:
 
 def get_insights_data(
     schedule_id: int,
-    filter_impossible: bool = False,
 ) -> InsightsData:
     """
     Get insights data with pre-computed analytics.
@@ -208,15 +208,18 @@ def get_insights_data(
     - Visibility statistics
     - Correlation metrics
     
+    Note:
+        Impossible blocks (zero visibility) are automatically excluded during ETL.
+        To see validation issues, use get_validation_report_data().
+    
     Args:
         schedule_id: Database ID of the schedule
-        filter_impossible: If True, exclude impossible blocks from metrics
         
     Returns:
         InsightsData with summary statistics and correlations
     """
     logger.debug(f"Fetching insights data for schedule_id={schedule_id}")
-    return cast("InsightsData", _rust_call("py_get_insights_data", schedule_id, filter_impossible))
+    return cast("InsightsData", _rust_call("py_get_insights_data", schedule_id))
 
 
 # =============================================================================
@@ -225,7 +228,6 @@ def get_insights_data(
 
 def get_trends_data(
     schedule_id: int,
-    filter_impossible: bool = False,
     n_bins: int = 10,
     bandwidth: float = 0.3,
     n_smooth_points: int = 100,
@@ -238,9 +240,11 @@ def get_trends_data(
     - analytics.schedule_visibility_bins
     - analytics.schedule_heatmap_bins
     
+    Note:
+        Impossible blocks (zero visibility) are automatically excluded during ETL.
+    
     Args:
         schedule_id: Database ID of the schedule
-        filter_impossible: If True, exclude blocks with zero visibility
         n_bins: Number of bins for continuous variables
         bandwidth: Bandwidth for smoothing as fraction of range
         n_smooth_points: Number of points in smoothed curves
@@ -254,7 +258,6 @@ def get_trends_data(
         _rust_call(
             "py_get_trends_data",
             schedule_id,
-            filter_impossible,
             n_bins,
             bandwidth,
             n_smooth_points,

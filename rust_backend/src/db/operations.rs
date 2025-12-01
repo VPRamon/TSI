@@ -766,6 +766,60 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
             "Schedule '{}' already present as id {} (upload timestamp: {})",
             schedule_name, schedule_id, upload_timestamp
         );
+        
+        // Ensure analytics are populated for the existing schedule
+        // (This handles the case where a schedule was uploaded before analytics was implemented,
+        // or if analytics population failed previously)
+        info!("Checking and populating analytics for existing schedule_id={}", schedule_id);
+        
+        // Phase 1: Populate block-level analytics table (best-effort)
+        match super::analytics::populate_schedule_analytics(schedule_id).await {
+            Ok(analytics_count) => {
+                info!(
+                    "Populated {} analytics rows for schedule_id={}",
+                    analytics_count, schedule_id
+                );
+            }
+            Err(e) => {
+                log::warn!(
+                    "Failed to populate block-level analytics for schedule_id={}: {}",
+                    schedule_id, e
+                );
+            }
+        }
+
+        // Phase 2: Populate summary analytics tables (best-effort)
+        match super::analytics::populate_summary_analytics(schedule_id, 10).await {
+            Ok(()) => {
+                info!(
+                    "Populated summary analytics for schedule_id={}",
+                    schedule_id
+                );
+            }
+            Err(e) => {
+                log::warn!(
+                    "Failed to populate summary analytics for schedule_id={}: {}",
+                    schedule_id, e
+                );
+            }
+        }
+
+        // Phase 3: Populate visibility time bins (best-effort)
+        match super::analytics::populate_visibility_time_bins(schedule_id, Some(900)).await {
+            Ok((metadata_count, bins_count)) => {
+                info!(
+                    "Populated {} visibility metadata and {} time bins for schedule_id={}",
+                    metadata_count, bins_count, schedule_id
+                );
+            }
+            Err(e) => {
+                log::warn!(
+                    "Failed to populate visibility time bins for schedule_id={}: {}",
+                    schedule_id, e
+                );
+            }
+        }
+        
         // Return metadata for the existing schedule
         return Ok(ScheduleMetadata {
             schedule_id: Some(schedule_id),

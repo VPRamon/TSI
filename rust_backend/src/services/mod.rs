@@ -10,6 +10,8 @@ pub mod insights;
 pub mod sky_map;
 pub mod timeline;
 pub mod trends;
+pub mod validation;
+pub mod validation_report;
 pub mod visibility;
 
 pub use compare::{py_compute_compare_data, py_get_compare_data};
@@ -24,3 +26,4 @@ pub use sky_map::{
 };
 pub use timeline::py_get_schedule_timeline_data;
 pub use trends::py_get_trends_data;
+pub use validation_report::{py_get_validation_report, PyValidationIssue, PyValidationReportData};

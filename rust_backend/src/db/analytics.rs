@@ -213,6 +213,57 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
         inserted, schedule_id
     );
 
+    // ============================================================================
+    // Phase 4: Data Validation (NEW)
+    // Validate all blocks and persist validation results
+    // ============================================================================
+    
+    info!("Starting validation for schedule_id={}", schedule_id);
+    
+    // Convert analytics rows to validation input format
+    let blocks_for_validation: Vec<crate::services::validation::BlockForValidation> = 
+        analytics_rows.iter().map(|row| {
+            crate::services::validation::BlockForValidation {
+                schedule_id: row.schedule_id,
+                scheduling_block_id: row.scheduling_block_id,
+                priority: row.priority,
+                requested_duration_sec: row.requested_duration_sec,
+                min_observation_sec: row.min_observation_sec,
+                total_visibility_hours: row.total_visibility_hours,
+                min_alt_deg: row.min_altitude_deg,
+                max_alt_deg: row.max_altitude_deg,
+                constraint_start_mjd: row.constraint_start_mjd,
+                constraint_stop_mjd: row.constraint_stop_mjd,
+                scheduled_start_mjd: row.scheduled_start_mjd,
+                scheduled_stop_mjd: row.scheduled_stop_mjd,
+                target_ra_deg: row.target_ra_deg,
+                target_dec_deg: row.target_dec_deg,
+            }
+        }).collect();
+    
+    // Run validation
+    let validation_results = crate::services::validation::validate_blocks(&blocks_for_validation);
+    
+    // Persist validation results
+    match super::validation::insert_validation_results(&validation_results).await {
+        Ok(count) => {
+            info!("Inserted {} validation results for schedule_id={}", count, schedule_id);
+        }
+        Err(e) => {
+            log::warn!("Failed to insert validation results: {}", e);
+        }
+    }
+
+    // Update validation_impossible flags in analytics table
+    match super::validation::update_validation_impossible_flags(schedule_id).await {
+        Ok(count) => {
+            info!("Updated {} validation_impossible flags for schedule_id={}", count, schedule_id);
+        }
+        Err(e) => {
+            log::warn!("Failed to update validation_impossible flags: {}", e);
+        }
+    }
+
     Ok(inserted)
 }
 
@@ -325,7 +376,7 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
     }
 
     // SQL Server parameter limit: ~2100 params
-    // Each row uses 18 params, so max batch = 2100/18 ≈ 116
+    // Each row uses 20 params, so max batch = 2100/20 = 105
     // Use 100 for safety margin
     const BATCH_SIZE: usize = 100;
 
@@ -334,12 +385,12 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
     for chunk in rows.chunks(BATCH_SIZE) {
         let mut values_clauses = Vec::with_capacity(chunk.len());
         for (i, _) in chunk.iter().enumerate() {
-            let base = i * 18;
+            let base = i * 20;
             values_clauses.push(format!(
-                "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
+                "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
                 base + 1, base + 2, base + 3, base + 4, base + 5, base + 6,
                 base + 7, base + 8, base + 9, base + 10, base + 11, base + 12,
-                base + 13, base + 14, base + 15, base + 16, base + 17, base + 18
+                base + 13, base + 14, base + 15, base + 16, base + 17, base + 18, base + 19, base + 20
             ));
         }
 
@@ -364,11 +415,14 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
                 scheduled_start_mjd,
                 scheduled_stop_mjd,
                 total_visibility_hours,
-                visibility_period_count
+                visibility_period_count,
+                validation_impossible
             ) VALUES {}
             "#,
             values_clauses.join(", ")
         );
+
+        debug!("SQL for batch insert ({} rows): {}", chunk.len(), &sql[..sql.len().min(500)]);
 
         let mut insert = Query::new(sql);
 
@@ -392,6 +446,8 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
             insert.bind(row.scheduled_stop_mjd);
             insert.bind(row.total_visibility_hours);
             insert.bind(row.visibility_period_count);
+            // validation_impossible is set to NULL initially, validation happens in Phase 4
+            insert.bind(Option::<bool>::None);
         }
 
         let result = insert
@@ -430,6 +486,7 @@ pub async fn fetch_analytics_blocks_for_sky_map(
             scheduled_stop_mjd
         FROM analytics.schedule_blocks_analytics
         WHERE schedule_id = @P1
+          AND COALESCE(validation_impossible, is_impossible) = 0
         ORDER BY scheduling_block_id
     "#;
 
@@ -509,6 +566,7 @@ pub async fn fetch_analytics_blocks_for_distribution(
             is_scheduled
         FROM analytics.schedule_blocks_analytics
         WHERE schedule_id = @P1
+          AND COALESCE(validation_impossible, is_impossible) = 0
         ORDER BY scheduling_block_id
     "#;
 
@@ -577,6 +635,7 @@ pub async fn fetch_analytics_blocks_for_timeline(
           AND is_scheduled = 1
           AND scheduled_start_mjd IS NOT NULL
           AND scheduled_stop_mjd IS NOT NULL
+          AND COALESCE(validation_impossible, is_impossible) = 0
         ORDER BY scheduled_start_mjd
     "#;
 
@@ -656,6 +715,7 @@ pub async fn fetch_analytics_blocks_for_visibility_map(
             is_scheduled
         FROM analytics.schedule_blocks_analytics
         WHERE schedule_id = @P1
+          AND COALESCE(validation_impossible, is_impossible) = 0
         ORDER BY scheduling_block_id
     "#;
 
@@ -751,6 +811,7 @@ pub async fn fetch_analytics_blocks_for_insights(
             scheduled_stop_mjd
         FROM analytics.schedule_blocks_analytics
         WHERE schedule_id = @P1
+          AND COALESCE(validation_impossible, is_impossible) = 0
         ORDER BY scheduling_block_id
     "#;
 
@@ -825,6 +886,7 @@ pub async fn fetch_analytics_blocks_for_trends(
             is_scheduled
         FROM analytics.schedule_blocks_analytics
         WHERE schedule_id = @P1
+          AND COALESCE(validation_impossible, is_impossible) = 0
         ORDER BY scheduling_block_id
     "#;
 
@@ -1095,7 +1157,7 @@ async fn populate_schedule_summary(conn: &mut DbClient, schedule_id: i64) -> Res
             COUNT(*),
             SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END),
             SUM(CASE WHEN is_scheduled = 0 THEN 1 ELSE 0 END),
-            SUM(CASE WHEN is_impossible = 1 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN COALESCE(validation_impossible, is_impossible) = 1 THEN 1 ELSE 0 END),
             CAST(SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(COUNT(*), 0),
             MIN(priority),
             MAX(priority),
@@ -1119,6 +1181,7 @@ async fn populate_schedule_summary(conn: &mut DbClient, schedule_id: i64) -> Res
             MAX(scheduled_stop_mjd)
         FROM analytics.schedule_blocks_analytics
         WHERE schedule_id = @P1
+          AND COALESCE(validation_impossible, is_impossible) = 0
     "#;
 
     let mut query = Query::new(sql);
@@ -1154,7 +1217,7 @@ async fn populate_priority_rates(conn: &mut DbClient, schedule_id: i64) -> Resul
             COUNT(*),
             SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END),
             SUM(CASE WHEN is_scheduled = 0 THEN 1 ELSE 0 END),
-            SUM(CASE WHEN is_impossible = 1 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN COALESCE(validation_impossible, is_impossible) = 1 THEN 1 ELSE 0 END),
             CAST(SUM(CASE WHEN is_scheduled = 1 THEN 1 ELSE 0 END) AS FLOAT) / NULLIF(COUNT(*), 0),
             AVG(total_visibility_hours),
             SUM(total_visibility_hours),
@@ -1162,6 +1225,7 @@ async fn populate_priority_rates(conn: &mut DbClient, schedule_id: i64) -> Resul
             SUM(requested_hours)
         FROM analytics.schedule_blocks_analytics
         WHERE schedule_id = @P1
+          AND COALESCE(validation_impossible, is_impossible) = 0
         GROUP BY CAST(ROUND(priority, 0) AS INT)
     "#;
 
@@ -1191,6 +1255,7 @@ async fn populate_visibility_bins(
         SELECT MIN(total_visibility_hours), MAX(total_visibility_hours)
         FROM analytics.schedule_blocks_analytics
         WHERE schedule_id = @P1
+          AND COALESCE(validation_impossible, is_impossible) = 0
     "#;
 
     let mut range_query = Query::new(range_sql);
@@ -1230,6 +1295,7 @@ async fn populate_visibility_bins(
                 AVG(priority)
             FROM analytics.schedule_blocks_analytics
             WHERE schedule_id = @P1
+              AND COALESCE(validation_impossible, is_impossible) = 0
         "#;
 
         let mut query = Query::new(sql);
@@ -1273,6 +1339,7 @@ async fn populate_visibility_bins(
             WHERE schedule_id = @P1
               AND total_visibility_hours >= @P3
               AND total_visibility_hours < @P4
+              AND COALESCE(validation_impossible, is_impossible) = 0
             HAVING COUNT(*) > 0
         "#;
 
@@ -1308,6 +1375,7 @@ async fn populate_heatmap_bins(
             MIN(requested_hours), MAX(requested_hours)
         FROM analytics.schedule_blocks_analytics
         WHERE schedule_id = @P1
+          AND COALESCE(validation_impossible, is_impossible) = 0
     "#;
 
     let mut range_query = Query::new(range_sql);
@@ -1379,6 +1447,7 @@ async fn populate_heatmap_bins(
                 WHERE schedule_id = @P1
                   AND total_visibility_hours >= @P4 AND total_visibility_hours < @P5
                   AND requested_hours >= @P6 AND requested_hours < @P7
+                  AND COALESCE(validation_impossible, is_impossible) = 0
                 HAVING COUNT(*) > 0
             "#;
 

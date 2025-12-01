@@ -104,12 +104,10 @@ def render_sidebar_controls(trends_data: TrendsData) -> dict:
 
         st.subheader("Logistic Model")
 
-        # Exclude visibility = 0
-        exclude_zero_vis = st.checkbox(
-            "Exclude visibility = 0 for model",
-            value=True,
-            help="If enabled, the model is trained only with observations that have visibility > 0",
-            key="exclude_zero_vis",
+        # Info about automatic filtering
+        st.info(
+            "ℹ️ Impossible blocks (visibility = 0) are automatically excluded during ETL. "
+            "All analyses use clean data."
         )
 
         # Class weight
@@ -127,6 +125,5 @@ def render_sidebar_controls(trends_data: TrendsData) -> dict:
         "selected_priorities": selected_priorities,
         "n_bins": n_bins,
         "bandwidth": bandwidth,
-        "exclude_zero_vis": exclude_zero_vis,
         "class_weight": class_weight_option,
     }
