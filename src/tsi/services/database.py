@@ -740,6 +740,7 @@ def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
     for issue in report.impossible_blocks:
         impossible_blocks.append({
             "block_id": issue.block_id,
+            "original_block_id": issue.original_block_id,
             "issue_type": issue.issue_type,
             "category": issue.category,
             "criticality": issue.criticality,
@@ -760,6 +761,7 @@ def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
     for issue in report.validation_errors:
         validation_errors.append({
             "block_id": issue.block_id,
+            "original_block_id": issue.original_block_id,
             "error_type": issue.issue_type,
             "field": issue.field_name or "",
             "value": issue.current_value or "",
@@ -773,6 +775,7 @@ def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
     for issue in report.validation_warnings:
         validation_warnings.append({
             "block_id": issue.block_id,
+            "original_block_id": issue.original_block_id,
             "warning_type": issue.issue_type,
             "field": issue.field_name or "",
             "value": issue.current_value or "",

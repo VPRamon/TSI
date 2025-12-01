@@ -45,6 +45,8 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
         - 🟠 **High**: Serious data issues that may prevent scheduling
         - 🟡 **Medium**: Data issues that can likely be auto-corrected
         - 🟢 **Low**: Minor concerns or informational notices
+        
+        **Note:** Block IDs shown are the original IDs from your JSON file.
         """
     )
     
@@ -167,7 +169,7 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
         use_container_width=True,
         hide_index=True,
         height=min(600, len(filtered_df) * 35 + 38),
-        column_config={
+            column_config={
             "Criticality": st.column_config.TextColumn(
                 "Criticality",
                 help="Severity of the issue",
@@ -175,8 +177,8 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
             ),
             "Block ID": st.column_config.TextColumn(
                 "Block ID",
-                help="Scheduling block identifier",
-                width="small",
+                help="Original scheduling block ID from JSON file",
+                width="medium",
             ),
             "Issue Type": st.column_config.TextColumn(
                 "Issue Type",
