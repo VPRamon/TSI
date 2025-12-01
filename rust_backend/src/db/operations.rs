@@ -254,9 +254,9 @@ impl<'a> ScheduleInserter<'a> {
         );
 
         // SQL Server parameter limit: 2100 params
-        // Each scheduling block uses 6 params, so max = 2100/6 = 350
-        // Use 300 for safety margin (1800 params)
-        const BATCH_SIZE: usize = 300;
+        // Each scheduling block uses 7 params (added original_block_id), so max = 2100/7 = 300
+        // Use 280 for safety margin (1960 params)
+        const BATCH_SIZE: usize = 280;
 
         for (chunk_index, chunk) in blocks.chunks(BATCH_SIZE).enumerate() {
             debug!(
@@ -302,15 +302,16 @@ impl<'a> ScheduleInserter<'a> {
                 };
                 json_strings.push(visibility_json);
 
-                let base = i * 6;
+                let base = i * 7;  // Changed from 6 to 7 for additional field
                 values_clauses.push(format!(
-                    "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
+                    "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
                     base + 1,
                     base + 2,
                     base + 3,
                     base + 4,
                     base + 5,
-                    base + 6
+                    base + 6,
+                    base + 7
                 ));
             }
 
@@ -318,7 +319,7 @@ impl<'a> ScheduleInserter<'a> {
             let sql = format!(
                 r#"
                 INSERT INTO dbo.scheduling_blocks 
-                    (target_id, constraints_id, priority, min_observation_sec, requested_duration_sec, visibility_periods_json)
+                    (target_id, constraints_id, priority, min_observation_sec, requested_duration_sec, visibility_periods_json, original_block_id)
                 OUTPUT inserted.scheduling_block_id
                 VALUES {}
                 "#,
@@ -339,6 +340,7 @@ impl<'a> ScheduleInserter<'a> {
                 insert.bind(block.min_observation.value() as i32);
                 insert.bind(block.requested_duration.value() as i32);
                 insert.bind(json_strings[i].as_deref());
+                insert.bind(block.original_block_id.as_deref());
             }
 
             let stream = insert
@@ -1130,7 +1132,8 @@ async fn fetch_scheduling_blocks(
             c.start_time_mjd,
             c.stop_time_mjd,
             ssb.start_time_mjd as scheduled_start,
-            ssb.stop_time_mjd as scheduled_stop
+            ssb.stop_time_mjd as scheduled_stop,
+            sb.original_block_id
         FROM dbo.schedule_scheduling_blocks ssb
         JOIN dbo.scheduling_blocks sb ON ssb.scheduling_block_id = sb.scheduling_block_id
         JOIN dbo.targets t ON sb.target_id = t.target_id
@@ -1182,6 +1185,7 @@ async fn fetch_scheduling_blocks(
         let constraint_stop: Option<f64> = row.get(11);
         let scheduled_start: Option<f64> = row.get(12);
         let scheduled_stop: Option<f64> = row.get(13);
+        let original_block_id: Option<&str> = row.get(14);
 
         // Build constraints
         let fixed_time = if let (Some(s), Some(e)) = (constraint_start, constraint_stop) {
@@ -1213,6 +1217,7 @@ async fn fetch_scheduling_blocks(
 
         blocks.push(SchedulingBlock {
             id: SchedulingBlockId(sb_id),
+            original_block_id: original_block_id.map(|s| s.to_string()),
             target,
             constraints,
             priority: priority,
@@ -1373,7 +1378,8 @@ pub async fn get_scheduling_block(sb_id: i64) -> Result<SchedulingBlock, String>
             az.min_az_deg,
             az.max_az_deg,
             c.start_time_mjd,
-            c.stop_time_mjd
+            c.stop_time_mjd,
+            sb.original_block_id
         FROM dbo.scheduling_blocks sb
         JOIN dbo.targets t ON sb.target_id = t.target_id
         LEFT JOIN dbo.constraints c ON sb.constraints_id = c.constraints_id
@@ -1421,6 +1427,7 @@ pub async fn get_scheduling_block(sb_id: i64) -> Result<SchedulingBlock, String>
 
     let constraint_start: Option<f64> = row.get(10);
     let constraint_stop: Option<f64> = row.get(11);
+    let original_block_id: Option<&str> = row.get(12);
 
     let fixed_time = if let (Some(s), Some(e)) = (constraint_start, constraint_stop) {
         Period::new(ModifiedJulianDate::new(s), ModifiedJulianDate::new(e))
@@ -1441,6 +1448,7 @@ pub async fn get_scheduling_block(sb_id: i64) -> Result<SchedulingBlock, String>
 
     Ok(SchedulingBlock {
         id: SchedulingBlockId(sb_id),
+        original_block_id: original_block_id.map(|s| s.to_string()),
         target,
         constraints,
         priority,

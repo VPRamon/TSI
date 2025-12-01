@@ -139,6 +139,21 @@ fn parse_scheduling_block(
         .and_then(|v| v.as_i64())
         .context("Missing or invalid 'schedulingBlockId'")?;
 
+    // Store original block ID as string for database tracking
+    let original_block_id = value
+        .get("schedulingBlockId")
+        .and_then(|v| {
+            if let Some(s) = v.as_str() {
+                Some(s.to_string())
+            } else if let Some(i) = v.as_i64() {
+                Some(i.to_string())
+            } else if let Some(f) = v.as_f64() {
+                Some(f.to_string())
+            } else {
+                None
+            }
+        });
+
     // Extract priority
     let priority = value
         .get("priority")
@@ -169,6 +184,7 @@ fn parse_scheduling_block(
 
     Ok(SchedulingBlock {
         id: SchedulingBlockId(block_id),
+        original_block_id,
         target,
         constraints,
         priority,
