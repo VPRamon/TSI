@@ -14,6 +14,8 @@ pub struct PyValidationIssue {
     #[pyo3(get)]
     pub block_id: i64,
     #[pyo3(get)]
+    pub original_block_id: Option<String>,
+    #[pyo3(get)]
     pub issue_type: String,
     #[pyo3(get)]
     pub category: String,
@@ -33,6 +35,7 @@ impl From<ValidationIssue> for PyValidationIssue {
     fn from(issue: ValidationIssue) -> Self {
         Self {
             block_id: issue.block_id,
+            original_block_id: issue.original_block_id,
             issue_type: issue.issue_type,
             category: issue.category,
             criticality: issue.criticality,

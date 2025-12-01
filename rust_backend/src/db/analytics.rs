@@ -107,6 +107,7 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
         SELECT 
             ssb.schedule_id,
             sb.scheduling_block_id,
+            sb.original_block_id,
             t.ra_deg,
             t.dec_deg,
             sb.priority,
@@ -158,20 +159,21 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
     for row in &rows {
         let schedule_id: i64 = row.get::<i64, _>(0).unwrap_or(0);
         let scheduling_block_id: i64 = row.get::<i64, _>(1).unwrap_or(0);
-        let ra_deg: f64 = row.get::<f64, _>(2).unwrap_or(0.0);
-        let dec_deg: f64 = row.get::<f64, _>(3).unwrap_or(0.0);
-        let priority: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
-        let requested_duration_sec: i32 = row.get::<i32, _>(5).unwrap_or(0);
-        let min_observation_sec: i32 = row.get::<i32, _>(6).unwrap_or(0);
-        let min_alt_deg: Option<f64> = row.get(7);
-        let max_alt_deg: Option<f64> = row.get(8);
-        let min_az_deg: Option<f64> = row.get(9);
-        let max_az_deg: Option<f64> = row.get(10);
-        let constraint_start: Option<f64> = row.get(11);
-        let constraint_stop: Option<f64> = row.get(12);
-        let scheduled_start: Option<f64> = row.get(13);
-        let scheduled_stop: Option<f64> = row.get(14);
-        let visibility_json: Option<&str> = row.get(15);
+        let original_block_id: Option<&str> = row.get(2);
+        let ra_deg: f64 = row.get::<f64, _>(3).unwrap_or(0.0);
+        let dec_deg: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
+        let priority: f64 = row.get::<f64, _>(5).unwrap_or(0.0);
+        let requested_duration_sec: i32 = row.get::<i32, _>(6).unwrap_or(0);
+        let min_observation_sec: i32 = row.get::<i32, _>(7).unwrap_or(0);
+        let min_alt_deg: Option<f64> = row.get(8);
+        let max_alt_deg: Option<f64> = row.get(9);
+        let min_az_deg: Option<f64> = row.get(10);
+        let max_az_deg: Option<f64> = row.get(11);
+        let constraint_start: Option<f64> = row.get(12);
+        let constraint_stop: Option<f64> = row.get(13);
+        let scheduled_start: Option<f64> = row.get(14);
+        let scheduled_stop: Option<f64> = row.get(15);
+        let visibility_json: Option<&str> = row.get(16);
 
         // Compute priority bucket
         let priority_bucket = compute_priority_bucket(priority, priority_min, priority_range);
@@ -185,6 +187,7 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
         analytics_rows.push(AnalyticsRow {
             schedule_id,
             scheduling_block_id,
+            original_block_id: original_block_id.map(|s| s.to_string()),
             target_ra_deg: ra_deg,
             target_dec_deg: dec_deg,
             priority,
@@ -348,6 +351,7 @@ fn parse_visibility_periods(json: Option<&str>) -> (f64, i32) {
 struct AnalyticsRow {
     schedule_id: i64,
     scheduling_block_id: i64,
+    original_block_id: Option<String>,
     target_ra_deg: f64,
     target_dec_deg: f64,
     priority: f64,
@@ -376,21 +380,22 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
     }
 
     // SQL Server parameter limit: ~2100 params
-    // Each row uses 20 params, so max batch = 2100/20 = 105
-    // Use 100 for safety margin
-    const BATCH_SIZE: usize = 100;
+    // Each row uses 21 params (added original_block_id), so max batch = 2100/21 = 100
+    // Use 95 for safety margin
+    const BATCH_SIZE: usize = 95;
 
     let mut total_inserted = 0;
 
     for chunk in rows.chunks(BATCH_SIZE) {
         let mut values_clauses = Vec::with_capacity(chunk.len());
         for (i, _) in chunk.iter().enumerate() {
-            let base = i * 20;
+            let base = i * 21;
             values_clauses.push(format!(
-                "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
+                "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
                 base + 1, base + 2, base + 3, base + 4, base + 5, base + 6,
                 base + 7, base + 8, base + 9, base + 10, base + 11, base + 12,
-                base + 13, base + 14, base + 15, base + 16, base + 17, base + 18, base + 19, base + 20
+                base + 13, base + 14, base + 15, base + 16, base + 17, base + 18, 
+                base + 19, base + 20, base + 21
             ));
         }
 
@@ -399,6 +404,7 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
             INSERT INTO analytics.schedule_blocks_analytics (
                 schedule_id,
                 scheduling_block_id,
+                original_block_id,
                 target_ra_deg,
                 target_dec_deg,
                 priority,
@@ -429,6 +435,7 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
         for row in chunk {
             insert.bind(row.schedule_id);
             insert.bind(row.scheduling_block_id);
+            insert.bind(row.original_block_id.as_deref());
             insert.bind(row.target_ra_deg);
             insert.bind(row.target_dec_deg);
             insert.bind(row.priority);

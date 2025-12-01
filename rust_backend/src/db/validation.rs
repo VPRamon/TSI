@@ -178,21 +178,25 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
 
     debug!("Fetching validation results for schedule_id={}", schedule_id);
 
-    // Fetch all validation results for this schedule
+    // Fetch all validation results for this schedule, joining with analytics to get original_block_id
     let query_sql = r#"
         SELECT 
-            scheduling_block_id,
-            validation_status,
-            issue_type,
-            issue_category,
-            criticality,
-            field_name,
-            current_value,
-            expected_value,
-            description
-        FROM analytics.schedule_validation_results
-        WHERE schedule_id = @P1
-        ORDER BY criticality DESC, validation_status, scheduling_block_id
+            vr.scheduling_block_id,
+            vr.validation_status,
+            vr.issue_type,
+            vr.issue_category,
+            vr.criticality,
+            vr.field_name,
+            vr.current_value,
+            vr.expected_value,
+            vr.description,
+            a.original_block_id
+        FROM analytics.schedule_validation_results vr
+        LEFT JOIN analytics.schedule_blocks_analytics a 
+            ON vr.schedule_id = a.schedule_id 
+            AND vr.scheduling_block_id = a.scheduling_block_id
+        WHERE vr.schedule_id = @P1
+        ORDER BY vr.criticality DESC, vr.validation_status, vr.scheduling_block_id
     "#;
 
     let mut query = Query::new(query_sql);
@@ -223,11 +227,13 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
         let current_value: Option<&str> = row.get(6);
         let expected_value: Option<&str> = row.get(7);
         let description: Option<&str> = row.get(8);
+        let original_block_id: Option<&str> = row.get(9);
 
         match validation_status {
             "impossible" => {
                 impossible_blocks.push(ValidationIssue {
                     block_id: scheduling_block_id,
+                    original_block_id: original_block_id.map(|s| s.to_string()),
                     issue_type: issue_type.unwrap_or("Unknown").to_string(),
                     category: issue_category.unwrap_or("Unknown").to_string(),
                     criticality: criticality.unwrap_or("Critical").to_string(),
@@ -240,6 +246,7 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
             "error" => {
                 validation_errors.push(ValidationIssue {
                     block_id: scheduling_block_id,
+                    original_block_id: original_block_id.map(|s| s.to_string()),
                     issue_type: issue_type.unwrap_or("Unknown").to_string(),
                     category: issue_category.unwrap_or("Unknown").to_string(),
                     criticality: criticality.unwrap_or("High").to_string(),
@@ -252,6 +259,7 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
             "warning" => {
                 validation_warnings.push(ValidationIssue {
                     block_id: scheduling_block_id,
+                    original_block_id: original_block_id.map(|s| s.to_string()),
                     issue_type: issue_type.unwrap_or("Unknown").to_string(),
                     category: issue_category.unwrap_or("Unknown").to_string(),
                     criticality: criticality.unwrap_or("Medium").to_string(),
@@ -349,6 +357,7 @@ pub async fn delete_validation_results(schedule_id: i64) -> Result<u64, String> 
 #[derive(Debug, Clone)]
 pub struct ValidationIssue {
     pub block_id: i64,
+    pub original_block_id: Option<String>,
     pub issue_type: String,
     pub category: String,
     pub criticality: String,

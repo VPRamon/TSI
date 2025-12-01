@@ -118,6 +118,7 @@ PRINT '  ✓ Created table: dbo.constraints';
 
 CREATE TABLE dbo.scheduling_blocks (
     scheduling_block_id    BIGINT IDENTITY(1,1) PRIMARY KEY,
+    original_block_id      NVARCHAR(256) NULL,  -- Original schedulingBlockId from JSON
     target_id              BIGINT NOT NULL REFERENCES dbo.targets(target_id),
     constraints_id         BIGINT NULL REFERENCES dbo.constraints(constraints_id),
     priority               FLOAT NOT NULL,
@@ -204,6 +205,7 @@ CREATE TABLE analytics.schedule_blocks_analytics (
     -- Foreign Keys (not enforced to allow flexible ETL)
     schedule_id BIGINT NOT NULL,
     scheduling_block_id BIGINT NOT NULL,
+    original_block_id NVARCHAR(256) NULL,  -- Original schedulingBlockId from JSON
     
     -- Target Information (denormalized from dbo.targets)
     target_ra_deg FLOAT NOT NULL,
@@ -380,6 +382,7 @@ BEGIN
     INSERT INTO analytics.schedule_blocks_analytics (
         schedule_id,
         scheduling_block_id,
+        original_block_id,
         target_ra_deg,
         target_dec_deg,
         priority,
@@ -401,6 +404,7 @@ BEGIN
     SELECT 
         ssb.schedule_id,
         sb.scheduling_block_id,
+        sb.original_block_id,
         t.ra_deg,
         t.dec_deg,
         sb.priority,

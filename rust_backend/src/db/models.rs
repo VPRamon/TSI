@@ -208,6 +208,7 @@ impl Constraints {
 #[derive(Debug, Clone)]
 pub struct SchedulingBlock {
     pub id: SchedulingBlockId,
+    pub original_block_id: Option<String>,  // Original schedulingBlockId from JSON
     pub target: ICRS,
     pub constraints: Constraints,
     pub priority: f64,
@@ -234,6 +235,7 @@ impl SchedulingBlock {
     ) -> Self {
         Self {
             id,
+            original_block_id: None,  // Not used from Python
             target: ICRS::new(Degrees::new(ra_deg), Degrees::new(dec_deg)),
             constraints,
             priority,

@@ -53,9 +53,11 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
     
     # Process impossible blocks (always Critical)
     for block in validation_data.get("impossible_blocks", []):
+        # Use original_block_id if available, otherwise fall back to block_id
+        block_display_id = block.get("original_block_id") or str(block.get("block_id", "N/A"))
         all_issues.append({
             "Criticality": "Critical",
-            "Block ID": block.get("block_id", "N/A"),
+            "Block ID": block_display_id,
             "Issue Type": block.get("reason", "Unknown"),
             "Field": "Scheduling Constraint",
             "Current Value": f"{block.get('total_visibility_hours', 0):.2f}h available",
@@ -65,6 +67,9 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
     
     # Process validation errors
     for error in validation_data.get("validation_errors", []):
+        # Use original_block_id if available, otherwise fall back to block_id
+        block_display_id = error.get("original_block_id") or str(error.get("block_id", "N/A"))
+        
         # Determine criticality based on error type
         error_type = error.get("error_type", "")
         if "out of range" in error_type.lower() or "negative" in error_type.lower():
@@ -78,7 +83,7 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
         
         all_issues.append({
             "Criticality": criticality,
-            "Block ID": error.get("block_id", "N/A"),
+            "Block ID": block_display_id,
             "Issue Type": error.get("error_type", "Validation Error"),
             "Field": error.get("field", "N/A"),
             "Current Value": error.get("value", "N/A"),
@@ -88,6 +93,9 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
     
     # Process validation warnings
     for warning in validation_data.get("validation_warnings", []):
+        # Use original_block_id if available, otherwise fall back to block_id
+        block_display_id = warning.get("original_block_id") or str(warning.get("block_id", "N/A"))
+        
         # Determine criticality based on warning type
         warning_type = warning.get("warning_type", "")
         if "narrow" in warning_type.lower():
@@ -97,7 +105,7 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
         
         all_issues.append({
             "Criticality": criticality,
-            "Block ID": warning.get("block_id", "N/A"),
+            "Block ID": block_display_id,
             "Issue Type": warning.get("warning_type", "Warning"),
             "Field": warning.get("field", "N/A"),
             "Current Value": warning.get("value", "N/A"),
