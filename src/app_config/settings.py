@@ -117,6 +117,7 @@ class Settings(BaseSettings):
     )
     pages: list[str] = Field(
         default=[
+            "Validation",
             "Sky Map",
             "Distributions",
             "Visibility Map",

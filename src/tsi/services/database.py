@@ -701,6 +701,149 @@ def get_schedule_time_range(schedule_id: int) -> tuple[pd.Timestamp, pd.Timestam
     return start_time, end_time
 
 
+def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
+    """
+    Get validation report data for a schedule.
+    
+    This function analyzes the schedule data and returns information about:
+    - Blocks that are impossible to schedule
+    - Validation errors (constraint violations)
+    - Warnings (potential data quality issues)
+    
+    Args:
+        schedule_id: Schedule ID to analyze
+        
+    Returns:
+        Dictionary containing:
+        - metrics: Overall statistics
+        - impossible_blocks: List of blocks that cannot be scheduled
+        - validation_errors: List of data validation errors
+        - validation_warnings: List of data warnings
+        
+    Example:
+        >>> data = get_validation_report_data(schedule_id=1)
+        >>> print(f"Found {len(data['impossible_blocks'])} impossible blocks")
+    """
+    try:
+        # Try to get validation data from Rust backend
+        result = _rust_call("py_get_validation_report", schedule_id)
+        return result
+    except Exception as e:
+        # If Rust function not available, compute from raw data
+        logger.warning(f"Rust validation function not available, computing manually: {e}")
+        return _compute_validation_report_fallback(schedule_id)
+
+
+def _compute_validation_report_fallback(schedule_id: int) -> dict[str, Any]:
+    """
+    Fallback implementation for validation report computation.
+    
+    This is used when the Rust backend function is not available.
+    InsightsBlock attributes: scheduling_block_id, priority, scheduled, 
+    total_visibility_hours, requested_hours, elevation_range_deg, 
+    scheduled_start_mjd, scheduled_stop_mjd
+    """
+    from tsi.services.data_access import get_insights_data
+    
+    # Get raw data
+    insights_data = get_insights_data(schedule_id=schedule_id, filter_impossible=False)
+    blocks = insights_data.blocks
+    
+    impossible_blocks = []
+    validation_errors = []
+    validation_warnings = []
+    
+    # Check for impossible blocks
+    for block in blocks:
+        # Check if no visibility (total_visibility_hours is 0 or very small)
+        if block.total_visibility_hours < 0.001:  # Less than ~3.6 seconds
+            impossible_blocks.append({
+                "block_id": block.scheduling_block_id,
+                "priority": block.priority,
+                "reason": "No visibility periods available",
+                "requested_duration_hours": block.requested_hours,
+                "total_visibility_hours": block.total_visibility_hours,
+                "min_duration_hours": block.requested_hours,  # Use requested as proxy for minimum
+                "details": "This block has no time windows when it's visible",
+                "criticality": "Critical",
+            })
+        # Check if visibility is less than requested duration
+        elif block.total_visibility_hours < block.requested_hours:
+            impossible_blocks.append({
+                "block_id": block.scheduling_block_id,
+                "priority": block.priority,
+                "reason": "Visibility less than requested duration",
+                "requested_duration_hours": block.requested_hours,
+                "total_visibility_hours": block.total_visibility_hours,
+                "min_duration_hours": block.requested_hours,
+                "details": f"Needs {block.requested_hours:.2f}h but only {block.total_visibility_hours:.2f}h available",
+                "criticality": "Critical",
+            })
+    
+    # Check for validation errors
+    for block in blocks:
+        # Check for negative priority
+        if block.priority < 0:
+            validation_errors.append({
+                "block_id": block.scheduling_block_id,
+                "error_type": "Negative priority",
+                "field": "priority",
+                "value": block.priority,
+                "expected_range": ">= 0",
+                "issue": f"Priority {block.priority} cannot be negative",
+                "description": "Priority values must be non-negative",
+                "criticality": "High",
+            })
+        
+        # Check for negative durations
+        if block.requested_hours < 0:
+            validation_errors.append({
+                "block_id": block.scheduling_block_id,
+                "error_type": "Negative duration",
+                "field": "requested_hours",
+                "value": block.requested_hours,
+                "issue": "Duration cannot be negative",
+                "description": "Requested duration must be a positive value",
+                "criticality": "High",
+            })
+        
+        # Check for invalid elevation range (should be 0-90 degrees typically)
+        if block.elevation_range_deg < 0 or block.elevation_range_deg > 180:
+            validation_errors.append({
+                "block_id": block.scheduling_block_id,
+                "error_type": "Invalid elevation range",
+                "field": "elevation_range_deg",
+                "value": block.elevation_range_deg,
+                "expected_range": "0-180",
+                "issue": f"Elevation range {block.elevation_range_deg} is physically impossible",
+                "description": "Elevation range should be between 0 and 180 degrees",
+                "criticality": "Medium",
+            })
+    
+    # Check for warnings
+    for block in blocks:
+        # Warn about very narrow elevation ranges (might be hard to observe)
+        if 0 < block.elevation_range_deg < 5:
+            validation_warnings.append({
+                "block_id": block.scheduling_block_id,
+                "warning_type": "Very narrow elevation range",
+                "field": "elevation_range_deg",
+                "value": block.elevation_range_deg,
+                "note": "Such a narrow elevation range may make scheduling difficult",
+                "description": "Elevation ranges below 5 degrees are uncommon",
+                "criticality": "Medium",
+            })
+    
+    return {
+        "metrics": {
+            "total_blocks": len(blocks),
+        },
+        "impossible_blocks": impossible_blocks,
+        "validation_errors": validation_errors,
+        "validation_warnings": validation_warnings,
+    }
+
+
 __all__ = [
     "init_database",
     "db_health_check",
@@ -710,4 +853,5 @@ __all__ = [
     "fetch_possible_periods_db",
     "get_visibility_histogram",
     "get_schedule_time_range",
+    "get_validation_report_data",
 ]
