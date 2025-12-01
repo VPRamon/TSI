@@ -122,10 +122,16 @@ pub async fn init_pool(config: &DbConfig) -> Result<(), String> {
 
     let manager = ConnectionManager::new(sql_config);
 
-    // Build pool with extended timeout for initial connection
+    // Build pool with optimized settings to prevent connection exhaustion
+    // - max_size: Increased to 15 to handle concurrent requests
+    // - connection_timeout: Time to wait for available connection from pool
+    // - idle_timeout: Close connections idle for 5 minutes to free resources
+    // - max_lifetime: Recycle connections after 30 minutes to avoid stale connections
     let pool = Pool::builder()
-        .max_size(5)
+        .max_size(15)
         .connection_timeout(Duration::from_secs(30))
+        .idle_timeout(Some(Duration::from_secs(300)))
+        .max_lifetime(Some(Duration::from_secs(1800)))
         .build(manager)
         .await
         .map_err(|e| {
