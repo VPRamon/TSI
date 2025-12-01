@@ -72,8 +72,8 @@ def load_schedule_from_db(schedule_id: int, schedule_name: str) -> None:
             except Exception as e:
                 st.warning(f"Could not load dark periods: {e}")
 
-            # Auto-navigate to first page
-            state.set_current_page("Sky Map")
+            # Auto-navigate to validation page first
+            state.set_current_page("Validation")
 
             # Force rerun to navigate away from landing page
             st.rerun()
