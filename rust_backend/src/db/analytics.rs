@@ -116,8 +116,8 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
             ac.max_alt_deg,
             azc.min_az_deg,
             azc.max_az_deg,
-            c.fixed_time_start_mjd,
-            c.fixed_time_stop_mjd,
+            c.start_time_mjd as constraint_start_mjd,
+            c.stop_time_mjd as constraint_stop_mjd,
             ssb.start_time_mjd,
             ssb.stop_time_mjd,
             sb.visibility_periods_json
@@ -167,8 +167,8 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
         let max_alt_deg: Option<f64> = row.get(8);
         let min_az_deg: Option<f64> = row.get(9);
         let max_az_deg: Option<f64> = row.get(10);
-        let fixed_time_start: Option<f64> = row.get(11);
-        let fixed_time_stop: Option<f64> = row.get(12);
+        let constraint_start: Option<f64> = row.get(11);
+        let constraint_stop: Option<f64> = row.get(12);
         let scheduled_start: Option<f64> = row.get(13);
         let scheduled_stop: Option<f64> = row.get(14);
         let visibility_json: Option<&str> = row.get(15);
@@ -195,8 +195,8 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
             max_altitude_deg: max_alt_deg,
             min_azimuth_deg: min_az_deg,
             max_azimuth_deg: max_az_deg,
-            fixed_time_start_mjd: fixed_time_start,
-            fixed_time_stop_mjd: fixed_time_stop,
+            constraint_start_mjd: constraint_start,
+            constraint_stop_mjd: constraint_stop,
             is_scheduled,
             scheduled_start_mjd: scheduled_start,
             scheduled_stop_mjd: scheduled_stop,
@@ -307,8 +307,8 @@ struct AnalyticsRow {
     max_altitude_deg: Option<f64>,
     min_azimuth_deg: Option<f64>,
     max_azimuth_deg: Option<f64>,
-    fixed_time_start_mjd: Option<f64>,
-    fixed_time_stop_mjd: Option<f64>,
+    constraint_start_mjd: Option<f64>,
+    constraint_stop_mjd: Option<f64>,
     is_scheduled: bool,
     scheduled_start_mjd: Option<f64>,
     scheduled_stop_mjd: Option<f64>,
@@ -358,8 +358,8 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
                 max_altitude_deg,
                 min_azimuth_deg,
                 max_azimuth_deg,
-                fixed_time_start_mjd,
-                fixed_time_stop_mjd,
+                constraint_start_mjd,
+                constraint_stop_mjd,
                 is_scheduled,
                 scheduled_start_mjd,
                 scheduled_stop_mjd,
@@ -385,8 +385,8 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
             insert.bind(row.max_altitude_deg);
             insert.bind(row.min_azimuth_deg);
             insert.bind(row.max_azimuth_deg);
-            insert.bind(row.fixed_time_start_mjd);
-            insert.bind(row.fixed_time_stop_mjd);
+            insert.bind(row.constraint_start_mjd);
+            insert.bind(row.constraint_stop_mjd);
             insert.bind(row.is_scheduled);
             insert.bind(row.scheduled_start_mjd);
             insert.bind(row.scheduled_stop_mjd);

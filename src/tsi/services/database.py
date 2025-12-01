@@ -264,8 +264,7 @@ def get_sky_map_data(
     """
     Get complete sky map data with computed bins and metadata.
     
-    This function automatically routes to the appropriate data source (legacy or ETL)
-    based on the configuration. For explicit control, use the data_source module.
+    Retrieves data from ETL analytics tables which contain pre-computed metrics.
     
     This is the main function for the sky map feature. It returns a SkyMapData
     object containing:
@@ -278,12 +277,9 @@ def get_sky_map_data(
     
     All processing (querying, bin computation, statistics) is done in Rust
     for maximum performance. The frontend just needs to plot the data.
-    
-    Note: Consider using get_sky_map_data_unified from tsi.services.data_source
-    for explicit control over data source routing.
     """
-    from tsi.services.data_source import get_sky_map_data_unified
-    return get_sky_map_data_unified(schedule_id)
+    from tsi.services.data_access import get_sky_map_data as get_data
+    return get_data(schedule_id)
 
 
 def get_visibility_map_data(
@@ -310,8 +306,7 @@ def get_distribution_data(
     """
     Get complete distribution data with computed statistics.
     
-    This function automatically routes to the appropriate data source (legacy or ETL)
-    based on the configuration. For explicit control, use the data_source module.
+    Retrieves data from ETL analytics tables which contain pre-computed metrics.
     
     This is the main function for the distributions feature. It returns a DistributionData
     object containing:
@@ -331,12 +326,9 @@ def get_distribution_data(
     
     Returns:
         DistributionData object with all required data and pre-computed statistics
-    
-    Note: Consider using get_distribution_data_unified from tsi.services.data_source
-    for explicit control over data source routing.
     """
-    from tsi.services.data_source import get_distribution_data_unified
-    return get_distribution_data_unified(schedule_id, filter_impossible)
+    from tsi.services.data_access import get_distribution_data as get_data
+    return get_data(schedule_id, filter_impossible)
 
 
 def get_schedule_timeline_data(
@@ -363,8 +355,8 @@ def get_schedule_timeline_data(
     Returns:
         ScheduleTimelineData object with all required data and pre-computed metadata
     """
-    from tsi.services.data_source import get_schedule_timeline_data_unified
-    return get_schedule_timeline_data_unified(schedule_id)
+    from tsi.services.data_access import get_schedule_timeline_data as get_data
+    return get_data(schedule_id)
 
 
 def get_insights_data(
@@ -395,8 +387,8 @@ def get_insights_data(
     Returns:
         InsightsData object with all required data and pre-computed analytics
     """
-    from tsi.services.data_source import get_insights_data_unified
-    return get_insights_data_unified(schedule_id, filter_impossible)
+    from tsi.services.data_access import get_insights_data as get_data
+    return get_data(schedule_id, filter_impossible)
 
 
 def get_trends_data(
@@ -435,8 +427,8 @@ def get_trends_data(
     Returns:
         TrendsData object with all required data and pre-computed analytics
     """
-    from tsi.services.data_source import get_trends_data_unified
-    return get_trends_data_unified(schedule_id, filter_impossible, n_bins, bandwidth, n_smooth_points)
+    from tsi.services.data_access import get_trends_data as get_data
+    return get_data(schedule_id, filter_impossible, n_bins, bandwidth, n_smooth_points)
 
 
 def get_compare_data(
@@ -474,8 +466,8 @@ def get_compare_data(
     Returns:
         CompareData object with all required data and pre-computed comparisons
     """
-    from tsi.services.data_source import get_compare_data_unified
-    return get_compare_data_unified(current_schedule_id, comparison_schedule_id, current_name, comparison_name)
+    from tsi.services.data_access import get_compare_data as get_data
+    return get_data(current_schedule_id, comparison_schedule_id, current_name, comparison_name)
 
 
 def compute_compare_data(

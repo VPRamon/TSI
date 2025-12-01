@@ -171,12 +171,10 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_get_visibility_metadata, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_visibility_histogram_analytics, m)?)?;
 
-    // Register service functions
+    // Register service functions (ETL-based)
     m.add_function(wrap_pyfunction!(services::py_get_sky_map_data, m)?)?;
-    m.add_function(wrap_pyfunction!(services::py_get_sky_map_data_legacy, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_sky_map_data_analytics, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_distribution_data, m)?)?;
-    m.add_function(wrap_pyfunction!(services::py_get_distribution_data_legacy, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_distribution_data_analytics, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_schedule_timeline_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_insights_data, m)?)?;

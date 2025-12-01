@@ -1,6 +1,5 @@
 use crate::db::models::{DistributionBlock, DistributionData, DistributionStats};
-use crate::db::{analytics, operations};
-use log::info;
+use crate::db::analytics;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
@@ -94,33 +93,22 @@ pub fn compute_distribution_data(
     })
 }
 
-/// Get complete distribution data with computed statistics.
-/// This function orchestrates fetching blocks from the database and computing statistics.
-/// It first tries to use the analytics table for better performance, falling back to legacy
-/// joins if analytics data is not available.
+/// Get complete distribution data with computed statistics using ETL analytics.
+/// 
+/// This function retrieves blocks from the analytics.schedule_blocks_analytics table
+/// which contains pre-computed, denormalized data for optimal performance.
 pub async fn get_distribution_data(
     schedule_id: i64,
     filter_impossible: bool,
 ) -> Result<DistributionData, String> {
-    // Try analytics table first (faster path)
-    let mut blocks = match analytics::fetch_analytics_blocks_for_distribution(schedule_id).await {
-        Ok(analytics_blocks) if !analytics_blocks.is_empty() => {
-            info!(
-                "Using analytics table for distributions (schedule_id={}, {} blocks)",
-                schedule_id,
-                analytics_blocks.len()
-            );
-            analytics_blocks
-        }
-        Ok(_) | Err(_) => {
-            // Fall back to legacy joins
-            info!(
-                "Falling back to legacy joins for distributions (schedule_id={})",
-                schedule_id
-            );
-            operations::fetch_distribution_blocks(schedule_id).await?
-        }
-    };
+    let mut blocks = analytics::fetch_analytics_blocks_for_distribution(schedule_id).await?;
+    
+    if blocks.is_empty() {
+        return Err(format!(
+            "No analytics data available for schedule_id={}. Run populate_schedule_analytics() first.",
+            schedule_id
+        ));
+    }
 
     // Apply impossible filter if requested
     if filter_impossible {
@@ -130,24 +118,8 @@ pub async fn get_distribution_data(
     compute_distribution_data(blocks)
 }
 
-/// Get distribution data using only the legacy join path.
-/// This function is provided for comparison and testing purposes.
-pub async fn get_distribution_data_legacy(
-    schedule_id: i64,
-    filter_impossible: bool,
-) -> Result<DistributionData, String> {
-    let mut blocks = operations::fetch_distribution_blocks(schedule_id).await?;
-
-    if filter_impossible {
-        blocks.retain(|b| b.total_visibility_hours > 0.0);
-    }
-
-    compute_distribution_data(blocks)
-}
-
 /// Get complete distribution data with computed statistics and metadata.
-/// This is the main function for the distributions feature, computing all statistics
-/// on the Rust side for maximum performance.
+/// This is the main Python-callable function for the distributions feature.
 #[pyfunction]
 pub fn py_get_distribution_data(
     schedule_id: i64,
@@ -165,59 +137,13 @@ pub fn py_get_distribution_data(
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
-/// Get distribution data using only the legacy join path.
-/// This is provided for explicit data source selection.
-#[pyfunction]
-pub fn py_get_distribution_data_legacy(
-    schedule_id: i64,
-    filter_impossible: bool,
-) -> PyResult<DistributionData> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
-    })?;
-
-    runtime
-        .block_on(get_distribution_data_legacy(schedule_id, filter_impossible))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
-}
-
-/// Get distribution data using only the analytics table.
-/// This is provided for explicit data source selection.
-/// Returns an error if analytics data is not available.
+/// Alias for compatibility - uses analytics path.
 #[pyfunction]
 pub fn py_get_distribution_data_analytics(
     schedule_id: i64,
     filter_impossible: bool,
 ) -> PyResult<DistributionData> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
-    })?;
-
-    let blocks = runtime
-        .block_on(async {
-            analytics::fetch_analytics_blocks_for_distribution(schedule_id).await
-        })
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
-
-    if blocks.is_empty() {
-        return Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-            format!("No analytics data available for schedule_id={}", schedule_id)
-        ));
-    }
-
-    let mut filtered_blocks = blocks;
-    if filter_impossible {
-        filtered_blocks.retain(|b| b.total_visibility_hours > 0.0);
-    }
-
-    compute_distribution_data(filtered_blocks)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+    py_get_distribution_data(schedule_id, filter_impossible)
 }
 
 #[cfg(test)]
