@@ -52,7 +52,7 @@ def render_dark_period_summary(dark_periods: list[tuple[float, float]]) -> None:
 
     st.dataframe(
         dark_display,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         height=min(300, 60 + 24 * min(len(dark_display), 8)),
     )

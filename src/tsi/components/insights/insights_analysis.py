@@ -88,4 +88,4 @@ def render_correlation_analysis(correlations: list[Any]) -> None:
 
     with col2:
         fig = build_correlation_heatmap(corr_matrix)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')

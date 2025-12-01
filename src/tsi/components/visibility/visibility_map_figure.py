@@ -94,7 +94,7 @@ def render_visibility_map_figure(
     )
 
     # Display the figure
-    st.plotly_chart(fig, use_container_width=True, key=key)
+    st.plotly_chart(fig, width='stretch', key=key)
 
     # Show performance info
     st.success(

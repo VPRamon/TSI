@@ -103,7 +103,7 @@ def render_report_downloads(
             data=md_report,
             file_name="telescope_scheduling_report.md",
             mime="text/markdown",
-            use_container_width=True,
+            width='stretch',
         )
 
     with col2:
@@ -121,7 +121,7 @@ def render_report_downloads(
             data=html_report,
             file_name="telescope_scheduling_report.html",
             mime="text/html",
-            use_container_width=True,
+            width='stretch',
         )
 
     st.caption("Reports contain all key metrics, insights, correlations, and conflict information.")

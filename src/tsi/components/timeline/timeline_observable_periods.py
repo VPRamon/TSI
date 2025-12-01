@@ -56,7 +56,7 @@ def render_observable_periods_info(dark_periods: list[tuple[float, float]]) -> N
     # Display the table
     st.dataframe(
         dark_display,
-        use_container_width=True,
+        width='stretch',
         hide_index=True,
         height=min(300, 60 + 24 * min(len(dark_display), 8)),
     )

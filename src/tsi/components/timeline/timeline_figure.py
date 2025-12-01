@@ -44,6 +44,6 @@ def render_timeline_figure(
     }
 
     # Display the figure
-    st.plotly_chart(fig, use_container_width=True, config=config, key=key)
+    st.plotly_chart(fig, width='stretch', config=config, key=key)
 
     return fig
