@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use super::repository::{RepositoryError, RepositoryResult, ScheduleRepository};
 use super::repositories::{AzureRepository, TestRepository};
-use super::{config::DbConfig, pool};
+use super::{config::DbConfig, repositories::azure::pool};
 
 /// Repository type configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

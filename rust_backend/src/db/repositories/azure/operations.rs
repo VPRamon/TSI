@@ -9,7 +9,7 @@ use siderust::{
 use std::collections::HashMap;
 use tiberius::{numeric::Numeric, Query, Row};
 
-use super::models::{
+use crate::db::models::{
     Constraints, Period, Schedule, ScheduleId, ScheduleInfo, ScheduleMetadata, SchedulingBlock,
     SchedulingBlockId,
 };
@@ -1586,8 +1586,8 @@ pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<(i64, f64, f
 /// avoiding the overhead of loading full scheduling blocks with visibility periods.
 pub async fn fetch_lightweight_blocks(
     schedule_id: i64,
-) -> Result<Vec<super::models::LightweightBlock>, String> {
-    use super::models::LightweightBlock;
+) -> Result<Vec<crate::db::models::LightweightBlock>, String> {
+    use crate::db::models::LightweightBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -1649,7 +1649,7 @@ pub async fn fetch_lightweight_blocks(
 
         // Handle optional scheduled period
         let scheduled_period = match (row.get::<f64, _>(5), row.get::<f64, _>(6)) {
-            (Some(start_mjd), Some(stop_mjd)) => super::models::Period::new(
+            (Some(start_mjd), Some(stop_mjd)) => crate::db::models::Period::new(
                 ModifiedJulianDate::new(start_mjd),
                 ModifiedJulianDate::new(stop_mjd),
             ),
@@ -1657,7 +1657,7 @@ pub async fn fetch_lightweight_blocks(
         };
 
         blocks.push(LightweightBlock {
-            id: super::models::SchedulingBlockId(id),
+            id: crate::db::models::SchedulingBlockId(id),
             priority,
             priority_bin: String::new(), // Will be computed by service layer
             requested_duration_seconds: requested_duration as f64,
@@ -1674,8 +1674,8 @@ pub async fn fetch_lightweight_blocks(
 /// This is optimized for the distributions page, loading only the fields needed for histograms.
 pub async fn fetch_distribution_blocks(
     schedule_id: i64,
-) -> Result<Vec<super::models::DistributionBlock>, String> {
-    use super::models::DistributionBlock;
+) -> Result<Vec<crate::db::models::DistributionBlock>, String> {
+    use crate::db::models::DistributionBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -1772,8 +1772,8 @@ pub async fn fetch_distribution_blocks(
 /// This returns all fields needed for insights: metrics, correlations, top observations, and conflicts.
 pub async fn fetch_insights_blocks(
     schedule_id: i64,
-) -> Result<Vec<super::models::InsightsBlock>, String> {
-    use super::models::InsightsBlock;
+) -> Result<Vec<crate::db::models::InsightsBlock>, String> {
+    use crate::db::models::InsightsBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -1879,8 +1879,8 @@ pub async fn fetch_insights_blocks(
 /// This returns the minimal fields needed for empirical rates, smoothing, and heatmaps.
 pub async fn fetch_trends_blocks(
     schedule_id: i64,
-) -> Result<Vec<super::models::TrendsBlock>, String> {
-    use super::models::TrendsBlock;
+) -> Result<Vec<crate::db::models::TrendsBlock>, String> {
+    use crate::db::models::TrendsBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -1972,8 +1972,8 @@ pub async fn fetch_trends_blocks(
 /// This returns only the fields needed for filtering and statistics.
 pub async fn fetch_visibility_map_data(
     schedule_id: i64,
-) -> Result<super::models::VisibilityMapData, String> {
-    use super::models::{VisibilityBlockSummary, VisibilityMapData};
+) -> Result<crate::db::models::VisibilityMapData, String> {
+    use crate::db::models::{VisibilityBlockSummary, VisibilityMapData};
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -2282,8 +2282,8 @@ pub async fn get_schedule_time_range(schedule_id: i64) -> Result<Option<(f64, f6
 /// for the monthly timeline visualization.
 pub async fn fetch_schedule_timeline_blocks(
     schedule_id: i64,
-) -> Result<Vec<super::models::ScheduleTimelineBlock>, String> {
-    use super::models::ScheduleTimelineBlock;
+) -> Result<Vec<crate::db::models::ScheduleTimelineBlock>, String> {
+    use crate::db::models::ScheduleTimelineBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -2401,8 +2401,8 @@ pub async fn fetch_schedule_timeline_blocks(
 /// This returns only the fields needed for comparing two schedules.
 pub async fn fetch_compare_blocks(
     schedule_id: i64,
-) -> Result<Vec<super::models::CompareBlock>, String> {
-    use super::models::CompareBlock;
+) -> Result<Vec<crate::db::models::CompareBlock>, String> {
+    use crate::db::models::CompareBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool

@@ -7,7 +7,7 @@ use serde::Deserialize;
 use std::time::Duration;
 use tiberius::Config;
 
-use super::config::{DbAuthMethod, DbConfig};
+use crate::db::config::{DbAuthMethod, DbConfig};
 
 /// Type alias for the database connection pool.
 pub type DbPool = Pool<ConnectionManager>;

@@ -6,8 +6,9 @@
 
 use async_trait::async_trait;
 
+use super::{analytics, operations, validation};
 use crate::db::{
-    analytics, operations, repository::*, validation,
+    repository::*,
     models::{Schedule, ScheduleInfo, ScheduleMetadata},
 };
 use crate::services::validation::ValidationResult;
@@ -67,6 +68,18 @@ impl ScheduleRepository for AzureRepository {
 
     async fn get_schedule(&self, schedule_id: i64) -> RepositoryResult<Schedule> {
         operations::get_schedule(Some(schedule_id), None)
+            .await
+            .map_err(|e| {
+                if e.contains("not found") || e.contains("does not exist") {
+                    RepositoryError::NotFound(e)
+                } else {
+                    RepositoryError::from(e)
+                }
+            })
+    }
+
+    async fn get_schedule_by_name(&self, schedule_name: &str) -> RepositoryResult<Schedule> {
+        operations::get_schedule(None, Some(schedule_name))
             .await
             .map_err(|e| {
                 if e.contains("not found") || e.contains("does not exist") {
