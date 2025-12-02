@@ -96,11 +96,4 @@ def render_visibility_map_figure(
     # Display the figure
     st.plotly_chart(fig, width='stretch', key=key)
 
-    # Show performance info
-    st.success(
-        f"✅ Histogram generated from {len(bins)} bins using Rust backend. "
-        f"Memory usage: ~{len(bins) * 24 / 1024:.1f} KB "
-        f"(optimized for database-backed schedules)"
-    )
-
     return fig

@@ -2,7 +2,7 @@
 
 ## Resumen Ejecutivo
 
-El sistema TSI implementa un proceso ETL (Extract, Transform, Load) híbrido de alto rendimiento que combina Python con Rust para procesar, transformar y almacenar datos astronómicos de programación de telescopios. El pipeline ETL maneja la ingesta de archivos JSON/JSON, la normalización de datos, el enriquecimiento con información derivada, y la carga en Azure SQL Database con tablas analíticas pre-computadas para consultas de alto rendimiento.
+El sistema TSI implementa un proceso ETL (Extract, Transform, Load) híbrido de alto rendimiento que combina Python con Rust para procesar, transformar y almacenar datos astronómicos de programación de telescopios. El pipeline ETL maneja la ingesta de archivos JSON, la normalización de datos, el enriquecimiento con información derivada, y la carga en Azure SQL Database con tablas analíticas pre-computadas para consultas de alto rendimiento.
 
 **Características Clave:**
 - **Rendimiento**: Procesamiento 10x más rápido que pandas mediante backend en Rust
@@ -17,85 +17,57 @@ El sistema TSI implementa un proceso ETL (Extract, Transform, Load) híbrido de 
 
 ### 1.1 Diagrama de Flujo General
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         FASE 1: EXTRACT                                  │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                    ┌───────────────┴───────────────┐
-                    │                               │
-            ┌───────▼──────┐                ┌──────▼──────┐
-            │  JSON Files  │                │  JSON Files  │
-            │ (schedule.json)                │(schedule.json)│
-            │ (possible_periods.json)        │             │
-            │ (dark_periods.json)            │             │
-            └───────┬──────┘                └──────┬──────┘
-                    │                               │
-                    └───────────────┬───────────────┘
-                                    │
-                    ┌───────────────▼────────────────┐
-                    │   Rust Backend Loaders         │
-                    │   • parse_schedule_json()      │
-                    │   • load_csv() (Polars)        │
-                    │   • Auto-format detection      │
-                    └───────────────┬────────────────┘
-                                    │
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         FASE 2: TRANSFORM                                │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-            ┌───────────────────────┼───────────────────────┐
-            │                       │                       │
-    ┌───────▼────────┐   ┌─────────▼────────┐   ┌────────▼─────────┐
-    │   Validation   │   │   Enrichment     │   │  Normalization   │
-    │                │   │                  │   │                  │
-    │ • Schema check │   │ • MJD→DateTime   │   │ • Deduplication  │
-    │ • Data types   │   │ • Parse visibility│   │ • Type casting   │
-    │ • Coordinate   │   │ • Compute metrics│   │ • Missing values │
-    │   ranges       │   │ • Priority bins  │   │ • Flag defaults  │
-    │ • Temporal     │   │ • Aggregations   │   │                  │
-    │   consistency  │   │                  │   │                  │
-    └───────┬────────┘   └─────────┬────────┘   └────────┬─────────┘
-            │                       │                       │
-            └───────────────────────┼───────────────────────┘
-                                    │
-            ┌───────────────────────▼────────────────────────┐
-            │      Rust Data Models (Type-Safe)             │
-            │      • Schedule                               │
-            │      • SchedulingBlock                        │
-            │      • Period                                 │
-            │      • Constraints                            │
-            │      • ICRS (target coordinates)              │
-            └───────────────────────┬────────────────────────┘
-                                    │
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         FASE 3: LOAD                                     │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-            ┌───────────────────────┼───────────────────────┐
-            │                       │                       │
-    ┌───────▼───────────┐  ┌────────▼────────┐  ┌────────▼─────────┐
-    │  Operations Tables │  │ Analytics Tables │  │  Validation      │
-    │  (Normalized)      │  │ (Denormalized)   │  │  Results         │
-    │                    │  │                  │  │                  │
-    │ • schedules        │  │ • schedule_blocks│  │ • validation_    │
-    │ • targets          │  │   _analytics     │  │   results        │
-    │ • constraints      │  │                  │  │ • impossible_    │
-    │ • scheduling_      │  │ Pre-computed:    │  │   flags          │
-    │   blocks           │  │ • Priority buckets│ │                  │
-    │ • visibility_      │  │ • Visibility hours│ │                  │
-    │   periods          │  │ • Denormalized FK│ │                  │
-    │ • schedule_        │  │ • JSON parsed    │  │                  │
-    │   scheduling_      │  │                  │  │                  │
-    │   blocks (M:N)     │  │                  │  │                  │
-    └───────┬───────────┘  └────────┬────────┘  └────────┬─────────┘
-            │                       │                       │
-            └───────────────────────┼───────────────────────┘
-                                    │
-                        ┌───────────▼────────────┐
-                        │  Azure SQL Database    │
-                        │  (Production Ready)    │
-                        └────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph extract["<b>FASE 1: EXTRACT</b>"]
+        json1[("JSON Files<br/>(schedule.json)")]
+        json2[("JSON Files<br/>(possible_periods.json<br/>dark_periods.json)")]
+        
+        loaders["<b>Rust Backend Loaders</b><br/>• parse_schedule_json()<br/>• serde_json deserializer<br/>• Auto-format detection"]
+    end
+    
+    subgraph transform["<b>FASE 2: TRANSFORM</b>"]
+        validation["<b>Validation</b><br/>• Schema check<br/>• Data types<br/>• Coordinate ranges<br/>• Temporal consistency"]
+        
+        enrichment["<b>Enrichment</b><br/>• MJD→DateTime<br/>• Parse visibility<br/>• Compute metrics<br/>• Priority bins<br/>• Aggregations"]
+        
+        normalization["<b>Normalization</b><br/>• Deduplication<br/>• Type casting<br/>• Missing values<br/>• Flag defaults"]
+        
+        models["<b>Rust Data Models (Type-Safe)</b><br/>• Schedule<br/>• SchedulingBlock<br/>• Period<br/>• Constraints<br/>• ICRS (target coordinates)"]
+    end
+    
+    subgraph load["<b>FASE 3: LOAD</b>"]
+        ops[("<b>Operations Tables</b><br/>(Normalized)<br/>• schedules<br/>• targets<br/>• constraints<br/>• scheduling_blocks<br/>• visibility_periods<br/>• schedule_scheduling_blocks (M:N)")]
+        
+        analytics[("<b>Analytics Tables</b><br/>(Denormalized)<br/>• schedule_blocks_analytics<br/><br/>Pre-computed:<br/>• Priority buckets<br/>• Visibility hours<br/>• Denormalized FK<br/>• JSON parsed")]
+        
+        validation_db[("<b>Validation Results</b><br/>• validation_results<br/>• impossible_flags")]
+    end
+    
+    azure[("Azure SQL Database<br/>(Production Ready)")]
+    
+    json1 --> loaders
+    json2 --> loaders
+    
+    loaders --> validation
+    loaders --> enrichment
+    loaders --> normalization
+    
+    validation --> models
+    enrichment --> models
+    normalization --> models
+    
+    models --> ops
+    models --> analytics
+    models --> validation_db
+    
+    ops --> azure
+    analytics --> azure
+    validation_db --> azure
+    
+    style extract fill:#E3F2FD
+    style transform fill:#FFF3E0
+    style load fill:#E8F5E9
 ```
 
 ### 1.2 Componentes del Sistema
@@ -183,19 +155,22 @@ pub struct SchedulingBlock {
 }
 ```
 
-### 2.2 Carga de Archivos JSON
+### 2.2 Carga desde Python (Wrapper)
 
 **Módulo:** `src/tsi/backend/loaders.py` + `tsi_rust` (backend)
 
-El sistema utiliza **Polars** (biblioteca Rust) para cargar JSON, logrando rendimiento 10x superior a pandas:
+El sistema utiliza **serde_json** (Rust) para parsear JSON, logrando rendimiento 10x superior a pandas:
 
 ```python
 def load_schedule_file(path: str | Path, format: str = "auto") -> pd.DataFrame:
     """Load schedule data from JSON using Rust backend."""
-    if format == "csv":
-        df_pandas = pd.read_csv(path)  # Fallback
-        return df_pandas
+    if format != "json":
+        raise ValueError(f"Only JSON format is supported. Got: {format}")
+    content = Path(path).read_text()
+    return load_schedule_from_string(content, format="json")
 ```
+
+**Nota:** CSV ya no está soportado. Solo se aceptan archivos JSON.
 
 **Columnas Requeridas:**
 ```python
