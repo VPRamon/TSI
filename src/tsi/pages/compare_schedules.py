@@ -14,7 +14,7 @@ from tsi.plots.compare_plots import (
     create_scheduling_status_plot,
     create_time_distribution_plot,
 )
-from tsi.services.database import get_compare_data, compute_compare_data
+from tsi.services.database import get_compare_data, compute_compare_data, _rust_call
 from tsi.services.data.loaders import prepare_dataframe
 from tsi.theme import add_vertical_space
 
@@ -98,8 +98,16 @@ def render() -> None:
                 # For now, fall back to pandas-based comparison if file upload
                 # TODO: Add proper file-to-CompareBlock conversion in Rust
                 st.warning("File upload comparison is not yet fully optimized. Using legacy comparison.")
+                
+                # Get current schedule data from database if not in state
+                current_df = state.get_prepared_data()
+                if current_df is None:
+                    # Fetch from database and convert to DataFrame
+                    current_blocks = _rust_call("py_fetch_compare_blocks", int(current_schedule_id))
+                    current_df = _convert_compare_blocks_to_df(current_blocks)
+                
                 _display_comparison_legacy(
-                    current_df=state.get_prepared_data(),
+                    current_df=current_df,
                     comparison_df=comparison_df,
                     current_name=current_name,
                     comparison_name=comparison_name or "Uploaded Schedule",
