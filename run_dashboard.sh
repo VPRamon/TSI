@@ -28,8 +28,11 @@ export("DB_USERNAME", getattr(mod, "username", ""))
 export("DB_PASSWORD", getattr(mod, "password", ""))
 export("DB_PORT", 1433)
 export("DB_TRUST_CERT", "true")
-# Default to AAD password flow when username looks like a UPN
-auth_method = "aad_password" if "@" in str(getattr(mod, "username", "")) else "sql_password"
+# Check if auth_method is explicitly set in db_credentials.py, otherwise auto-detect
+auth_method = getattr(mod, "auth_method", None)
+if auth_method is None:
+    # Default to AAD password flow when username looks like a UPN
+    auth_method = "aad_password" if "@" in str(getattr(mod, "username", "")) else "sql_password"
 export("DB_AUTH_METHOD", auth_method)
 PY
     )"

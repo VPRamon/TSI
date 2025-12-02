@@ -491,35 +491,39 @@ Fíjate que `analytics.schedule_blocks_analytics` **no tiene FKs** a `dbo.schedu
 
 La tabla resultante es una **wide table** (22+ columnas) que contiene TODO lo necesario para consultas analíticas:
 
-```
-┌─────────────────┬──────────────────────────────────────────────────┐
-│ schedule_id     │ 123                                              │
-│ scheduling_block_id │ 4567                                         │
-│ original_block_id   │ "NGC1234_001"                                │
-├─────────────────┼──────────────────────────────────────────────────┤
-│ target_ra_deg   │ 45.67                                            │
-│ target_dec_deg  │ -23.45                                           │
-├─────────────────┼──────────────────────────────────────────────────┤
-│ priority        │ 0.85                                             │
-│ priority_bucket │ 4 (High)                                         │
-├─────────────────┼──────────────────────────────────────────────────┤
-│ requested_duration_sec │ 3600                                      │
-│ requested_hours        │ 1.0 (computed)                            │
-│ min_observation_sec    │ 1800                                      │
-├─────────────────┼──────────────────────────────────────────────────┤
-│ min_altitude_deg       │ 30.0                                      │
-│ max_altitude_deg       │ 70.0                                      │
-│ elevation_range_deg    │ 40.0 (computed)                           │
-├─────────────────┼──────────────────────────────────────────────────┤
-│ is_scheduled    │ 1                                                │
-│ scheduled_start_mjd    │ 60340.56789                               │
-│ scheduled_stop_mjd     │ 60340.60903                               │
-│ scheduled_duration_sec │ 3553.5 (computed)                         │
-├─────────────────┼──────────────────────────────────────────────────┤
-│ total_visibility_hours │ 8.5 (precomputed from JSON)              │
-│ visibility_period_count│ 3 (precomputed from JSON)                │
-│ is_impossible          │ 0 (computed: visibility > 0)             │
-└─────────────────┴──────────────────────────────────────────────────┘
+```mermaid
+classDiagram
+    class schedule_blocks_analytics {
+        <<Wide Table Pattern>>
+        +BIGINT schedule_id = 123
+        +BIGINT scheduling_block_id = 4567
+        +NVARCHAR original_block_id = "NGC1234_001"
+        ---
+        +FLOAT target_ra_deg = 45.67
+        +FLOAT target_dec_deg = -23.45
+        ---
+        +FLOAT priority = 0.85
+        +INT priority_bucket = 4 (High)
+        ---
+        +INT requested_duration_sec = 3600
+        +FLOAT requested_hours = 1.0 ⚙️
+        +INT min_observation_sec = 1800
+        ---
+        +FLOAT min_altitude_deg = 30.0
+        +FLOAT max_altitude_deg = 70.0
+        +FLOAT elevation_range_deg = 40.0 ⚙️
+        ---
+        +BIT is_scheduled = 1
+        +FLOAT scheduled_start_mjd = 60340.56789
+        +FLOAT scheduled_stop_mjd = 60340.60903
+        +FLOAT scheduled_duration_sec = 3553.5 ⚙️
+        ---
+        +FLOAT total_visibility_hours = 8.5 📊
+        +INT visibility_period_count = 3 📊
+        +BIT is_impossible = 0 📊
+    }
+    
+    note for schedule_blocks_analytics "22+ columnas desnormalizadas\n⚙️ = Columna computada\n📊 = Pre-computed from JSON\nOptimizado para queries analíticas"
 ```
 
 ### 5.2 Indexación Estratégica
