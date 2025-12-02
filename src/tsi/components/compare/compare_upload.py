@@ -101,6 +101,9 @@ def _render_file_upload_section() -> tuple[pd.DataFrame | None, str | None]:
     """
     Render the file upload section for comparison schedule.
     
+    IMPORTANT: This function now stores the uploaded schedule in the database
+    to ensure consistent comparison using original block IDs.
+    
     Returns:
         Tuple of (dataframe, filename) if uploaded, (None, None) otherwise
     """

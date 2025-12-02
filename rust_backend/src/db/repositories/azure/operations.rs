@@ -512,7 +512,7 @@ impl<'a> ScheduleInserter<'a> {
             WHEN NOT MATCHED THEN
                 INSERT (name, ra_deg, dec_deg, ra_pm_masyr, dec_pm_masyr, equinox)
                 VALUES (source.name, source.ra_deg, source.dec_deg, 0, 0, 2000.0)
-            OUTPUT inserted.target_id;
+            OUTPUT COALESCE(inserted.target_id, deleted.target_id);
             "#,
         );
         merge.bind(ra_deg);
@@ -555,7 +555,7 @@ impl<'a> ScheduleInserter<'a> {
             WHEN NOT MATCHED THEN
                 INSERT (min_alt_deg, max_alt_deg)
                 VALUES (source.min_alt_deg, source.max_alt_deg)
-            OUTPUT inserted.altitude_constraints_id;
+            OUTPUT COALESCE(inserted.altitude_constraints_id, deleted.altitude_constraints_id);
             "#,
         );
         merge.bind(min_alt);
@@ -597,7 +597,7 @@ impl<'a> ScheduleInserter<'a> {
             WHEN NOT MATCHED THEN
                 INSERT (min_az_deg, max_az_deg)
                 VALUES (source.min_az_deg, source.max_az_deg)
-            OUTPUT inserted.azimuth_constraints_id;
+            OUTPUT COALESCE(inserted.azimuth_constraints_id, deleted.azimuth_constraints_id);
             "#,
         );
         merge.bind(min_az);
@@ -2423,7 +2423,7 @@ pub async fn fetch_compare_blocks(
 
     let sql = r#"
         SELECT 
-            sb.scheduling_block_id,
+            COALESCE(sb.original_block_id, CAST(sb.scheduling_block_id AS NVARCHAR(256))),
             sb.priority,
             sb.requested_duration_sec,
             ssb.start_time_mjd,
@@ -2450,9 +2450,10 @@ pub async fn fetch_compare_blocks(
     let mut blocks = Vec::with_capacity(rows.len());
 
     for row in rows {
-        let scheduling_block_id: i64 = row
-            .get::<i64, _>(0)
-            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+        let scheduling_block_id: String = row
+            .get::<&str, _>(0)
+            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?
+            .to_string();
 
         let priority: f64 = row
             .get::<f64, _>(1)
@@ -2468,7 +2469,7 @@ pub async fn fetch_compare_blocks(
         let scheduled = row.get::<f64, _>(3).is_some() && row.get::<f64, _>(4).is_some();
 
         blocks.push(CompareBlock {
-            scheduling_block_id: scheduling_block_id.to_string(),
+            scheduling_block_id,
             priority,
             scheduled,
             requested_hours,
