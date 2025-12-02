@@ -1922,9 +1922,12 @@ pub async fn populate_visibility_time_bins(
     );
 
     // Delete existing data for this schedule
+    let delete_start = std::time::Instant::now();
     delete_visibility_time_bins_internal(&mut conn, schedule_id).await?;
+    debug!("Deleted existing bins in {:.2}s", delete_start.elapsed().as_secs_f64());
 
     // Fetch all blocks with visibility data
+    let fetch_start = std::time::Instant::now();
     let sql = r#"
         SELECT 
             sb.scheduling_block_id,
@@ -1954,8 +1957,15 @@ pub async fn populate_visibility_time_bins(
         warn!("No blocks found for schedule_id={}", schedule_id);
         return Ok((0, 0));
     }
+    
+    info!(
+        "Fetched {} blocks in {:.2}s, processing visibility periods...",
+        rows.len(),
+        fetch_start.elapsed().as_secs_f64()
+    );
 
     // First pass: determine priority range and time range
+    let parse_start = std::time::Instant::now();
     let mut priority_min = f64::INFINITY;
     let mut priority_max = f64::NEG_INFINITY;
     let mut time_min = i64::MAX;
@@ -2008,10 +2018,11 @@ pub async fn populate_visibility_time_bins(
     let num_bins = ((time_range + bin_duration - 1) / bin_duration) as usize;
 
     info!(
-        "Processing {} blocks, {} with visibility, time range {}s, {} bins",
-        raw_blocks.len(),
+        "Parsed visibility periods in {:.2}s: {} blocks with visibility, time range {}s ({} days), {} bins",
+        parse_start.elapsed().as_secs_f64(),
         blocks_with_visibility,
         time_range,
+        time_range / 86400,
         num_bins
     );
 
@@ -2037,6 +2048,7 @@ pub async fn populate_visibility_time_bins(
     }
 
     // Initialize bins
+    let bin_init_start = std::time::Instant::now();
     let mut bin_data: Vec<(i64, i64, std::collections::HashSet<i64>, [i32; 4], i32, i32)> =
         (0..num_bins)
             .map(|i| {
@@ -2045,9 +2057,23 @@ pub async fn populate_visibility_time_bins(
                 (bin_start, bin_end, std::collections::HashSet::new(), [0; 4], 0, 0)
             })
             .collect();
+    debug!("Initialized {} bins in {:.2}s", num_bins, bin_init_start.elapsed().as_secs_f64());
 
-    // Populate bins with block visibility
-    for block in &blocks {
+    // Populate bins with block visibility (this is the O(n*m) operation)
+    info!("Processing block-to-bin assignments (may take 1-2 minutes for large schedules)...");
+    let bin_pop_start = std::time::Instant::now();
+    let mut total_assignments = 0usize;
+    
+    for (idx, block) in blocks.iter().enumerate() {
+        if idx > 0 && idx % 100 == 0 {
+            debug!(
+                "  Progress: {}/{} blocks processed ({:.1}%)",
+                idx,
+                blocks.len(),
+                (idx as f64 / blocks.len() as f64) * 100.0
+            );
+        }
+        
         for period in &block.periods {
             // Find overlapping bins
             let start_bin = ((period.start_unix - time_min) / bin_duration).max(0) as usize;
@@ -2066,6 +2092,7 @@ pub async fn populate_visibility_time_bins(
                 if period.start_unix < bin_end && period.end_unix > bin_start {
                     if block_ids.insert(block.scheduling_block_id) {
                         // First time this block is added to this bin
+                        total_assignments += 1;
                         let q_idx = (block.priority_quartile - 1) as usize;
                         if q_idx < 4 {
                             quartile_counts[q_idx] += 1;
@@ -2080,6 +2107,12 @@ pub async fn populate_visibility_time_bins(
             }
         }
     }
+    
+    info!(
+        "Completed bin population in {:.2}s: {} block-to-bin assignments",
+        bin_pop_start.elapsed().as_secs_f64(),
+        total_assignments
+    );
 
     // Insert metadata
     let mut max_visible = 0i32;

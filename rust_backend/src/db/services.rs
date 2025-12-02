@@ -94,73 +94,116 @@ pub async fn store_schedule(
     repo: &dyn ScheduleRepository,
     schedule: &Schedule,
 ) -> RepositoryResult<ScheduleMetadata> {
+    store_schedule_with_options(repo, schedule, true, false).await
+}
+
+/// Store a new schedule with optional analytics population.
+///
+/// This function provides control over analytics computation, allowing fast uploads
+/// when analytics are not immediately needed.
+///
+/// # Arguments
+/// * `repo` - Repository implementation
+/// * `schedule` - The schedule to store
+/// * `populate_analytics` - If true, populate block and summary analytics (recommended)
+/// * `skip_time_bins` - If true, skip visibility time bin computation (expensive, ~minutes for large schedules)
+///
+/// # Returns
+/// * `Ok(ScheduleMetadata)` - Metadata of stored schedule (new or existing)
+/// * `Err` if storage fails
+///
+/// # Performance Note
+/// For large schedules (>1000 blocks), consider:
+/// - `populate_analytics=true, skip_time_bins=true` for fast upload with basic analytics
+/// - `populate_analytics=false, skip_time_bins=true` for fastest upload (compute analytics later)
+pub async fn store_schedule_with_options(
+    repo: &dyn ScheduleRepository,
+    schedule: &Schedule,
+    populate_analytics: bool,
+    skip_time_bins: bool,
+) -> RepositoryResult<ScheduleMetadata> {
     info!(
-        "Service layer: storing schedule '{}' (checksum {}, {} blocks)",
+        "Service layer: storing schedule '{}' (checksum {}, {} blocks, analytics={}, skip_bins={})",
         schedule.name,
         schedule.checksum,
-        schedule.blocks.len()
+        schedule.blocks.len(),
+        populate_analytics,
+        skip_time_bins
     );
 
     // Try to store the schedule
     let metadata = repo.store_schedule(schedule).await?;
 
-    // Ensure analytics are populated for the schedule (best-effort)
-    if let Some(schedule_id) = metadata.schedule_id {
-        info!(
-            "Service layer: populating analytics for schedule_id={}",
-            schedule_id
-        );
+    // Optionally populate analytics for the schedule (best-effort)
+    if populate_analytics {
+        if let Some(schedule_id) = metadata.schedule_id {
+            info!(
+                "Service layer: populating analytics for schedule_id={}",
+                schedule_id
+            );
 
-        // Phase 1: Block-level analytics
-        match repo.populate_schedule_analytics(schedule_id).await {
-            Ok(analytics_count) => {
-                info!(
-                    "Service layer: populated {} analytics rows for schedule_id={}",
-                    analytics_count, schedule_id
-                );
+            // Phase 1: Block-level analytics (FAST - required for dashboard)
+            let start = std::time::Instant::now();
+            match repo.populate_schedule_analytics(schedule_id).await {
+                Ok(analytics_count) => {
+                    info!(
+                        "Service layer: ✓ Phase 1/3: Populated {} analytics rows in {:.2}s",
+                        analytics_count,
+                        start.elapsed().as_secs_f64()
+                    );
+                }
+                Err(e) => {
+                    warn!(
+                        "Service layer: failed to populate block-level analytics for schedule_id={}: {}",
+                        schedule_id, e
+                    );
+                }
             }
-            Err(e) => {
-                warn!(
-                    "Service layer: failed to populate block-level analytics for schedule_id={}: {}",
-                    schedule_id, e
-                );
+
+            // Phase 2: Summary analytics (FAST - 10 bins for histograms)
+            let start = std::time::Instant::now();
+            match repo.populate_summary_analytics(schedule_id, 10).await {
+                Ok(()) => {
+                    info!(
+                        "Service layer: ✓ Phase 2/3: Populated summary analytics in {:.2}s",
+                        start.elapsed().as_secs_f64()
+                    );
+                }
+                Err(e) => {
+                    warn!(
+                        "Service layer: failed to populate summary analytics for schedule_id={}: {}",
+                        schedule_id, e
+                    );
+                }
+            }
+
+            // Phase 3: Visibility time bins (SLOW - optional, can be computed later)
+            if !skip_time_bins {
+                let start = std::time::Instant::now();
+                info!("Service layer: Phase 3/3: Computing visibility time bins (this may take several minutes for large schedules)...");
+                match repo
+                    .populate_visibility_time_bins(schedule_id, Some(900))
+                    .await
+                {
+                    Ok((metadata_count, bins_count)) => {
+                        info!(
+                            "Service layer: ✓ Phase 3/3: Populated {} visibility metadata and {} time bins in {:.2}s",
+                            metadata_count, bins_count, start.elapsed().as_secs_f64()
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Service layer: failed to populate visibility time bins for schedule_id={}: {}",
+                            schedule_id, e
+                        );
+                    }
+                }
+            } else {
+                info!("Service layer: Phase 3/3: Skipped visibility time bins (skip_time_bins=true)");
             }
         }
-
-        // Phase 2: Summary analytics (10 bins for histograms)
-        match repo.populate_summary_analytics(schedule_id, 10).await {
-            Ok(()) => {
-                info!(
-                    "Service layer: populated summary analytics for schedule_id={}",
-                    schedule_id
-                );
-            }
-            Err(e) => {
-                warn!(
-                    "Service layer: failed to populate summary analytics for schedule_id={}: {}",
-                    schedule_id, e
-                );
-            }
-        }
-
-        // Phase 3: Visibility time bins (15-minute bins = 900 seconds)
-        match repo
-            .populate_visibility_time_bins(schedule_id, Some(900))
-            .await
-        {
-            Ok((metadata_count, bins_count)) => {
-                info!(
-                    "Service layer: populated {} visibility metadata and {} time bins for schedule_id={}",
-                    metadata_count, bins_count, schedule_id
-                );
-            }
-            Err(e) => {
-                warn!(
-                    "Service layer: failed to populate visibility time bins for schedule_id={}: {}",
-                    schedule_id, e
-                );
-            }
-        }
+    } else {
+        info!("Service layer: Skipped analytics population (populate_analytics=false)");
     }
 
     Ok(metadata)

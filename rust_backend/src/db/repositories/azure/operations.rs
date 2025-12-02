@@ -509,6 +509,8 @@ impl<'a> ScheduleInserter<'a> {
                 AND target.ra_pm_masyr = 0 
                 AND target.dec_pm_masyr = 0 
                 AND target.equinox = 2000.0)
+            WHEN MATCHED THEN
+                UPDATE SET name = source.name
             WHEN NOT MATCHED THEN
                 INSERT (name, ra_deg, dec_deg, ra_pm_masyr, dec_pm_masyr, equinox)
                 VALUES (source.name, source.ra_deg, source.dec_deg, 0, 0, 2000.0)
@@ -552,6 +554,8 @@ impl<'a> ScheduleInserter<'a> {
             MERGE dbo.altitude_constraints AS target
             USING (SELECT @P1 AS min_alt_deg, @P2 AS max_alt_deg) AS source
             ON (target.min_alt_deg = source.min_alt_deg AND target.max_alt_deg = source.max_alt_deg)
+            WHEN MATCHED THEN
+                UPDATE SET min_alt_deg = source.min_alt_deg
             WHEN NOT MATCHED THEN
                 INSERT (min_alt_deg, max_alt_deg)
                 VALUES (source.min_alt_deg, source.max_alt_deg)
@@ -594,6 +598,8 @@ impl<'a> ScheduleInserter<'a> {
             MERGE dbo.azimuth_constraints AS target
             USING (SELECT @P1 AS min_az_deg, @P2 AS max_az_deg) AS source
             ON (target.min_az_deg = source.min_az_deg AND target.max_az_deg = source.max_az_deg)
+            WHEN MATCHED THEN
+                UPDATE SET min_az_deg = source.min_az_deg
             WHEN NOT MATCHED THEN
                 INSERT (min_az_deg, max_az_deg)
                 VALUES (source.min_az_deg, source.max_az_deg)
@@ -780,58 +786,9 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
             schedule_name, schedule_id, upload_timestamp
         );
         
-        // Ensure analytics are populated for the existing schedule
-        // (This handles the case where a schedule was uploaded before analytics was implemented,
-        // or if analytics population failed previously)
-        info!("Checking and populating analytics for existing schedule_id={}", schedule_id);
-        
-        // Phase 1: Populate block-level analytics table (best-effort)
-        match super::analytics::populate_schedule_analytics(schedule_id).await {
-            Ok(analytics_count) => {
-                info!(
-                    "Populated {} analytics rows for schedule_id={}",
-                    analytics_count, schedule_id
-                );
-            }
-            Err(e) => {
-                log::warn!(
-                    "Failed to populate block-level analytics for schedule_id={}: {}",
-                    schedule_id, e
-                );
-            }
-        }
-
-        // Phase 2: Populate summary analytics tables (best-effort)
-        match super::analytics::populate_summary_analytics(schedule_id, 10).await {
-            Ok(()) => {
-                info!(
-                    "Populated summary analytics for schedule_id={}",
-                    schedule_id
-                );
-            }
-            Err(e) => {
-                log::warn!(
-                    "Failed to populate summary analytics for schedule_id={}: {}",
-                    schedule_id, e
-                );
-            }
-        }
-
-        // Phase 3: Populate visibility time bins (best-effort)
-        match super::analytics::populate_visibility_time_bins(schedule_id, Some(900)).await {
-            Ok((metadata_count, bins_count)) => {
-                info!(
-                    "Populated {} visibility metadata and {} time bins for schedule_id={}",
-                    metadata_count, bins_count, schedule_id
-                );
-            }
-            Err(e) => {
-                log::warn!(
-                    "Failed to populate visibility time bins for schedule_id={}: {}",
-                    schedule_id, e
-                );
-            }
-        }
+        // NOTE: For existing schedules, analytics population is skipped to avoid
+        // redundant computation. Analytics can be re-computed if needed using
+        // separate API endpoints. This avoids slow duplicate uploads.
         
         // Return metadata for the existing schedule
         return Ok(ScheduleMetadata {
@@ -854,70 +811,19 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
     );
     let metadata = insert_full_schedule(&mut *conn, schedule).await?;
 
-    // Populate analytics tables after successful schedule insertion
+    // NOTE: Analytics population is now handled by the service layer
+    // to allow flexible control over when and if analytics are computed.
+    // This dramatically improves upload performance for large schedules.
     if let Some(schedule_id) = metadata.schedule_id {
         info!(
-            "Successfully inserted schedule '{}' with id {} ({} blocks)",
+            "✓ Successfully inserted schedule '{}' with id {} ({} blocks)",
             schedule.name,
             schedule_id,
             schedule.blocks.len()
         );
-
-        // Phase 1: Populate block-level analytics table (best-effort, log errors but don't fail upload)
-        match super::analytics::populate_schedule_analytics(schedule_id).await {
-            Ok(analytics_count) => {
-                info!(
-                    "Populated {} analytics rows for schedule_id={}",
-                    analytics_count, schedule_id
-                );
-            }
-            Err(e) => {
-                // Log warning but don't fail the upload - analytics is optional
-                log::warn!(
-                    "Failed to populate block-level analytics for schedule_id={}: {}",
-                    schedule_id, e
-                );
-            }
-        }
-
-        // Phase 2: Populate summary analytics tables (best-effort, log errors but don't fail upload)
-        // Use 10 bins as default for histogram binning
-        match super::analytics::populate_summary_analytics(schedule_id, 10).await {
-            Ok(()) => {
-                info!(
-                    "Populated summary analytics for schedule_id={}",
-                    schedule_id
-                );
-            }
-            Err(e) => {
-                // Log warning but don't fail the upload - summary analytics is optional
-                log::warn!(
-                    "Failed to populate summary analytics for schedule_id={}: {}",
-                    schedule_id, e
-                );
-            }
-        }
-
-        // Phase 3: Populate visibility time bins (best-effort, log errors but don't fail upload)
-        // Use 15-minute bins (900 seconds) as default
-        match super::analytics::populate_visibility_time_bins(schedule_id, Some(900)).await {
-            Ok((metadata_count, bins_count)) => {
-                info!(
-                    "Populated {} visibility metadata and {} time bins for schedule_id={}",
-                    metadata_count, bins_count, schedule_id
-                );
-            }
-            Err(e) => {
-                // Log warning but don't fail the upload - visibility analytics is optional
-                log::warn!(
-                    "Failed to populate visibility time bins for schedule_id={}: {}",
-                    schedule_id, e
-                );
-            }
-        }
     } else {
         info!(
-            "Successfully inserted schedule '{}' (id pending)",
+            "✓ Successfully inserted schedule '{}' (id pending)",
             schedule.name
         );
     }
