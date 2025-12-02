@@ -189,6 +189,8 @@ def store_schedule_db(
     schedule_name: str,
     schedule_json: str,
     visibility_json: str | None = None,
+    populate_analytics: bool = True,
+    skip_time_bins: bool = True,
 ) -> dict[str, Any]:
     """
     Store a preprocessed schedule in the database.
@@ -199,21 +201,32 @@ def store_schedule_db(
         schedule_name: Human-readable schedule name
         schedule_json: JSON string containing schedule data
         visibility_json: Optional JSON string with visibility periods
+        populate_analytics: If True, compute block and summary analytics (recommended)
+        skip_time_bins: If True, skip expensive visibility time bin computation (default: True for performance)
         
     Returns:
         Dictionary with storage results including schedule_id
         
     Raises:
         DatabaseQueryError: If storage operation fails
+        
+    Performance:
+        - Fast mode (default): ~10-30 seconds for 1500 blocks
+        - Full analytics (skip_time_bins=False): ~2-5 minutes for 1500 blocks
     """
     try:
         result = _rust_call(
-            "py_store_schedule",
+            "py_store_schedule_with_options",
             schedule_name,
             schedule_json,
             visibility_json,
+            populate_analytics,
+            skip_time_bins,
         )
-        logger.info(f"Successfully stored schedule '{schedule_name}'")
+        logger.info(
+            f"Successfully stored schedule '{schedule_name}' "
+            f"(analytics={populate_analytics}, skip_bins={skip_time_bins})"
+        )
         return result
     except Exception as e:
         raise DatabaseQueryError(

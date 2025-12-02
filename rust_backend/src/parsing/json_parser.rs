@@ -73,36 +73,62 @@ fn parse_dark_periods_from_str(json_str: &str) -> Result<Vec<Period>> {
 /// Parse possible periods (visibility windows) from JSON string
 /// Returns a map of scheduling_block_id -> Vec<Period>
 fn parse_possible_periods_from_str(json_str: &str) -> Result<HashMap<i64, Vec<Period>>> {
-    let value: Value =
-        serde_json::from_str(json_str).context("Failed to parse possible periods JSON")?;
-
-    let scheduling_block_obj = value
-        .get("SchedulingBlock")
-        .and_then(|v| v.as_object())
-        .context("Missing or invalid 'SchedulingBlock' object")?;
-
-    let mut result = HashMap::new();
-
-    for (block_id_str, periods_array) in scheduling_block_obj {
-        let block_id: i64 = block_id_str
-            .parse()
-            .with_context(|| format!("Invalid block ID: {}", block_id_str))?;
-
-        let periods_arr = periods_array
-            .as_array()
-            .context("Expected array of periods")?;
-
-        let mut periods = Vec::new();
-        for period_value in periods_arr {
-            if let Some(period) = parse_period_from_value(period_value)? {
-                periods.push(period);
-            }
-        }
-
-        result.insert(block_id, periods);
+    // Handle empty or whitespace-only strings
+    let trimmed = json_str.trim();
+    if trimmed.is_empty() {
+        return Ok(HashMap::new());
     }
 
-    Ok(result)
+    let value: Value = serde_json::from_str(trimmed).with_context(|| {
+        let preview = if trimmed.len() > 200 {
+            format!("{}...", &trimmed[..200])
+        } else {
+            trimmed.to_string()
+        };
+        format!(
+            "Failed to parse possible periods JSON. First 200 chars: {}",
+            preview
+        )
+    })?;
+
+    // Handle different JSON formats:
+    // 1. {"SchedulingBlock": {...}} - object with block IDs as keys (expected format)
+    // 2. {...} - any other object format (return empty, visibility is optional)
+    // 3. [...] - array format (return empty, unsupported but graceful)
+    
+    // Try to get SchedulingBlock object (expected format)
+    if let Some(scheduling_block_obj) = value.get("SchedulingBlock").and_then(|v| v.as_object()) {
+        let mut result = HashMap::new();
+
+        for (block_id_str, periods_array) in scheduling_block_obj {
+            let block_id: i64 = block_id_str
+                .parse()
+                .with_context(|| format!("Invalid block ID in SchedulingBlock: {}", block_id_str))?;
+
+            let periods_arr = periods_array.as_array().with_context(|| {
+                format!(
+                    "Expected array of periods for block {}, got: {:?}",
+                    block_id_str,
+                    periods_array.to_string().chars().take(100).collect::<String>()
+                )
+            })?;
+
+            let mut periods = Vec::new();
+            for period_value in periods_arr {
+                if let Some(period) = parse_period_from_value(period_value)? {
+                    periods.push(period);
+                }
+            }
+
+            result.insert(block_id, periods);
+        }
+
+        return Ok(result);
+    }
+
+    // If no SchedulingBlock object found, return empty map (visibility is optional)
+    // This handles cases like empty objects {}, arrays [], or other JSON structures
+    Ok(HashMap::new())
 }
 
 /// Parse scheduling blocks from JSON string

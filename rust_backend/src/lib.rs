@@ -138,6 +138,7 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_init_database, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_db_health_check, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_store_schedule, m)?)?;
+    m.add_function(wrap_pyfunction!(python::py_store_schedule_with_options, m)?)?;
     //m.add_function(wrap_pyfunction!(python::py_fetch_schedule, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_list_schedules, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_fetch_dark_periods, m)?)?;

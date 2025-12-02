@@ -213,9 +213,9 @@ CREATE TABLE dbo.schedule_scheduling_blocks (
 
 **Nota**: `duration_sec` es una **computed column persistente**. SQL Server la calcula automáticamente y la almacena físicamente. Esto acelera queries que filtran o ordenan por duración.
 
-#### 2.2.7 Paso 7: Dark Periods — Periodos No Observables
+#### 2.2.7 Paso 7: Dark Periods — Periodos Observables
 
-Los dark periods marcan ventanas donde el telescopio NO puede observar (luna llena, mantenimiento, mal tiempo previsto):
+Los dark periods marcan ventanas donde el telescopio puede observar (sin luna ni sol):
 
 ```sql
 CREATE TABLE dbo.schedule_dark_periods (

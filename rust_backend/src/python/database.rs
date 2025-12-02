@@ -83,6 +83,34 @@ pub fn py_store_schedule(
     schedule_json: &str,
     visibility_json: Option<&str>,
 ) -> PyResult<PyObject> {
+    py_store_schedule_with_options(schedule_name, schedule_json, visibility_json, true, true)
+}
+
+/// Store a preprocessed schedule with optional analytics computation.
+///
+/// Args:
+///     schedule_name: Human-readable schedule name
+///     schedule_json: JSON string containing schedule data
+///     visibility_json: Optional JSON string with visibility periods
+///     populate_analytics: If True, compute block and summary analytics (recommended)
+///     skip_time_bins: If True, skip expensive visibility time bin computation
+///
+/// Returns:
+///     Dictionary with storage results including schedule_id
+///
+/// Performance:
+///     - Full analytics (populate_analytics=True, skip_time_bins=False): ~2-5 minutes for 1500 blocks
+///     - Fast mode (populate_analytics=True, skip_time_bins=True): ~10-30 seconds for 1500 blocks
+///     - Fastest mode (populate_analytics=False, skip_time_bins=True): ~5-15 seconds for 1500 blocks
+#[pyfunction]
+#[pyo3(signature = (schedule_name, schedule_json, visibility_json=None, populate_analytics=true, skip_time_bins=true))]
+pub fn py_store_schedule_with_options(
+    schedule_name: &str,
+    schedule_json: &str,
+    visibility_json: Option<&str>,
+    populate_analytics: bool,
+    skip_time_bins: bool,
+) -> PyResult<PyObject> {
     // Heavy parsing + DB insert happens without the GIL held to avoid blocking Python.
     let metadata = Python::with_gil(|py| {
         py.allow_threads(|| -> PyResult<_> {
@@ -115,7 +143,12 @@ pub fn py_store_schedule(
 
             let repo = get_repository()?;
             runtime
-                .block_on(services::store_schedule(repo.as_ref(), &schedule))
+                .block_on(services::store_schedule_with_options(
+                    repo.as_ref(),
+                    &schedule,
+                    populate_analytics,
+                    skip_time_bins,
+                ))
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
         })
     })?;
