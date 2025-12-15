@@ -1,4 +1,4 @@
-use crate::db::models::{ScheduleTimelineBlock, ScheduleTimelineData};
+use crate::db::models::{Period, ScheduleTimelineBlock, ScheduleTimelineData};
 use crate::db::{analytics, operations};
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
@@ -8,7 +8,7 @@ use std::collections::HashSet;
 /// This function takes the raw blocks and computes everything needed for visualization.
 pub fn compute_schedule_timeline_data(
     blocks: Vec<ScheduleTimelineBlock>,
-    dark_periods: Vec<(f64, f64)>,
+    dark_periods: Vec<Period>,
 ) -> Result<ScheduleTimelineData, String> {
     if blocks.is_empty() {
         return Ok(ScheduleTimelineData {
@@ -18,7 +18,7 @@ pub fn compute_schedule_timeline_data(
             total_count: 0,
             scheduled_count: 0,
             unique_months: vec![],
-            dark_periods,
+            dark_periods: dark_periods.into_iter().map(|p| (p.start.value(), p.stop.value())).collect(),
         });
     }
 
@@ -65,7 +65,7 @@ pub fn compute_schedule_timeline_data(
         total_count: blocks.len(),
         scheduled_count: blocks.len(),
         unique_months: sorted_months,
-        dark_periods,
+        dark_periods: dark_periods.into_iter().map(|p| (p.start.value(), p.stop.value())).collect(),
     })
 }
 

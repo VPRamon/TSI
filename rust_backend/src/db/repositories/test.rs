@@ -11,11 +11,12 @@ use std::sync::{Arc, RwLock};
 
 use crate::db::{
     analytics,
-    models::{Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock},
+    models::{Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock},
     repository::*,
     validation,
 };
 use crate::services::validation::ValidationResult;
+use siderust::astro::ModifiedJulianDate;
 
 /// In-memory repository for testing.
 ///
@@ -249,7 +250,7 @@ impl ScheduleRepository for TestRepository {
     async fn get_schedule_time_range(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Option<(f64, f64)>> {
+    ) -> RepositoryResult<Option<Period>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Calculate time range from dark periods
@@ -271,7 +272,10 @@ impl ScheduleRepository for TestRepository {
             .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
 
-        Ok(Some((min_start, max_stop)))
+        Ok(Period::new(
+            ModifiedJulianDate::new(min_start),
+            ModifiedJulianDate::new(max_stop),
+        ))
     }
 
     async fn get_scheduling_block(
@@ -296,15 +300,9 @@ impl ScheduleRepository for TestRepository {
         Ok(schedule.blocks.clone())
     }
 
-    async fn fetch_dark_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<(f64, f64)>> {
-        let data = self.data.read().unwrap();
-        
-        // Convert from 3-tuple to 2-tuple (id, start, stop) -> (start, stop)
-        Ok(data
-            .dark_periods
-            .get(&schedule_id)
-            .map(|periods| periods.iter().map(|(_, start, stop)| (*start, *stop)).collect())
-            .unwrap_or_default())
+    async fn fetch_dark_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>> {
+        let schedule = self.get_schedule_impl(schedule_id)?;
+        Ok(schedule.dark_periods.clone())
     }
 
     async fn fetch_possible_periods(

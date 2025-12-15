@@ -54,7 +54,7 @@
 
 use log::{info, warn};
 
-use super::models::{Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock};
+use super::models::{Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock};
 use super::repository::{RepositoryResult, ScheduleRepository};
 
 // ==================== Health & Connection ====================
@@ -246,13 +246,13 @@ pub async fn list_schedules(repo: &dyn ScheduleRepository) -> RepositoryResult<V
 /// * `schedule_id` - The ID of the schedule
 ///
 /// # Returns
-/// * `Ok(Some((start_mjd, stop_mjd)))` - Time range in Modified Julian Date
+/// * `Ok(Some(Period))` - Time range as a Period
 /// * `Ok(None)` - If schedule has no time constraints
 /// * `Err` if query fails
 pub async fn get_schedule_time_range(
     repo: &dyn ScheduleRepository,
     schedule_id: i64,
-) -> RepositoryResult<Option<(f64, f64)>> {
+) -> RepositoryResult<Option<Period>> {
     repo.get_schedule_time_range(schedule_id).await
 }
 
@@ -299,12 +299,12 @@ pub async fn get_blocks_for_schedule(
 /// * `schedule_id` - The ID of the schedule
 ///
 /// # Returns
-/// * `Ok(Vec<(f64, f64)>)` - List of (start_mjd, stop_mjd)
+/// * `Ok(Vec<Period>)` - List of dark periods
 /// * `Err` if query fails
 pub async fn fetch_dark_periods(
     repo: &dyn ScheduleRepository,
     schedule_id: i64,
-) -> RepositoryResult<Vec<(f64, f64)>> {
+) -> RepositoryResult<Vec<Period>> {
     repo.fetch_dark_periods(schedule_id).await
 }
 

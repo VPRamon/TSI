@@ -252,8 +252,8 @@ pub fn py_fetch_dark_periods(schedule_id: i64) -> PyResult<PyObject> {
 
     Python::with_gil(|py| {
         let list = PyList::empty(py);
-        for (start, stop) in periods {
-            list.append((start, stop))?;
+        for period in periods {
+            list.append((period.start.value(), period.stop.value()))?;
         }
         Ok(list.into())
     })
@@ -461,16 +461,16 @@ pub fn py_get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64
         ))
     })?;
 
-    let time_range_mjd = runtime
+    let time_range_period = runtime
         .block_on(services::get_schedule_time_range(repo.as_ref(), schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
 
-    // Convert MJD to Unix timestamps
-    if let Some((min_mjd, max_mjd)) = time_range_mjd {
+    // Convert Period to Unix timestamps
+    if let Some(period) = time_range_period {
         // MJD epoch (1858-11-17 00:00:00 UTC) as Unix timestamp
         const MJD_EPOCH_UNIX: i64 = -3506716800;
-        let start_unix = MJD_EPOCH_UNIX + (min_mjd * 86400.0) as i64;
-        let end_unix = MJD_EPOCH_UNIX + (max_mjd * 86400.0) as i64;
+        let start_unix = MJD_EPOCH_UNIX + (period.start.value() * 86400.0) as i64;
+        let end_unix = MJD_EPOCH_UNIX + (period.stop.value() * 86400.0) as i64;
         Ok(Some((start_unix, end_unix)))
     } else {
         Ok(None)
