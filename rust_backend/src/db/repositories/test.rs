@@ -220,16 +220,6 @@ impl ScheduleRepository for TestRepository {
         self.get_schedule_impl(schedule_id)
     }
 
-    async fn get_schedule_by_name(&self, schedule_name: &str) -> RepositoryResult<Schedule> {
-        let data = self.data.read().unwrap();
-        
-        data.schedules
-            .values()
-            .find(|s| s.name == schedule_name)
-            .cloned()
-            .ok_or_else(|| RepositoryError::NotFound(format!("Schedule '{}' not found", schedule_name)))
-    }
-
     async fn list_schedules(&self) -> RepositoryResult<Vec<ScheduleInfo>> {
         let data = self.data.read().unwrap();
         

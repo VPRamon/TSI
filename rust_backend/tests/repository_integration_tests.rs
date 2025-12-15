@@ -213,7 +213,7 @@ async fn test_helper_methods() {
         dark_periods: vec![],
         checksum: "helper".to_string(),
     };
-    let schedule_id = repo.add_test_schedule(schedule);
+    let schedule_id = repo.store_schedule(&schedule).await.unwrap().schedule_id.unwrap();
 
     assert_eq!(repo.schedule_count(), 1);
     assert!(repo.has_schedule(schedule_id));
