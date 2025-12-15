@@ -126,7 +126,7 @@ impl ScheduleRepository for AzureRepository {
     async fn fetch_possible_periods(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<(i64, f64, f64)>> {
+    ) -> RepositoryResult<Vec<Period>> {
         operations::fetch_possible_periods(schedule_id)
             .await
             .map_err(RepositoryError::from)

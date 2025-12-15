@@ -48,8 +48,7 @@ struct TestData {
     schedules: HashMap<i64, Schedule>,
     schedule_metadata: HashMap<i64, ScheduleMetadata>,
     blocks: HashMap<i64, SchedulingBlock>,
-    dark_periods: HashMap<i64, Vec<(i64, f64, f64)>>,
-    possible_periods: HashMap<i64, Vec<(i64, f64, f64)>>,
+    possible_periods: HashMap<i64, Vec<Period>>,
     
     // Analytics data
     analytics_exists: HashMap<i64, bool>,
@@ -66,7 +65,6 @@ struct TestData {
     // ID counters
     next_schedule_id: i64,
     next_block_id: i64,
-    next_period_id: i64,
     
     // Connection health
     is_healthy: bool,
@@ -80,7 +78,6 @@ impl TestRepository {
                 is_healthy: true,
                 next_schedule_id: 1,
                 next_block_id: 1,
-                next_period_id: 1,
                 ..Default::default()
             })),
         }
@@ -121,20 +118,6 @@ impl TestRepository {
         schedule_id
     }
 
-    /// Add dark periods for a schedule.
-    pub fn add_dark_periods(&self, schedule_id: i64, periods: Vec<(f64, f64)>) {
-        let mut data = self.data.write().unwrap();
-        let mut period_data = Vec::new();
-        
-        for (start, stop) in periods {
-            let period_id = data.next_period_id;
-            data.next_period_id += 1;
-            period_data.push((period_id, start, stop));
-        }
-        
-        data.dark_periods.insert(schedule_id, period_data);
-    }
-
     /// Set the health status for testing connection failures.
     pub fn set_healthy(&self, healthy: bool) {
         let mut data = self.data.write().unwrap();
@@ -148,7 +131,6 @@ impl TestRepository {
             is_healthy: data.is_healthy,
             next_schedule_id: 1,
             next_block_id: 1,
-            next_period_id: 1,
             ..Default::default()
         };
     }
@@ -308,7 +290,7 @@ impl ScheduleRepository for TestRepository {
     async fn fetch_possible_periods(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<(i64, f64, f64)>> {
+    ) -> RepositoryResult<Vec<Period>> {
         let data = self.data.read().unwrap();
         
         Ok(data
