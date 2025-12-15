@@ -277,8 +277,8 @@ pub fn py_fetch_possible_periods(schedule_id: i64) -> PyResult<PyObject> {
 
     Python::with_gil(|py| {
         let list = PyList::empty(py);
-        for (sb_id, start, stop) in periods {
-            list.append((sb_id, start, stop))?;
+        for period in periods {
+            list.append((period.start.value(), period.stop.value()))?;
         }
         Ok(list.into())
     })

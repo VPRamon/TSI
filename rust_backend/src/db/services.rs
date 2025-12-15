@@ -315,12 +315,12 @@ pub async fn fetch_dark_periods(
 /// * `schedule_id` - The ID of the schedule
 ///
 /// # Returns
-/// * `Ok(Vec<(i64, f64, f64)>)` - List of (block_id, start_mjd, stop_mjd)
+/// * `Ok(Vec<Period>)` - List of visibility periods
 /// * `Err` if query fails
 pub async fn fetch_possible_periods(
     repo: &dyn ScheduleRepository,
     schedule_id: i64,
-) -> RepositoryResult<Vec<(i64, f64, f64)>> {
+) -> RepositoryResult<Vec<Period>> {
     repo.fetch_possible_periods(schedule_id).await
 }
 

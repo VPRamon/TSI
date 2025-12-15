@@ -1447,7 +1447,7 @@ pub async fn fetch_dark_periods_public(
 }
 
 /// Fetch visibility (possible) periods for a schedule.
-pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<(i64, f64, f64)>, String> {
+pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<Period>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -1457,8 +1457,7 @@ pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<(i64, f64, f
     // Get all visibility periods for blocks in this schedule
     let query = Query::new(
         r#"
-        SELECT 
-            ssb.scheduling_block_id,
+        SELECT DISTINCT
             vp.start_time_mjd,
             vp.stop_time_mjd
         FROM dbo.schedule_scheduling_blocks ssb
@@ -1466,7 +1465,7 @@ pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<(i64, f64, f
         JOIN dbo.visibility_periods vp ON sb.target_id = vp.target_id 
             AND sb.constraints_id = vp.constraints_id
         WHERE ssb.schedule_id = @P1
-        ORDER BY ssb.scheduling_block_id, vp.start_time_mjd
+        ORDER BY vp.start_time_mjd
         "#,
     );
 
@@ -1485,16 +1484,18 @@ pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<(i64, f64, f
 
     let mut periods = Vec::new();
     for row in rows {
-        let sb_id: i64 = row
-            .get::<i64, _>(0)
-            .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
         let start: f64 = row
-            .get::<f64, _>(1)
+            .get::<f64, _>(0)
             .ok_or_else(|| "start_time_mjd is NULL".to_string())?;
         let stop: f64 = row
-            .get::<f64, _>(2)
+            .get::<f64, _>(1)
             .ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
-        periods.push((sb_id, start, stop));
+        if let Some(period) = Period::new(
+            ModifiedJulianDate::new(start),
+            ModifiedJulianDate::new(stop),
+        ) {
+            periods.push(period);
+        }
     }
 
     Ok(periods)
