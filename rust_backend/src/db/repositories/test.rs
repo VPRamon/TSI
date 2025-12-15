@@ -161,6 +161,33 @@ impl TestRepository {
     pub fn has_schedule(&self, schedule_id: i64) -> bool {
         self.data.read().unwrap().schedules.contains_key(&schedule_id)
     }
+
+    /// Helper to check health and return error if unhealthy.
+    fn check_health(&self) -> RepositoryResult<()> {
+        let data = self.data.read().unwrap();
+        if !data.is_healthy {
+            return Err(RepositoryError::ConnectionError(
+                "Database is not healthy".to_string(),
+            ));
+        }
+        Ok(())
+    }
+
+    /// Helper to get a schedule or return NotFound error.
+    fn get_schedule_internal(&self, schedule_id: i64) -> RepositoryResult<Schedule> {
+        let data = self.data.read().unwrap();
+        data.schedules
+            .get(&schedule_id)
+            .cloned()
+            .ok_or_else(|| RepositoryError::NotFound(format!("Schedule {} not found", schedule_id)))
+    }
+
+    /// Helper for the common deletion pattern.
+    fn delete_from_map<T>(&self, map_accessor: impl FnOnce(&mut TestData) -> &mut HashMap<i64, T>, schedule_id: i64) -> usize {
+        let mut data = self.data.write().unwrap();
+        let existed = map_accessor(&mut data).remove(&schedule_id).is_some();
+        if existed { 1 } else { 0 }
+    }
 }
 
 impl Default for TestRepository {
@@ -177,47 +204,20 @@ impl ScheduleRepository for TestRepository {
     }
 
     async fn store_schedule(&self, schedule: &Schedule) -> RepositoryResult<ScheduleMetadata> {
-        let mut data = self.data.write().unwrap();
+        self.check_health()?;
+
+        // Use the helper method to add the schedule
+        let schedule_id = self.add_test_schedule(schedule.clone());
+
+        // Retrieve and return the metadata
+        let data = self.data.read().unwrap();
+        let metadata = data.schedule_metadata.get(&schedule_id).cloned().unwrap();
         
-        if !data.is_healthy {
-            return Err(RepositoryError::ConnectionError(
-                "Database is not healthy".to_string(),
-            ));
-        }
-
-        let schedule_id = data.next_schedule_id;
-        data.next_schedule_id += 1;
-
-        let mut schedule_copy = schedule.clone();
-        
-        // Assign IDs to all blocks
-        for block in &mut schedule_copy.blocks {
-            let block_id = data.next_block_id;
-            data.next_block_id += 1;
-            data.blocks.insert(block_id, block.clone());
-        }
-
-        let metadata = ScheduleMetadata {
-            schedule_id: Some(schedule_id),
-            schedule_name: schedule.name.clone(),
-            upload_timestamp: Utc::now(),
-            checksum: schedule.checksum.clone(),
-        };
-
-        data.schedule_metadata
-            .insert(schedule_id, metadata.clone());
-        data.schedules.insert(schedule_id, schedule_copy);
-
         Ok(metadata)
     }
 
     async fn get_schedule(&self, schedule_id: i64) -> RepositoryResult<Schedule> {
-        let data = self.data.read().unwrap();
-        
-        data.schedules
-            .get(&schedule_id)
-            .cloned()
-            .ok_or_else(|| RepositoryError::NotFound(format!("Schedule {} not found", schedule_id)))
+        self.get_schedule_internal(schedule_id)
     }
 
     async fn get_schedule_by_name(&self, schedule_name: &str) -> RepositoryResult<Schedule> {
@@ -260,12 +260,7 @@ impl ScheduleRepository for TestRepository {
         &self,
         schedule_id: i64,
     ) -> RepositoryResult<Option<(f64, f64)>> {
-        let data = self.data.read().unwrap();
-        
-        let schedule = data
-            .schedules
-            .get(&schedule_id)
-            .ok_or_else(|| RepositoryError::NotFound(format!("Schedule {} not found", schedule_id)))?;
+        let schedule = self.get_schedule_internal(schedule_id)?;
 
         // Calculate time range from dark periods
         if schedule.dark_periods.is_empty() {
@@ -307,13 +302,7 @@ impl ScheduleRepository for TestRepository {
         &self,
         schedule_id: i64,
     ) -> RepositoryResult<Vec<SchedulingBlock>> {
-        let data = self.data.read().unwrap();
-        
-        let schedule = data
-            .schedules
-            .get(&schedule_id)
-            .ok_or_else(|| RepositoryError::NotFound(format!("Schedule {} not found", schedule_id)))?;
-
+        let schedule = self.get_schedule_internal(schedule_id)?;
         Ok(schedule.blocks.clone())
     }
 
@@ -342,24 +331,15 @@ impl ScheduleRepository for TestRepository {
     }
 
     async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        let mut data = self.data.write().unwrap();
+        self.get_schedule_internal(schedule_id)?;
         
-        if !data.schedules.contains_key(&schedule_id) {
-            return Err(RepositoryError::NotFound(format!(
-                "Schedule {} not found",
-                schedule_id
-            )));
-        }
-
+        let mut data = self.data.write().unwrap();
         data.analytics_exists.insert(schedule_id, true);
         Ok(1) // Simulated row count
     }
 
     async fn delete_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        let mut data = self.data.write().unwrap();
-        
-        let existed = data.analytics_exists.remove(&schedule_id).is_some();
-        Ok(if existed { 1 } else { 0 })
+        Ok(self.delete_from_map(|d| &mut d.analytics_exists, schedule_id))
     }
 
     async fn has_analytics_data(&self, schedule_id: i64) -> RepositoryResult<bool> {
@@ -371,7 +351,6 @@ impl ScheduleRepository for TestRepository {
         &self,
         _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::LightweightBlock>> {
-        // Return lightweight blocks (simplified for test)
         Ok(vec![])
     }
 
@@ -379,7 +358,6 @@ impl ScheduleRepository for TestRepository {
         &self,
         _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::DistributionBlock>> {
-        // Return empty for test
         Ok(vec![])
     }
 
@@ -388,14 +366,9 @@ impl ScheduleRepository for TestRepository {
         schedule_id: i64,
         _n_bins: usize,
     ) -> RepositoryResult<()> {
-        let mut data = self.data.write().unwrap();
+        self.get_schedule_internal(schedule_id)?;
         
-        if !data.schedules.contains_key(&schedule_id) {
-            return Err(RepositoryError::NotFound(format!(
-                "Schedule {} not found",
-                schedule_id
-            )));
-        }
+        let mut data = self.data.write().unwrap();
 
         // Create dummy summary
         let summary = analytics::ScheduleSummary {
@@ -476,10 +449,7 @@ impl ScheduleRepository for TestRepository {
     }
 
     async fn delete_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        let mut data = self.data.write().unwrap();
-        
-        let existed = data.summary_analytics.remove(&schedule_id).is_some();
-        Ok(if existed { 1 } else { 0 })
+        Ok(self.delete_from_map(|d| &mut d.summary_analytics, schedule_id))
     }
 
     async fn populate_visibility_time_bins(
@@ -487,14 +457,9 @@ impl ScheduleRepository for TestRepository {
         schedule_id: i64,
         _bin_duration_seconds: Option<i64>,
     ) -> RepositoryResult<(usize, usize)> {
-        let mut data = self.data.write().unwrap();
+        self.get_schedule_internal(schedule_id)?;
         
-        if !data.schedules.contains_key(&schedule_id) {
-            return Err(RepositoryError::NotFound(format!(
-                "Schedule {} not found",
-                schedule_id
-            )));
-        }
+        let mut data = self.data.write().unwrap();
 
         // Create dummy bins
         data.visibility_time_bins.insert(schedule_id, vec![]);
@@ -508,7 +473,6 @@ impl ScheduleRepository for TestRepository {
         _end_unix: i64,
         _target_bin_duration_seconds: i64,
     ) -> RepositoryResult<Vec<crate::db::models::VisibilityBin>> {
-        // Return empty for test
         Ok(vec![])
     }
 
@@ -526,10 +490,7 @@ impl ScheduleRepository for TestRepository {
     }
 
     async fn delete_visibility_time_bins(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        let mut data = self.data.write().unwrap();
-        
-        let existed = data.visibility_time_bins.remove(&schedule_id).is_some();
-        Ok(if existed { 1 } else { 0 })
+        Ok(self.delete_from_map(|d| &mut d.visibility_time_bins, schedule_id))
     }
 
     async fn insert_validation_results(
@@ -595,17 +556,13 @@ impl ScheduleRepository for TestRepository {
     }
 
     async fn delete_validation_results(&self, schedule_id: i64) -> RepositoryResult<u64> {
-        let mut data = self.data.write().unwrap();
-        
-        let existed = data.validation_results.remove(&schedule_id).is_some();
-        Ok(if existed { 1 } else { 0 })
+        Ok(self.delete_from_map(|d| &mut d.validation_results, schedule_id) as u64)
     }
 
     async fn fetch_lightweight_blocks(
         &self,
         _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::LightweightBlock>> {
-        // Return empty lightweight blocks for test
         Ok(vec![])
     }
 
@@ -613,7 +570,6 @@ impl ScheduleRepository for TestRepository {
         &self,
         _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::InsightsBlock>> {
-        // Return empty for test
         Ok(vec![])
     }
 
@@ -621,7 +577,6 @@ impl ScheduleRepository for TestRepository {
         &self,
         _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::TrendsBlock>> {
-        // Return empty for test
         Ok(vec![])
     }
 
@@ -629,7 +584,6 @@ impl ScheduleRepository for TestRepository {
         &self,
         _schedule_id: i64,
     ) -> RepositoryResult<crate::db::models::VisibilityMapData> {
-        // Return empty data for test
         Ok(crate::db::models::VisibilityMapData {
             blocks: vec![],
             priority_min: 0.0,
@@ -646,7 +600,6 @@ impl ScheduleRepository for TestRepository {
         _priority_max: Option<i32>,
         _block_ids: Option<Vec<i64>>,
     ) -> RepositoryResult<Vec<crate::db::models::BlockHistogramData>> {
-        // Return empty for test
         Ok(vec![])
     }
 
@@ -654,7 +607,6 @@ impl ScheduleRepository for TestRepository {
         &self,
         _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::ScheduleTimelineBlock>> {
-        // Return empty for test
         Ok(vec![])
     }
 
@@ -662,7 +614,6 @@ impl ScheduleRepository for TestRepository {
         &self,
         _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::CompareBlock>> {
-        // Return empty for test
         Ok(vec![])
     }
 }
