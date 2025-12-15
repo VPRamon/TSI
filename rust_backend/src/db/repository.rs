@@ -6,7 +6,7 @@
 
 use async_trait::async_trait;
 
-use super::models::{Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock};
+use super::models::{Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock};
 use super::validation::ValidationReportData;
 use super::analytics::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin,
@@ -112,13 +112,13 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `schedule_id` - The ID of the schedule
     ///
     /// # Returns
-    /// * `Ok(Some((start_mjd, stop_mjd)))` - Time range in Modified Julian Date
+    /// * `Ok(Some(Period))` - Time range as a Period
     /// * `Ok(None)` - If the schedule has no time constraints
     /// * `Err(RepositoryError)` - If the operation fails
     async fn get_schedule_time_range(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Option<(f64, f64)>>;
+    ) -> RepositoryResult<Option<Period>>;
 
     // ==================== Scheduling Block Operations ====================
 
@@ -157,9 +157,9 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `schedule_id` - The ID of the schedule
     ///
     /// # Returns
-    /// * `Ok(Vec<(i64, f64, f64)>)` - List of (period_id, start_mjd, stop_mjd)
+    /// * `Ok(Vec<Period>)` - List of dark periods
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_dark_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<(f64, f64)>>;
+    async fn fetch_dark_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>>;
 
     /// Fetch possible observation periods for a schedule.
     ///

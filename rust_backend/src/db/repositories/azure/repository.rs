@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use super::{analytics, operations, validation};
 use crate::db::{
     repository::*,
-    models::{Schedule, ScheduleInfo, ScheduleMetadata},
+    models::{Period, Schedule, ScheduleInfo, ScheduleMetadata},
 };
 use crate::services::validation::ValidationResult;
 
@@ -87,7 +87,7 @@ impl ScheduleRepository for AzureRepository {
     async fn get_schedule_time_range(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Option<(f64, f64)>> {
+    ) -> RepositoryResult<Option<Period>> {
         operations::get_schedule_time_range(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -117,7 +117,7 @@ impl ScheduleRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn fetch_dark_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<(f64, f64)>> {
+    async fn fetch_dark_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>> {
         operations::fetch_dark_periods_public(Some(schedule_id))
             .await
             .map_err(RepositoryError::from)

@@ -1390,7 +1390,7 @@ pub async fn get_blocks_for_schedule(schedule_id: i64) -> Result<Vec<SchedulingB
 /// Fetch dark periods for a schedule (public version for Python).
 pub async fn fetch_dark_periods_public(
     schedule_id: Option<i64>,
-) -> Result<Vec<(f64, f64)>, String> {
+) -> Result<Vec<Period>, String> {
     if let Some(sid) = schedule_id {
         let pool = pool::get_pool()?;
         let mut conn = pool
@@ -1399,10 +1399,7 @@ pub async fn fetch_dark_periods_public(
             .map_err(|e| format!("Failed to get connection: {e}"))?;
 
         let periods = fetch_dark_periods(&mut *conn, sid).await?;
-        Ok(periods
-            .into_iter()
-            .map(|p| (p.start.value(), p.stop.value()))
-            .collect())
+        Ok(periods)
     } else {
         // Global dark periods - fetch all unique periods across all schedules
         let pool = pool::get_pool()?;
@@ -1437,7 +1434,12 @@ pub async fn fetch_dark_periods_public(
             let stop: f64 = row
                 .get::<f64, _>(1)
                 .ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
-            periods.push((start, stop));
+            if let Some(period) = Period::new(
+                ModifiedJulianDate::new(start),
+                ModifiedJulianDate::new(stop),
+            ) {
+                periods.push(period);
+            }
         }
 
         Ok(periods)
@@ -2125,9 +2127,9 @@ pub async fn fetch_blocks_for_histogram(
 /// * `schedule_id` - Schedule ID to analyze
 ///
 /// ## Returns
-/// Tuple of (min_mjd, max_mjd) as Option<(f64, f64)>. Returns None if no
+/// Returns Some(Period) representing the time range. Returns None if no
 /// visibility periods exist or if schedule not found.
-pub async fn get_schedule_time_range(schedule_id: i64) -> Result<Option<(f64, f64)>, String> {
+pub async fn get_schedule_time_range(schedule_id: i64) -> Result<Option<Period>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -2187,7 +2189,12 @@ pub async fn get_schedule_time_range(schedule_id: i64) -> Result<Option<(f64, f6
             max,
             max - min
         );
-        Ok(Some((min, max)))
+        Period::new(
+            ModifiedJulianDate::new(min),
+            ModifiedJulianDate::new(max),
+        )
+        .ok_or_else(|| "Invalid time range: start >= stop".to_string())
+        .map(Some)
     } else {
         debug!("No visibility periods found for schedule {}", schedule_id);
         Ok(None)
