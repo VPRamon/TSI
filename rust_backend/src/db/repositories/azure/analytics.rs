@@ -2039,7 +2039,7 @@ pub async fn populate_visibility_time_bins(
         if !periods.is_empty() {
             blocks.push(BlockVisibilityData {
                 scheduling_block_id: block_id,
-                priority,
+                priority: priority,
                 priority_quartile: quartile,
                 is_scheduled,
                 periods,

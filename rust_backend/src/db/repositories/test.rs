@@ -611,7 +611,7 @@ impl ScheduleRepository for TestRepository {
 
     async fn fetch_insights_blocks(
         &self,
-        schedule_id: i64,
+        _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::InsightsBlock>> {
         // Return empty for test
         Ok(vec![])
@@ -619,7 +619,7 @@ impl ScheduleRepository for TestRepository {
 
     async fn fetch_trends_blocks(
         &self,
-        schedule_id: i64,
+        _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::TrendsBlock>> {
         // Return empty for test
         Ok(vec![])
@@ -641,7 +641,7 @@ impl ScheduleRepository for TestRepository {
 
     async fn fetch_blocks_for_histogram(
         &self,
-        schedule_id: i64,
+        _schedule_id: i64,
         _priority_min: Option<i32>,
         _priority_max: Option<i32>,
         _block_ids: Option<Vec<i64>>,
@@ -652,7 +652,7 @@ impl ScheduleRepository for TestRepository {
 
     async fn fetch_schedule_timeline_blocks(
         &self,
-        schedule_id: i64,
+        _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::ScheduleTimelineBlock>> {
         // Return empty for test
         Ok(vec![])
@@ -660,7 +660,7 @@ impl ScheduleRepository for TestRepository {
 
     async fn fetch_compare_blocks(
         &self,
-        schedule_id: i64,
+        _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::CompareBlock>> {
         // Return empty for test
         Ok(vec![])
