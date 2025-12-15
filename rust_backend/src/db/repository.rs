@@ -99,17 +99,6 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn get_schedule(&self, schedule_id: i64) -> RepositoryResult<Schedule>;
 
-    /// Retrieve a complete schedule by name.
-    ///
-    /// # Arguments
-    /// * `schedule_name` - The name of the schedule to retrieve
-    ///
-    /// # Returns
-    /// * `Ok(Schedule)` - The complete schedule with all blocks and dark periods
-    /// * `Err(RepositoryError::NotFound)` - If the schedule doesn't exist
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn get_schedule_by_name(&self, schedule_name: &str) -> RepositoryResult<Schedule>;
-
     /// List all schedules with basic metadata.
     ///
     /// # Returns

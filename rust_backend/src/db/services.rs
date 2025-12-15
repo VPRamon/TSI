@@ -226,23 +226,6 @@ pub async fn get_schedule(
     repo.get_schedule(schedule_id).await
 }
 
-/// Retrieve a schedule by name.
-///
-/// # Arguments
-/// * `repo` - Repository implementation
-/// * `schedule_name` - The name of the schedule to retrieve
-///
-/// # Returns
-/// * `Ok(Schedule)` - The complete schedule
-/// * `Err` if schedule not found or retrieval fails
-pub async fn get_schedule_by_name(
-    repo: &dyn ScheduleRepository,
-    schedule_name: &str,
-) -> RepositoryResult<Schedule> {
-    info!("Service layer: loading schedule '{}'", schedule_name);
-    repo.get_schedule_by_name(schedule_name).await
-}
-
 /// List all schedules with basic metadata.
 ///
 /// # Arguments

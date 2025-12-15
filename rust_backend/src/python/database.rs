@@ -166,16 +166,7 @@ pub fn py_store_schedule_with_options(
 
 /// Fetch a schedule (metadata + blocks) from the database.
 #[pyfunction]
-pub fn py_get_schedule(
-    schedule_id: Option<i64>,
-    schedule_name: Option<&str>,
-) -> PyResult<Schedule> {
-    if schedule_id.is_none() && schedule_name.is_none() {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "Either schedule_id or schedule_name must be provided",
-        ));
-    }
-
+pub fn py_get_schedule(schedule_id: i64) -> PyResult<Schedule> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -185,17 +176,9 @@ pub fn py_get_schedule(
 
     let repo = get_repository()?;
     
-    if let Some(id) = schedule_id {
-        runtime
-            .block_on(services::get_schedule(repo.as_ref(), id))
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
-    } else if let Some(name) = schedule_name {
-        runtime
-            .block_on(services::get_schedule_by_name(repo.as_ref(), name))
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
-    } else {
-        unreachable!()
-    }
+    runtime
+        .block_on(services::get_schedule(repo.as_ref(), schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
 }
 
 /// Fetch all scheduling blocks for a schedule ID.

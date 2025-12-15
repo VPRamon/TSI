@@ -75,7 +75,7 @@ pub mod services;
 
 pub use services::{
     ensure_analytics, fetch_dark_periods, fetch_possible_periods, get_blocks_for_schedule,
-    get_schedule, get_schedule_by_name, get_schedule_time_range, get_scheduling_block,
+    get_schedule, get_schedule_time_range, get_scheduling_block,
     has_analytics_data, has_summary_analytics, has_visibility_time_bins, health_check,
     list_schedules, store_schedule,
 };

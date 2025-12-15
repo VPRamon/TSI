@@ -257,15 +257,6 @@ def list_schedules_db() -> list[dict[str, Any]]:
         ) from e
 
 
-def get_schedule_from_backend(
-    *,
-    schedule_id: int | None = None,
-    schedule_name: str | None = None,
-):
-    """Fetch a fully materialized Schedule model via PyO3 bindings."""
-    return _rust_call("py_get_schedule", schedule_id, schedule_name)
-
-
 def get_schedule_blocks(schedule_id: int) -> list[Any]:
     """Fetch scheduling block models via PyO3 bindings."""
     return _rust_call("py_get_schedule_blocks", schedule_id)
