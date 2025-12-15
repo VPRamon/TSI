@@ -31,7 +31,7 @@ use crate::services::validation::ValidationResult;
 ///     let repo = TestRepository::new();
 ///     
 ///     // Pre-populate with test data
-///     repo.add_test_schedule(/* ... */);
+///     repo.store_schedule_impl(/* ... */);
 ///     
 ///     let schedules = repo.list_schedules().await.unwrap();
 ///     assert_eq!(schedules.len(), 1);
@@ -95,7 +95,7 @@ impl TestRepository {
     ///
     /// # Returns
     /// The ID assigned to the schedule
-    pub fn add_test_schedule(&self, mut schedule: Schedule) -> i64 {
+    pub fn store_schedule_impl(&self, mut schedule: Schedule) -> i64 {
         let mut data = self.data.write().unwrap();
         let schedule_id = data.next_schedule_id;
         data.next_schedule_id += 1;
@@ -174,7 +174,7 @@ impl TestRepository {
     }
 
     /// Helper to get a schedule or return NotFound error.
-    fn get_schedule_internal(&self, schedule_id: i64) -> RepositoryResult<Schedule> {
+    fn get_schedule_impl(&self, schedule_id: i64) -> RepositoryResult<Schedule> {
         let data = self.data.read().unwrap();
         data.schedules
             .get(&schedule_id)
@@ -207,7 +207,7 @@ impl ScheduleRepository for TestRepository {
         self.check_health()?;
 
         // Use the helper method to add the schedule
-        let schedule_id = self.add_test_schedule(schedule.clone());
+        let schedule_id = self.store_schedule_impl(schedule.clone());
 
         // Retrieve and return the metadata
         let data = self.data.read().unwrap();
@@ -217,7 +217,7 @@ impl ScheduleRepository for TestRepository {
     }
 
     async fn get_schedule(&self, schedule_id: i64) -> RepositoryResult<Schedule> {
-        self.get_schedule_internal(schedule_id)
+        self.get_schedule_impl(schedule_id)
     }
 
     async fn get_schedule_by_name(&self, schedule_name: &str) -> RepositoryResult<Schedule> {
@@ -260,7 +260,7 @@ impl ScheduleRepository for TestRepository {
         &self,
         schedule_id: i64,
     ) -> RepositoryResult<Option<(f64, f64)>> {
-        let schedule = self.get_schedule_internal(schedule_id)?;
+        let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Calculate time range from dark periods
         if schedule.dark_periods.is_empty() {
@@ -302,7 +302,7 @@ impl ScheduleRepository for TestRepository {
         &self,
         schedule_id: i64,
     ) -> RepositoryResult<Vec<SchedulingBlock>> {
-        let schedule = self.get_schedule_internal(schedule_id)?;
+        let schedule = self.get_schedule_impl(schedule_id)?;
         Ok(schedule.blocks.clone())
     }
 
@@ -331,7 +331,7 @@ impl ScheduleRepository for TestRepository {
     }
 
     async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        self.get_schedule_internal(schedule_id)?;
+        self.get_schedule_impl(schedule_id)?;
         
         let mut data = self.data.write().unwrap();
         data.analytics_exists.insert(schedule_id, true);
@@ -366,7 +366,7 @@ impl ScheduleRepository for TestRepository {
         schedule_id: i64,
         _n_bins: usize,
     ) -> RepositoryResult<()> {
-        self.get_schedule_internal(schedule_id)?;
+        self.get_schedule_impl(schedule_id)?;
         
         let mut data = self.data.write().unwrap();
 
@@ -457,7 +457,7 @@ impl ScheduleRepository for TestRepository {
         schedule_id: i64,
         _bin_duration_seconds: Option<i64>,
     ) -> RepositoryResult<(usize, usize)> {
-        self.get_schedule_internal(schedule_id)?;
+        self.get_schedule_impl(schedule_id)?;
         
         let mut data = self.data.write().unwrap();
 
