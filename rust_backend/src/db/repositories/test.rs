@@ -369,7 +369,7 @@ impl ScheduleRepository for TestRepository {
 
     async fn fetch_analytics_blocks_for_sky_map(
         &self,
-        schedule_id: i64,
+        _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::LightweightBlock>> {
         // Return lightweight blocks (simplified for test)
         Ok(vec![])
@@ -503,7 +503,7 @@ impl ScheduleRepository for TestRepository {
 
     async fn fetch_visibility_histogram_from_analytics(
         &self,
-        schedule_id: i64,
+        _schedule_id: i64,
         _start_unix: i64,
         _end_unix: i64,
         _target_bin_duration_seconds: i64,
@@ -603,7 +603,7 @@ impl ScheduleRepository for TestRepository {
 
     async fn fetch_lightweight_blocks(
         &self,
-        schedule_id: i64,
+        _schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::LightweightBlock>> {
         // Return empty lightweight blocks for test
         Ok(vec![])
@@ -670,7 +670,6 @@ impl ScheduleRepository for TestRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use siderust::astro::ModifiedJulianDate;
 
     #[tokio::test]
     async fn test_health_check() {
