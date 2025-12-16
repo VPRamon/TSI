@@ -2,10 +2,10 @@
 //!
 //! This module contains different implementations of the `ScheduleRepository` trait:
 //! - `azure`: Azure SQL Server implementation for production use
-//! - `test`: In-memory implementation for unit testing
+//! - `local`: In-memory implementation for unit testing and local development
 
 pub mod azure;
-pub mod test;
+pub mod local;
 
 pub use azure::AzureRepository;
-pub use test::TestRepository;
+pub use local::LocalRepository;

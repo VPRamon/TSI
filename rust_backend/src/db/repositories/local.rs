@@ -1,8 +1,8 @@
-//! In-memory test repository implementation.
+//! In-memory local repository implementation.
 //!
-//! This module provides a mock implementation of all repository traits
-//! suitable for unit testing. All data is stored in memory using HashMap and Vec
-//! structures, providing fast, deterministic, and isolated test execution.
+//! This module provides a local implementation of all repository traits
+//! suitable for unit testing and local development. All data is stored in memory using HashMap and Vec
+//! structures, providing fast, deterministic, and isolated execution.
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -18,18 +18,18 @@ use crate::db::{
 use crate::services::validation::ValidationResult;
 use siderust::astro::ModifiedJulianDate;
 
-/// In-memory repository for testing.
+/// In-memory local repository.
 ///
 /// This implementation stores all data in memory using HashMaps and Vecs,
-/// making it ideal for unit tests that need isolation and speed.
+/// making it ideal for unit tests and local development that need isolation and speed.
 ///
 /// # Example
 /// ```
-/// use tsi_rust::db::repositories::TestRepository;
+/// use tsi_rust::db::repositories::LocalRepository;
 ///
 /// #[tokio::test]
 /// async fn test_schedule_storage() {
-///     let repo = TestRepository::new();
+///     let repo = LocalRepository::new();
 ///     
 ///     // Pre-populate with test data
 ///     repo.store_schedule_impl(/* ... */);
@@ -39,12 +39,12 @@ use siderust::astro::ModifiedJulianDate;
 /// }
 /// ```
 #[derive(Clone)]
-pub struct TestRepository {
-    data: Arc<RwLock<TestData>>,
+pub struct LocalRepository {
+    data: Arc<RwLock<LocalData>>,
 }
 
 #[derive(Default)]
-struct TestData {
+struct LocalData {
     schedules: HashMap<i64, Schedule>,
     schedule_metadata: HashMap<i64, ScheduleMetadata>,
     blocks: HashMap<i64, SchedulingBlock>,
@@ -70,11 +70,11 @@ struct TestData {
     is_healthy: bool,
 }
 
-impl TestRepository {
-    /// Create a new empty test repository.
+impl LocalRepository {
+    /// Create a new empty local repository.
     pub fn new() -> Self {
         Self {
-            data: Arc::new(RwLock::new(TestData {
+            data: Arc::new(RwLock::new(LocalData {
                 is_healthy: true,
                 next_schedule_id: 1,
                 next_block_id: 1,
@@ -83,9 +83,9 @@ impl TestRepository {
         }
     }
 
-    /// Add a test schedule to the repository.
+    /// Add a schedule to the repository.
     ///
-    /// This is a helper method for setting up test data. The schedule will be
+    /// This is a helper method for setting up data. The schedule will be
     /// assigned an ID automatically.
     ///
     /// # Arguments
@@ -127,7 +127,7 @@ impl TestRepository {
     /// Clear all data from the repository.
     pub fn clear(&self) {
         let mut data = self.data.write().unwrap();
-        *data = TestData {
+        *data = LocalData {
             is_healthy: data.is_healthy,
             next_schedule_id: 1,
             next_block_id: 1,
@@ -166,21 +166,21 @@ impl TestRepository {
     }
 
     /// Helper for the common deletion pattern.
-    fn delete_from_map<T>(&self, map_accessor: impl FnOnce(&mut TestData) -> &mut HashMap<i64, T>, schedule_id: i64) -> usize {
+    fn delete_from_map<T>(&self, map_accessor: impl FnOnce(&mut LocalData) -> &mut HashMap<i64, T>, schedule_id: i64) -> usize {
         let mut data = self.data.write().unwrap();
         let existed = map_accessor(&mut data).remove(&schedule_id).is_some();
         if existed { 1 } else { 0 }
     }
 }
 
-impl Default for TestRepository {
+impl Default for LocalRepository {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[async_trait]
-impl ScheduleRepository for TestRepository {
+impl ScheduleRepository for LocalRepository {
     async fn health_check(&self) -> RepositoryResult<bool> {
         let data = self.data.read().unwrap();
         Ok(data.is_healthy)
@@ -304,7 +304,7 @@ impl ScheduleRepository for TestRepository {
 // ==================== Analytics Repository ====================
 
 #[async_trait]
-impl AnalyticsRepository for TestRepository {
+impl AnalyticsRepository for LocalRepository {
     async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
         self.get_schedule_impl(schedule_id)?;
         
@@ -472,7 +472,7 @@ impl AnalyticsRepository for TestRepository {
 // ==================== Validation Repository ====================
 
 #[async_trait]
-impl ValidationRepository for TestRepository {
+impl ValidationRepository for LocalRepository {
     async fn insert_validation_results(
         &self,
         results: &[ValidationResult],
@@ -543,7 +543,7 @@ impl ValidationRepository for TestRepository {
 // ==================== Visualization Repository ====================
 
 #[async_trait]
-impl VisualizationRepository for TestRepository {
+impl VisualizationRepository for LocalRepository {
     async fn fetch_visibility_map_data(
         &self,
         _schedule_id: i64,
@@ -588,7 +588,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_check() {
-        let repo = TestRepository::new();
+        let repo = LocalRepository::new();
         assert!(repo.health_check().await.unwrap());
         
         repo.set_healthy(false);
@@ -597,7 +597,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_store_and_retrieve_schedule() {
-        let repo = TestRepository::new();
+        let repo = LocalRepository::new();
         
         let schedule = Schedule {
             id: None,
@@ -616,7 +616,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_list_schedules() {
-        let repo = TestRepository::new();
+        let repo = LocalRepository::new();
         
         let schedule1 = Schedule {
             id: None,
@@ -643,7 +643,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_not_found_error() {
-        let repo = TestRepository::new();
+        let repo = LocalRepository::new();
         
         let result = repo.get_schedule(999).await;
         assert!(matches!(result, Err(RepositoryError::NotFound(_))));
@@ -651,7 +651,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_analytics_operations() {
-        let repo = TestRepository::new();
+        let repo = LocalRepository::new();
         
         let schedule = Schedule {
             id: None,

@@ -1,0 +1,32 @@
+# Repository Configuration (Production Example)
+# This file demonstrates Azure repository configuration.
+
+[repository]
+# Type of repository to use: "azure" or "local"
+type = "azure"
+
+# Database configuration for Azure repository
+[database]
+# Server hostname
+server = "your-server.database.windows.net"
+
+# Database name
+database = "your-database"
+
+# Authentication method
+auth_method = "azure_identity"
+
+# SQL Server authentication credentials (only used when auth_method = "sql")
+username = ""
+password = ""
+
+# Connection pool settings
+[connection_pool]
+# Maximum number of connections in the pool
+max_connections = 20
+
+# Minimum number of connections in the pool
+min_connections = 2
+
+# Connection timeout in seconds
+connect_timeout = 30

@@ -3,10 +3,12 @@
 //! This module provides utilities for creating and configuring repository instances
 //! based on runtime configuration.
 
+use std::path::Path;
 use std::sync::Arc;
 
+use super::repo_config::RepositoryConfig;
 use super::repository::{RepositoryError, RepositoryResult, ScheduleRepository};
-use super::repositories::{AzureRepository, TestRepository};
+use super::repositories::{AzureRepository, LocalRepository};
 use super::{config::DbConfig, repositories::azure::pool};
 
 /// Repository type configuration.
@@ -14,15 +16,15 @@ use super::{config::DbConfig, repositories::azure::pool};
 pub enum RepositoryType {
     /// Azure SQL Server (production)
     Azure,
-    /// In-memory test repository
-    Test,
+    /// In-memory local repository
+    Local,
 }
 
 impl RepositoryType {
     /// Parse repository type from string.
     ///
     /// # Arguments
-    /// * `s` - String representation ("azure", "test")
+    /// * `s` - String representation ("azure", "local")
     ///
     /// # Returns
     /// * `Ok(RepositoryType)` if valid
@@ -30,7 +32,7 @@ impl RepositoryType {
     pub fn from_str(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
             "azure" => Ok(Self::Azure),
-            "test" => Ok(Self::Test),
+            "local" => Ok(Self::Local),
             _ => Err(format!("Unknown repository type: {}", s)),
         }
     }
@@ -61,8 +63,8 @@ impl RepositoryType {
 ///     let config = DbConfig::from_env()?;
 ///     let azure_repo = RepositoryFactory::create_azure(&config).await?;
 ///     
-///     // Create test repository
-///     let test_repo = RepositoryFactory::create_test();
+///     // Create local repository
+///     let local_repo = RepositoryFactory::create_local();
 ///     
 ///     // Create from configuration
 ///     let repo = RepositoryFactory::create(RepositoryType::Azure, Some(&config)).await?;
@@ -96,7 +98,7 @@ impl RepositoryFactory {
                 let azure = Self::create_azure(config).await?;
                 Ok(azure as Arc<dyn ScheduleRepository>)
             }
-            RepositoryType::Test => Ok(Self::create_test()),
+            RepositoryType::Local => Ok(Self::create_local()),
         }
     }
 
@@ -119,12 +121,12 @@ impl RepositoryFactory {
         Ok(Arc::new(AzureRepository::new()))
     }
 
-    /// Create an in-memory test repository.
+    /// Create an in-memory local repository.
     ///
     /// # Returns
-    /// Boxed test repository instance
-    pub fn create_test() -> Arc<dyn ScheduleRepository> {
-        Arc::new(TestRepository::new())
+    /// Boxed local repository instance
+    pub fn create_local() -> Arc<dyn ScheduleRepository> {
+        Arc::new(LocalRepository::new())
     }
 
     /// Create repository from environment configuration.
@@ -145,7 +147,64 @@ impl RepositoryFactory {
                 let azure = Self::create_azure(&config).await?;
                 Ok(azure as Arc<dyn ScheduleRepository>)
             }
-            RepositoryType::Test => Ok(Self::create_test()),
+            RepositoryType::Local => Ok(Self::create_local()),
+        }
+    }
+
+    /// Create repository from a TOML configuration file.
+    ///
+    /// # Arguments
+    /// * `config_path` - Path to the repository.toml configuration file
+    ///
+    /// # Returns
+    /// * `Ok(Arc<dyn ScheduleRepository>)` - Repository instance
+    /// * `Err(RepositoryError)` - If creation fails
+    pub async fn from_config_file<P: AsRef<Path>>(
+        config_path: P,
+    ) -> RepositoryResult<Arc<dyn ScheduleRepository>> {
+        let config = RepositoryConfig::from_file(config_path)?;
+        Self::from_repository_config(&config).await
+    }
+
+    /// Create repository from the default configuration file location.
+    ///
+    /// Searches for `repository.toml` in standard locations and creates
+    /// the appropriate repository instance.
+    ///
+    /// # Returns
+    /// * `Ok(Arc<dyn ScheduleRepository>)` - Repository instance
+    /// * `Err(RepositoryError)` - If creation fails
+    pub async fn from_default_config() -> RepositoryResult<Arc<dyn ScheduleRepository>> {
+        let config = RepositoryConfig::from_default_location()?;
+        Self::from_repository_config(&config).await
+    }
+
+    /// Create repository from a RepositoryConfig instance.
+    ///
+    /// # Arguments
+    /// * `config` - Repository configuration
+    ///
+    /// # Returns
+    /// * `Ok(Arc<dyn ScheduleRepository>)` - Repository instance
+    /// * `Err(RepositoryError)` - If creation fails
+    async fn from_repository_config(
+        config: &RepositoryConfig,
+    ) -> RepositoryResult<Arc<dyn ScheduleRepository>> {
+        let repo_type = config.repository_type().map_err(|e| {
+            RepositoryError::ConfigurationError(format!("Invalid repository type: {}", e))
+        })?;
+
+        match repo_type {
+            RepositoryType::Azure => {
+                let db_config = config.to_db_config()?.ok_or_else(|| {
+                    RepositoryError::ConfigurationError(
+                        "Azure repository requires database configuration".to_string(),
+                    )
+                })?;
+                let azure = Self::create_azure(&db_config).await?;
+                Ok(azure as Arc<dyn ScheduleRepository>)
+            }
+            RepositoryType::Local => Ok(Self::create_local()),
         }
     }
 }
@@ -212,6 +271,62 @@ impl RepositoryBuilder {
         Ok(self)
     }
 
+    /// Load configuration from a TOML file.
+    ///
+    /// # Arguments
+    /// * `config_path` - Path to the repository.toml configuration file
+    ///
+    /// # Returns
+    /// * `Ok(Self)` - Builder with loaded configuration
+    /// * `Err(RepositoryError)` - If file cannot be read or parsed
+    pub fn from_config_file<P: AsRef<Path>>(
+        mut self,
+        config_path: P,
+    ) -> Result<Self, RepositoryError> {
+        let repo_config = RepositoryConfig::from_file(config_path)?;
+
+        self.repo_type = repo_config.repository_type().map_err(|e| {
+            RepositoryError::ConfigurationError(format!("Invalid repository type: {}", e))
+        })?;
+
+        if self.repo_type == RepositoryType::Azure {
+            let config = repo_config.to_db_config()?.ok_or_else(|| {
+                RepositoryError::ConfigurationError(
+                    "Azure repository requires database configuration".to_string(),
+                )
+            })?;
+            self.config = Some(config);
+        }
+
+        Ok(self)
+    }
+
+    /// Load configuration from default location.
+    ///
+    /// Searches for `repository.toml` in standard locations.
+    ///
+    /// # Returns
+    /// * `Ok(Self)` - Builder with loaded configuration
+    /// * `Err(RepositoryError)` - If no config file found or parse error
+    pub fn from_default_config(mut self) -> Result<Self, RepositoryError> {
+        let repo_config = RepositoryConfig::from_default_location()?;
+
+        self.repo_type = repo_config.repository_type().map_err(|e| {
+            RepositoryError::ConfigurationError(format!("Invalid repository type: {}", e))
+        })?;
+
+        if self.repo_type == RepositoryType::Azure {
+            let config = repo_config.to_db_config()?.ok_or_else(|| {
+                RepositoryError::ConfigurationError(
+                    "Azure repository requires database configuration".to_string(),
+                )
+            })?;
+            self.config = Some(config);
+        }
+
+        Ok(self)
+    }
+
     /// Build the repository instance.
     ///
     /// # Returns
@@ -235,21 +350,21 @@ mod tests {
     #[test]
     fn test_repository_type_from_str() {
         assert_eq!(RepositoryType::from_str("azure").unwrap(), RepositoryType::Azure);
-        assert_eq!(RepositoryType::from_str("test").unwrap(), RepositoryType::Test);
+        assert_eq!(RepositoryType::from_str("local").unwrap(), RepositoryType::Local);
         assert_eq!(RepositoryType::from_str("Azure").unwrap(), RepositoryType::Azure);
         assert!(RepositoryType::from_str("invalid").is_err());
     }
 
     #[tokio::test]
-    async fn test_create_test_repository() {
-        let repo = RepositoryFactory::create_test();
+    async fn test_create_local_repository() {
+        let repo = RepositoryFactory::create_local();
         assert!(repo.health_check().await.unwrap());
     }
 
     #[tokio::test]
-    async fn test_builder_test_repository() {
+    async fn test_builder_local_repository() {
         let repo = RepositoryBuilder::new()
-            .repository_type(RepositoryType::Test)
+            .repository_type(RepositoryType::Local)
             .build()
             .await
             .unwrap();

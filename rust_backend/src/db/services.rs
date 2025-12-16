@@ -32,24 +32,23 @@
 //!     ┌───────────────┴────────────────┐
 //!     │                                 │
 //! ┌───▼──────────────┐     ┌──────────▼──────────────┐
-//! │ Azure Repository │     │  Test Repository        │
-//! │ (SQL queries)    │     │  (in-memory)            │
+//! │ Azure Repository │     │ Local Repository        │
+//! │ (SQL queries)    │     │ (in-memory)             │
 //! └──────────────────┘     └─────────────────────────┘
 //! ```
 //!
 //! # Usage
 //!
 //! ```no_run
-//! use tsi_rust::db::{services, factory::RepositoryFactory, factory::RepositoryType, DbConfig};
+//! use tsi_rust::db::{services, repositories::LocalRepository};
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Create repository
-//!     let config = DbConfig::from_env()?;
-//!     let repo = RepositoryFactory::create(RepositoryType::Azure, Some(&config)).await?;
+//!     // Create local repository
+//!     let repo = LocalRepository::new();
 //!     
 //!     // Use service layer functions
-//!     let schedules = services::list_schedules(repo.as_ref()).await?;
+//!     let schedules = services::list_schedules(&repo).await?;
 //!     println!("Found {} schedules", schedules.len());
 //!     
 //!     Ok(())

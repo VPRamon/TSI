@@ -20,7 +20,7 @@ use crate::services::validation::ValidationResult;
 ///
 /// # Example
 /// ```no_run
-/// use tsi_rust::db::{DbConfig, pool, repositories::AzureRepository, FullRepository};
+/// use tsi_rust::db::{DbConfig, pool, repositories::AzureRepository, FullRepository, ScheduleRepository};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
