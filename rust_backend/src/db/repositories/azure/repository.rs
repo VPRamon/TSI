@@ -304,33 +304,6 @@ impl ScheduleRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn fetch_lightweight_blocks(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::LightweightBlock>> {
-        operations::fetch_lightweight_blocks(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
-    async fn fetch_insights_blocks(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::InsightsBlock>> {
-        operations::fetch_insights_blocks(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
-    async fn fetch_trends_blocks(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::TrendsBlock>> {
-        operations::fetch_trends_blocks(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
     async fn fetch_visibility_map_data(
         &self,
         schedule_id: i64,

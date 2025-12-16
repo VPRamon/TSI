@@ -442,45 +442,6 @@ pub trait ScheduleRepository: Send + Sync {
 
     // ==================== Specialized Query Operations ====================
 
-    /// Fetch lightweight blocks (minimal data) for processing.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(Vec<LightweightBlock>)` - Blocks with minimal fields populated
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_lightweight_blocks(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<super::models::LightweightBlock>>;
-
-    /// Fetch blocks optimized for insights display.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(Vec<InsightsBlock>)` - Blocks for insights view
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_insights_blocks(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<super::models::InsightsBlock>>;
-
-    /// Fetch blocks optimized for trends analysis.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(Vec<TrendsBlock>)` - Blocks for trends analysis
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_trends_blocks(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<super::models::TrendsBlock>>;
-
     /// Fetch blocks for visibility map visualization.
     ///
     /// # Arguments
