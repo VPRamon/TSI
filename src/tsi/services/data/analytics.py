@@ -30,9 +30,20 @@ class AnalyticsSnapshot:
     mean_requested_hours: float
 
 
-def compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
-    """Compute comprehensive analytics metrics from the dataset (using Rust backend - 10x faster)."""
-    metrics = BACKEND.compute_metrics(df)
+def compute_metrics(schedule_id: int) -> AnalyticsMetrics:
+    """Compute comprehensive analytics metrics from pre-computed database summary.
+    
+    Args:
+        schedule_id: The ID of the schedule to get metrics for
+    
+    Returns:
+        AnalyticsMetrics with schedule summary statistics
+    
+    Note:
+        This now uses database-backed analytics (much faster than DataFrame processing).
+        Requires analytics to be pre-computed via py_populate_summary_analytics().
+    """
+    metrics = BACKEND.compute_metrics(schedule_id)
     return AnalyticsMetrics(**metrics)
 
 

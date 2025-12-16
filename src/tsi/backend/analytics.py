@@ -19,28 +19,49 @@ if TYPE_CHECKING:
 import tsi_rust
 
 
-def compute_metrics(df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
+def compute_metrics(schedule_id: int) -> dict[str, Any]:
     """
-    Compute comprehensive scheduling metrics.
+    Compute comprehensive scheduling metrics from pre-computed database analytics.
+
+    This function retrieves pre-computed summary analytics from the database,
+    which is much faster than recomputing from a DataFrame.
 
     Args:
-        df: DataFrame with schedule data (pandas or polars)
+        schedule_id: ID of the schedule to get metrics for
 
     Returns:
         Dictionary with computed metrics including:
         - total_observations: count of scheduling blocks
         - scheduled_count: number of scheduled observations
         - mean_priority, median_priority: priority statistics
-        - scheduled_percentage: percentage of scheduled blocks
+        - scheduling_rate: percentage of scheduled blocks (0.0 to 1.0)
 
     Example:
-        >>> df = load_schedule_file("data/schedule.json")
-        >>> metrics = compute_metrics(df)
-        >>> print(f"Scheduled: {metrics['scheduled_percentage']:.1f}%")
+        >>> summary = compute_metrics(schedule_id=1)
+        >>> print(f"Scheduled: {summary['scheduling_rate']:.1%}")
+    
+    Note:
+        Requires py_populate_summary_analytics() to have been called first.
+        This is automatically done during py_store_schedule() if populate_analytics=True.
     """
-    df_polars = _to_polars(df)
-    analytics = tsi_rust.py_compute_metrics(df_polars)
-    return cast(dict[str, Any], analytics.to_dict())
+    summary = tsi_rust.py_get_schedule_summary(schedule_id)
+    if summary is None:
+        raise ValueError(f"No analytics data found for schedule {schedule_id}. Run py_populate_summary_analytics() first.")
+    
+    # Convert to dict with field mapping
+    return {
+        "total_observations": summary.total_blocks,
+        "scheduled_count": summary.scheduled_blocks,
+        "unscheduled_count": summary.unscheduled_blocks,
+        "impossible_count": summary.impossible_blocks,
+        "scheduling_rate": summary.scheduling_rate,
+        "mean_priority": summary.priority_mean or 0.0,
+        "median_priority": summary.priority_median or 0.0,
+        "mean_priority_scheduled": summary.priority_scheduled_mean or 0.0,
+        "mean_priority_unscheduled": summary.priority_unscheduled_mean or 0.0,
+        "total_visibility_hours": summary.visibility_total_hours,
+        "mean_requested_hours": summary.requested_mean_hours or 0.0,
+    }
 
 
 def get_top_observations(
