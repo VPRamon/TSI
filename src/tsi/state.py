@@ -175,9 +175,14 @@ def set_comparison_schedule(df: Any) -> None:
     st.session_state[KEY_COMPARISON_SCHEDULE] = df
 
 
-def get_schedule_id() -> int | None:
+def get_schedule_id() -> int:
     """Get the current schedule ID from the database."""
-    return st.session_state.get(KEY_SCHEDULE_ID)
+
+    schedule_id = st.session_state.get(KEY_SCHEDULE_ID)
+    if schedule_id is None:
+        raise RuntimeError("Load a schedule from the database to view the validation report.")
+
+    return int(schedule_id)
 
 
 def set_schedule_id(schedule_id: int | None) -> None:
