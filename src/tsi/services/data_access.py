@@ -40,7 +40,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any, cast
 
-from tsi.exceptions import DatabaseQueryError
+from tsi.exceptions import ServerError
 
 if TYPE_CHECKING:
     from tsi_rust import (
@@ -68,23 +68,23 @@ def _rust_call(method: str, *args: Any) -> Any:
         Result from the Rust function
         
     Raises:
-        DatabaseQueryError: If the operation fails
+        ServerError: If the operation fails
     """
     try:
         import tsi_rust
         return getattr(tsi_rust, method)(*args)
     except ImportError as e:
-        raise DatabaseQueryError(
+        raise ServerError(
             "Rust backend not available",
             details={"method": method}
         ) from e
     except AttributeError as e:
-        raise DatabaseQueryError(
+        raise ServerError(
             f"Rust backend method '{method}' not found",
             details={"method": method}
         ) from e
     except Exception as e:
-        raise DatabaseQueryError(
+        raise ServerError(
             f"Rust backend call '{method}' failed: {str(e)}",
             details={"method": method, "args_count": len(args)}
         ) from e
@@ -110,15 +110,15 @@ def get_sky_map_data(schedule_id: int) -> SkyMapData:
         SkyMapData with computed bins and metadata
         
     Raises:
-        DatabaseQueryError: If analytics data is not available
+        ServerError: If analytics data is not available
     """
     logger.debug(f"Fetching sky map data (ETL) for schedule_id={schedule_id}")
     try:
         return cast("SkyMapData", _rust_call("py_get_sky_map_data_analytics", schedule_id))
-    except DatabaseQueryError as e:
+    except ServerError as e:
         # Provide helpful error message if analytics missing
         if "No analytics data available" in str(e):
-            raise DatabaseQueryError(
+            raise ServerError(
                 f"No analytics data available for schedule {schedule_id}. "
                 "Analytics tables may need to be populated. "
                 "Run populate_schedule_analytics() or check ETL process.",
@@ -152,7 +152,7 @@ def get_distribution_data(
         DistributionData with computed statistics
         
     Raises:
-        DatabaseQueryError: If analytics data is not available
+        ServerError: If analytics data is not available
     """
     logger.debug(f"Fetching distribution data (ETL) for schedule_id={schedule_id}")
     try:
@@ -160,9 +160,9 @@ def get_distribution_data(
             "DistributionData",
             _rust_call("py_get_distribution_data_analytics", schedule_id)
         )
-    except DatabaseQueryError as e:
+    except ServerError as e:
         if "No analytics data available" in str(e):
-            raise DatabaseQueryError(
+            raise ServerError(
                 f"No analytics data available for schedule {schedule_id}. "
                 "Analytics tables may need to be populated. "
                 "Run populate_schedule_analytics() or check ETL process.",

@@ -103,7 +103,7 @@ def render() -> None:
                 n_smooth_points=100,
             )
     except Exception as exc:
-        st.error(f"Failed to load trends data from the backend: {exc}")
+        display_backend_error(exc)
         return
 
     if trends_data.metrics.total_count == 0:

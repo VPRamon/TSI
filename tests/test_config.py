@@ -4,9 +4,11 @@ Comprehensive tests for centralized configuration system.
 Tests cover:
 - Default configuration values
 - Environment variable overrides
-- Database URL construction
 - Configuration validation
 - Settings caching
+
+Note: Database configuration has been moved to the Rust backend.
+Database-related tests have been removed as Python no longer manages DB config.
 """
 
 import os
@@ -20,19 +22,6 @@ from app_config.settings import Settings, get_settings
 
 class TestSettingsDefaults:
     """Test default configuration values."""
-
-    def test_database_defaults(self):
-        """Test database configuration defaults."""
-        settings = Settings()
-        
-        assert settings.database_url is None
-        assert settings.db_server is None
-        assert settings.db_database is None
-        assert settings.db_username is None
-        assert settings.db_password is None
-        assert settings.use_aad_auth is False
-        assert settings.database_connection_timeout == 30
-        assert settings.database_max_retries == 3
 
     def test_data_path_defaults(self):
         """Test data path configuration defaults."""
@@ -84,32 +73,6 @@ class TestSettingsDefaults:
 class TestEnvironmentVariableOverrides:
     """Test environment variable overrides."""
 
-    def test_database_url_override(self):
-        """Test DATABASE_URL environment variable."""
-        with patch.dict(os.environ, {"DATABASE_URL": "mssql://test:pass@localhost/testdb"}):
-            settings = Settings()
-            assert settings.database_url == "mssql://test:pass@localhost/testdb"
-
-    def test_individual_db_components(self):
-        """Test individual database component environment variables."""
-        with patch.dict(os.environ, {
-            "DB_SERVER": "testserver.example.com",
-            "DB_DATABASE": "testdb",
-            "DB_USERNAME": "testuser",
-            "DB_PASSWORD": "testpass"
-        }):
-            settings = Settings()
-            assert settings.db_server == "testserver.example.com"
-            assert settings.db_database == "testdb"
-            assert settings.db_username == "testuser"
-            assert settings.db_password == "testpass"
-
-    def test_use_aad_auth_override(self):
-        """Test USE_AAD_AUTH environment variable."""
-        with patch.dict(os.environ, {"USE_AAD_AUTH": "true"}):
-            settings = Settings()
-            assert settings.use_aad_auth is True
-
     def test_cache_ttl_override(self):
         """Test CACHE_TTL environment variable."""
         with patch.dict(os.environ, {"CACHE_TTL": "7200"}):
@@ -127,72 +90,6 @@ class TestEnvironmentVariableOverrides:
         with patch.dict(os.environ, {"DATA_ROOT": "/custom/data/path"}):
             settings = Settings()
             assert settings.data_root == Path("/custom/data/path")
-
-
-class TestDatabaseURLConstruction:
-    """Test database URL construction logic."""
-
-    def test_get_database_url_with_full_url(self):
-        """Test that full DATABASE_URL is used when available."""
-        with patch.dict(os.environ, {"DATABASE_URL": "mssql://user:pass@host/db"}):
-            settings = Settings()
-            assert settings.get_database_url() == "mssql://user:pass@host/db"
-
-    def test_get_database_url_from_components_basic(self):
-        """Test URL construction from components with username/password."""
-        settings = Settings(
-            db_server="testserver",
-            db_database="testdb",
-            db_username="user",
-            db_password="pass"
-        )
-        url = settings.get_database_url()
-        assert url == "mssql://user:pass@testserver/testdb"
-
-    def test_get_database_url_from_components_aad(self):
-        """Test URL construction with Azure AD authentication."""
-        settings = Settings(
-            db_server="testserver",
-            db_database="testdb",
-            use_aad_auth=True
-        )
-        url = settings.get_database_url()
-        assert url == "mssql://testserver/testdb?trusted_connection=yes"
-
-    def test_get_database_url_incomplete_config(self):
-        """Test that None is returned for incomplete configuration."""
-        settings = Settings(db_server="testserver")  # Missing database
-        assert settings.get_database_url() is None
-
-    def test_get_database_url_no_config(self):
-        """Test that None is returned when no config is provided."""
-        settings = Settings()
-        assert settings.get_database_url() is None
-
-
-class TestConfigurationValidation:
-    """Test configuration validation methods."""
-
-    def test_validate_database_config_valid(self):
-        """Test validation with valid database configuration."""
-        with patch.dict(os.environ, {"DATABASE_URL": "mssql://user:pass@host/db"}):
-            settings = Settings()
-            assert settings.validate_database_config() is True
-
-    def test_validate_database_config_from_components(self):
-        """Test validation with valid component configuration."""
-        settings = Settings(
-            db_server="testserver",
-            db_database="testdb",
-            db_username="user",
-            db_password="pass"
-        )
-        assert settings.validate_database_config() is True
-
-    def test_validate_database_config_invalid(self):
-        """Test validation with invalid/incomplete configuration."""
-        settings = Settings()
-        assert settings.validate_database_config() is False
 
 
 class TestPlotMargins:
