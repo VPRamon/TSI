@@ -1,6 +1,6 @@
 //! In-memory test repository implementation.
 //!
-//! This module provides a mock implementation of the `ScheduleRepository` trait
+//! This module provides a mock implementation of all repository traits
 //! suitable for unit testing. All data is stored in memory using HashMap and Vec
 //! structures, providing fast, deterministic, and isolated test execution.
 
@@ -299,7 +299,12 @@ impl ScheduleRepository for TestRepository {
             .cloned()
             .unwrap_or_default())
     }
+}
 
+// ==================== Analytics Repository ====================
+
+#[async_trait]
+impl AnalyticsRepository for TestRepository {
     async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
         self.get_schedule_impl(schedule_id)?;
         
@@ -462,7 +467,12 @@ impl ScheduleRepository for TestRepository {
     async fn delete_visibility_time_bins(&self, schedule_id: i64) -> RepositoryResult<usize> {
         Ok(self.delete_from_map(|d| &mut d.visibility_time_bins, schedule_id))
     }
+}
 
+// ==================== Validation Repository ====================
+
+#[async_trait]
+impl ValidationRepository for TestRepository {
     async fn insert_validation_results(
         &self,
         results: &[ValidationResult],
@@ -528,7 +538,12 @@ impl ScheduleRepository for TestRepository {
     async fn delete_validation_results(&self, schedule_id: i64) -> RepositoryResult<u64> {
         Ok(self.delete_from_map(|d| &mut d.validation_results, schedule_id) as u64)
     }
+}
 
+// ==================== Visualization Repository ====================
+
+#[async_trait]
+impl VisualizationRepository for TestRepository {
     async fn fetch_visibility_map_data(
         &self,
         _schedule_id: i64,

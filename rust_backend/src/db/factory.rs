@@ -93,7 +93,8 @@ impl RepositoryFactory {
                         "Azure repository requires DbConfig".to_string(),
                     )
                 })?;
-                Self::create_azure(config).await
+                let azure = Self::create_azure(config).await?;
+                Ok(azure as Arc<dyn ScheduleRepository>)
             }
             RepositoryType::Test => Ok(Self::create_test()),
         }
@@ -107,9 +108,9 @@ impl RepositoryFactory {
     /// * `config` - Database configuration
     ///
     /// # Returns
-    /// * `Ok(Arc<dyn ScheduleRepository>)` - Azure repository instance
+    /// * `Ok(Arc<AzureRepository>)` - Azure repository instance
     /// * `Err(RepositoryError)` - If pool initialization fails
-    pub async fn create_azure(config: &DbConfig) -> RepositoryResult<Arc<dyn ScheduleRepository>> {
+    pub async fn create_azure(config: &DbConfig) -> RepositoryResult<Arc<AzureRepository>> {
         // Initialize pool if not already done
         pool::init_pool(config)
             .await
@@ -141,7 +142,8 @@ impl RepositoryFactory {
             RepositoryType::Azure => {
                 let config = DbConfig::from_env()
                     .map_err(|e| RepositoryError::ConfigurationError(e))?;
-                Self::create_azure(&config).await
+                let azure = Self::create_azure(&config).await?;
+                Ok(azure as Arc<dyn ScheduleRepository>)
             }
             RepositoryType::Test => Ok(Self::create_test()),
         }

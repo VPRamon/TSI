@@ -7,13 +7,18 @@ use std::sync::OnceLock;
 
 use crate::db::{
     models::{Schedule, SchedulingBlock},
-    services, pool, DbConfig, RepositoryFactory, RepositoryType, ScheduleRepository,
+    services, pool, DbConfig, RepositoryFactory,
+    repositories::AzureRepository,
+    repository::{
+        analytics::AnalyticsRepository,
+        visualization::VisualizationRepository,
+    },
 };
 
 // Global repository instance initialized once
-static REPOSITORY: OnceLock<std::sync::Arc<dyn ScheduleRepository>> = OnceLock::new();
+static REPOSITORY: OnceLock<std::sync::Arc<AzureRepository>> = OnceLock::new();
 
-fn get_repository() -> PyResult<&'static std::sync::Arc<dyn ScheduleRepository>> {
+fn get_repository() -> PyResult<&'static std::sync::Arc<AzureRepository>> {
     REPOSITORY.get().ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
             "Database not initialized. Call py_init_database() first."
@@ -50,7 +55,10 @@ pub fn py_init_database() -> PyResult<()> {
 
     // Create and store repository instance
     let repo = runtime
-        .block_on(RepositoryFactory::create(RepositoryType::Azure, Some(&config)))
+        .block_on(async {
+            let config = DbConfig::from_env()?;
+            RepositoryFactory::create_azure(&config).await
+        })
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create repository: {}", e)))?;
 
     // Try to set - if it fails (race condition), that's okay

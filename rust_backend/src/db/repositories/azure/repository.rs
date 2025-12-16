@@ -1,6 +1,6 @@
 //! Azure SQL Server repository implementation.
 //!
-//! This module implements the `ScheduleRepository` trait using Azure SQL Server
+//! This module implements all repository traits using Azure SQL Server
 //! as the backend. It wraps the existing database operations from `operations.rs`,
 //! `analytics.rs`, and `validation.rs`.
 
@@ -20,7 +20,7 @@ use crate::services::validation::ValidationResult;
 ///
 /// # Example
 /// ```no_run
-/// use tsi_rust::db::{DbConfig, pool, repositories::AzureRepository, ScheduleRepository};
+/// use tsi_rust::db::{DbConfig, pool, repositories::AzureRepository, FullRepository};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -51,6 +51,8 @@ impl Default for AzureRepository {
         Self::new()
     }
 }
+
+// ==================== Core Schedule Repository ====================
 
 #[async_trait]
 impl ScheduleRepository for AzureRepository {
@@ -131,7 +133,12 @@ impl ScheduleRepository for AzureRepository {
             .await
             .map_err(RepositoryError::from)
     }
+}
 
+// ==================== Analytics Repository ====================
+
+#[async_trait]
+impl AnalyticsRepository for AzureRepository {
     async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
         analytics::populate_schedule_analytics(schedule_id)
             .await
@@ -273,7 +280,12 @@ impl ScheduleRepository for AzureRepository {
             .await
             .map_err(RepositoryError::from)
     }
+}
 
+// ==================== Validation Repository ====================
+
+#[async_trait]
+impl ValidationRepository for AzureRepository {
     async fn insert_validation_results(
         &self,
         results: &[ValidationResult],
@@ -303,7 +315,12 @@ impl ScheduleRepository for AzureRepository {
             .await
             .map_err(RepositoryError::from)
     }
+}
 
+// ==================== Visualization Repository ====================
+
+#[async_trait]
+impl VisualizationRepository for AzureRepository {
     async fn fetch_visibility_map_data(
         &self,
         schedule_id: i64,

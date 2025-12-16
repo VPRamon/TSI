@@ -288,29 +288,74 @@ db/models/
 
 ---
 
-### db/repository.rs
+### db/repository/
 
-**Purpose:** Defines `ScheduleRepository` trait (interface for all database operations)
+**Purpose:** Modular trait definitions for database operations, split by domain
 
-**Key Methods (503 lines total):**
+**Structure (Refactored):**
+- `mod.rs` - Module orchestration and composite trait
+- `error.rs` - Repository error types (RepositoryError, RepositoryResult)
+- `schedule.rs` - Core CRUD operations (9 methods)
+- `analytics.rs` - Analytics operations (17 methods)
+- `validation.rs` - Validation operations (4 methods)
+- `visualization.rs` - Dashboard queries (4 methods)
+
+**Key Traits:**
+
+#### `ScheduleRepository` (schedule.rs)
+Core database operations:
 - `health_check()` - Connection health
-- `store_schedule()`, `get_schedule()`, `list_schedules()` - Schedule CRUD
+- `store_schedule()`, `get_schedule()`, `delete_schedule()` - Schedule CRUD
+- `list_schedules()` - List all schedules
 - `get_blocks_for_schedule()`, `get_scheduling_block()` - Block retrieval
-- `populate_schedule_analytics()`, `fetch_analytics_blocks_for_*()` - Analytics operations
+- `fetch_dark_periods()`, `fetch_possible_periods()` - Period data
+
+#### `AnalyticsRepository` (analytics.rs)
+Analytics operations:
+- `populate_schedule_analytics()`, `has_analytics_data()`, `delete_schedule_analytics()` - Analytics lifecycle
+- `fetch_analytics_blocks_for_*()` - Various analytics queries (priority, compare, histograms)
 - `populate_summary_analytics()`, `fetch_schedule_summary()` - Summary statistics
-- `populate_visibility_time_bins()`, `fetch_visibility_metadata()` - Visibility data
+- `populate_visibility_time_bins()`, `fetch_visibility_bins()` - Time bin data
+- `fetch_visibility_metadata()`, `fetch_visibility_histogram_from_analytics()` - Visibility queries
+
+#### `ValidationRepository` (validation.rs)
+Validation operations:
+- `fetch_compare_blocks()` - Compare schedules
+- `fetch_blocks_for_histogram()` - Histogram data
+- `fetch_visibility_map_data()` - Sky map data
+
+#### `VisualizationRepository` (visualization.rs)
+Dashboard visualization queries:
+- `fetch_priority_rates()` - Priority distribution
+- `fetch_heatmap_bins()` - Heatmap data
+
+#### `FullRepository` (mod.rs)
+Composite trait combining all four traits:
+```rust
+pub trait FullRepository: ScheduleRepository + AnalyticsRepository + ValidationRepository + VisualizationRepository {}
+```
+
+**Blanket Implementation:**
+Any type implementing all four traits automatically implements `FullRepository`:
+```rust
+impl<T> FullRepository for T where T: ScheduleRepository + AnalyticsRepository + ValidationRepository + VisualizationRepository {}
+```
 
 **Used By:**
-- `db/services.rs` - Business logic layer
-- `db/repositories/azure/` - Concrete Azure implementation
-- `db/repositories/test.rs` - Mock for testing
+- `db/services.rs` - Business logic layer (uses generic `<R: FullRepository>`)
+- `db/repositories/azure/repository.rs` - Concrete Azure implementation (4 impl blocks)
+- `db/repositories/test.rs` - Mock for testing (4 impl blocks)
+
+**Design Benefits:**
+- **Separation of Concerns:** Each trait has a focused responsibility
+- **Flexibility:** Can implement individual traits or all via FullRepository
+- **Type Safety:** Generic constraints ensure implementations provide all required methods
+- **Testing:** Easier to mock specific capabilities
 
 **Optimization Opportunities:**
-- ⚠️ **Large trait (30+ methods)** - Consider splitting into smaller traits:
-  - `ScheduleRepository` (core CRUD)
-  - `AnalyticsRepository` (analytics operations)
-  - `ValidationRepository` (validation data)
-- **Recommendation:** Evaluate if all methods are used; archive unused ones
+- ✅ Well-organized modular design
+- Consider adding default implementations for common patterns
+- **Recommendation:** Archive or remove unused methods as the codebase evolves
 
 ---
 
