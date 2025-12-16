@@ -22,7 +22,7 @@ from tsi.components.trends.trends_model import (
 )
 from tsi.components.trends.trends_smoothed import render_smoothed_trends
 from tsi.modeling.trends import fit_logistic_with_interactions
-from tsi.services.database import get_trends_data
+from tsi.services import database as db
 from tsi.utils.error_display import display_backend_error
 
 @st.cache_data(show_spinner="Training logistic model...")
@@ -36,7 +36,7 @@ def _fit_model_cached(
     """Train logistic model with cache using Rust-loaded data."""
     try:
         # Load data from Rust backend (impossible blocks already filtered during ETL)
-        trends_data = get_trends_data(schedule_id=schedule_id)
+        trends_data = db.get_trends_data(schedule_id=schedule_id)
         
         # Filter blocks based on controls
         blocks = trends_data.blocks
@@ -96,7 +96,7 @@ def render() -> None:
     # Load trends data from Rust backend
     try:
         with st.spinner("Loading trends data..."):
-            trends_data = get_trends_data(
+            trends_data = db.get_trends_data(
                 schedule_id=schedule_id,
                 n_bins=10,  # Will be updated based on controls
                 bandwidth=0.3,  # Will be updated based on controls
@@ -117,7 +117,7 @@ def render() -> None:
     if (controls["n_bins"] != 10 or 
         controls["bandwidth"] != 0.3):
         with st.spinner("Recomputing with updated parameters..."):
-            trends_data = get_trends_data(
+            trends_data = db.get_trends_data(
                 schedule_id=schedule_id,
                 n_bins=controls["n_bins"],
                 bandwidth=controls["bandwidth"],

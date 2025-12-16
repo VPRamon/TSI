@@ -10,7 +10,7 @@ from tsi.components.visibility.visibility_controls import (
 )
 from tsi.components.visibility.visibility_stats import render_chart_info, render_dataset_statistics
 from tsi.components.visibility.visibility_map_figure import render_visibility_map_figure
-from tsi.services.database import get_visibility_map_data
+from tsi.services import database as db
 from tsi.services.utils.visibility_processing import (
     compute_effective_priority_range,
     filter_visibility_blocks,
@@ -31,18 +31,8 @@ def render() -> None:
     # Check for schedule ID first - this is now required
     schedule_id = state.get_schedule_id()
 
-    if schedule_id is None:
-        st.error(
-            "❌ No schedule loaded from database. "
-            "The Visibility Map requires a schedule to be loaded from the database. "
-            "Please go to the landing page and load a schedule."
-        )
-        return
-
-    schedule_id = int(schedule_id)
-
     try:
-        visibility_data = get_visibility_map_data(schedule_id=schedule_id)
+        visibility_data = db.get_visibility_map_data(schedule_id=schedule_id)
     except Exception as exc:
         st.error(f"Failed to load visibility data from the backend: {exc}")
         return
