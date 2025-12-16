@@ -6,7 +6,6 @@
 use polars::frame::DataFrame;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::ops::Not;
 
 /// Summary statistics snapshot for a scheduling dataset.
 ///
@@ -54,73 +53,7 @@ pub struct AnalyticsSnapshot {
 }
 
 // compute_metrics removed - use database-backed py_get_schedule_summary() instead
-
-/// Computes Spearman correlation matrix for selected DataFrame columns.
-///
-/// Calculates pairwise correlations between numeric columns, filtering out
-/// columns that don't exist and handling null values appropriately.
-///
-/// # Arguments
-///
-/// * `df` - Input DataFrame
-/// * `columns` - List of column names to include in correlation analysis
-///
-/// # Returns
-///
-/// * `Ok(DataFrame)` - Correlation matrix (currently returns empty; see note)
-/// * `Err(PolarsError)` - Column access or computation error
-///
-/// # Note
-///
-/// The current implementation returns an empty DataFrame as a placeholder.
-/// For production use, integrate with `ndarray-stats` or call Python's `scipy`
-/// via PyO3 for actual correlation computation.
-///
-/// # Examples
-///
-/// ```no_run
-/// use tsi_rust::algorithms::compute_correlations;
-/// use polars::prelude::*;
-///
-/// # fn example(df: &DataFrame) -> Result<(), PolarsError> {
-/// let cols = vec![
-///     "priority".to_string(),
-///     "requested_hours".to_string(),
-///     "total_visibility_hours".to_string(),
-/// ];
-/// let corr_matrix = compute_correlations(df, &cols)?;
-/// # Ok(())
-/// # }
-/// ```
-pub fn compute_correlations(df: &DataFrame, columns: &[String]) -> Result<DataFrame, PolarsError> {
-    // Filter only existing columns
-    let existing_cols: Vec<String> = columns
-        .iter()
-        .filter(|col| df.column(col).is_ok())
-        .cloned()
-        .collect();
-
-    if existing_cols.len() < 2 {
-        return Ok(DataFrame::empty());
-    }
-
-    // Select columns and drop nulls
-    let subset = df.select(&existing_cols)?;
-    let clean = subset.drop_nulls::<String>(None)?;
-
-    if clean.height() == 0 {
-        return Ok(DataFrame::empty());
-    }
-
-    // Compute correlation matrix using Polars
-    // Note: This is a simplified implementation
-    // Polars 0.38 doesn't have direct corr() method in stable API
-    // For production, use scipy or ndarray-stats
-
-    // Return empty DataFrame as placeholder
-    // Real implementation would use ndarray or scipy via PyO3
-    Ok(DataFrame::empty())
-}
+// compute_correlations removed - use services::insights::compute_correlations() instead
 
 /// Extracts the top N observations sorted by a specified column.
 ///
@@ -214,15 +147,6 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_correlations_insufficient_columns() {
-        let df = DataFrame::empty();
-        let columns = vec!["col1".to_string()];
-        let result = compute_correlations(&df, &columns);
-        assert!(result.is_ok());
-        assert_eq!(result.unwrap().height(), 0);
-    }
-
-    #[test]
     fn test_compute_metrics_with_data() {
         let df = df!(
             "priority" => &[5.0, 10.0, 15.0],
@@ -244,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_top_observations_and_correlations_paths() {
+    fn test_get_top_observations() {
         let df = df!(
             "schedulingBlockId" => &["a", "b"],
             "priority" => &[1.0, 3.0],
@@ -273,9 +197,5 @@ mod tests {
             get_top_observations(&df, "priority", 0).unwrap().height(),
             0
         );
-
-        // Correlations should ignore missing columns and empty rows
-        let corr = compute_correlations(&df, &["priority".into(), "missing".into()]).unwrap();
-        assert_eq!(corr.height(), 0);
     }
 }

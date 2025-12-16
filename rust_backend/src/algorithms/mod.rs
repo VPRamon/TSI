@@ -27,7 +27,7 @@ pub mod conflicts;
 pub mod optimization;
 
 pub use analysis::{
-    compute_correlations, get_top_observations, AnalyticsSnapshot,
+    get_top_observations, AnalyticsSnapshot,
 };
 pub use conflicts::{
     find_conflicts, suggest_candidate_positions, CandidatePlacement, SchedulingConflict,
