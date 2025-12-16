@@ -50,8 +50,8 @@ from tsi.backend import (
 try:
     import tsi_rust  # noqa: F401 - re-export for backwards compatibility
 except ImportError:
-    from tsi.exceptions import BackendUnavailableError
-    raise BackendUnavailableError(
+    from tsi.exceptions import ServerError
+    raise ServerError(
         "tsi_rust module not found. Please compile the Rust backend with: maturin develop --release",
         details={"install_command": "maturin develop --release"}
     )

@@ -66,7 +66,6 @@ import pandas as pd
 from app_config import get_settings
 from tsi.exceptions import (
     ServerError,
-    BackendUnavailableError,
 )
 from tsi.error_handling import with_retry, log_error
 
@@ -81,12 +80,12 @@ def _import_rust():
     Import the Rust backend module.
     
     Raises:
-        BackendUnavailableError: If tsi_rust module is not compiled/available
+        ServerError: If tsi_rust module is not compiled/available
     """
     settings = get_settings()
     
     if not settings.enable_rust_backend:
-        raise BackendUnavailableError(
+        raise ServerError(
             "Rust backend is disabled in configuration",
             details={"enable_rust_backend": False}
         )
@@ -94,7 +93,7 @@ def _import_rust():
     try:
         import tsi_rust  # type: ignore[import-not-found]
     except ImportError as e:
-        raise BackendUnavailableError(
+        raise ServerError(
             "Rust backend is not available. Please compile the extension before using database features.",
             details={"install_command": "maturin develop --release"}
         ) from e
@@ -113,17 +112,16 @@ def _rust_call(method: str, *args: Any):
         Result from the Rust function
         
     Raises:
-        BackendUnavailableError: If Rust backend cannot be imported
-        DatabaseError: If the operation fails
+        ServerError: If Rust backend cannot be imported or operation fails
     """
     try:
         rust = _import_rust()
         return getattr(rust, method)(*args)
-    except BackendUnavailableError:
-        # Re-raise backend unavailable errors as-is
+    except ServerError:
+        # Re-raise server errors as-is
         raise
     except AttributeError as e:
-        raise BackendUnavailableError(
+        raise ServerError(
             f"Rust backend method '{method}' not found",
             details={"method": method}
         ) from e
@@ -151,8 +149,7 @@ def init_database() -> None:
     Backend: Rust (tiberius)
     
     Raises:
-        ServerError: If unable to initialize connection pool
-        BackendUnavailableError: If Rust backend is not available
+        ServerError: If unable to initialize connection pool or Rust backend is not available
     """
     try:
         _rust_call("py_init_database")

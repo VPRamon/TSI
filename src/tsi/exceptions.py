@@ -105,29 +105,9 @@ class DataError(TSIError):
     pass
 
 
-# ===== Backward Compatibility Aliases =====
-# These allow existing code to continue working while we migrate
-
-DatabaseError = ServerError
-DatabaseConnectionError = ServerError
-DatabaseQueryError = ServerError
-DatabaseTimeoutError = ServerError
-BackendError = ServerError
-RustBackendError = ServerError
-BackendUnavailableError = ServerError
-
-
 __all__ = [
     "TSIError",
     "ServerError",
     "ConfigurationError",
     "DataError",
-    # Backward compatibility
-    "DatabaseError",
-    "DatabaseConnectionError",
-    "DatabaseQueryError",
-    "DatabaseTimeoutError",
-    "BackendError",
-    "RustBackendError",
-    "BackendUnavailableError",
 ]

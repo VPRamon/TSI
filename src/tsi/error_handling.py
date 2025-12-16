@@ -21,10 +21,9 @@ import time
 from typing import Any, Callable, TypeVar, ParamSpec
 
 from tsi.exceptions import (
-    DatabaseTimeoutError,
-    DatabaseConnectionError,
-    RetryExhaustedError,
+    ServerError,
     OperationTimeoutError,
+    RetryExhaustedError,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,7 +49,7 @@ def is_transient_error(error: Exception) -> bool:
         True if error is transient, False otherwise
     """
     # Check custom exception types
-    if isinstance(error, (DatabaseConnectionError, DatabaseTimeoutError, OperationTimeoutError)):
+    if isinstance(error, (ServerError, OperationTimeoutError)):
         return True
     
     # Check error message for known transient patterns

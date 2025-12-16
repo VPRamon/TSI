@@ -10,13 +10,13 @@ import pytest
 from tsi.exceptions import (
     TSIError,
     ConfigurationError,
-    DatabaseError,
-    DatabaseConnectionError,
-    DatabaseQueryError,
-    DatabaseTimeoutError,
-    BackendError,
-    RustBackendError,
-    BackendUnavailableError,
+    ServerError,
+    ServerError,
+    ServerError,
+    ServerError,
+    ServerError,
+    ServerError,
+    ServerError,
     DataError,
     DataValidationError,
     DataLoadError,
@@ -58,22 +58,22 @@ class TestExceptionHierarchy:
 
     def test_database_error_hierarchy(self):
         """Test database error hierarchy."""
-        conn_error = DatabaseConnectionError("Connection failed")
-        query_error = DatabaseQueryError("Query failed")
-        timeout_error = DatabaseTimeoutError("Timeout")
+        conn_error = ServerError("Connection failed")
+        query_error = ServerError("Query failed")
+        timeout_error = ServerError("Timeout")
 
-        assert isinstance(conn_error, DatabaseError)
+        assert isinstance(conn_error, ServerError)
         assert isinstance(conn_error, TSIError)
-        assert isinstance(query_error, DatabaseError)
-        assert isinstance(timeout_error, DatabaseError)
+        assert isinstance(query_error, ServerError)
+        assert isinstance(timeout_error, ServerError)
 
     def test_backend_error_hierarchy(self):
         """Test backend error hierarchy."""
-        rust_error = RustBackendError("Rust error")
-        unavailable_error = BackendUnavailableError("Backend unavailable")
+        rust_error = ServerError("Rust error")
+        unavailable_error = ServerError("Backend unavailable")
 
-        assert isinstance(rust_error, BackendError)
-        assert isinstance(unavailable_error, BackendError)
+        assert isinstance(rust_error, ServerError)
+        assert isinstance(unavailable_error, ServerError)
 
     def test_data_error_hierarchy(self):
         """Test data error hierarchy."""
@@ -99,12 +99,12 @@ class TestIsTransientError:
 
     def test_detects_database_connection_error(self):
         """Test that database connection errors are transient."""
-        error = DatabaseConnectionError("Connection failed")
+        error = ServerError("Connection failed")
         assert is_transient_error(error) is True
 
     def test_detects_database_timeout_error(self):
         """Test that database timeout errors are transient."""
-        error = DatabaseTimeoutError("Query timed out")
+        error = ServerError("Query timed out")
         assert is_transient_error(error) is True
 
     def test_detects_operation_timeout_error(self):
@@ -149,8 +149,8 @@ class TestWithRetryDecorator:
     def test_retries_on_transient_error(self):
         """Test that transient errors trigger retries."""
         mock_func = Mock(side_effect=[
-            DatabaseConnectionError("Connection failed"),
-            DatabaseConnectionError("Connection failed"),
+            ServerError("Connection failed"),
+            ServerError("Connection failed"),
             "success"
         ])
         decorated = with_retry(max_attempts=3, initial_delay=0.01)(mock_func)
@@ -162,11 +162,11 @@ class TestWithRetryDecorator:
 
     def test_exhausts_retries(self):
         """Test that retry exhaustion raises the last error."""
-        error = DatabaseConnectionError("Connection failed")
+        error = ServerError("Connection failed")
         mock_func = Mock(side_effect=error)
         decorated = with_retry(max_attempts=3, initial_delay=0.01)(mock_func)
 
-        with pytest.raises(DatabaseConnectionError):
+        with pytest.raises(ServerError):
             decorated()
 
         assert mock_func.call_count == 3
@@ -203,8 +203,8 @@ class TestWithRetryDecorator:
     def test_exponential_backoff(self):
         """Test that retry delays increase exponentially."""
         mock_func = Mock(side_effect=[
-            DatabaseConnectionError("Error"),
-            DatabaseConnectionError("Error"),
+            ServerError("Error"),
+            ServerError("Error"),
             "success"
         ])
         
