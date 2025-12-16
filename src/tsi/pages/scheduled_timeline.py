@@ -8,7 +8,7 @@ from tsi.components.timeline.timeline_figure import render_timeline_figure
 from tsi.components.timeline.timeline_observable_periods import render_observable_periods_info
 from tsi.components.timeline.timeline_observation_details import render_observation_details_table
 from tsi.components.timeline.timeline_summary import render_timeline_summary
-from tsi.services.database import get_schedule_timeline_data
+from tsi.services import database as db
 
 
 def render() -> None:
@@ -25,14 +25,8 @@ def render() -> None:
 
     schedule_id = state.get_schedule_id()
 
-    if schedule_id is None:
-        st.info("Load a schedule from the database to view the Scheduled Timeline.")
-        return
-
-    schedule_id = int(schedule_id)
-
     try:
-        timeline_data = get_schedule_timeline_data(schedule_id=schedule_id)
+        timeline_data = db.get_schedule_timeline_data(schedule_id=schedule_id)
     except Exception as exc:
         st.error(f"Failed to load schedule timeline data from the backend: {exc}")
         return

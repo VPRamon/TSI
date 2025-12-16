@@ -7,8 +7,8 @@ from tsi.components.distributions.distributions_controls import render_filter_co
 from tsi.components.distributions.distributions_layout import render_figure_layout
 from tsi.components.distributions.distributions_stats import render_statistical_summary
 from tsi.plots.distributions import build_figures
-from tsi.services.database import get_distribution_data
-
+from tsi.services import database as db
+from tsi.utils.error_display import display_backend_error
 
 def render() -> None:
     """Render the Distributions page."""
@@ -26,15 +26,9 @@ def render() -> None:
 
     schedule_id = state.get_schedule_id()
 
-    if schedule_id is None:
-        st.info("Load a schedule from the database to view distributions.")
-        return
-
-    schedule_id = int(schedule_id)
-
     try:
         with st.spinner("Loading distribution data..."):
-            distribution_data = get_distribution_data(
+            distribution_data = db.get_distribution_data(
                 schedule_id=schedule_id,
             )
     except Exception as exc:
