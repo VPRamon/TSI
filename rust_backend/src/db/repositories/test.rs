@@ -529,27 +529,6 @@ impl ScheduleRepository for TestRepository {
         Ok(self.delete_from_map(|d| &mut d.validation_results, schedule_id) as u64)
     }
 
-    async fn fetch_lightweight_blocks(
-        &self,
-        _schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::LightweightBlock>> {
-        Ok(vec![])
-    }
-
-    async fn fetch_insights_blocks(
-        &self,
-        _schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::InsightsBlock>> {
-        Ok(vec![])
-    }
-
-    async fn fetch_trends_blocks(
-        &self,
-        _schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::TrendsBlock>> {
-        Ok(vec![])
-    }
-
     async fn fetch_visibility_map_data(
         &self,
         _schedule_id: i64,
