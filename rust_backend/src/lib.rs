@@ -97,13 +97,11 @@ pub mod transformations;
 /// ## Analysis Functions
 /// - `py_get_top_observations`: Get top N observations by criteria
 /// - `py_find_conflicts`: Detect scheduling conflicts
-/// - `py_greedy_schedule`: Run greedy scheduling optimization
 /// - `py_get_schedule_summary`: Get pre-computed schedule metrics (preferred over DataFrame-based metrics)
 ///
 /// ## Classes
 /// - `PyValidationResult`: Validation results with errors and warnings
 /// - `PySchedulingConflict`: Detected scheduling conflict information
-/// - `PyOptimizationResult`: Results from scheduling optimization
 ///
 /// # Example
 ///
@@ -123,7 +121,6 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Register algorithm functions
     m.add_function(wrap_pyfunction!(python::py_get_top_observations, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_find_conflicts, m)?)?;
-    m.add_function(wrap_pyfunction!(python::py_greedy_schedule, m)?)?;
 
     // Register transformation functions
     python::transformations::register_transformation_functions(m)?;
@@ -184,7 +181,6 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Register classes (PyO3 data structures exposed to Python)
     m.add_class::<python::PySchedulingConflict>()?;
-    m.add_class::<python::PyOptimizationResult>()?;
     m.add_class::<db::models::Schedule>()?;
     m.add_class::<db::models::SchedulingBlock>()?;
     m.add_class::<db::models::Constraints>()?;

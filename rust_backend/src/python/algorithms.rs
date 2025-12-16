@@ -1,7 +1,7 @@
 use pyo3::prelude::*;
 use pyo3_polars::PyDataFrame;
 
-use crate::algorithms::{analysis, conflicts, optimization, SchedulingConflict};
+use crate::algorithms::{analysis, conflicts, SchedulingConflict};
 
 /// Get top N observations by a given column
 ///
@@ -83,76 +83,4 @@ pub fn py_find_conflicts(df: PyDataFrame) -> PyResult<Vec<PySchedulingConflict>>
     })?;
 
     Ok(conflicts_vec.into_iter().map(|c| c.into()).collect())
-}
-
-/// Python wrapper for OptimizationResult
-#[pyclass]
-#[derive(Clone)]
-pub struct PyOptimizationResult {
-    #[pyo3(get)]
-    pub solution: Vec<usize>,
-    #[pyo3(get)]
-    pub objective_value: f64,
-    #[pyo3(get)]
-    pub iterations: usize,
-    #[pyo3(get)]
-    pub converged: bool,
-}
-
-#[pymethods]
-impl PyOptimizationResult {
-    fn __repr__(&self) -> String {
-        format!(
-            "OptimizationResult(selected={}, objective={:.2}, iterations={}, converged={})",
-            self.solution.len(),
-            self.objective_value,
-            self.iterations,
-            self.converged
-        )
-    }
-}
-
-impl From<optimization::OptimizationResult> for PyOptimizationResult {
-    fn from(result: optimization::OptimizationResult) -> Self {
-        PyOptimizationResult {
-            solution: result.solution,
-            objective_value: result.objective_value,
-            iterations: result.iterations,
-            converged: result.converged,
-        }
-    }
-}
-
-/// Run greedy scheduling optimization
-///
-/// Args:
-///     priorities: List of priority values for each observation
-///     max_iterations: Maximum number of iterations (default: 1000)
-///
-/// Returns:
-///     PyOptimizationResult with solution indices and objective value
-///
-/// Example:
-///     >>> priorities = df["priority"].tolist()
-///     >>> result = tsi_rust.greedy_schedule(priorities)
-///     >>> print(f"Selected {len(result.solution)} observations")
-///     >>> print(f"Total priority: {result.objective_value}")
-#[pyfunction]
-#[pyo3(signature = (priorities, max_iterations=1000))]
-pub fn py_greedy_schedule(
-    priorities: Vec<f64>,
-    max_iterations: usize,
-) -> PyResult<PyOptimizationResult> {
-    // Convert priorities to Observation objects
-    let observations: Vec<optimization::Observation> = priorities
-        .into_iter()
-        .enumerate()
-        .map(|(i, priority)| optimization::Observation { index: i, priority })
-        .collect();
-
-    // Run optimization with no constraints (baseline)
-    let constraints: Vec<Box<dyn optimization::Constraint>> = vec![];
-    let result = optimization::greedy_schedule(&observations, &constraints, max_iterations);
-
-    Ok(result.into())
 }

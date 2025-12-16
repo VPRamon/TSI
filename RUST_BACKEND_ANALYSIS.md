@@ -27,7 +27,7 @@
 The Rust backend provides high-performance telescope scheduling analysis with Python bindings via PyO3. It handles:
 - **JSON parsing** of observation schedules and visibility data
 - **Database operations** for Azure PostgreSQL via repository pattern
-- **Analytics computation** including metrics, conflicts, and optimization
+- **Analytics computation** including metrics and conflict detection
 - **Data transformation** and validation
 - **Dashboard services** for visualization components
 
@@ -44,11 +44,10 @@ The Rust backend provides high-performance telescope scheduling analysis with Py
 rust_backend/
 ├── src/
 │   ├── lib.rs                    # Module entry point & Python bindings registration
-│   ├── algorithms/               # Analytics & optimization
+│   ├── algorithms/               # Analytics
 │   │   ├── mod.rs
-│   │   ├── analysis.rs          # Metrics, correlations, top observations
-│   │   ├── conflicts.rs         # Conflict detection
-│   │   └── optimization.rs      # Greedy scheduling
+│   │   ├── analysis.rs          # Top observations extraction
+│   │   └── conflicts.rs         # Conflict detection
 │   ├── db/                       # Database layer (Repository pattern)
 │   │   ├── mod.rs
 │   │   ├── checksum.rs          # SHA256 checksums
@@ -112,12 +111,11 @@ rust_backend/
 
 ### algorithms/mod.rs
 
-**Purpose:** Module orchestrator for analytics and optimization algorithms.
+**Purpose:** Module orchestrator for analytics algorithms.
 
 **Exports:**
-- `analysis::{get_top_observations, AnalyticsSnapshot}` (compute_metrics and compute_correlations removed)
+- `analysis::{get_top_observations, AnalyticsSnapshot}`
 - `conflicts::{find_conflicts, SchedulingConflict}`
-- `optimization::{greedy_schedule, Constraint, Observation, OptimizationResult}`
 
 **Used By:**
 - `python/algorithms.rs` for Python bindings
@@ -129,56 +127,6 @@ rust_backend/
 ---
 
 ### algorithms/analysis.rs
-
-#### `compute_metrics(df: &DataFrame) -> Result<AnalyticsSnapshot, PolarsError>` ❌ REMOVED
-
-**What it did:**
-- Computed dataset-level summary statistics: total observations, scheduled count, scheduling rate, mean/median priority, total visibility hours
-
-**Why it was removed:**
-- 🔴 **Duplicated database functionality** - `populate_summary_analytics` provides same metrics more efficiently
-- DataFrame-based approach required loading all data into memory
-- Database approach uses pre-computed analytics for instant queries
-
-**Replacement:**
-Use `py_get_schedule_summary(schedule_id)` instead, which queries pre-computed analytics from the database.
-
-**Migration:**
-```python
-# Old (removed):
-# df = load_schedule()
-# metrics = tsi_rust.compute_metrics(df)
-
-# New (use database-backed analytics):
-summary = tsi_rust.py_get_schedule_summary(schedule_id)
-print(f"Scheduling rate: {summary.scheduling_rate:.1%}")
-```
-
----
-
-#### ✅ REMOVED: `compute_correlations(df: &DataFrame, columns: &[String]) -> Result<DataFrame, PolarsError>`
-
-**What it did:**
-- Placeholder function that returned empty DataFrame
-- Was intended to compute Spearman correlation matrix from DataFrame
-
-**Purpose:**
-- Identify relationships between priority, visibility, duration, etc.
-
-**Was Used By:**
-- Not actively used (returned empty)
-
-**Why Removed:**
-- Correlation analysis IS implemented and working in `services/insights.rs::compute_correlations()`
-- That implementation computes Spearman correlations during insights data generation
-- This DataFrame-based placeholder was unused dead code
-
-**Migration Path:**
-- Correlation analysis already works via `py_get_insights_data()` → returns InsightsData with correlations field
-- Python analytics uses Pandas' `df.corr(method="spearman")` for DataFrame-level correlation
-- No migration needed - functionality preserved
-
----
 
 #### `get_top_observations(df: &DataFrame, by: &str, n: usize) -> Result<DataFrame, PolarsError>`
 
@@ -245,57 +193,6 @@ print(f"Scheduling rate: {summary.scheduling_rate:.1%}")
 
 ---
 
-### algorithms/optimization.rs
-
-#### `greedy_schedule(observations: &[Observation], constraints: &[Box<dyn Constraint>], max_iterations: usize) -> OptimizationResult`
-
-**What it does:**
-- Greedy scheduling algorithm: iteratively selects highest-priority observation that satisfies all constraints
-
-**Purpose:**
-- Baseline scheduling optimization
-- Research/comparison with other algorithms
-
-**Used By:**
-- `python/algorithms.rs::py_greedy_schedule()` → `tsi_rust.greedy_schedule()`
-- Optimization experiments, schedule generation
-
-**Optimization Opportunities:**
-- ⚠️ **Limited utility without constraints** - Currently only works with empty constraint list (baseline case)
-- Need to implement concrete `Constraint` types (visibility overlap, time window, elevation, etc.)
-- **Recommendation:** 
-  - If optimization is not a core feature: **Keep as simple baseline**
-  - If production scheduling needed: Expand constraint system or integrate existing solver (OR-Tools, HiGHS)
-
----
-
-#### `greedy_schedule_parallel(observations: &[Observation], constraints: &[Box<dyn Constraint>], max_iterations: usize) -> OptimizationResult`
-
-**What it does:**
-- **Disabled** - Returns empty result with `converged=false`
-- Intended for parallel greedy optimization using Rayon
-
-**Purpose:**
-- Speed up optimization for large datasets
-
-**Used By:**
-- Not used (disabled)
-
-**Optimization Opportunities:**
-- 🔴 **Remove**
-  - Commented-out Rayon code suggests this was experimental
-  - Parallel greedy is often not faster than sequential due to synchronization overhead
-- **Recommendation:** **Remove** to reduce maintenance burden
-
----
-
-## db Module
-
-### db/mod.rs
-
-**Purpose:** Database module orchestrator. Defines repository pattern architecture.
-
-**Documentation Quality:** ✅ Excellent - includes ASCII architecture diagram
 
 **Used By:**
 - All Python database operations
@@ -552,41 +449,9 @@ print(f"Scheduling rate: {summary.scheduling_rate:.1%}")
 
 ### python/algorithms.rs
 
-**Purpose:** Python bindings for analytics algorithms (250+ lines)
+**Purpose:** Python bindings for analytics algorithms (90+ lines)
 
 **Key Functions:**
-
-#### `py_compute_metrics(df: PyDataFrame) -> PyResult<PyAnalyticsSnapshot>` ❌ REMOVED
-
-**What it did:**
-- Python wrapper for `algorithms::analysis::compute_metrics()`
-- Computed metrics from a Polars DataFrame
-
-**Why it was removed:**
-- 🔴 **Superseded by database analytics** - Use `py_get_schedule_summary(schedule_id)` instead
-- Database approach avoids loading entire DataFrame into memory
-- Pre-computed analytics are much faster (no DataFrame processing needed)
-
-**Replacement:**
-```python
-# Old (removed):
-# metrics = tsi_rust.compute_metrics(df)
-
-# New (database-backed):
-summary = tsi_rust.py_get_schedule_summary(schedule_id)
-# Access fields: summary.scheduling_rate, summary.priority_mean, etc.
-```
-
-**API Change:**
-The new `compute_metrics()` function in `tsi.backend.analytics` now takes `schedule_id` instead of a DataFrame:
-```python
-from tsi.backend import compute_metrics
-
-# New signature:
-metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
-```
-
----
 
 #### `py_get_top_observations(df: PyDataFrame, by: &str, n: usize) -> PyResult<PyDataFrame>`
 
@@ -618,24 +483,10 @@ metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
 
 ---
 
-#### `py_greedy_schedule(priorities: Vec<f64>, max_iterations: usize) -> PyResult<PyOptimizationResult>`
-
-**What it does:**
-- Python wrapper for `algorithms::optimization::greedy_schedule()`
-
-**Used By:**
-- Python: `result = tsi_rust.greedy_schedule(priorities, max_iter=1000)`
-- Optimization experiments
-
-**Optimization Opportunities:**
-- ⚠️ Limited utility without constraint system
-- **Recommendation:** Expand or mark as experimental
-
----
 
 ### python/database.rs
 
-**Purpose:** Python bindings for all database operations (900+ lines)
+**Purpose:** Python bindings for all database operations (850+ lines)
 
 **Key Functions (40+ Python-facing functions):**
 
@@ -1197,55 +1048,42 @@ metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
    - **Impact:** Validation reports may miss conflicts
    - **Recommendation:** Complete implementation or document as "fixed-time-only"
 
-2. **🔴 Remove placeholder and duplicate functions** ✅ MOSTLY COMPLETED: compute_metrics, compute_correlations, and suggest_candidate_positions removed
-   - ✅ `algorithms/analysis.rs::compute_metrics()` + `python/algorithms.rs::py_compute_metrics()` - **REMOVED**
-   - ✅ `algorithms/analysis.rs::compute_correlations()` - **REMOVED**
-   - ✅ `algorithms/conflicts.rs::suggest_candidate_positions()` - **REMOVED**
-   - `algorithms/optimization.rs::greedy_schedule_parallel()` - disabled
-   - **Impact:** Reduced dead code, cleaner API
-   - **Recommendation:** Remove remaining placeholder (greedy_schedule_parallel)
-
-3. **🔴 Fix `transformations/cleaning.rs::impute_missing()` median bug**
+2. **🔴 Fix `transformations/cleaning.rs::impute_missing()` median bug**
    - Line 58: median strategy uses `FillNullStrategy::Mean`
    - **Impact:** Incorrect imputation
    - **Recommendation:** Use correct median strategy or document limitation
 
 ### Medium Priority
 
-4. **⚠️ Split large files**
+3. **⚠️ Split large files**
    - `db/models.rs` (2000+ lines) → split into submodules
    - `python/database.rs` (900+ lines) → consider grouping by feature
    - **Impact:** Maintainability, code navigation
    - **Recommendation:** Refactor when adding new model types
 
-5. **⚠️ Add pagination to `py_list_schedules()`**
+4. **⚠️ Add pagination to `py_list_schedules()`**
    - Current: returns all schedules
    - **Impact:** Performance degradation at scale (1000+ schedules)
    - **Recommendation:** Add pagination parameters when needed
 
-6. **⚠️ Profile and optimize analytics queries**
+5. **⚠️ Profile and optimize analytics queries**
    - Review SQL performance in `db/repositories/azure/`
    - **Impact:** Dashboard load times
    - **Recommendation:** Run `EXPLAIN ANALYZE`, add indexes, consider materialized views
 
 ### Low Priority (Future Enhancements)
 
-7. **💡 Extend constraint system in optimization**
-   - Current: greedy scheduler works but lacks constraint types
-   - **Impact:** Limited optimization capabilities
-   - **Recommendation:** Implement if optimization becomes core feature
-
-8. **💡 Add caching for comparison results**
+6. **💡 Add caching for comparison results**
    - `services/compare.rs` could cache frequently compared schedules
    - **Impact:** Minor speedup for repeated comparisons
    - **Recommendation:** Add if users repeatedly compare same pairs
 
-9. **💡 Make validation rules configurable**
+7. **💡 Make validation rules configurable**
    - `services/validation.rs` has hardcoded thresholds
    - **Impact:** Flexibility for different observatories
    - **Recommendation:** Add configuration system if multi-tenancy needed
 
-10. **💡 Parallelize validation for large batches**
+8. **💡 Parallelize validation for large batches**
     - `services/validation.rs::validate_blocks()` is sequential
     - **Impact:** Speedup for 10,000+ block schedules
     - **Recommendation:** Use Rayon if validation becomes bottleneck
@@ -1264,16 +1102,16 @@ metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
   - `services/trends.rs`: ~430 lines
 
 ### Module Breakdown
-- **algorithms:** 3 files, ~700 lines - Analytics and optimization
+- **algorithms:** 2 files, ~400 lines - Analytics and conflict detection utilities
 - **db:** 8+ files, ~4000+ lines - Database layer (largest module)
 - **parsing:** 1 file, ~471 lines - JSON parsing
-- **python:** 4 files, ~1500+ lines - Python bindings
+- **python:** 4 files, ~1400+ lines - Python bindings
 - **services:** 9 files, ~2000+ lines - Business logic
 - **transformations:** 2 files, ~300 lines - Data processing utilities
 
 ### Function Count
-- **Public functions exported to Python:** ~60 functions
-- **Internal functions:** ~150+ functions
+- **Public functions exported to Python:** ~55 functions
+- **Internal functions:** ~140+ functions
 
 ### Functionality Coverage
 
@@ -1287,13 +1125,10 @@ metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
 
 ⚠️ **Partially Implemented:**
 - Conflict detection (only fixed time constraints)
-- Optimization (limited constraint system)
 
-🔴 **Placeholder/Incomplete/Duplicate:**
-- ~~DataFrame-based metrics computation~~ ✅ **REMOVED** (use database analytics instead)
-- ~~DataFrame-based correlation analysis placeholder~~ ✅ **REMOVED** (working version exists in `services/insights.rs`)
-- ~~Candidate position suggestions~~ ✅ **REMOVED** (unused placeholder)
-- Parallel greedy scheduling (disabled)
+🔴 **Incomplete:**
+- Conflict detection (only checks fixed times, not visibility windows)
+- Median imputation bug
 
 ### Usage Patterns
 
@@ -1303,13 +1138,9 @@ metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
 3. `services/` - Dashboard data preparation
 4. `parsing/json_parser.rs` - ETL ingestion
 
-**Rarely-Used Modules:**
-- `algorithms/optimization.rs` - Experimental, not production
-
 ### Performance Characteristics
 
 **Fast Operations (<100ms):**
-- Metrics computation (`compute_metrics`)
 - DataFrame filtering
 - Coordinate transformations
 - Checksum calculation
@@ -1338,55 +1169,22 @@ The Rust backend is **well-architected** with good separation of concerns (repos
 6. ✅ Excellent Python integration via PyO3
 
 ### Areas for Improvement
-1. ✅ **COMPLETED:** Remove dead code (compute_metrics functions removed)
-2. 🔴 Fix bugs (conflict detection, median imputation)
-3. ⚠️ Modularize large files for maintainability
-4. ⚠️ Document known performance limitations
-5. 💡 Extend features (optimization constraints, configurable validation)
+1. 🔴 Fix bugs (conflict detection, median imputation)
+2. ⚠️ Modularize large files for maintainability
+3. ⚠️ Document known performance limitations
+4. 💡 Extend features (configurable validation, improved performance)
 
 ### Who Uses What
 - **Python TSI application:** Everything (primary consumer)
 - **Dashboard:** `services/*` functions heavily
 - **ETL pipeline:** `parsing/*`, `db/services.rs`, `validation`
 - **Data analysts:** `algorithms/analysis.rs`, `transformations/*`
-- **Rarely used:** Optimization, conflict suggestions
-
-### Removal Candidates
-- ✅ **REMOVED:** `algorithms/analysis.rs::compute_correlations()` - placeholder returning empty
-  - Correlation analysis IS implemented and working in `services/insights.rs::compute_correlations()`
-  - Migration: Use `py_get_insights_data(schedule_id)` for insights with correlations
-- ✅ **REMOVED:** `algorithms/conflicts.rs::suggest_candidate_positions()` - placeholder returning empty
-  - Was never implemented, no migration needed
-- `algorithms/optimization.rs::greedy_schedule_parallel()` - disabled (experimental)
-- Evaluate if optimization module is needed at all (if not production feature)
-
-**Migration Path for compute_metrics:**
-```python
-# Old approach (REMOVED):
-# df = load_schedule_file("schedule.json")
-# metrics = tsi_rust.compute_metrics(df)
-
-# New approach (database-backed analytics):
-from tsi.backend import compute_metrics
-
-# Requires schedule to be stored in database first
-metadata = tsi_rust.py_store_schedule(..., populate_analytics=True)
-metrics = compute_metrics(schedule_id=metadata.schedule_id)
-
-# Or use raw Rust function:
-summary = tsi_rust.py_get_schedule_summary(schedule_id)
-print(f"Rate: {summary.scheduling_rate:.1%}")
-```
 
 ---
 
-**Document Version:** 1.4  
+**Document Version:** 2.0  
 **Last Updated:** December 16, 2025  
 **Maintainer:** TSI Development Team
 
 **Change Log:**
-- v1.4 (2025-12-16): Removed placeholder `suggest_candidate_positions()` function from algorithms/conflicts.rs
-- v1.3 (2025-12-16): Removed placeholder `compute_correlations()` function from algorithms/analysis.rs - correlation analysis is fully working via services/insights.rs
-- v1.2 (2025-12-16): Clarified that correlation analysis IS implemented and working via `services/insights.rs::compute_correlations()` - only the DataFrame-based placeholder in `algorithms/analysis.rs` is unused
-- v1.1 (2025-12-16): Removed `compute_metrics()` and `py_compute_metrics()` - replaced with database-backed `py_get_schedule_summary()`
-- v1.0 (2025-12-16): Initial comprehensive analysis
+- v2.0 (2025-12-16): Major cleanup - removed all documentation for deleted functions/modules (compute_metrics, compute_correlations, suggest_candidate_positions, optimization module). Document now reflects current codebase only with forward-looking recommendations.

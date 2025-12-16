@@ -24,7 +24,6 @@
 
 pub mod analysis;
 pub mod conflicts;
-pub mod optimization;
 
 pub use analysis::{
     get_top_observations, AnalyticsSnapshot,
@@ -32,4 +31,3 @@ pub use analysis::{
 pub use conflicts::{
     find_conflicts, SchedulingConflict,
 };
-pub use optimization::{greedy_schedule, Constraint, Observation, OptimizationResult};
