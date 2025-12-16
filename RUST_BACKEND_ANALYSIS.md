@@ -53,7 +53,12 @@ rust_backend/
 │   │   ├── checksum.rs          # SHA256 checksums
 │   │   ├── config.rs            # Database configuration
 │   │   ├── factory.rs           # Repository factory
-│   │   ├── models.rs            # Domain models (Schedule, SchedulingBlock, etc.)
+│   │   ├── models/              # Domain models (modularized)
+│   │   │   ├── mod.rs          # Module declaration and re-exports
+│   │   │   ├── schedule.rs     # Schedule, SchedulingBlock, Period, Constraints
+│   │   │   ├── metadata.rs     # ScheduleInfo, ScheduleMetadata
+│   │   │   ├── analytics.rs    # LightweightBlock, DistributionBlock, stats
+│   │   │   └── python.rs       # PyO3 wrappers (visibility, timeline, insights, trends)
 │   │   ├── repository.rs        # Repository trait definition
 │   │   ├── services.rs          # High-level service layer
 │   │   └── repositories/        # Concrete implementations
@@ -170,41 +175,6 @@ rust_backend/
 
 ---
 
-#### `suggest_candidate_positions(df: &DataFrame, row_index: usize) -> Result<Vec<CandidatePlacement>, PolarsError>`
-
-**What it does:**
-- **Currently returns empty vector** (placeholder)
-- Intended to suggest alternative time slots for unscheduled observations
-
-**Purpose:**
-- Help schedulers find valid positions for failed observations
-
-**Used By:**
-- Not actively used (placeholder)
-
-**Optimization Opportunities:**
-- 🔴 **Remove or implement**
-  - Real implementation would need:
-    1. Parse visibility windows
-    2. Check overlaps with scheduled blocks
-    3. Generate candidate start times
-    4. Validate constraints
-- **Recommendation:** **Remove** unless actively developing scheduling suggestions feature
-
----
-
-
-**Used By:**
-- All Python database operations
-- ETL pipeline
-- Dashboard data fetching
-
-**Optimization Opportunities:**
-- ✅ Well-designed, no structural changes needed
-- Architecture documentation should be referenced in onboarding docs
-
----
-
 ### db/checksum.rs
 
 #### `calculate_checksum(content: &str) -> String`
@@ -262,25 +232,59 @@ rust_backend/
 
 ---
 
-### db/models.rs
+### db/models/
 
-**Purpose:** Core domain models (2000+ lines). Defines:
-- `Schedule`, `SchedulingBlock`, `Period`, `Constraints`
-- `ScheduleInfo`, `ScheduleMetadata`
-- Analytics models: `LightweightBlock`, `DistributionBlock`, `CompareBlock`, etc.
-- PyO3 wrapper classes for Python exposure
+**Purpose:** Core domain models organized into focused submodules. Previously a single 2000+ line file, now split for maintainability.
+
+**Module Structure:**
+```
+db/models/
+├── mod.rs              # Module declaration and re-exports
+├── schedule.rs         # Schedule, SchedulingBlock, Period, Constraints, ID types
+├── metadata.rs         # ScheduleInfo, ScheduleMetadata
+├── analytics.rs        # LightweightBlock, DistributionBlock, SkyMapData, stats
+└── python.rs           # PyO3 wrappers (visibility, timeline, insights, trends, compare)
+```
+
+**Key Types by Module:**
+
+**schedule.rs** (Core scheduling domain):
+- `Schedule` - Top-level schedule with metadata, dark periods, and blocks
+- `SchedulingBlock` - Individual observing request with constraints
+- `Period` - Time window representation (MJD-based)
+- `Constraints` - Observing constraints (altitude, azimuth, fixed time)
+- ID types: `ScheduleId`, `SchedulingBlockId`, `TargetId`, `ConstraintsId`
+
+**metadata.rs** (Schedule information):
+- `ScheduleMetadata` - Lightweight metadata for schedule listings
+- `ScheduleInfo` - Extended schedule info with block statistics
+
+**analytics.rs** (Visualization and statistics):
+- `LightweightBlock` - Simplified block for sky map visualization
+- `DistributionBlock` - Block data for distribution plots
+- `DistributionStats` - Statistical summary (mean, median, std dev, etc.)
+- `DistributionData` - Complete distribution data bundle
+- `SkyMapData` - Complete sky map data with priority bins
+- `PriorityBinInfo` - Priority bin metadata for color mapping
+
+**python.rs** (PyO3 wrappers for Python interop):
+- Visibility types: `VisibilityBlockSummary`, `VisibilityMapData`, `VisibilityBin`, `BlockHistogramData`
+- Timeline types: `ScheduleTimelineBlock`, `ScheduleTimelineData`
+- Insights types: `InsightsBlock`, `AnalyticsMetrics`, `CorrelationEntry`, `ConflictRecord`, `TopObservation`, `InsightsData`
+- Trends types: `TrendsBlock`, `EmpiricalRatePoint`, `SmoothedPoint`, `HeatmapBin`, `TrendsMetrics`, `TrendsData`
+- Comparison types: `CompareBlock`, `CompareStats`, `SchedulingChange`, `CompareData`
 
 **Used By:**
 - Entire application - central data structures
+- Python bindings via PyO3 `#[pyclass]` attributes
+- Database repositories for serialization/deserialization
+- Service layer for business logic
 
-**Optimization Opportunities:**
-- ⚠️ **Large file (2000+ lines)** - Consider splitting into:
-  - `models/schedule.rs` - Schedule, SchedulingBlock
-  - `models/analytics.rs` - LightweightBlock, DistributionBlock, etc.
-  - `models/metadata.rs` - ScheduleInfo, ScheduleMetadata
-  - `models/python.rs` - PyO3 wrappers
-- ✅ Otherwise well-structured with good documentation
-- **Recommendation:** Modularize for maintainability if adding more model types
+**Optimization Status:**
+- ✅ **Modularized** - Split from single 2000+ line file into focused modules
+- ✅ Well-structured with comprehensive PyO3 bindings
+- ✅ Clear separation of concerns (domain, metadata, analytics, Python wrappers)
+- **Recommendation:** Maintain this structure as model types are added
 
 ---
 
