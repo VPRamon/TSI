@@ -20,7 +20,7 @@ Usage:
     >>> 
     >>> try:
     ...     # Backend operation
-    ...     init_database()
+    ...     store_schedule_db(name, data)
     ... except Exception as e:
     ...     # Raise with detailed info for logs, generic message for users
     ...     raise ServerError(

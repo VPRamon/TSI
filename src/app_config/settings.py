@@ -121,10 +121,6 @@ class Settings(BaseSettings):
     plot_margin_bottom: int = Field(default=80, ge=0)
 
     # ===== Feature Flags =====
-    enable_database: bool = Field(
-        default=True,
-        description="Enable database features (schedule storage/retrieval)",
-    )
     enable_file_upload: bool = Field(
         default=True,
         description="Enable file upload functionality",
@@ -179,7 +175,6 @@ def get_settings() -> Settings:
     logger.info(f"Data root: {settings.data_root}")
     logger.info(f"Cache TTL: {settings.cache_ttl}s")
     logger.info(f"Rust backend enabled: {settings.enable_rust_backend}")
-    logger.info(f"Database features enabled: {settings.enable_database}")
     logger.info("Note: Database configuration is managed by Rust backend via environment variables")
     
     return settings

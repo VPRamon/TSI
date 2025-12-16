@@ -37,17 +37,13 @@ See `rust_backend/src/db/config.rs` for complete configuration options.
 
 ### Standard Operations
 ```python
-from tsi.services.database import init_database, store_schedule_db
+from tsi.services.database import store_schedule_db
 
-# Initialize connection pool (reads env vars via Rust)
-init_database()
-
-# Store schedule (calls Rust backend)
+# Store schedule (Rust backend handles connection pooling automatically)
 result = store_schedule_db(name, schedule_json, visibility_json)
 ```
 
 ## API Functions
-- `init_database()`: Initialize Rust connection pool
 - `db_health_check()`: Verify database connectivity
 - `store_schedule_db()`: Store schedule data
 - `list_schedules_db()`: List all schedules
@@ -105,7 +101,7 @@ def _rust_call(method: str, *args: Any):
     Call a Rust backend function by name with error handling.
     
     Args:
-        method: Name of the Rust function (e.g., "py_init_database")
+        method: Name of the Rust function (e.g., "py_list_schedules")
         *args: Arguments to pass to the Rust function
         
     Returns:
@@ -135,30 +131,8 @@ def _rust_call(method: str, *args: Any):
         raise
 
 
-@with_retry(max_attempts=3, backoff_factor=1.5)
-def init_database() -> None:
-    """
-    Initialize the Rust-backed database connection pool.
-    
-    This should be called once at application startup. It establishes a
-    connection pool managed by bb8 in the Rust backend.
-    
-    The function will retry up to 3 times on transient connection errors
-    with exponential backoff.
-    
-    Backend: Rust (tiberius)
-    
-    Raises:
-        ServerError: If unable to initialize connection pool or Rust backend is not available
-    """
-    try:
-        _rust_call("py_init_database")
-        logger.info("Database connection pool initialized successfully")
-    except Exception as e:
-        raise ServerError(
-            "Failed to initialize database connection pool",
-            details={"error": str(e)}
-        ) from e
+# Note: Connection pool initialization is handled automatically by the Rust backend
+# on first database operation. No explicit initialization is needed from Python.
 
 
 @with_retry(max_attempts=2, backoff_factor=1.5)
@@ -917,7 +891,6 @@ def _compute_validation_report_fallback(schedule_id: int) -> dict[str, Any]:
 
 
 __all__ = [
-    "init_database",
     "db_health_check",
     "store_schedule_db",
     "list_schedules_db",
