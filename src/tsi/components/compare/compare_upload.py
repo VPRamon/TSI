@@ -2,25 +2,19 @@
 
 from __future__ import annotations
 
-import json
-from typing import cast
-
-import pandas as pd
 import streamlit as st
 
 from tsi import state
-from tsi.services.data.loaders import prepare_dataframe
 from tsi.services.database import list_schedules_db
 
 
-def render_file_upload() -> tuple[int | None, str | None, pd.DataFrame | None]:
+def render_file_upload() -> tuple[int | None, str | None, None]:
     """
     Render file upload or database selection UI for comparison schedule.
 
     Returns:
-        Tuple of (schedule_id, schedule_name, dataframe):
-        - If database: (schedule_id, schedule_name, None)
-        - If file upload: (None, filename, dataframe)
+        Tuple of (schedule_id, schedule_name, None):
+        - If database or file upload: (schedule_id, schedule_name, None)
         - If nothing selected: (None, None, None)
     """
     st.subheader("Select Comparison Schedule")
@@ -34,9 +28,9 @@ def render_file_upload() -> tuple[int | None, str | None, pd.DataFrame | None]:
             return (comparison_id, comparison_name, None)
     
     with tab_file:
-        comparison_df, comparison_filename = _render_file_upload_section()
-        if comparison_df is not None:
-            return (None, comparison_filename, comparison_df)
+        comparison_id, comparison_name = _render_file_upload_section()
+        if comparison_id is not None:
+            return (comparison_id, comparison_name, None)
     
     return (None, None, None)
 
@@ -97,16 +91,17 @@ def _render_database_selection() -> tuple[int | None, str | None]:
     return (None, None)
 
 
-def _render_file_upload_section() -> tuple[pd.DataFrame | None, str | None]:
+def _render_file_upload_section() -> tuple[int | None, str | None]:
     """
     Render the file upload section for comparison schedule.
     
-    IMPORTANT: This function now stores the uploaded schedule in the database
-    to ensure consistent comparison using original block IDs.
+    When a file is uploaded, it is stored in the database and the schedule_id is returned.
     
     Returns:
-        Tuple of (dataframe, filename) if uploaded, (None, None) otherwise
+        Tuple of (schedule_id, schedule_name) if uploaded, (None, None) otherwise
     """
+    from tsi.services import database as db
+    
     uploaded_json = st.file_uploader(
         "Choose a schedule.json file to compare",
         type=["json"],
@@ -125,92 +120,58 @@ def _render_file_upload_section() -> tuple[pd.DataFrame | None, str | None]:
     if uploaded_json is None:
         return (None, None)
 
-    comparison_df = state.get_comparison_schedule()
-
+    # Generate a file token to track changes
     vis_token = ""
     if uploaded_visibility is not None:
         vis_token = f":{uploaded_visibility.name}:{uploaded_visibility.size}"
     file_token = f"{uploaded_json.name}:{uploaded_json.size}{vis_token}"
     last_token = st.session_state.get("comparison_file_token")
 
-    if comparison_df is None or last_token != file_token:
-        try:
-            with st.spinner("Loading and processing comparison schedule..."):
-                # Load JSON content directly using pandas/json
-                import json
-                
-                content = uploaded_json.read()
-                if isinstance(content, bytes):
-                    content = content.decode("utf-8")
-                uploaded_json.seek(0)  # Reset for potential re-read
-                
-                data = json.loads(content)
-                
-                # Extract scheduling blocks from the JSON structure
-                # Handle multiple possible key names
-                if "schedulingBlocks" in data:
-                    blocks = data["schedulingBlocks"]
-                elif "SchedulingBlock" in data:
-                    blocks = data["SchedulingBlock"]
-                elif "scheduling_blocks" in data:
-                    blocks = data["scheduling_blocks"]
-                elif isinstance(data, list):
-                    blocks = data
-                else:
-                    raise ValueError(
-                        "Could not find scheduling blocks in JSON. "
-                        "Expected one of: 'schedulingBlocks', 'SchedulingBlock', 'scheduling_blocks', or a list"
-                    )
-                
-                # Convert to DataFrame
-                comparison_df = pd.DataFrame(blocks)
-                
-                # Standardize column names
-                column_mapping = {
-                    "scheduling_block_id": "schedulingBlockId",
-                    "schedulingBlockId": "schedulingBlockId",
-                    "ra_deg": "raInDeg",
-                    "dec_deg": "decInDeg",
-                    "raInDeg": "raInDeg",
-                    "decInDeg": "decInDeg",
-                }
-                comparison_df = comparison_df.rename(columns={
-                    k: v for k, v in column_mapping.items() if k in comparison_df.columns
-                })
+    # Check if we already processed this file
+    if st.session_state.get("comparison_file_token") == file_token:
+        schedule_id = st.session_state.get("comparison_schedule_id")
+        schedule_name = st.session_state.get("comparison_filename")
+        if schedule_id is not None:
+            return (schedule_id, schedule_name)
 
-                if uploaded_visibility is not None:
-                    try:
-                        vis_content = uploaded_visibility.read()
-                        if isinstance(vis_content, bytes):
-                            vis_content = vis_content.decode("utf-8")
-                        uploaded_visibility.seek(0)
-                        
-                        vis_data = json.loads(vis_content)
-                        visibility_df = pd.DataFrame(vis_data if isinstance(vis_data, list) else vis_data.get("periods", []))
-                        
-                        if "schedulingBlockId" in visibility_df.columns:
-                            comparison_df = comparison_df.merge(
-                                visibility_df,
-                                on="schedulingBlockId",
-                                how="left",
-                                suffixes=("", "_vis"),
-                            )
-                    except Exception as vis_err:
-                        st.warning(f"⚠️ Could not load visibility data: {vis_err}")
+    # Process and store the new file
+    try:
+        with st.spinner("Uploading and processing comparison schedule..."):
+            # Read file contents
+            schedule_content = uploaded_json.read()
+            if isinstance(schedule_content, bytes):
+                schedule_content = schedule_content.decode("utf-8")
+            uploaded_json.seek(0)  # Reset for potential re-read
 
-                comparison_df = prepare_dataframe(comparison_df)
+            visibility_content = None
+            if uploaded_visibility is not None:
+                visibility_content = uploaded_visibility.read()
+                if isinstance(visibility_content, bytes):
+                    visibility_content = visibility_content.decode("utf-8")
+                uploaded_visibility.seek(0)
 
-                state.set_comparison_schedule(comparison_df)
-                st.session_state["comparison_file_token"] = file_token
-                st.session_state["comparison_filename"] = uploaded_json.name.replace(".json", "")
-                st.session_state["comparison_source"] = "file"
+            # Store in database (preprocesses automatically)
+            schedule_name = uploaded_json.name.replace(".json", "") + "_comparison"
+            metadata = db.store_schedule_db(
+                schedule_name=schedule_name,
+                schedule_json=schedule_content,
+                visibility_json=visibility_content,
+            )
 
-                st.success(f"✅ Processed {len(comparison_df)} scheduling blocks")
+            schedule_id = metadata["schedule_id"]
 
-        except Exception as e:
-            st.error(f"❌ Error loading comparison schedule: {str(e)}")
-            st.exception(e)
-            return (None, None)
+            # Store in session state
+            st.session_state["comparison_file_token"] = file_token
+            st.session_state["comparison_schedule_id"] = schedule_id
+            st.session_state["comparison_filename"] = schedule_name
+            st.session_state["comparison_source"] = "file"
 
-    return (cast(pd.DataFrame | None, comparison_df), uploaded_json.name.replace(".json", ""))
+            st.success(f"✅ Schedule uploaded successfully (ID: {schedule_id})")
+
+            return (schedule_id, schedule_name)
+
+    except Exception as e:
+        st.error(f"❌ Error uploading comparison schedule: {str(e)}")
+        st.exception(e)
+        return (None, None)
 
