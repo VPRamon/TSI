@@ -9,7 +9,7 @@ from tsi.components.insights.insights_metrics import render_key_metrics, render_
 from tsi.components.insights.insights_reports import render_report_downloads
 from tsi.components.insights.insights_tables import render_integrity_checks, render_top_observations
 from tsi.services.data.analytics import generate_insights
-from tsi.services.database import get_insights_data
+from tsi.services import database as db
 
 def render() -> None:
     """Render the Insights & Conclusions page."""
@@ -28,15 +28,9 @@ def render() -> None:
 
     schedule_id = state.get_schedule_id()
 
-    if schedule_id is None:
-        st.info("Load a schedule from the database to view insights.")
-        return
-
-    schedule_id = int(schedule_id)
-
     try:
         with st.spinner("Loading insights data..."):
-            insights_data = get_insights_data(
+            insights_data = db.get_insights_data(
                 schedule_id=schedule_id,
             )
     except Exception as exc:

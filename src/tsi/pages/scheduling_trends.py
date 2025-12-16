@@ -23,7 +23,7 @@ from tsi.components.trends.trends_model import (
 from tsi.components.trends.trends_smoothed import render_smoothed_trends
 from tsi.modeling.trends import fit_logistic_with_interactions
 from tsi.services.database import get_trends_data
-
+from tsi.utils.error_display import display_backend_error
 
 @st.cache_data(show_spinner="Training logistic model...")
 def _fit_model_cached(
