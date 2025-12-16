@@ -2,12 +2,13 @@
 
 use std::sync::Arc;
 use tsi_rust::db::{
-    models::Schedule, repositories::TestRepository, RepositoryError, ScheduleRepository,
+    models::Schedule, repositories::LocalRepository, 
+    AnalyticsRepository, RepositoryError, ScheduleRepository, ValidationRepository,
 };
 
 #[tokio::test]
 async fn test_repository_health_check() {
-    let repo: Arc<dyn ScheduleRepository> = Arc::new(TestRepository::new());
+    let repo: Arc<dyn ScheduleRepository> = Arc::new(LocalRepository::new());
     let result = repo.health_check().await;
     assert!(result.is_ok());
     assert!(result.unwrap());
@@ -15,7 +16,7 @@ async fn test_repository_health_check() {
 
 #[tokio::test]
 async fn test_store_and_retrieve_schedule() {
-    let repo = TestRepository::new();
+    let repo = LocalRepository::new();
 
     let schedule = Schedule {
         id: None,
@@ -40,7 +41,7 @@ async fn test_store_and_retrieve_schedule() {
 
 #[tokio::test]
 async fn test_list_schedules() {
-    let repo = TestRepository::new();
+    let repo = LocalRepository::new();
 
     // Initially empty
     let schedules = repo.list_schedules().await.unwrap();
@@ -65,7 +66,7 @@ async fn test_list_schedules() {
 
 #[tokio::test]
 async fn test_not_found_error() {
-    let repo = TestRepository::new();
+    let repo = LocalRepository::new();
 
     let result = repo.get_schedule(99999).await;
     assert!(result.is_err());
@@ -74,7 +75,7 @@ async fn test_not_found_error() {
 
 #[tokio::test]
 async fn test_analytics_lifecycle() {
-    let repo = TestRepository::new();
+    let repo = LocalRepository::new();
 
     // Create schedule
     let schedule = Schedule {
@@ -104,7 +105,7 @@ async fn test_analytics_lifecycle() {
 
 #[tokio::test]
 async fn test_summary_analytics_lifecycle() {
-    let repo = TestRepository::new();
+    let repo = LocalRepository::new();
 
     let schedule = Schedule {
         id: None,
@@ -136,7 +137,7 @@ async fn test_summary_analytics_lifecycle() {
 
 #[tokio::test]
 async fn test_validation_lifecycle() {
-    let repo = TestRepository::new();
+    let repo = LocalRepository::new();
 
     let schedule = Schedule {
         id: None,
@@ -164,7 +165,7 @@ async fn test_validation_lifecycle() {
 async fn test_concurrent_access() {
     use tokio::task::JoinSet;
 
-    let repo = Arc::new(TestRepository::new());
+    let repo = Arc::new(LocalRepository::new());
     let mut set = JoinSet::new();
 
     // Spawn multiple tasks accessing the repository concurrently
@@ -199,7 +200,7 @@ async fn test_concurrent_access() {
 
 #[tokio::test]
 async fn test_helper_methods() {
-    let repo = TestRepository::new();
+    let repo = LocalRepository::new();
 
     // Test helper methods
     assert_eq!(repo.schedule_count(), 0);
@@ -225,7 +226,7 @@ async fn test_helper_methods() {
 
 #[tokio::test]
 async fn test_connection_unhealthy() {
-    let repo = TestRepository::new();
+    let repo = LocalRepository::new();
 
     // Set unhealthy
     repo.set_healthy(false);

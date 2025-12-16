@@ -27,16 +27,22 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Examples
 ///
-/// ```no_run
-/// use tsi_rust::algorithms::compute_metrics;
-/// use polars::prelude::*;
-///
-/// # fn example(df: &DataFrame) -> Result<(), PolarsError> {
-/// let snapshot = compute_metrics(df)?;
+/// ```ignore
+/// // This struct is typically created by database-backed analytics functions
+/// let snapshot = AnalyticsSnapshot {
+///     total_observations: 1000,
+///     scheduled_count: 850,
+///     unscheduled_count: 150,
+///     scheduling_rate: 0.85,
+///     mean_priority: 5.2,
+///     median_priority: 5.0,
+///     mean_priority_scheduled: 5.5,
+///     mean_priority_unscheduled: 3.8,
+///     total_visibility_hours: 15000.0,
+///     mean_requested_hours: 2.5,
+/// };
 /// println!("Scheduling rate: {:.1}%", snapshot.scheduling_rate * 100.0);
 /// println!("Mean priority (scheduled): {:.2}", snapshot.mean_priority_scheduled);
-/// # Ok(())
-/// # }
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalyticsSnapshot {

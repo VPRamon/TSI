@@ -26,7 +26,7 @@
 //!     ┌───────────────┴────────────────┐
 //!     │                                 │
 //! ┌───▼──────────────┐     ┌──────────▼──────────────┐
-//! │ Azure Repository │     │  Test Repository        │
+//! │ Azure Repository │     │  Local Repository       │
 //! │ (SQL queries)    │     │  (in-memory)            │
 //! └──────────────────┘     └─────────────────────────┘
 //! ```
@@ -36,7 +36,7 @@
 //! - `services`: High-level business logic functions (use these in your application!)
 //! - `repository`: Trait definition for database operations
 //! - `repositories::azure`: Azure SQL Server implementation (with operations, analytics, validation)
-//! - `repositories::test`: In-memory mock for unit testing
+//! - `repositories::local`: In-memory implementation for unit testing and local development
 //! - `factory`: Factory for creating repository instances
 //!
 //! # Recommended Usage
@@ -66,6 +66,7 @@ pub mod checksum;
 pub mod config;
 pub mod factory;
 pub mod models;
+pub mod repo_config;
 pub mod repository;
 pub mod repositories;
 pub mod services;
@@ -85,13 +86,14 @@ pub use services::{
 pub use checksum::calculate_checksum;
 pub use config::{DbAuthMethod, DbConfig};
 pub use models::{ScheduleInfo, ScheduleMetadata};
+pub use repo_config::RepositoryConfig;
 
 // Repository trait and implementations
 pub use repository::{
     AnalyticsRepository, FullRepository, RepositoryError, RepositoryResult,
     ScheduleRepository, ValidationRepository, VisualizationRepository,
 };
-pub use repositories::{AzureRepository, TestRepository};
+pub use repositories::{AzureRepository, LocalRepository};
 pub use factory::{RepositoryBuilder, RepositoryFactory, RepositoryType};
 
 // ==================== Backward Compatibility (Legacy) ====================

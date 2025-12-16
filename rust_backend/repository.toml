@@ -1,0 +1,36 @@
+# Repository Configuration
+# This file determines which repository implementation to use.
+
+[repository]
+# Type of repository to use: "azure" or "local"
+# - azure: Production Azure SQL Server (requires database configuration)
+# - local: In-memory repository for testing and local development
+type = "local"
+
+# Database configuration for Azure repository
+[database]
+# Server hostname (e.g., "myserver.database.windows.net")
+server = ""
+
+# Database name
+database = ""
+
+# Authentication method: "sql" or "azure_identity"
+# - sql: SQL Server authentication with username/password
+# - azure_identity: Azure Active Directory authentication
+auth_method = "sql"
+
+# SQL Server authentication credentials (only used when auth_method = "sql")
+username = ""
+password = ""
+
+# Connection pool settings
+[connection_pool]
+# Maximum number of connections in the pool
+max_connections = 10
+
+# Minimum number of connections in the pool
+min_connections = 1
+
+# Connection timeout in seconds
+connect_timeout = 30
