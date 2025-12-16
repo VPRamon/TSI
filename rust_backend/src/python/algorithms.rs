@@ -94,27 +94,6 @@ pub fn py_compute_metrics(df: PyDataFrame) -> PyResult<PyAnalyticsSnapshot> {
     Ok(snapshot.into())
 }
 
-/// Compute Spearman correlation matrix
-///
-/// Args:
-///     df: PyDataFrame with schedule data
-///     columns: List of column names to correlate
-///
-/// Returns:
-///     PyDataFrame with correlation matrix
-///
-/// Example:
-///     >>> corr = tsi_rust.compute_correlations(df, ["priority", "requested_hours"])
-///     >>> print(corr.to_pandas())
-#[pyfunction]
-pub fn py_compute_correlations(df: PyDataFrame, columns: Vec<String>) -> PyResult<PyDataFrame> {
-    let corr_df = analysis::compute_correlations(&df.0, &columns).map_err(|e| {
-        pyo3::exceptions::PyRuntimeError::new_err(format!("Failed to compute correlations: {}", e))
-    })?;
-
-    Ok(PyDataFrame(corr_df))
-}
-
 /// Get top N observations by a given column
 ///
 /// Args:

@@ -121,7 +121,6 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Register algorithm functions
     m.add_function(wrap_pyfunction!(python::py_compute_metrics, m)?)?;
-    m.add_function(wrap_pyfunction!(python::py_compute_correlations, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_top_observations, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_find_conflicts, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_greedy_schedule, m)?)?;
