@@ -4,27 +4,27 @@ This module provides a comprehensive configuration system for the TSI applicatio
 supporting environment variables, .env files, and sensible defaults.
 
 Configuration Categories:
-- Database: Connection strings, authentication flags
 - Data Paths: Base directories and sample data locations
 - UI: Application title, page configuration, theme settings
 - Performance: Cache TTL, worker limits, optimization flags
 - Feature Flags: Enable/disable optional features
 
 Environment Variables:
-- DATABASE_URL: Full database connection string
-- DB_SERVER, DB_DATABASE, DB_USERNAME, DB_PASSWORD: Individual DB components
-- USE_AAD_AUTH: Enable Azure AD authentication (default: False)
 - DATA_ROOT: Base directory for data files (default: "data")
 - CACHE_TTL: Cache time-to-live in seconds (default: 3600)
 - MAX_WORKERS: Maximum worker threads/processes (default: 4)
+
+Note:
+    Database configuration is handled by the Rust backend. Set the following
+    environment variables for database access:
+    - DB_SERVER, DB_DATABASE, DB_USERNAME, DB_PASSWORD
+    See rust_backend/src/db/config.rs for full database configuration options.
 
 Example:
     >>> from app_config import get_settings
     >>> settings = get_settings()
     >>> print(settings.app_title)
     'Telescope Scheduling Intelligence'
-    >>> print(settings.database_url)
-    'mssql://...'
 """
 
 from __future__ import annotations
@@ -47,42 +47,6 @@ class Settings(BaseSettings):
     All settings can be overridden via environment variables or a .env file.
     Environment variables take precedence over .env file values.
     """
-
-    # ===== Database Configuration =====
-    database_url: Optional[str] = Field(
-        default=None,
-        description="Full database connection string (e.g., mssql://user:pass@host/db)",
-    )
-    db_server: Optional[str] = Field(
-        default=None,
-        description="Database server hostname or IP",
-    )
-    db_database: Optional[str] = Field(
-        default=None,
-        description="Database name",
-    )
-    db_username: Optional[str] = Field(
-        default=None,
-        description="Database username",
-    )
-    db_password: Optional[str] = Field(
-        default=None,
-        description="Database password",
-    )
-    use_aad_auth: bool = Field(
-        default=False,
-        description="Use Azure Active Directory authentication",
-    )
-    database_connection_timeout: int = Field(
-        default=30,
-        description="Database connection timeout in seconds",
-        ge=1,
-    )
-    database_max_retries: int = Field(
-        default=3,
-        description="Maximum number of retry attempts for transient database errors",
-        ge=0,
-    )
 
     # ===== Data Paths =====
     data_root: Path = Field(
@@ -189,30 +153,6 @@ class Settings(BaseSettings):
             return Path(v)
         return v
 
-    def get_database_url(self) -> Optional[str]:
-        """
-        Get the database connection URL.
-        
-        Returns the full database_url if set, otherwise constructs one from
-        individual components (db_server, db_database, etc.).
-        
-        Returns:
-            Database connection URL or None if not configured
-        """
-        if self.database_url:
-            return self.database_url
-        
-        # Construct from components if available
-        if self.db_server and self.db_database:
-            if self.use_aad_auth:
-                # Azure AD authentication
-                return f"mssql://{self.db_server}/{self.db_database}?trusted_connection=yes"
-            elif self.db_username and self.db_password:
-                # Username/password authentication
-                return f"mssql://{self.db_username}:{self.db_password}@{self.db_server}/{self.db_database}"
-        
-        return None
-
     def get_plot_margin(self) -> dict[str, int]:
         """Get plot margins as a dictionary."""
         return {
@@ -221,16 +161,6 @@ class Settings(BaseSettings):
             "t": self.plot_margin_top,
             "b": self.plot_margin_bottom,
         }
-
-    def validate_database_config(self) -> bool:
-        """
-        Validate that database configuration is sufficient.
-        
-        Returns:
-            True if database is properly configured, False otherwise
-        """
-        return self.get_database_url() is not None
-
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
@@ -245,15 +175,11 @@ def get_settings() -> Settings:
     """
     settings = Settings()
     
-    # Log configuration status (but don't expose sensitive info)
-    if settings.validate_database_config():
-        logger.info("Database configuration loaded successfully")
-    else:
-        logger.warning("Database configuration is incomplete or missing")
-    
+    # Log configuration status
     logger.info(f"Data root: {settings.data_root}")
     logger.info(f"Cache TTL: {settings.cache_ttl}s")
     logger.info(f"Rust backend enabled: {settings.enable_rust_backend}")
-    logger.info(f"Using ETL analytics tables for all database operations")
+    logger.info(f"Database features enabled: {settings.enable_database}")
+    logger.info("Note: Database configuration is managed by Rust backend via environment variables")
     
     return settings

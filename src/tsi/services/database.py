@@ -14,33 +14,37 @@ All database operations use the high-performance Rust backend:
 - Performance: 10-100x faster than Python/pyodbc
 - Features: Type-safe operations, async/await, efficient resource management
 
+### Database Configuration
+**Database configuration is owned entirely by the Rust backend.**
+
+The Rust backend reads configuration directly from environment variables:
+- `DB_SERVER`: Database server address
+- `DB_DATABASE`: Database name
+- `DB_USERNAME`: Database username
+- `DB_PASSWORD`: Database password
+- `DB_PORT`: Database port (default: 1433)
+- `DB_TRUST_CERT`: Trust server certificate (default: true)
+- `DB_AUTH_METHOD`: Authentication method (sql_password | aad_password | aad_token)
+
+For Azure AD authentication:
+- `AZURE_TENANT_ID`: Azure tenant ID (default: common)
+- `AZURE_CLIENT_ID`: Azure client ID
+- `AZURE_ACCESS_TOKEN`: Direct access token (if using aad_token method)
+
+See `rust_backend/src/db/config.rs` for complete configuration options.
+
 ## Usage Patterns
 
 ### Standard Operations
 ```python
 from tsi.services.database import init_database, store_schedule_db
 
-# Initialize connection pool
+# Initialize connection pool (reads env vars via Rust)
 init_database()
 
 # Store schedule (calls Rust backend)
 result = store_schedule_db(name, schedule_json, visibility_json)
 ```
-
-## Configuration
-
-### Environment Variables
-- `DATABASE_URL`: Full connection string for the database
-- Or set individual components:
-  - `DB_SERVER`: Database server address
-  - `DB_DATABASE`: Database name
-  - `DB_USERNAME`: Database username
-  - `DB_PASSWORD`: Database password
-- `USE_AAD_AUTH`: Enable Azure AD authentication (default: False)
-- `DATABASE_CONNECTION_TIMEOUT`: Connection timeout in seconds (default: 30)
-- `DATABASE_MAX_RETRIES`: Max retry attempts for transient errors (default: 3)
-
-See `app_config.settings.Settings` for full configuration options.
 
 ## API Functions
 - `init_database()`: Initialize Rust connection pool
@@ -61,8 +65,7 @@ import pandas as pd
 
 from app_config import get_settings
 from tsi.exceptions import (
-    DatabaseConnectionError,
-    DatabaseQueryError,
+    ServerError,
     BackendUnavailableError,
 )
 from tsi.error_handling import with_retry, log_error
@@ -148,14 +151,14 @@ def init_database() -> None:
     Backend: Rust (tiberius)
     
     Raises:
-        DatabaseConnectionError: If unable to initialize connection pool
+        ServerError: If unable to initialize connection pool
         BackendUnavailableError: If Rust backend is not available
     """
     try:
         _rust_call("py_init_database")
         logger.info("Database connection pool initialized successfully")
     except Exception as e:
-        raise DatabaseConnectionError(
+        raise ServerError(
             "Failed to initialize database connection pool",
             details={"error": str(e)}
         ) from e
@@ -172,14 +175,14 @@ def db_health_check() -> bool:
         True if database is reachable, False otherwise
         
     Raises:
-        DatabaseQueryError: If health check fails with an error
+        ServerError: If health check fails with an error
     """
     try:
         result = _rust_call("py_db_health_check")
         logger.debug("Database health check passed")
         return result
     except Exception as e:
-        raise DatabaseQueryError(
+        raise ServerError(
             "Database health check failed",
             details={"error": str(e)}
         ) from e
@@ -208,7 +211,7 @@ def store_schedule_db(
         Dictionary with storage results including schedule_id
         
     Raises:
-        DatabaseQueryError: If storage operation fails
+        ServerError: If storage operation fails
         
     Performance:
         - Fast mode (default): ~10-30 seconds for 1500 blocks
@@ -229,7 +232,7 @@ def store_schedule_db(
         )
         return result
     except Exception as e:
-        raise DatabaseQueryError(
+        raise ServerError(
             f"Failed to store schedule '{schedule_name}'",
             details={"schedule_name": schedule_name, "error": str(e)}
         ) from e
@@ -244,14 +247,14 @@ def list_schedules_db() -> list[dict[str, Any]]:
         List of schedule metadata dictionaries
         
     Raises:
-        DatabaseQueryError: If query fails
+        ServerError: If query fails
     """
     try:
         result = _rust_call("py_list_schedules")
         logger.debug(f"Retrieved {len(result)} schedules from database")
         return result
     except Exception as e:
-        raise DatabaseQueryError(
+        raise ServerError(
             "Failed to list schedules",
             details={"error": str(e)}
         ) from e

@@ -38,7 +38,7 @@ def render() -> None:
                 schedule_id=schedule_id,
             )
     except Exception as exc:
-        st.error(f"Failed to load distribution data from the backend: {exc}")
+        display_backend_error(exc)
         return
 
     if distribution_data.total_count == 0:

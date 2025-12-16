@@ -5,11 +5,18 @@
 The Telescope Scheduling Intelligence (TSI) application is a production-grade hybrid system combining Python's data science ecosystem with Rust's high-performance computing capabilities. The architecture enables real-time analysis of astronomical observation schedules, processing thousands of scheduling blocks with sub-second response times while maintaining a responsive web interface.
 
 **Key Technologies:**
-- **Frontend**: Streamlit (Python) - Interactive web UI with rich visualizations
-- **Backend**: Rust + PyO3 - High-performance statistical computing engine
+- **Frontend**: Streamlit (Python) - Interactive web UI with rich visualizations  
+  *Handles presentation only - no business logic or database access*
+- **Backend**: Rust + PyO3 - High-performance statistical computing and database operations  
+  *Owns all database configuration, connection pooling, and data processing*
 - **Database**: Azure SQL Server with pre-computed analytics tables
 - **Infrastructure**: Docker multi-stage builds deployed on Azure Container Apps
 - **Data Processing**: Tokio async runtime for efficient database I/O
+
+**Architecture Principle: Separation of Concerns**
+- **Python Layer**: UI presentation, user interaction, visualization rendering
+- **Rust Layer**: Database operations, statistical computing, data transformations
+- **Configuration**: Environment variables read by Rust backend (DB_SERVER, DB_DATABASE, etc.)
 
 ---
 
@@ -17,13 +24,26 @@ The Telescope Scheduling Intelligence (TSI) application is a production-grade hy
 
 ### High-Level Overview
 
-The TSI application employs a hybrid architecture designed to balance rapid development capabilities with computational performance:
+The TSI application employs a hybrid architecture with strict separation of concerns:
 
--   **Frontend**: Built with **Streamlit**, providing an interactive web interface for users to visualize scheduling trends, compare schedules, and adjust parameters. Utilizes Plotly and Altair for advanced charting.
--   **Backend**: A high-performance **Rust** extension (exposed via **PyO3**) handles computationally intensive tasks such as statistical analysis, Gaussian smoothing, and data aggregation. Compiled as native code for maximum throughput.
+-   **Frontend (Python/Streamlit)**: Provides an interactive web interface for users to visualize scheduling trends, compare schedules, and adjust parameters. Utilizes Plotly and Altair for advanced charting. **Python handles only UI concerns** - it does not connect to databases or perform business logic.
+  
+-   **Backend (Rust + PyO3)**: A high-performance extension handles ALL business logic:
+    - Database connection management (tiberius + bb8 connection pooling)
+    - SQL query execution and data retrieval
+    - Statistical analysis (Gaussian smoothing, aggregations)
+    - Data transformations and ETL operations
+    - Compiled as native code for maximum throughput
+  
 -   **Database Layer**: Azure SQL Server with a dual-table strategy:
     - **Analytics Tables**: Pre-computed, denormalized data for ~10-100x faster queries
     - **Operations Tables**: Normalized source data with automatic fallback
+  
+-   **Configuration**: All database configuration is owned by the Rust backend, read from environment variables:
+    - `DB_SERVER`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+    - `DB_AUTH_METHOD` (sql_password | aad_password | aad_token)
+    - See `rust_backend/src/db/config.rs` for complete options
+  
 -   **Infrastructure**: The application is containerized using Docker multi-stage builds and deployed on **Azure Container Apps** for horizontal scalability.
 
 ### Data Flow Sequence Diagram
@@ -77,11 +97,11 @@ graph TB
         Streamlit[Streamlit App<br/>src/tsi/app.py]
         Pages[Page Modules<br/>scheduling_trends.py, etc.]
         Components[UI Components]
+        Config[App Config<br/>UI settings only]
     end
     
     subgraph "Service Layer (Python)"
-        DataAccess[Data Access Service<br/>data_access.py]
-        Database[Database Service<br/>database.py]
+        DataAccess[Data Access Service<br/>Thin wrapper over Rust]
         ErrorHandling[Error Handling<br/>Logging & Exceptions]
     end
     
@@ -91,6 +111,8 @@ graph TB
         Analytics[Analytics Module<br/>db/analytics.rs]
         Operations[Operations Module<br/>db/operations.rs]
         Models[Domain Models<br/>db/models.rs]
+        DbConfig[DB Configuration<br/>db/config.rs<br/>Reads ENV vars]
+        ConnPool[BB8 Connection Pool<br/>tiberius driver]
     end
     
     subgraph "Data Layer"
@@ -101,14 +123,17 @@ graph TB
     Browser --> Streamlit
     Streamlit --> Pages
     Pages --> Components
+    Pages --> Config
     Pages --> DataAccess
-    DataAccess --> Database
-    Database --> PyO3
+    DataAccess --> PyO3
     PyO3 --> Services
     Services --> Analytics
     Services --> Operations
-    Analytics --> AnalyticsDB
-    Operations --> OperationsDB
+    Analytics --> ConnPool
+    Operations --> ConnPool
+    ConnPool --> DbConfig
+    ConnPool --> AnalyticsDB
+    ConnPool --> OperationsDB
 ```
 
 ---
