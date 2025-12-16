@@ -176,15 +176,4 @@ pub fn py_get_compare_data(
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
-/// Python binding to compute comparison from already-loaded block lists.
-/// This is useful when one schedule is from a file upload rather than the database.
-#[pyfunction]
-pub fn py_compute_compare_data(
-    current_blocks: Vec<CompareBlock>,
-    comparison_blocks: Vec<CompareBlock>,
-    current_name: String,
-    comparison_name: String,
-) -> PyResult<CompareData> {
-    compute_compare_data(current_blocks, comparison_blocks, current_name, comparison_name)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
-}
+

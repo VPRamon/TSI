@@ -14,8 +14,7 @@ from tsi.plots.compare_plots import (
     create_scheduling_status_plot,
     create_time_distribution_plot,
 )
-from tsi.services.database import get_compare_data, compute_compare_data, _rust_call
-from tsi.services.data.loaders import prepare_dataframe
+from tsi.services import database as db
 from tsi.theme import add_vertical_space
 
 
@@ -47,10 +46,6 @@ def render() -> None:
     current_schedule_id = state.get_schedule_id()
     current_name = state.get_schedule_name() or state.get_data_filename() or "Current"
 
-    if current_schedule_id is None:
-        st.warning("⚠️ No base schedule loaded. Please load a schedule from the landing page first.")
-        return
-
     # Handle comparison schedule selection (database or file upload)
     comparison_schedule_id, comparison_name, comparison_df = render_file_upload()
 
@@ -63,15 +58,14 @@ def render() -> None:
         with st.spinner("Computing comparison..."):
             if comparison_schedule_id is not None:
                 # Both schedules are in the database - use Rust backend directly
-                compare_data = get_compare_data(
+                compare_data = db.get_compare_data(
                     current_schedule_id=int(current_schedule_id),
                     comparison_schedule_id=int(comparison_schedule_id),
                     current_name=current_name,
                     comparison_name=comparison_name or "Comparison",
                 )
             elif comparison_df is not None:
-                # Comparison schedule is from file upload - we need to convert it to CompareBlocks
-                # and use compute_compare_data
+                # Comparison schedule is from file upload
                 try:
                     import tsi_rust
                 except ImportError:

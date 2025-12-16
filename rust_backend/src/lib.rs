@@ -180,7 +180,6 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(services::py_get_insights_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_trends_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_compare_data, m)?)?;
-    m.add_function(wrap_pyfunction!(services::py_compute_compare_data, m)?)?;
     
     // Validation report function
     m.add_function(wrap_pyfunction!(services::py_get_validation_report, m)?)?;

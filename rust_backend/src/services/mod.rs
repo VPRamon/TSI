@@ -14,7 +14,7 @@ pub mod validation;
 pub mod validation_report;
 pub mod visibility;
 
-pub use compare::{py_compute_compare_data, py_get_compare_data};
+pub use compare::py_get_compare_data;
 pub use distributions::{
     py_get_distribution_data, 
     py_get_distribution_data_analytics,
