@@ -24,7 +24,6 @@ from tsi.services.database import (
     get_distribution_data,
     get_sky_map_data,
     get_visibility_map_data,
-    init_database,
     list_schedules_db,
     store_schedule_db,
 )
@@ -108,9 +107,8 @@ from tsi.services.utils import (
 from tsi_rust_api import load_dark_periods
 
 __all__ = [
-    # Core Backend & Database
+    # Core Backend & Database (connection pooling handled automatically by Rust)
     "BACKEND",
-    "init_database",
     "db_health_check",
     "store_schedule_db",
     "list_schedules_db",

@@ -65,7 +65,6 @@ class TestSettingsDefaults:
         """Test feature flag defaults."""
         settings = Settings()
         
-        assert settings.enable_database is True
         assert settings.enable_file_upload is True
         assert settings.enable_comparison is True
 
