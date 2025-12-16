@@ -115,7 +115,7 @@ rust_backend/
 **Purpose:** Module orchestrator for analytics and optimization algorithms.
 
 **Exports:**
-- `analysis::{compute_metrics, compute_correlations, get_top_observations, AnalyticsSnapshot}`
+- `analysis::{compute_correlations, get_top_observations, AnalyticsSnapshot}` (compute_metrics removed)
 - `conflicts::{find_conflicts, suggest_candidate_positions, SchedulingConflict, CandidatePlacement}`
 - `optimization::{greedy_schedule, Constraint, Observation, OptimizationResult}`
 
@@ -130,23 +130,29 @@ rust_backend/
 
 ### algorithms/analysis.rs
 
-#### `compute_metrics(df: &DataFrame) -> Result<AnalyticsSnapshot, PolarsError>`
+#### `compute_metrics(df: &DataFrame) -> Result<AnalyticsSnapshot, PolarsError>` ❌ REMOVED
 
-**What it does:**
-- Computes dataset-level summary statistics: total observations, scheduled count, scheduling rate, mean/median priority, total visibility hours
+**What it did:**
+- Computed dataset-level summary statistics: total observations, scheduled count, scheduling rate, mean/median priority, total visibility hours
 
-**Purpose:**
-- Provide high-level metrics for dashboard summary cards
-- Quick assessment of schedule quality
+**Why it was removed:**
+- 🔴 **Duplicated database functionality** - `populate_summary_analytics` provides same metrics more efficiently
+- DataFrame-based approach required loading all data into memory
+- Database approach uses pre-computed analytics for instant queries
 
-**Used By:**
-- `python/algorithms.rs::py_compute_metrics()` → Python `tsi_rust.compute_metrics()`
-- Dashboard homepage, schedule comparison views
+**Replacement:**
+Use `py_get_schedule_summary(schedule_id)` instead, which queries pre-computed analytics from the database.
 
-**Optimization Opportunities:**
-- ⚠️ **Potential duplication** - Check if database `populate_summary_analytics` provides same metrics
-- Consider caching results for repeated calls on same data
-- **Recommendation:** Keep for ad-hoc DataFrame analysis, use DB-backed summaries for persisted schedules
+**Migration:**
+```python
+# Old (removed):
+# df = load_schedule()
+# metrics = tsi_rust.compute_metrics(df)
+
+# New (use database-backed analytics):
+summary = tsi_rust.py_get_schedule_summary(schedule_id)
+print(f"Scheduling rate: {summary.scheduling_rate:.1%}")
+```
 
 ---
 
@@ -546,18 +552,35 @@ rust_backend/
 
 **Key Functions:**
 
-#### `py_compute_metrics(df: PyDataFrame) -> PyResult<PyAnalyticsSnapshot>`
+#### `py_compute_metrics(df: PyDataFrame) -> PyResult<PyAnalyticsSnapshot>` ❌ REMOVED
 
-**What it does:**
+**What it did:**
 - Python wrapper for `algorithms::analysis::compute_metrics()`
+- Computed metrics from a Polars DataFrame
 
-**Used By:**
-- Python: `tsi_rust.compute_metrics(df)`
-- Dashboard analytics views
+**Why it was removed:**
+- 🔴 **Superseded by database analytics** - Use `py_get_schedule_summary(schedule_id)` instead
+- Database approach avoids loading entire DataFrame into memory
+- Pre-computed analytics are much faster (no DataFrame processing needed)
 
-**Optimization Opportunities:**
-- ✅ Efficient DataFrame passing via `pyo3-polars`
-- **Recommendation:** Keep as-is
+**Replacement:**
+```python
+# Old (removed):
+# metrics = tsi_rust.compute_metrics(df)
+
+# New (database-backed):
+summary = tsi_rust.py_get_schedule_summary(schedule_id)
+# Access fields: summary.scheduling_rate, summary.priority_mean, etc.
+```
+
+**API Change:**
+The new `compute_metrics()` function in `tsi.backend.analytics` now takes `schedule_id` instead of a DataFrame:
+```python
+from tsi.backend import compute_metrics
+
+# New signature:
+metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
+```
 
 ---
 
@@ -1158,13 +1181,13 @@ rust_backend/
 - Input sanity checks
 
 **Optimization Opportunities:**
-- ✅ Essential data quality checks
-- **Recommendation:** Keep, ensure used in all data ingestion paths
-
----
-
-## Optimization Recommendations
-
+- ✅ Essential data quality checks ✅ COMPLETED: compute_metrics removed
+   - ✅ `algorithms/analysis.rs::compute_metrics()` + `python/algorithms.rs::py_compute_metrics()` - **REMOVED** (duplicated database analytics)
+   - `algorithms/analysis.rs::compute_correlations()` - returns empty
+   - `algorithms/conflicts.rs::suggest_candidate_positions()` - returns empty
+   - `algorithms/optimization.rs::greedy_schedule_parallel()` - disabled
+   - **Impact:** Reduced dead code, eliminated duplication, cleaner API
+   - **Recommendation:** Remove remaining placeholder functions
 ### High Priority
 
 1. **🔴 Fix `algorithms/conflicts.rs::find_conflicts()`**
@@ -1173,12 +1196,13 @@ rust_backend/
    - **Impact:** Validation reports may miss conflicts
    - **Recommendation:** Complete implementation or document as "fixed-time-only"
 
-2. **🔴 Remove placeholder functions**
+2. **🔴 Remove placeholder and duplicate functions**
    - `algorithms/analysis.rs::compute_correlations()` - returns empty
    - `algorithms/conflicts.rs::suggest_candidate_positions()` - returns empty
    - `algorithms/optimization.rs::greedy_schedule_parallel()` - disabled
-   - **Impact:** Dead code, confusing API
-   - **Recommendation:** Remove or mark as `#[doc(hidden)]` experimental
+   - `algorithms/analysis.rs::compute_metrics()` + `python/algorithms.rs::py_compute_metrics()` - duplicates database `populate_summary_analytics`
+   - **Impact:** Dead code, confusing API, unnecessary duplication
+   - **Recommendation:** Remove all listed functions. Use `py_get_schedule_summary()` for metrics instead
 
 3. **🔴 Fix `transformations/cleaning.rs::impute_missing()` median bug**
    - Line 58: median strategy uses `FillNullStrategy::Mean`
@@ -1264,10 +1288,11 @@ rust_backend/
 - Conflict detection (only fixed time constraints)
 - Optimization (limited constraint system)
 
-🔴 **Placeholder/Incomplete:**
+🔴 **Placeholder/Incomplete/Duplicate:**
 - Correlation analysis (returns empty)
 - Candidate position suggestions (returns empty)
 - Parallel greedy scheduling (disabled)
+- ~~DataFrame-based metrics computation~~ ✅ **REMOVED** (use database analytics instead)
 
 ### Usage Patterns
 
@@ -1313,7 +1338,7 @@ The Rust backend is **well-architected** with good separation of concerns (repos
 6. ✅ Excellent Python integration via PyO3
 
 ### Areas for Improvement
-1. 🔴 Remove dead code (placeholder functions)
+1. ✅ **COMPLETED:** Remove dead code (compute_metrics functions removed)
 2. 🔴 Fix bugs (conflict detection, median imputation)
 3. ⚠️ Modularize large files for maintainability
 4. ⚠️ Document known performance limitations
@@ -1327,13 +1352,38 @@ The Rust backend is **well-architected** with good separation of concerns (repos
 - **Rarely used:** Optimization, conflict suggestions
 
 ### Removal Candidates
-- `algorithms/analysis.rs::compute_correlations()` - if not planned
-- `algorithms/conflicts.rs::suggest_candidate_positions()` - if not planned
-- `algorithms/optimization.rs::greedy_schedule_parallel()` - disabled
+- ✅ **REMOVED:** `algorithms/analysis.rs::compute_metrics()` + `python/algorithms.rs::py_compute_metrics()` 
+  - Superseded by database-backed `py_get_schedule_summary()`
+  - Migration: Use `tsi_rust.py_get_schedule_summary(schedule_id)` instead
+- `algorithms/analysis.rs::compute_correlations()` - returns empty (not planned)
+- `algorithms/conflicts.rs::suggest_candidate_positions()` - returns empty (not planned)
+- `algorithms/optimization.rs::greedy_schedule_parallel()` - disabled (experimental)
 - Evaluate if optimization module is needed at all (if not production feature)
+
+**Migration Path for compute_metrics:**
+```python
+# Old approach (REMOVED):
+# df = load_schedule_file("schedule.json")
+# metrics = tsi_rust.compute_metrics(df)
+
+# New approach (database-backed analytics):
+from tsi.backend import compute_metrics
+
+# Requires schedule to be stored in database first
+metadata = tsi_rust.py_store_schedule(..., populate_analytics=True)
+metrics = compute_metrics(schedule_id=metadata.schedule_id)
+
+# Or use raw Rust function:
+summary = tsi_rust.py_get_schedule_summary(schedule_id)
+print(f"Rate: {summary.scheduling_rate:.1%}")
+```
 
 ---
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Last Updated:** December 16, 2025  
 **Maintainer:** TSI Development Team
+
+**Change Log:**
+- v1.1 (2025-12-16): Removed `compute_metrics()` and `py_compute_metrics()` - replaced with database-backed `py_get_schedule_summary()`
+- v1.0 (2025-12-16): Initial comprehensive analysis

@@ -32,19 +32,22 @@
 //! ```python
 //! import tsi_rust
 //!
-//! # Load and preprocess schedule data
-//! df, validation = tsi_rust.py_preprocess_schedule(
-//!     "data/schedule.json",
-//!     "data/possible_periods.json",
-//!     validate=True
+//! # Initialize database connection
+//! tsi_rust.py_init_database()
+//!
+//! # Store schedule and populate analytics
+//! metadata = tsi_rust.py_store_schedule(
+//!     schedule_json,
+//!     possible_periods_json,
+//!     dark_periods_json,
+//!     "My Schedule",
+//!     populate_analytics=True,
+//!     skip_time_bins=False
 //! )
 //!
-//! # Convert MJD to datetime
-//! dt = tsi_rust.mjd_to_datetime(59000.0)
-//!
-//! # Compute analytics
-//! metrics = tsi_rust.py_compute_metrics(df)
-//! print(f"Scheduling rate: {metrics.scheduling_rate:.2%}")
+//! # Get pre-computed analytics summary
+//! summary = tsi_rust.py_get_schedule_summary(metadata.schedule_id)
+//! print(f"Scheduling rate: {summary.scheduling_rate:.2%}")
 //! ```
 //!
 //! ## Performance
@@ -92,11 +95,11 @@ pub mod transformations;
 /// - `py_validate_schedule`: Validate schedule data without enrichment
 ///
 /// ## Analysis Functions
-/// - `py_compute_metrics`: Compute dataset-level summary statistics
 /// - `py_compute_correlations`: Compute correlation matrices
 /// - `py_get_top_observations`: Get top N observations by criteria
 /// - `py_find_conflicts`: Detect scheduling conflicts
 /// - `py_greedy_schedule`: Run greedy scheduling optimization
+/// - `py_get_schedule_summary`: Get pre-computed schedule metrics (preferred over DataFrame-based metrics)
 ///
 /// ## Classes
 /// - `PyValidationResult`: Validation results with errors and warnings
@@ -120,7 +123,6 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // focus on core algorithms, transformations, and database operations.
 
     // Register algorithm functions
-    m.add_function(wrap_pyfunction!(python::py_compute_metrics, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_top_observations, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_find_conflicts, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_greedy_schedule, m)?)?;
