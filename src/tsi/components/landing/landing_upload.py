@@ -7,7 +7,7 @@ from typing import Any
 import streamlit as st
 
 from tsi.components.landing.landing_database import load_schedule_from_db
-from tsi.services.database import store_schedule_db
+from tsi.services import database as db
 
 
 def render_upload_section() -> None:
@@ -78,7 +78,7 @@ def upload_schedule(
                     visibility_content = visibility_content.decode('utf-8')
 
             # Store in database (preprocesses automatically)
-            metadata = store_schedule_db(
+            metadata = db.store_schedule_db(
                 schedule_name=schedule_name,
                 schedule_json=schedule_content,
                 visibility_json=visibility_content,

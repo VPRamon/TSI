@@ -7,7 +7,7 @@ import streamlit as st
 from tsi import state
 from tsi.components.validation.validation_summary import render_summary_metrics, render_criticality_stats
 from tsi.components.validation.validation_issues import render_unified_validation_table
-from tsi.services.database import get_validation_report_data
+from tsi.services import database as db
 
 
 def render() -> None:
@@ -18,29 +18,19 @@ def render() -> None:
         """
         Review data quality issues, impossible scheduling blocks, and validation warnings
         to understand potential problems in the uploaded schedule.
-        
-        **Note:** Validation is performed automatically during schedule upload as part of the ETL process.
-        Impossible blocks (zero/insufficient visibility) are automatically excluded from analytics pages.
         """
     )
 
     schedule_id = state.get_schedule_id()
 
-    if schedule_id is None:
-        st.info("Load a schedule from the database to view the validation report.")
-        return
-
-    schedule_id = int(schedule_id)
-
     try:
         with st.spinner("Loading validation data..."):
-            validation_data = get_validation_report_data(schedule_id=schedule_id)
+            validation_data = db.get_validation_report_data(schedule_id=schedule_id)
     except Exception as exc:
         st.error(f"Failed to load validation data from the backend: {exc}")
         st.exception(exc)
         return
 
-    # Summary metrics at the top
     render_summary_metrics(validation_data)
     st.divider()
 
