@@ -30,6 +30,6 @@ pub use analysis::{
     get_top_observations, AnalyticsSnapshot,
 };
 pub use conflicts::{
-    find_conflicts, suggest_candidate_positions, CandidatePlacement, SchedulingConflict,
+    find_conflicts, SchedulingConflict,
 };
 pub use optimization::{greedy_schedule, Constraint, Observation, OptimizationResult};

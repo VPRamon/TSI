@@ -11,17 +11,6 @@ pub struct SchedulingConflict {
     pub conflict_reasons: String,
 }
 
-/// Candidate placement for an unscheduled observation
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CandidatePlacement {
-    pub window_start: String,
-    pub window_stop: String,
-    pub candidate_start: String,
-    pub candidate_end: String,
-    pub anchor: String,
-    pub conflicts: Vec<String>,
-}
-
 /// Find scheduling conflicts in a DataFrame
 ///
 /// Detects:
@@ -123,48 +112,6 @@ pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsE
     Ok(conflicts)
 }
 
-/// Suggest candidate positions for an unscheduled observation
-///
-/// # Arguments
-/// * `df` - Full schedule DataFrame
-/// * `row_index` - Index of the row to suggest positions for
-///
-/// # Returns
-/// List of candidate placements
-pub fn suggest_candidate_positions(
-    df: &DataFrame,
-    row_index: usize,
-) -> Result<Vec<CandidatePlacement>, PolarsError> {
-    let candidates = Vec::new();
-
-    if row_index >= df.height() {
-        return Ok(candidates);
-    }
-
-    // Get visibility periods for this observation (simplified)
-    // In reality, would parse the visibility_periods_parsed column
-
-    // Get requested duration
-    let requested_hours = if let Ok(col) = df.column("requested_hours") {
-        col.f64()?.get(row_index).unwrap_or(0.0)
-    } else {
-        return Ok(candidates);
-    };
-
-    if requested_hours <= 0.0 {
-        return Ok(candidates);
-    }
-
-    // This is a simplified placeholder
-    // Real implementation would:
-    // 1. Parse visibility windows
-    // 2. Check for overlaps with scheduled observations
-    // 3. Generate candidate positions at start, middle, end of each window
-    // 4. Validate constraints for each candidate
-
-    Ok(candidates)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,7 +124,7 @@ mod tests {
     }
 
     #[test]
-    fn test_conflict_detection_and_candidates() {
+    fn test_conflict_detection() {
         let df = df!(
             "schedulingBlockId" => &["id-1"],
             "priority" => &[5.0],
@@ -193,12 +140,5 @@ mod tests {
         let conflicts = find_conflicts(&df).unwrap();
         assert_eq!(conflicts.len(), 1);
         assert!(conflicts[0].conflict_reasons.contains("before fixed start"));
-
-        // Candidate placements fall back to empty when missing data
-        let empty_candidates = suggest_candidate_positions(&df, 5).unwrap();
-        assert!(empty_candidates.is_empty());
-
-        let missing_visibility = suggest_candidate_positions(&df, 0).unwrap();
-        assert!(missing_visibility.is_empty());
     }
 }

@@ -116,7 +116,7 @@ rust_backend/
 
 **Exports:**
 - `analysis::{get_top_observations, AnalyticsSnapshot}` (compute_metrics and compute_correlations removed)
-- `conflicts::{find_conflicts, suggest_candidate_positions, SchedulingConflict, CandidatePlacement}`
+- `conflicts::{find_conflicts, SchedulingConflict}`
 - `optimization::{greedy_schedule, Constraint, Observation, OptimizationResult}`
 
 **Used By:**
@@ -1197,13 +1197,13 @@ metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
    - **Impact:** Validation reports may miss conflicts
    - **Recommendation:** Complete implementation or document as "fixed-time-only"
 
-2. **🔴 Remove placeholder and duplicate functions** ✅ PARTIALLY COMPLETED: compute_metrics and compute_correlations removed
+2. **🔴 Remove placeholder and duplicate functions** ✅ MOSTLY COMPLETED: compute_metrics, compute_correlations, and suggest_candidate_positions removed
    - ✅ `algorithms/analysis.rs::compute_metrics()` + `python/algorithms.rs::py_compute_metrics()` - **REMOVED**
    - ✅ `algorithms/analysis.rs::compute_correlations()` - **REMOVED**
-   - `algorithms/conflicts.rs::suggest_candidate_positions()` - returns empty
+   - ✅ `algorithms/conflicts.rs::suggest_candidate_positions()` - **REMOVED**
    - `algorithms/optimization.rs::greedy_schedule_parallel()` - disabled
    - **Impact:** Reduced dead code, cleaner API
-   - **Recommendation:** Remove remaining placeholder functions
+   - **Recommendation:** Remove remaining placeholder (greedy_schedule_parallel)
 
 3. **🔴 Fix `transformations/cleaning.rs::impute_missing()` median bug**
    - Line 58: median strategy uses `FillNullStrategy::Mean`
@@ -1292,7 +1292,7 @@ metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
 🔴 **Placeholder/Incomplete/Duplicate:**
 - ~~DataFrame-based metrics computation~~ ✅ **REMOVED** (use database analytics instead)
 - ~~DataFrame-based correlation analysis placeholder~~ ✅ **REMOVED** (working version exists in `services/insights.rs`)
-- Candidate position suggestions (returns empty)
+- ~~Candidate position suggestions~~ ✅ **REMOVED** (unused placeholder)
 - Parallel greedy scheduling (disabled)
 
 ### Usage Patterns
@@ -1305,7 +1305,6 @@ metrics = compute_metrics(schedule_id=1)  # Returns dict with same structure
 
 **Rarely-Used Modules:**
 - `algorithms/optimization.rs` - Experimental, not production
-- `algorithms/conflicts.rs::suggest_candidate_positions()` - Placeholder
 
 ### Performance Characteristics
 
@@ -1355,11 +1354,9 @@ The Rust backend is **well-architected** with good separation of concerns (repos
 ### Removal Candidates
 - ✅ **REMOVED:** `algorithms/analysis.rs::compute_correlations()` - placeholder returning empty
   - Correlation analysis IS implemented and working in `services/insights.rs::compute_correlations()`
-  - Migration: Use `py_get_insights_data(schedule_id)` for insights with correlationsead
-- `algorithms/analysis.rs::compute_correlations()` - returns empty (superseded by `services/insights.rs::compute_correlations()`)
-  - **Note:** Correlation analysis IS implemented and working in insights service
-  - This is just a DataFrame-based placeholder that was never completed
-- `algorithms/conflicts.rs::suggest_candidate_positions()` - returns empty (not planned)
+  - Migration: Use `py_get_insights_data(schedule_id)` for insights with correlations
+- ✅ **REMOVED:** `algorithms/conflicts.rs::suggest_candidate_positions()` - placeholder returning empty
+  - Was never implemented, no migration needed
 - `algorithms/optimization.rs::greedy_schedule_parallel()` - disabled (experimental)
 - Evaluate if optimization module is needed at all (if not production feature)
 
@@ -1383,11 +1380,12 @@ print(f"Rate: {summary.scheduling_rate:.1%}")
 
 ---
 
-**Document Version:** 1.3  
+**Document Version:** 1.4  
 **Last Updated:** December 16, 2025  
 **Maintainer:** TSI Development Team
 
 **Change Log:**
+- v1.4 (2025-12-16): Removed placeholder `suggest_candidate_positions()` function from algorithms/conflicts.rs
 - v1.3 (2025-12-16): Removed placeholder `compute_correlations()` function from algorithms/analysis.rs - correlation analysis is fully working via services/insights.rs
 - v1.2 (2025-12-16): Clarified that correlation analysis IS implemented and working via `services/insights.rs::compute_correlations()` - only the DataFrame-based placeholder in `algorithms/analysis.rs` is unused
 - v1.1 (2025-12-16): Removed `compute_metrics()` and `py_compute_metrics()` - replaced with database-backed `py_get_schedule_summary()`
