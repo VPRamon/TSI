@@ -95,7 +95,6 @@ pub mod transformations;
 /// - `py_validate_schedule`: Validate schedule data without enrichment
 ///
 /// ## Analysis Functions
-/// - `py_compute_correlations`: Compute correlation matrices
 /// - `py_get_top_observations`: Get top N observations by criteria
 /// - `py_find_conflicts`: Detect scheduling conflicts
 /// - `py_greedy_schedule`: Run greedy scheduling optimization
@@ -103,7 +102,6 @@ pub mod transformations;
 ///
 /// ## Classes
 /// - `PyValidationResult`: Validation results with errors and warnings
-/// - `PyAnalyticsSnapshot`: Dataset-level analytics summary
 /// - `PySchedulingConflict`: Detected scheduling conflict information
 /// - `PyOptimizationResult`: Results from scheduling optimization
 ///
@@ -185,7 +183,6 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(services::py_get_validation_report, m)?)?;
 
     // Register classes (PyO3 data structures exposed to Python)
-    m.add_class::<python::PyAnalyticsSnapshot>()?;
     m.add_class::<python::PySchedulingConflict>()?;
     m.add_class::<python::PyOptimizationResult>()?;
     m.add_class::<db::models::Schedule>()?;
