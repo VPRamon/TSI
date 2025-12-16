@@ -59,8 +59,12 @@ pub fn impute_missing(
         }
         "median" => {
             let float_series = series.cast(&DataType::Float64)?;
-            if float_series.median().is_some() {
-                Ok(float_series.fill_null(FillNullStrategy::Mean)?)
+            if let Some(median_val) = float_series.median() {
+                // Polars doesn't have FillNullStrategy::Median
+                // Use fill_null with a literal value by creating an expression and applying it
+                let chunked = float_series.f64()?;
+                let filled = chunked.fill_null_with_values(median_val)?;
+                Ok(filled.into_series())
             } else {
                 Ok(series.clone())
             }
@@ -165,4 +169,27 @@ mod tests {
         assert!(!is_valid);
         assert_eq!(issues.len(), 1);
     }
+
+    #[test]
+    fn test_impute_missing_median() {
+        // Test median imputation with odd number of values
+        let series = Series::new("test".into(), &[Some(1.0), None, Some(3.0), Some(5.0), None]).into();
+        let imputed = impute_missing(&series, "median", None).unwrap();
+        
+        // Median of [1.0, 3.0, 5.0] is 3.0
+        let values: Vec<Option<f64>> = imputed.f64().unwrap().into_iter().collect();
+        assert_eq!(values, vec![Some(1.0), Some(3.0), Some(3.0), Some(5.0), Some(3.0)]);
+    }
+
+    #[test]
+    fn test_impute_missing_mean() {
+        // Test mean imputation
+        let series = Series::new("test".into(), &[Some(2.0), None, Some(4.0), Some(6.0)]).into();
+        let imputed = impute_missing(&series, "mean", None).unwrap();
+        
+        // Mean of [2.0, 4.0, 6.0] is 4.0
+        let values: Vec<Option<f64>> = imputed.f64().unwrap().into_iter().collect();
+        assert_eq!(values, vec![Some(2.0), Some(4.0), Some(4.0), Some(6.0)]);
+    }
 }
+
