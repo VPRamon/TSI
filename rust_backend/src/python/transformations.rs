@@ -27,62 +27,6 @@ pub fn py_remove_missing_coordinates(df: PyDataFrame) -> PyResult<PyDataFrame> {
     Ok(PyDataFrame(result))
 }
 
-/// Impute missing values in a column using various strategies
-#[pyfunction]
-#[pyo3(signature = (df, column, strategy, fill_value=None))]
-pub fn py_impute_missing(
-    df: PyDataFrame,
-    column: &str,
-    strategy: &str,
-    fill_value: Option<f64>,
-) -> PyResult<PyDataFrame> {
-    let mut dataframe = df.0.clone();
-    let col = dataframe
-        .column(column)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    let series = col.as_materialized_series().clone();
-
-    let imputed = cleaning::impute_missing(&series, strategy, fill_value)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-
-    dataframe
-        .replace(column, imputed)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-
-    Ok(PyDataFrame(dataframe))
-}
-
-/// Validate DataFrame schema (required columns and data types)
-#[pyfunction]
-#[pyo3(signature = (df, required_columns, expected_dtypes=None))]
-pub fn py_validate_schema(
-    df: PyDataFrame,
-    required_columns: Vec<String>,
-    expected_dtypes: Option<Vec<(String, String)>>,
-) -> PyResult<(bool, Vec<String>)> {
-    let dataframe = &df.0;
-
-    // Convert string dtypes to Polars DataType if provided
-    let polars_dtypes = expected_dtypes.map(|dtypes| {
-        dtypes
-            .into_iter()
-            .filter_map(|(col, dtype_str)| {
-                let dtype = match dtype_str.as_str() {
-                    "Float64" => DataType::Float64,
-                    "Int64" => DataType::Int64,
-                    "String" | "Utf8" => DataType::String,
-                    "Boolean" => DataType::Boolean,
-                    _ => return None,
-                };
-                Some((col, dtype))
-            })
-            .collect()
-    });
-
-    cleaning::validate_schema(dataframe, required_columns, polars_dtypes)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-}
-
 /// Filter DataFrame by numeric range
 #[pyfunction]
 pub fn py_filter_by_range(
@@ -140,8 +84,6 @@ pub fn py_validate_dataframe(df: PyDataFrame) -> PyResult<(bool, Vec<String>)> {
 pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_remove_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
-    m.add_function(wrap_pyfunction!(py_impute_missing, m)?)?;
-    m.add_function(wrap_pyfunction!(py_validate_schema, m)?)?;
     m.add_function(wrap_pyfunction!(py_filter_by_range, m)?)?;
     m.add_function(wrap_pyfunction!(py_filter_by_scheduled, m)?)?;
     m.add_function(wrap_pyfunction!(py_filter_dataframe, m)?)?;
