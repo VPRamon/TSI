@@ -5,10 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi import state
-from tsi.services.database import (
-    fetch_dark_periods_db,
-    list_schedules_db,
-)
+from tsi.services import database as db
 
 
 def render_database_section() -> None:
@@ -17,8 +14,8 @@ def render_database_section() -> None:
     st.markdown("Select a previously uploaded schedule")
 
     try:
-        schedules = list_schedules_db()
-        
+        schedules = db.list_schedules_db()
+
         if not schedules:
             st.info("No schedules available. Upload a schedule first!")
         else:
@@ -60,17 +57,6 @@ def load_schedule_from_db(schedule_id: int, schedule_name: str) -> None:
             state.set_schedule_name(schedule_name)
             state.set_data_filename(schedule_name)
             st.session_state[state.KEY_DATA_SOURCE] = "database"
-            
-            # No need to fetch the full schedule DataFrame anymore!
-            # Pages use py_get_sky_map_data(), py_get_distribution_data(), etc.
-
-            # Load dark periods for this schedule (with global fallback)
-            try:
-                dark_periods_df = fetch_dark_periods_db(schedule_id)
-                if not dark_periods_df.empty:
-                    state.set_dark_periods(dark_periods_df)
-            except Exception as e:
-                st.warning(f"Could not load dark periods: {e}")
 
             # Auto-navigate to validation page first
             state.set_current_page("Validation")
