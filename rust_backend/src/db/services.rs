@@ -1,7 +1,7 @@
 //! High-level database service layer.
 //!
 //! This module provides repository-agnostic database operations that work with
-//! any implementation of the `ScheduleRepository` trait. These functions contain
+//! any implementation of the repository traits. These functions contain
 //! business logic such as checksum validation, analytics population, and data
 //! integrity checks that should be consistent regardless of the storage backend.
 //!
@@ -22,7 +22,11 @@
 //! └───────────────────┬─────────────────────────────────────┘
 //!                     │
 //! ┌───────────────────▼─────────────────────────────────────┐
-//! │  Repository Trait (repository.rs) - Abstract Interface  │
+//! │  Repository Traits (repository/) - Abstract Interface    │
+//! │  - ScheduleRepository (core CRUD)                        │
+//! │  - AnalyticsRepository (analytics ops)                   │
+//! │  - ValidationRepository (validation)                     │
+//! │  - VisualizationRepository (dashboard queries)           │
 //! └───────────────────┬─────────────────────────────────────┘
 //!                     │
 //!     ┌───────────────┴────────────────┐
@@ -55,7 +59,7 @@
 use log::{info, warn};
 
 use super::models::{Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock};
-use super::repository::{RepositoryResult, ScheduleRepository};
+use super::repository::{FullRepository, RepositoryResult};
 
 // ==================== Health & Connection ====================
 
@@ -69,7 +73,7 @@ use super::repository::{RepositoryResult, ScheduleRepository};
 /// # Returns
 /// * `Ok(true)` if connection is healthy
 /// * `Err` if check fails
-pub async fn health_check(repo: &dyn ScheduleRepository) -> RepositoryResult<bool> {
+pub async fn health_check<R: FullRepository>(repo: &R) -> RepositoryResult<bool> {
     repo.health_check().await
 }
 
@@ -90,8 +94,8 @@ pub async fn health_check(repo: &dyn ScheduleRepository) -> RepositoryResult<boo
 /// # Returns
 /// * `Ok(ScheduleMetadata)` - Metadata of stored schedule (new or existing)
 /// * `Err` if storage fails
-pub async fn store_schedule(
-    repo: &dyn ScheduleRepository,
+pub async fn store_schedule<R: FullRepository>(
+    repo: &R,
     schedule: &Schedule,
 ) -> RepositoryResult<ScheduleMetadata> {
     store_schedule_with_options(repo, schedule, true, false).await
@@ -116,8 +120,8 @@ pub async fn store_schedule(
 /// For large schedules (>1000 blocks), consider:
 /// - `populate_analytics=true, skip_time_bins=true` for fast upload with basic analytics
 /// - `populate_analytics=false, skip_time_bins=true` for fastest upload (compute analytics later)
-pub async fn store_schedule_with_options(
-    repo: &dyn ScheduleRepository,
+pub async fn store_schedule_with_options<R: FullRepository>(
+    repo: &R,
     schedule: &Schedule,
     populate_analytics: bool,
     skip_time_bins: bool,
@@ -218,8 +222,8 @@ pub async fn store_schedule_with_options(
 /// # Returns
 /// * `Ok(Schedule)` - The complete schedule with all blocks and dark periods
 /// * `Err` if schedule not found or retrieval fails
-pub async fn get_schedule(
-    repo: &dyn ScheduleRepository,
+pub async fn get_schedule<R: FullRepository>(
+    repo: &R,
     schedule_id: i64,
 ) -> RepositoryResult<Schedule> {
     info!("Service layer: loading schedule by id {}", schedule_id);
@@ -234,7 +238,7 @@ pub async fn get_schedule(
 /// # Returns
 /// * `Ok(Vec<ScheduleInfo>)` - List of schedule metadata
 /// * `Err` if query fails
-pub async fn list_schedules(repo: &dyn ScheduleRepository) -> RepositoryResult<Vec<ScheduleInfo>> {
+pub async fn list_schedules<R: FullRepository>(repo: &R) -> RepositoryResult<Vec<ScheduleInfo>> {
     info!("Service layer: listing all schedules");
     repo.list_schedules().await
 }
@@ -249,8 +253,8 @@ pub async fn list_schedules(repo: &dyn ScheduleRepository) -> RepositoryResult<V
 /// * `Ok(Some(Period))` - Time range as a Period
 /// * `Ok(None)` - If schedule has no time constraints
 /// * `Err` if query fails
-pub async fn get_schedule_time_range(
-    repo: &dyn ScheduleRepository,
+pub async fn get_schedule_time_range<R: FullRepository>(
+    repo: &R,
     schedule_id: i64,
 ) -> RepositoryResult<Option<Period>> {
     repo.get_schedule_time_range(schedule_id).await
@@ -267,8 +271,8 @@ pub async fn get_schedule_time_range(
 /// # Returns
 /// * `Ok(SchedulingBlock)` - The scheduling block with all details
 /// * `Err` if block not found or query fails
-pub async fn get_scheduling_block(
-    repo: &dyn ScheduleRepository,
+pub async fn get_scheduling_block<R: FullRepository>(
+    repo: &R,
     scheduling_block_id: i64,
 ) -> RepositoryResult<SchedulingBlock> {
     repo.get_scheduling_block(scheduling_block_id).await
@@ -283,8 +287,8 @@ pub async fn get_scheduling_block(
 /// # Returns
 /// * `Ok(Vec<SchedulingBlock>)` - List of all blocks
 /// * `Err` if query fails
-pub async fn get_blocks_for_schedule(
-    repo: &dyn ScheduleRepository,
+pub async fn get_blocks_for_schedule<R: FullRepository>(
+    repo: &R,
     schedule_id: i64,
 ) -> RepositoryResult<Vec<SchedulingBlock>> {
     repo.get_blocks_for_schedule(schedule_id).await
@@ -301,8 +305,8 @@ pub async fn get_blocks_for_schedule(
 /// # Returns
 /// * `Ok(Vec<Period>)` - List of dark periods
 /// * `Err` if query fails
-pub async fn fetch_dark_periods(
-    repo: &dyn ScheduleRepository,
+pub async fn fetch_dark_periods<R: FullRepository>(
+    repo: &R,
     schedule_id: i64,
 ) -> RepositoryResult<Vec<Period>> {
     repo.fetch_dark_periods(schedule_id).await
@@ -317,8 +321,8 @@ pub async fn fetch_dark_periods(
 /// # Returns
 /// * `Ok(Vec<Period>)` - List of visibility periods
 /// * `Err` if query fails
-pub async fn fetch_possible_periods(
-    repo: &dyn ScheduleRepository,
+pub async fn fetch_possible_periods<R: FullRepository>(
+    repo: &R,
     schedule_id: i64,
 ) -> RepositoryResult<Vec<Period>> {
     repo.fetch_possible_periods(schedule_id).await
@@ -339,8 +343,8 @@ pub async fn fetch_possible_periods(
 /// # Returns
 /// * `Ok(())` if analytics are available
 /// * `Err` if population fails
-pub async fn ensure_analytics(
-    repo: &dyn ScheduleRepository,
+pub async fn ensure_analytics<R: FullRepository>(
+    repo: &R,
     schedule_id: i64,
 ) -> RepositoryResult<()> {
     if !repo.has_analytics_data(schedule_id).await? {
@@ -365,8 +369,8 @@ pub async fn ensure_analytics(
 /// # Returns
 /// * `Ok(bool)` - True if analytics exist
 /// * `Err` if query fails
-pub async fn has_analytics_data(
-    repo: &dyn ScheduleRepository,
+pub async fn has_analytics_data<R: FullRepository>(
+    repo: &R,
     schedule_id: i64,
 ) -> RepositoryResult<bool> {
     repo.has_analytics_data(schedule_id).await
@@ -381,8 +385,8 @@ pub async fn has_analytics_data(
 /// # Returns
 /// * `Ok(bool)` - True if summary analytics exist
 /// * `Err` if query fails
-pub async fn has_summary_analytics(
-    repo: &dyn ScheduleRepository,
+pub async fn has_summary_analytics<R: FullRepository>(
+    repo: &R,
     schedule_id: i64,
 ) -> RepositoryResult<bool> {
     repo.has_summary_analytics(schedule_id).await
@@ -397,8 +401,8 @@ pub async fn has_summary_analytics(
 /// # Returns
 /// * `Ok(bool)` - True if visibility time bins exist
 /// * `Err` if query fails
-pub async fn has_visibility_time_bins(
-    repo: &dyn ScheduleRepository,
+pub async fn has_visibility_time_bins<R: FullRepository>(
+    repo: &R,
     schedule_id: i64,
 ) -> RepositoryResult<bool> {
     repo.has_visibility_time_bins(schedule_id).await

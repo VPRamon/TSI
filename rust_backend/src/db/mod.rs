@@ -87,7 +87,10 @@ pub use config::{DbAuthMethod, DbConfig};
 pub use models::{ScheduleInfo, ScheduleMetadata};
 
 // Repository trait and implementations
-pub use repository::{RepositoryError, RepositoryResult, ScheduleRepository};
+pub use repository::{
+    AnalyticsRepository, FullRepository, RepositoryError, RepositoryResult,
+    ScheduleRepository, ValidationRepository, VisualizationRepository,
+};
 pub use repositories::{AzureRepository, TestRepository};
 pub use factory::{RepositoryBuilder, RepositoryFactory, RepositoryType};
 
