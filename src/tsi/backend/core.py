@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import polars as pl
 
-from tsi.exceptions import BackendUnavailableError
+from tsi.exceptions import ServerError
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 try:
     import tsi_rust
 except ImportError as e:
-    raise BackendUnavailableError(
+    raise ServerError(
         "tsi_rust module not found. Please compile the Rust backend with: maturin develop --release",
         details={"install_command": "maturin develop --release"}
     ) from e
