@@ -67,6 +67,73 @@ pub fn py_init_database() -> PyResult<()> {
     Ok(())
 }
 
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/// Parse schedule from JSON strings.
+///
+/// This helper function reads dark periods and parses the schedule JSON,
+/// setting the schedule name.
+fn parse_schedule_from_json(
+    schedule_name: &str,
+    schedule_json: &str,
+    visibility_json: Option<&str>,
+) -> PyResult<Schedule> {
+    let dark_periods = std::fs::read_to_string("data/dark_periods.json").map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to read dark_periods.json: {}",
+            e
+        ))
+    })?;
+
+    let mut schedule: Schedule = crate::parsing::json_parser::parse_schedule_json_str(
+        schedule_json,
+        visibility_json,
+        dark_periods.as_str(),
+    )
+    .map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to parse schedule: {}",
+            e
+        ))
+    })?;
+    schedule.name = schedule_name.to_string();
+    
+    Ok(schedule)
+}
+
+/// Store schedule in database with options.
+///
+/// This helper function handles the async runtime creation and repository
+/// interaction for storing a schedule.
+fn store_schedule_in_db(
+    schedule: &Schedule,
+    populate_analytics: bool,
+    skip_time_bins: bool,
+) -> PyResult<crate::db::models::ScheduleMetadata> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    let repo = get_repository()?;
+    runtime
+        .block_on(services::store_schedule_with_options(
+            repo.as_ref(),
+            schedule,
+            populate_analytics,
+            skip_time_bins,
+        ))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
+}
+
+// =============================================================================
+// Python Bindings
+// =============================================================================
+
 /// Check database connection health.
 #[pyfunction]
 pub fn py_db_health_check() -> PyResult<bool> {
@@ -122,42 +189,8 @@ pub fn py_store_schedule_with_options(
     // Heavy parsing + DB insert happens without the GIL held to avoid blocking Python.
     let metadata = Python::with_gil(|py| {
         py.allow_threads(|| -> PyResult<_> {
-            let dark_periods = std::fs::read_to_string("data/dark_periods.json").map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Failed to read dark_periods.json: {}",
-                    e
-                ))
-            })?;
-
-            let mut schedule: Schedule = crate::parsing::json_parser::parse_schedule_json_str(
-                schedule_json,
-                visibility_json,
-                dark_periods.as_str(),
-            )
-            .map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Failed to parse schedule: {}",
-                    e
-                ))
-            })?;
-            schedule.name = schedule_name.to_string();
-
-            let runtime = Runtime::new().map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Failed to create async runtime: {}",
-                    e
-                ))
-            })?;
-
-            let repo = get_repository()?;
-            runtime
-                .block_on(services::store_schedule_with_options(
-                    repo.as_ref(),
-                    &schedule,
-                    populate_analytics,
-                    skip_time_bins,
-                ))
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
+            let schedule = parse_schedule_from_json(schedule_name, schedule_json, visibility_json)?;
+            store_schedule_in_db(&schedule, populate_analytics, skip_time_bins)
         })
     })?;
 
