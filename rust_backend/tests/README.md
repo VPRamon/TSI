@@ -158,23 +158,29 @@ proptest = "1.4"      # Property-based testing (existing)
 
 ## Known Issues
 
-### Bug Found During Testing
+### Bug Fixed ✓
 
-**File:** `transformations/cleaning.rs` (line ~50)
-**Issue:** Median imputation strategy incorrectly uses `FillNullStrategy::Mean`
+**File:** `transformations/cleaning.rs` (line ~60)
+**Issue:** Median imputation strategy was incorrectly using `FillNullStrategy::Mean`
+
+**Status:** FIXED - Median strategy now correctly computes the median value and fills nulls with it.
+
+**Implementation:** Since Polars doesn't provide a built-in `FillNullStrategy::Median`, the fix manually computes the median and uses `zip_with` to replace null values.
 
 ```rust
-// Current (incorrect)
-FillNullStrategy::Median => df.fill_null(FillNullStrategy::Mean)?,
-
-// Should be
-FillNullStrategy::Median => {
-    let median_value = df.column(column)?.median()?;
-    df.fill_null(FillNullStrategy::Constant(median_value))?
+// Fixed implementation
+"median" => {
+    let float_series = series.cast(&DataType::Float64)?;
+    if let Some(median_val) = float_series.median() {
+        let mask = float_series.is_null();
+        let median_series = Series::from_vec(float_series.name().clone(), vec![median_val; float_series.len()]);
+        let filled = float_series.zip_with(&mask, &median_series)?;
+        Ok(filled)
+    } else {
+        Ok(series.clone())
+    }
 }
 ```
-
-**Priority:** Medium - Fix in Phase 4 with accompanying test
 
 ## Documentation
 
