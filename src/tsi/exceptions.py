@@ -105,9 +105,31 @@ class DataError(TSIError):
     pass
 
 
+# ===== Timeout and Retry Errors =====
+
+class OperationTimeoutError(TSIError):
+    """Raised when an operation exceeds its allowed time limit."""
+    
+    def __init__(self, message: str, details: dict | None = None, user_message: str | None = None):
+        if user_message is None:
+            user_message = "The operation took too long and timed out. Please try again."
+        super().__init__(message, details, user_message)
+
+
+class RetryExhaustedError(TSIError):
+    """Raised when retry attempts are exhausted for an operation."""
+    
+    def __init__(self, message: str, details: dict | None = None, user_message: str | None = None):
+        if user_message is None:
+            user_message = "The operation failed after multiple attempts. Please try again later."
+        super().__init__(message, details, user_message)
+
+
 __all__ = [
     "TSIError",
     "ServerError",
     "ConfigurationError",
     "DataError",
+    "OperationTimeoutError",
+    "RetryExhaustedError",
 ]

@@ -52,7 +52,6 @@ from tsi.services.data import (
     generate_insights,
     get_filtered_dataframe,
     get_top_observations,
-    load_csv,
     load_schedule_rust,
     prepare_dataframe,
     validate_dataframe,
@@ -126,7 +125,6 @@ __all__ = [
     "get_trends_data",
     "get_compare_data",
     # Data
-    "load_csv",
     "prepare_dataframe",
     "get_filtered_dataframe",
     "validate_dataframe",

@@ -2,7 +2,6 @@
 
 from tsi.services.data.loaders import (
     get_filtered_dataframe,
-    load_csv,
     load_schedule_rust,
     prepare_dataframe,
     validate_dataframe,
@@ -18,7 +17,6 @@ from tsi.services.data.analytics import (
 
 __all__ = [
     # loaders
-    "load_csv",
     "prepare_dataframe",
     "get_filtered_dataframe",
     "validate_dataframe",

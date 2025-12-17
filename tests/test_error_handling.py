@@ -19,7 +19,7 @@ from tsi.exceptions import (
     ServerError,
     DataError,
     DataValidationError,
-    DataLoadError,
+    ServerError,
     SchemaError,
     OperationError,
     OperationTimeoutError,
@@ -78,7 +78,7 @@ class TestExceptionHierarchy:
     def test_data_error_hierarchy(self):
         """Test data error hierarchy."""
         validation_error = DataValidationError("Validation failed")
-        load_error = DataLoadError("Load failed")
+        load_error = ServerError("Load failed")
         schema_error = SchemaError("Schema invalid")
 
         assert isinstance(validation_error, DataError)

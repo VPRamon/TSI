@@ -9,7 +9,7 @@ from typing import Any, cast
 import pandas as pd
 
 from tsi.config import REQUIRED_COLUMNS
-from tsi.exceptions import DataLoadError, SchemaError, DataValidationError
+from tsi.exceptions import ServerError
 from tsi.error_handling import with_retry, log_error
 from tsi.services.data.preparation import PreparationResult
 from tsi.services.data.preparation import prepare_dataframe as core_prepare_dataframe
@@ -42,12 +42,12 @@ def load_schedule_rust(path: str | Path | Any, format: str = "auto") -> pd.DataF
         DataFrame with schedule data
         
     Raises:
-        DataLoadError: If loading fails
+        ServerError: If loading fails
     """
     try:
         return cast(pd.DataFrame, load_schedule_from_any(path, format=format))
     except Exception as e:
-        raise DataLoadError(
+        raise ServerError(
             f"Failed to load schedule from {path}",
             details={"path": str(path), "format": format, "error": str(e)}
         ) from e
@@ -75,60 +75,6 @@ def filter_by_scheduled(df: pd.DataFrame, filter_type: str = "All") -> pd.DataFr
         For full filtering with multiple criteria, use get_filtered_dataframe().
     """
     return cast(pd.DataFrame, BACKEND.filter_by_scheduled(df, filter_type))  # type: ignore[arg-type]
-
-
-def _load_csv_core(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:
-    """
-    Load CSV file using Rust backend (10x faster than pandas).
-
-    Args:
-        file_path_or_buffer: Path to CSV file or file-like buffer
-
-    Returns:
-        Raw DataFrame from CSV
-
-    Raises:
-        DataLoadError: If file loading fails
-        SchemaError: If required columns are missing
-    """
-    try:
-        df = load_schedule_rust(file_path_or_buffer, format="csv")
-    except DataLoadError:
-        # Re-raise DataLoadError as-is
-        raise
-    except Exception as e:
-        raise DataLoadError(
-            "Failed to read CSV",
-            details={"error": str(e)}
-        ) from e
-
-    # Validate required columns
-    missing_cols = set(REQUIRED_COLUMNS) - set(df.columns)
-    if missing_cols:
-        raise SchemaError(
-            f"Missing required columns",
-            details={"missing_columns": sorted(missing_cols), "found_columns": sorted(df.columns)}
-        )
-
-    return cast(pd.DataFrame, df)
-
-
-def load_csv(file_path_or_buffer: str | Path | Any) -> pd.DataFrame:  # type: ignore[no-any-return]
-    """
-    Load CSV file using Rust backend (10x faster than pandas).
-
-    Args:
-        file_path_or_buffer: Path to CSV file or file-like buffer
-
-    Returns:
-        Raw DataFrame from CSV
-
-    Raises:
-        FileNotFoundError: If file doesn't exist
-        ValueError: If required columns are missing
-    """
-    return cast(pd.DataFrame, _load_csv_core(file_path_or_buffer))  # type: ignore[no-any-return]
-
 
 def _prepare_dataframe_core(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     """
