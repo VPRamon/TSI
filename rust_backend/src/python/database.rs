@@ -7,8 +7,7 @@ use std::sync::OnceLock;
 
 use crate::db::{
     models::{Schedule, SchedulingBlock},
-    services, pool, DbConfig, RepositoryFactory,
-    repositories::AzureRepository,
+    services, repositories::LocalRepository, RepositoryFactory,
     repository::{
         analytics::AnalyticsRepository,
         visualization::VisualizationRepository,
@@ -16,9 +15,14 @@ use crate::db::{
 };
 
 // Global repository instance initialized once
-static REPOSITORY: OnceLock<std::sync::Arc<AzureRepository>> = OnceLock::new();
+// Using LocalRepository for in-memory storage by default
+static REPOSITORY: OnceLock<std::sync::Arc<LocalRepository>> = OnceLock::new();
 
-fn get_repository() -> PyResult<&'static std::sync::Arc<AzureRepository>> {
+/// Get a reference to the global repository instance.
+/// 
+/// This function is used internally by database operations and validation reporting.
+/// It returns an error if the repository hasn't been initialized via `py_init_database()`.
+pub(crate) fn get_repository() -> PyResult<&'static std::sync::Arc<LocalRepository>> {
     REPOSITORY.get().ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
             "Database not initialized. Call py_init_database() first."
@@ -26,7 +30,10 @@ fn get_repository() -> PyResult<&'static std::sync::Arc<AzureRepository>> {
     })
 }
 
-/// Initialize database connection pool and repository from environment variables.
+/// Initialize database repository.
+///
+/// By default, this creates an in-memory local repository (suitable for local development
+/// and testing). No database configuration is required.
 ///
 /// This function is idempotent - calling it multiple times is safe and will
 /// simply return success if already initialized.
@@ -38,28 +45,8 @@ pub fn py_init_database() -> PyResult<()> {
         return Ok(());
     }
 
-    let config =
-        DbConfig::from_env().map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
-
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
-    })?;
-
-    // Initialize pool (still needed for now for backward compatibility)
-    runtime
-        .block_on(pool::init_pool(&config))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))?;
-
-    // Create and store repository instance
-    let repo = runtime
-        .block_on(async {
-            let config = DbConfig::from_env()?;
-            RepositoryFactory::create_azure(&config).await
-        })
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create repository: {}", e)))?;
+    // Create local in-memory repository (no database required)
+    let repo = std::sync::Arc::new(LocalRepository::new());
 
     // Try to set - if it fails (race condition), that's okay
     let _ = REPOSITORY.set(repo);

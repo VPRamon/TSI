@@ -306,11 +306,40 @@ impl ScheduleRepository for LocalRepository {
 #[async_trait]
 impl AnalyticsRepository for LocalRepository {
     async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        self.get_schedule_impl(schedule_id)?;
+        let schedule = self.get_schedule_impl(schedule_id)?;
+        
+        // Run validation on all blocks (same as Azure repository does)
+        let blocks_for_validation: Vec<crate::services::validation::BlockForValidation> = 
+            schedule.blocks.iter().enumerate().map(|(idx, b)| {
+                crate::services::validation::BlockForValidation {
+                    schedule_id,
+                    scheduling_block_id: idx as i64 + 1, // Use index as block ID
+                    priority: b.priority,
+                    requested_duration_sec: b.requested_duration.value() as i32,
+                    min_observation_sec: b.min_observation.value() as i32,
+                    total_visibility_hours: b.visibility_periods.iter()
+                        .map(|p| p.duration().value() * 24.0)
+                        .sum(),
+                    min_alt_deg: Some(b.constraints.min_alt.value()),
+                    max_alt_deg: Some(b.constraints.max_alt.value()),
+                    constraint_start_mjd: b.constraints.fixed_time.as_ref().map(|p| p.start.value()),
+                    constraint_stop_mjd: b.constraints.fixed_time.as_ref().map(|p| p.stop.value()),
+                    scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start.value()),
+                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop.value()),
+                    target_ra_deg: b.target.ra().to::<siderust::units::angular::Degree>().value(),
+                    target_dec_deg: b.target.dec().to::<siderust::units::angular::Degree>().value(),
+                }
+            }).collect();
+
+        let validation_results = crate::services::validation::validate_blocks(&blocks_for_validation);
+        
+        // Store validation results (using the ValidationRepository trait)
+        let validation_count = self.insert_validation_results(&validation_results).await?;
         
         let mut data = self.data.write().unwrap();
         data.analytics_exists.insert(schedule_id, true);
-        Ok(1) // Simulated row count
+        
+        Ok(validation_count)
     }
 
     async fn delete_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
