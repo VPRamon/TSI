@@ -308,12 +308,12 @@ impl AnalyticsRepository for LocalRepository {
     async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
         let schedule = self.get_schedule_impl(schedule_id)?;
         
-        // Run validation on all blocks (same as Azure repository does)
+        // Build validation input from schedule blocks
         let blocks_for_validation: Vec<crate::services::validation::BlockForValidation> = 
-            schedule.blocks.iter().enumerate().map(|(idx, b)| {
+            schedule.blocks.iter().map(|b| {
                 crate::services::validation::BlockForValidation {
                     schedule_id,
-                    scheduling_block_id: idx as i64 + 1, // Use index as block ID
+                    scheduling_block_id: b.id.0, // Use actual block ID
                     priority: b.priority,
                     requested_duration_sec: b.requested_duration.value() as i32,
                     min_observation_sec: b.min_observation.value() as i32,
@@ -331,15 +331,35 @@ impl AnalyticsRepository for LocalRepository {
                 }
             }).collect();
 
-        let validation_results = crate::services::validation::validate_blocks(&blocks_for_validation);
+        // Run validation (even for empty schedules to create empty report)
+        let validation_results = if blocks_for_validation.is_empty() {
+            // Create empty validation report for empty schedules
+            let mut data = self.data.write().unwrap();
+            data.validation_results.insert(schedule_id, validation::ValidationReportData {
+                schedule_id,
+                total_blocks: 0,
+                valid_blocks: 0,
+                impossible_blocks: Vec::new(),
+                validation_errors: Vec::new(),
+                validation_warnings: Vec::new(),
+            });
+            Vec::new()
+        } else {
+            crate::services::validation::validate_blocks(&blocks_for_validation)
+        };
         
-        // Store validation results (using the ValidationRepository trait)
-        let validation_count = self.insert_validation_results(&validation_results).await?;
+        // Store validation results if non-empty
+        if !validation_results.is_empty() {
+            let results_to_insert = validation_results.clone();
+            let _validation_count = ValidationRepository::insert_validation_results(self, &results_to_insert).await?;
+        }
         
+        // Mark analytics as populated
         let mut data = self.data.write().unwrap();
         data.analytics_exists.insert(schedule_id, true);
         
-        Ok(validation_count)
+        // Return the number of blocks processed (not validation count)
+        Ok(schedule.blocks.len())
     }
 
     async fn delete_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
@@ -553,29 +573,74 @@ impl ValidationRepository for LocalRepository {
         let mut data = self.data.write().unwrap();
         let schedule_id = results[0].schedule_id;
 
-        // Convert to ValidationReportData
-        let issues: Vec<validation::ValidationIssue> = results
-            .iter()
-            .map(|r| validation::ValidationIssue {
-                block_id: r.scheduling_block_id,
-                original_block_id: None,
-                issue_type: r.issue_type.clone().unwrap_or_default(),
-                category: format!("{:?}", r.issue_category.as_ref().unwrap_or(&crate::services::validation::IssueCategory::Visibility)),
-                criticality: format!("{:?}", r.criticality.as_ref().unwrap_or(&crate::services::validation::Criticality::High)),
-                field_name: r.field_name.clone(),
-                current_value: r.current_value.clone(),
-                expected_value: r.expected_value.clone(),
-                description: r.description.clone().unwrap_or_default(),
-            })
+        // Separate results by status
+        let mut impossible_blocks = Vec::new();
+        let mut validation_errors = Vec::new();
+        let mut validation_warnings = Vec::new();
+        let mut valid_count = 0;
+
+        for r in results {
+            use crate::services::validation::ValidationStatus;
+            
+            match r.status {
+                ValidationStatus::Valid => {
+                    valid_count += 1;
+                }
+                ValidationStatus::Impossible => {
+                    impossible_blocks.push(validation::ValidationIssue {
+                        block_id: r.scheduling_block_id,
+                        original_block_id: None,
+                        issue_type: r.issue_type.clone().unwrap_or_default(),
+                        category: r.issue_category.as_ref().map(|c| c.as_str().to_string()).unwrap_or_default(),
+                        criticality: r.criticality.as_ref().map(|c| c.as_str().to_string()).unwrap_or_default(),
+                        field_name: r.field_name.clone(),
+                        current_value: r.current_value.clone(),
+                        expected_value: r.expected_value.clone(),
+                        description: r.description.clone().unwrap_or_default(),
+                    });
+                }
+                ValidationStatus::Error => {
+                    validation_errors.push(validation::ValidationIssue {
+                        block_id: r.scheduling_block_id,
+                        original_block_id: None,
+                        issue_type: r.issue_type.clone().unwrap_or_default(),
+                        category: r.issue_category.as_ref().map(|c| c.as_str().to_string()).unwrap_or_default(),
+                        criticality: r.criticality.as_ref().map(|c| c.as_str().to_string()).unwrap_or_default(),
+                        field_name: r.field_name.clone(),
+                        current_value: r.current_value.clone(),
+                        expected_value: r.expected_value.clone(),
+                        description: r.description.clone().unwrap_or_default(),
+                    });
+                }
+                ValidationStatus::Warning => {
+                    validation_warnings.push(validation::ValidationIssue {
+                        block_id: r.scheduling_block_id,
+                        original_block_id: None,
+                        issue_type: r.issue_type.clone().unwrap_or_default(),
+                        category: r.issue_category.as_ref().map(|c| c.as_str().to_string()).unwrap_or_default(),
+                        criticality: r.criticality.as_ref().map(|c| c.as_str().to_string()).unwrap_or_default(),
+                        field_name: r.field_name.clone(),
+                        current_value: r.current_value.clone(),
+                        expected_value: r.expected_value.clone(),
+                        description: r.description.clone().unwrap_or_default(),
+                    });
+                }
+            }
+        }
+
+        // Get unique block count
+        let unique_blocks: std::collections::HashSet<i64> = results.iter()
+            .map(|r| r.scheduling_block_id)
             .collect();
+        let total_blocks = unique_blocks.len();
 
         let report = validation::ValidationReportData {
             schedule_id,
-            total_blocks: issues.len(),
-            valid_blocks: 0,
-            impossible_blocks: Vec::new(),
-            validation_errors: issues,
-            validation_warnings: Vec::new(),
+            total_blocks,
+            valid_blocks: valid_count,
+            impossible_blocks,
+            validation_errors,
+            validation_warnings,
         };
 
         data.validation_results.insert(schedule_id, report);

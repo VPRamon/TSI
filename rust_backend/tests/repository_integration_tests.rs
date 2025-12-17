@@ -77,7 +77,7 @@ async fn test_not_found_error() {
 async fn test_analytics_lifecycle() {
     let repo = LocalRepository::new();
 
-    // Create schedule
+    // Create schedule with empty blocks array
     let schedule = Schedule {
         id: None,
         name: "Analytics Test".to_string(),
@@ -92,14 +92,14 @@ async fn test_analytics_lifecycle() {
     // Initially no analytics
     assert!(!repo.has_analytics_data(schedule_id).await.unwrap());
 
-    // Populate analytics
+    // Populate analytics (returns number of blocks processed)
     let rows = repo.populate_schedule_analytics(schedule_id).await.unwrap();
-    assert!(rows > 0);
+    assert_eq!(rows, 0); // Empty schedule returns 0
     assert!(repo.has_analytics_data(schedule_id).await.unwrap());
 
     // Delete analytics
     let deleted = repo.delete_schedule_analytics(schedule_id).await.unwrap();
-    assert!(deleted > 0);
+    assert_eq!(deleted, 1); // One entry deleted
     assert!(!repo.has_analytics_data(schedule_id).await.unwrap());
 }
 
