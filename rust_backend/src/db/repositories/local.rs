@@ -353,16 +353,56 @@ impl AnalyticsRepository for LocalRepository {
 
     async fn fetch_analytics_blocks_for_sky_map(
         &self,
-        _schedule_id: i64,
+        schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::LightweightBlock>> {
-        Ok(vec![])
+        use crate::db::models::{LightweightBlock, SchedulingBlockId};
+        
+        let schedule = self.get_schedule_impl(schedule_id)?;
+        
+        // Convert schedule blocks to LightweightBlock format
+        let blocks: Vec<LightweightBlock> = schedule.blocks.iter().enumerate().map(|(idx, b)| {
+            LightweightBlock {
+                id: SchedulingBlockId(idx as i64 + 1),
+                priority: b.priority,
+                priority_bin: "".to_string(), // Will be computed by sky_map service
+                requested_duration_seconds: b.requested_duration.value(),
+                target_ra_deg: b.target.ra().to::<siderust::units::angular::Degree>().value(),
+                target_dec_deg: b.target.dec().to::<siderust::units::angular::Degree>().value(),
+                scheduled_period: b.scheduled_period,
+            }
+        }).collect();
+        
+        Ok(blocks)
     }
 
     async fn fetch_analytics_blocks_for_distribution(
         &self,
-        _schedule_id: i64,
+        schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::DistributionBlock>> {
-        Ok(vec![])
+        use crate::db::models::DistributionBlock;
+        
+        let schedule = self.get_schedule_impl(schedule_id)?;
+        
+        // Convert schedule blocks to DistributionBlock format
+        let blocks: Vec<DistributionBlock> = schedule.blocks.iter().map(|b| {
+            let total_visibility_hours = b.visibility_periods.iter()
+                .map(|p| p.duration().value() * 24.0)
+                .sum();
+            
+            let requested_hours = b.requested_duration.value() / 3600.0;
+            
+            let elevation_range_deg = b.constraints.max_alt.value() - b.constraints.min_alt.value();
+            
+            DistributionBlock {
+                priority: b.priority,
+                total_visibility_hours,
+                requested_hours,
+                elevation_range_deg,
+                scheduled: b.scheduled_period.is_some(),
+            }
+        }).collect();
+        
+        Ok(blocks)
     }
 
     async fn populate_summary_analytics(
@@ -598,9 +638,37 @@ impl VisualizationRepository for LocalRepository {
 
     async fn fetch_schedule_timeline_blocks(
         &self,
-        _schedule_id: i64,
+        schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::ScheduleTimelineBlock>> {
-        Ok(vec![])
+        use crate::db::models::ScheduleTimelineBlock;
+        
+        let schedule = self.get_schedule_impl(schedule_id)?;
+        
+        // Convert schedule blocks to ScheduleTimelineBlock format
+        let blocks: Vec<ScheduleTimelineBlock> = schedule.blocks.iter().enumerate().filter_map(|(idx, b)| {
+            // Only include scheduled blocks
+            let scheduled_period = b.scheduled_period.as_ref()?;
+            
+            let total_visibility_hours = b.visibility_periods.iter()
+                .map(|p| p.duration().value() * 24.0)
+                .sum();
+            
+            let requested_hours = b.requested_duration.value() / 3600.0;
+            
+            Some(ScheduleTimelineBlock {
+                scheduling_block_id: idx as i64 + 1,
+                priority: b.priority,
+                scheduled_start_mjd: scheduled_period.start.value(),
+                scheduled_stop_mjd: scheduled_period.stop.value(),
+                ra_deg: b.target.ra().to::<siderust::units::angular::Degree>().value(),
+                dec_deg: b.target.dec().to::<siderust::units::angular::Degree>().value(),
+                requested_hours,
+                total_visibility_hours,
+                num_visibility_periods: b.visibility_periods.len(),
+            })
+        }).collect();
+        
+        Ok(blocks)
     }
 
     async fn fetch_compare_blocks(
