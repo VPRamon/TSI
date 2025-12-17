@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi import state
-from tsi.services.database import list_schedules_db
+from tsi.services import database as db
 
 
 def render_file_upload() -> tuple[int | None, str | None, None]:
@@ -43,7 +43,7 @@ def _render_database_selection() -> tuple[int | None, str | None]:
         Tuple of (schedule_id, schedule_name) if selected, (None, None) otherwise
     """
     try:
-        schedules = list_schedules_db()
+        schedules = db.list_schedules_db()
         
         if not schedules:
             st.info("No schedules available in the database.")
