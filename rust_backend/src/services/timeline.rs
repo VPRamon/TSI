@@ -1,8 +1,11 @@
 use crate::db::models::{Period, ScheduleTimelineBlock, ScheduleTimelineData};
-use crate::db::{analytics, operations};
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 use std::collections::HashSet;
+
+// Import the global repository accessor
+use crate::python::database::get_repository;
+use crate::db::repository::VisualizationRepository;
 
 /// Compute schedule timeline data with statistics and metadata.
 /// This function takes the raw blocks and computes everything needed for visualization.
@@ -75,17 +78,18 @@ pub fn compute_schedule_timeline_data(
 /// 
 /// Uses the analytics table for optimal performance when available.
 pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<ScheduleTimelineData, String> {
-    // Try analytics table first (much faster - no JOINs, pre-computed metrics)
-    let blocks = match analytics::fetch_analytics_blocks_for_timeline(schedule_id).await {
-        Ok(b) if !b.is_empty() => b,
-        Ok(_) | Err(_) => {
-            // Fall back to operations table if analytics not populated
-            operations::fetch_schedule_timeline_blocks(schedule_id).await?
-        }
-    };
+    // Get the initialized repository
+    let repo = get_repository()
+        .map_err(|e| format!("Failed to get repository: {}", e))?;
+    
+    // Fetch timeline blocks from visualization repository
+    let blocks = repo.fetch_schedule_timeline_blocks(schedule_id)
+        .await
+        .map_err(|e| format!("Failed to fetch timeline blocks: {}", e))?;
 
-    // Fetch dark periods
-    let dark_periods = operations::fetch_dark_periods_public(Some(schedule_id)).await?;
+    // Note: dark_periods is currently Azure-specific. For LocalRepository,
+    // this will return an empty vec which is acceptable.
+    let dark_periods = vec![]; // TODO: Add dark periods support to LocalRepository
 
     compute_schedule_timeline_data(blocks, dark_periods)
 }

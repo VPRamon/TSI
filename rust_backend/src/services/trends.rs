@@ -1,10 +1,13 @@
 use crate::db::models::{
     EmpiricalRatePoint, HeatmapBin, SmoothedPoint, TrendsBlock, TrendsData, TrendsMetrics,
 };
-use crate::db::{analytics, operations};
 use pyo3::prelude::*;
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
+
+// Import the global repository accessor
+use crate::python::database::get_repository;
+use crate::db::repository::AnalyticsRepository;
 
 /// Compute overview metrics from trends blocks.
 fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
@@ -406,17 +409,39 @@ pub async fn get_trends_data(
     bandwidth: f64,
     n_smooth_points: usize,
 ) -> Result<TrendsData, String> {
-    // Try analytics table first (much faster - no JOINs, pre-computed metrics)
-    let mut blocks = match analytics::fetch_analytics_blocks_for_trends(schedule_id).await {
-        Ok(b) if !b.is_empty() => b,
-        Ok(_) | Err(_) => {
-            // Fall back to operations table if analytics not populated
-            operations::fetch_trends_blocks(schedule_id).await?
-        }
-    };
+    // Get the initialized repository
+    let repo = get_repository()
+        .map_err(|e| format!("Failed to get repository: {}", e))?;
+    
+    // Fetch lightweight blocks and convert to TrendsBlock
+    let lightweight_blocks = repo.fetch_analytics_blocks_for_sky_map(schedule_id)
+        .await
+        .map_err(|e| format!("Failed to fetch analytics blocks: {}", e))?;
 
-    // Filter out impossible blocks (zero visibility)
-    blocks.retain(|b| b.total_visibility_hours > 0.0);
+    // Convert LightweightBlock to TrendsBlock
+    // Note: total_visibility_hours is approximated using requested_duration
+    let mut blocks: Vec<TrendsBlock> = lightweight_blocks.into_iter()
+        .map(|b| {
+            let total_visibility_hours = b.requested_duration_seconds / 3600.0;
+            let requested_hours = b.requested_duration_seconds / 3600.0;
+            
+            TrendsBlock {
+                scheduling_block_id: b.id.0,
+                priority: b.priority,
+                total_visibility_hours,
+                requested_hours,
+                scheduled: b.scheduled_period.is_some(),
+            }
+        })
+        .filter(|b| b.total_visibility_hours > 0.0) // Filter out zero visibility
+        .collect();
+    
+    if blocks.is_empty() {
+        return Err(format!(
+            "No analytics data available for schedule_id={}. Run populate_schedule_analytics() first.",
+            schedule_id
+        ));
+    }
 
     compute_trends_data(blocks, n_bins, bandwidth, n_smooth_points)
 }

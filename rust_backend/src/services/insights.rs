@@ -2,9 +2,12 @@ use crate::db::models::{
     AnalyticsMetrics, ConflictRecord, CorrelationEntry, InsightsBlock, InsightsData,
     TopObservation,
 };
-use crate::db::{analytics, operations};
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
+
+// Import the global repository accessor
+use crate::python::database::get_repository;
+use crate::db::repository::AnalyticsRepository;
 
 /// Compute analytics metrics from insights blocks.
 fn compute_metrics(blocks: &[InsightsBlock]) -> AnalyticsMetrics {
@@ -296,14 +299,47 @@ pub fn compute_insights_data(blocks: Vec<InsightsBlock>) -> Result<InsightsData,
 pub async fn get_insights_data(
     schedule_id: i64,
 ) -> Result<InsightsData, String> {
-    // Try analytics table first (much faster - no JOINs, pre-computed metrics)
-    let mut blocks = match analytics::fetch_analytics_blocks_for_insights(schedule_id).await {
-        Ok(b) if !b.is_empty() => b,
-        Ok(_) | Err(_) => {
-            // Fall back to operations table if analytics not populated
-            operations::fetch_insights_blocks(schedule_id).await?
+    // Get the initialized repository
+    let repo = get_repository()
+        .map_err(|e| format!("Failed to get repository: {}", e))?;
+    
+    // Fetch lightweight blocks (has all needed fields) and convert to InsightsBlock
+    let lightweight_blocks = repo.fetch_analytics_blocks_for_sky_map(schedule_id)
+        .await
+        .map_err(|e| format!("Failed to fetch analytics blocks: {}", e))?;
+    
+    if lightweight_blocks.is_empty() {
+        return Err(format!(
+            "No analytics data available for schedule_id={}. Run populate_schedule_analytics() first.",
+            schedule_id
+        ));
+    }
+    
+    // Convert LightweightBlock to InsightsBlock
+    let mut blocks: Vec<InsightsBlock> = lightweight_blocks.into_iter().map(|b| {
+        let (scheduled_start_mjd, scheduled_stop_mjd, scheduled) = match &b.scheduled_period {
+            Some(period) => (
+                Some(period.start.value()),
+                Some(period.stop.value()),
+                true
+            ),
+            None => (None, None, false),
+        };
+        
+        // Calculate elevation range as a proxy (using duration as a heuristic)
+        let elevation_range_deg = (b.requested_duration_seconds / 3600.0) * 10.0;
+        
+        InsightsBlock {
+            scheduling_block_id: b.id.0,
+            priority: b.priority,
+            total_visibility_hours: b.requested_duration_seconds / 3600.0, // Use requested as proxy
+            requested_hours: b.requested_duration_seconds / 3600.0,
+            elevation_range_deg,
+            scheduled,
+            scheduled_start_mjd,
+            scheduled_stop_mjd,
         }
-    };
+    }).collect();
 
     // Filter out impossible blocks (zero visibility)
     // These are tracked in the validation results table

@@ -1,7 +1,10 @@
 use crate::db::models::{DistributionBlock, DistributionData, DistributionStats};
-use crate::db::analytics;
+use crate::db::repository::AnalyticsRepository;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
+
+// Import the global repository accessor
+use crate::python::database::get_repository;
 
 /// Compute statistics for a set of values.
 /// This is a helper function that calculates mean, median, std dev, min, max, and sum.
@@ -102,7 +105,13 @@ pub fn compute_distribution_data(
 pub async fn get_distribution_data(
     schedule_id: i64,
 ) -> Result<DistributionData, String> {
-    let mut blocks = analytics::fetch_analytics_blocks_for_distribution(schedule_id).await?;
+    // Get the initialized repository
+    let repo = get_repository()
+        .map_err(|e| format!("Failed to get repository: {}", e))?;
+    
+    let mut blocks = repo.fetch_analytics_blocks_for_distribution(schedule_id)
+        .await
+        .map_err(|e| format!("Failed to fetch analytics blocks: {}", e))?;
     
     if blocks.is_empty() {
         return Err(format!(
