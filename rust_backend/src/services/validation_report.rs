@@ -5,7 +5,11 @@
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
-use crate::db::validation::{fetch_validation_results, ValidationIssue, ValidationReportData};
+use crate::db::repository::ValidationRepository;
+use crate::db::validation::{ValidationIssue, ValidationReportData};
+
+// Import the global repository accessor from python/database module
+use crate::python::database::get_repository;
 
 /// A single validation issue exposed to Python
 #[pyclass(module = "tsi_rust")]
@@ -155,6 +159,9 @@ impl From<ValidationReportData> for PyValidationReportData {
 /// ```
 #[pyfunction]
 pub fn py_get_validation_report(schedule_id: i64) -> PyResult<PyValidationReportData> {
+    // Get the initialized repository
+    let repo = get_repository()?;
+    
     // Create Tokio runtime to bridge async database operations
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
@@ -163,9 +170,9 @@ pub fn py_get_validation_report(schedule_id: i64) -> PyResult<PyValidationReport
         ))
     })?;
 
-    // Fetch validation results from database
+    // Fetch validation results from repository
     let report_data = runtime
-        .block_on(fetch_validation_results(schedule_id))
+        .block_on(repo.fetch_validation_results(schedule_id))
         .map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "Failed to fetch validation report: {}",
