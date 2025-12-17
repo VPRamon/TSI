@@ -212,6 +212,8 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
     // === CRITICAL: Visibility Checks ===
     
     // Check 1: Zero visibility (impossible to schedule)
+    let requested_hours = block.requested_duration_sec as f64 / 3600.0;
+    
     if block.total_visibility_hours < 0.001 {
         // Less than ~3.6 seconds
         results.push(ValidationResult::impossible(
@@ -219,15 +221,17 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
             block.scheduling_block_id,
             "No visibility periods available".to_string(),
             IssueCategory::Visibility,
-            "This block has no time windows when it is visible from the telescope site".to_string(),
+            format!(
+                "This block needs {:.2}h but has no time windows when it is visible from the telescope site",
+                requested_hours
+            ),
             Some("total_visibility_hours".to_string()),
             Some(format!("{:.6}", block.total_visibility_hours)),
-            Some("> 0".to_string()),
+            Some(format!(">= {:.2}h", requested_hours)),
         ));
     }
     // Check 2: Insufficient visibility for requested duration
     else {
-        let requested_hours = block.requested_duration_sec as f64 / 3600.0;
         if block.total_visibility_hours < requested_hours {
             results.push(ValidationResult::impossible(
                 block.schedule_id,
@@ -239,8 +243,8 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
                     requested_hours, block.total_visibility_hours
                 ),
                 Some("total_visibility_hours".to_string()),
-                Some(format!("{:.2}", block.total_visibility_hours)),
-                Some(format!(">= {:.2}", requested_hours)),
+                Some(format!("{:.2}h", block.total_visibility_hours)),
+                Some(format!(">= {:.2}h", requested_hours)),
             ));
         }
 
@@ -257,8 +261,8 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
                     min_observation_hours, block.total_visibility_hours
                 ),
                 Some("total_visibility_hours".to_string()),
-                Some(format!("{:.2}", block.total_visibility_hours)),
-                Some(format!(">= {:.2}", min_observation_hours)),
+                Some(format!("{:.2}h", block.total_visibility_hours)),
+                Some(format!(">= {:.2}h", min_observation_hours)),
             ));
         }
     }
