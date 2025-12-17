@@ -615,25 +615,103 @@ impl ValidationRepository for LocalRepository {
 impl VisualizationRepository for LocalRepository {
     async fn fetch_visibility_map_data(
         &self,
-        _schedule_id: i64,
+        schedule_id: i64,
     ) -> RepositoryResult<crate::db::models::VisibilityMapData> {
+        use crate::db::models::VisibilityBlockSummary;
+        
+        let schedule = self.get_schedule_impl(schedule_id)?;
+        
+        if schedule.blocks.is_empty() {
+            return Ok(crate::db::models::VisibilityMapData {
+                blocks: vec![],
+                priority_min: 0.0,
+                priority_max: 1.0,
+                total_count: 0,
+                scheduled_count: 0,
+            });
+        }
+        
+        // Convert schedule blocks to VisibilityBlockSummary
+        let blocks: Vec<VisibilityBlockSummary> = schedule.blocks.iter().enumerate().map(|(idx, b)| {
+            VisibilityBlockSummary {
+                scheduling_block_id: idx as i64 + 1,
+                priority: b.priority,
+                num_visibility_periods: b.visibility_periods.len(),
+                scheduled: b.scheduled_period.is_some(),
+            }
+        }).collect();
+        
+        // Compute statistics
+        let priority_min = blocks.iter().map(|b| b.priority).min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(0.0);
+        let priority_max = blocks.iter().map(|b| b.priority).max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap_or(1.0);
+        let total_count = blocks.len();
+        let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
+        
         Ok(crate::db::models::VisibilityMapData {
-            blocks: vec![],
-            priority_min: 0.0,
-            priority_max: 1.0,
-            total_count: 0,
-            scheduled_count: 0,
+            blocks,
+            priority_min,
+            priority_max,
+            total_count,
+            scheduled_count,
         })
     }
 
     async fn fetch_blocks_for_histogram(
         &self,
-        _schedule_id: i64,
-        _priority_min: Option<i32>,
-        _priority_max: Option<i32>,
-        _block_ids: Option<Vec<i64>>,
+        schedule_id: i64,
+        priority_min: Option<i32>,
+        priority_max: Option<i32>,
+        block_ids: Option<Vec<i64>>,
     ) -> RepositoryResult<Vec<crate::db::models::BlockHistogramData>> {
-        Ok(vec![])
+        use crate::db::models::BlockHistogramData;
+        
+        let schedule = self.get_schedule_impl(schedule_id)?;
+        
+        // Convert schedule blocks to BlockHistogramData format
+        let blocks: Vec<BlockHistogramData> = schedule.blocks.iter().enumerate().filter_map(|(idx, b)| {
+            let block_id = idx as i64 + 1;
+            let priority = b.priority as i32;
+            
+            // Apply filters if provided
+            if let Some(block_ids_filter) = &block_ids {
+                if !block_ids_filter.contains(&block_id) {
+                    return None;
+                }
+            }
+            
+            if let Some(min_priority) = priority_min {
+                if priority < min_priority {
+                    return None;
+                }
+            }
+            
+            if let Some(max_priority) = priority_max {
+                if priority > max_priority {
+                    return None;
+                }
+            }
+            
+            // Convert visibility periods to JSON string
+            let visibility_periods_json = if !b.visibility_periods.is_empty() {
+                let periods: Vec<serde_json::Value> = b.visibility_periods.iter().map(|p| {
+                    serde_json::json!({
+                        "start": p.start.value(),
+                        "stop": p.stop.value()
+                    })
+                }).collect();
+                Some(serde_json::to_string(&periods).unwrap_or_default())
+            } else {
+                None
+            };
+            
+            Some(BlockHistogramData {
+                scheduling_block_id: block_id,
+                priority,
+                visibility_periods_json,
+            })
+        }).collect();
+        
+        Ok(blocks)
     }
 
     async fn fetch_schedule_timeline_blocks(
@@ -673,9 +751,25 @@ impl VisualizationRepository for LocalRepository {
 
     async fn fetch_compare_blocks(
         &self,
-        _schedule_id: i64,
+        schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::CompareBlock>> {
-        Ok(vec![])
+        use crate::db::models::CompareBlock;
+        
+        let schedule = self.get_schedule_impl(schedule_id)?;
+        
+        // Convert schedule blocks to CompareBlock format
+        let blocks: Vec<CompareBlock> = schedule.blocks.iter().enumerate().map(|(idx, b)| {
+            let requested_hours = b.requested_duration.value() / 3600.0;
+            
+            CompareBlock {
+                scheduling_block_id: format!("{}", idx + 1),
+                priority: b.priority,
+                scheduled: b.scheduled_period.is_some(),
+                requested_hours,
+            }
+        }).collect();
+        
+        Ok(blocks)
     }
 }
 
