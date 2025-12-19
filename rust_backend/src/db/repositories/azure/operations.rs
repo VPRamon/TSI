@@ -1518,6 +1518,7 @@ pub async fn fetch_lightweight_blocks(
     let sql = r#"
         SELECT 
             sb.scheduling_block_id,
+            COALESCE(sb.original_block_id, CAST(sb.scheduling_block_id AS NVARCHAR(256))),
             sb.priority,
             sb.requested_duration_sec,
             t.ra_deg,
@@ -1547,28 +1548,33 @@ pub async fn fetch_lightweight_blocks(
     let mut blocks = Vec::with_capacity(rows.len());
 
     for row in rows {
-        let id: i64 = row
+        let _id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+        
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
 
         let priority: f64 = row
-            .get::<f64, _>(1)
+            .get::<f64, _>(2)
             .ok_or_else(|| "priority is NULL".to_string())?;
 
         let requested_duration: i32 = row
-            .get::<i32, _>(2)
+            .get::<i32, _>(3)
             .ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
 
         let ra: f64 = row
-            .get::<f64, _>(3)
+            .get::<f64, _>(4)
             .ok_or_else(|| "ra_deg is NULL".to_string())?;
 
         let dec: f64 = row
-            .get::<f64, _>(4)
+            .get::<f64, _>(5)
             .ok_or_else(|| "dec_deg is NULL".to_string())?;
 
         // Handle optional scheduled period
-        let scheduled_period = match (row.get::<f64, _>(5), row.get::<f64, _>(6)) {
+        let scheduled_period = match (row.get::<f64, _>(6), row.get::<f64, _>(7)) {
             (Some(start_mjd), Some(stop_mjd)) => crate::db::models::Period::new(
                 ModifiedJulianDate::new(start_mjd),
                 ModifiedJulianDate::new(stop_mjd),
@@ -1577,7 +1583,7 @@ pub async fn fetch_lightweight_blocks(
         };
 
         blocks.push(LightweightBlock {
-            id: crate::db::models::SchedulingBlockId(id),
+            original_block_id,
             priority,
             priority_bin: String::new(), // Will be computed by service layer
             requested_duration_seconds: requested_duration as f64,
@@ -1704,6 +1710,7 @@ pub async fn fetch_insights_blocks(
     let sql = r#"
         SELECT 
             sb.scheduling_block_id,
+            COALESCE(sb.original_block_id, CAST(sb.scheduling_block_id AS NVARCHAR(256))),
             sb.priority,
             sb.requested_duration_sec,
             sb.visibility_periods_json,
@@ -1739,18 +1746,23 @@ pub async fn fetch_insights_blocks(
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
 
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
+
         let priority: f64 = row
-            .get::<f64, _>(1)
+            .get::<f64, _>(2)
             .ok_or_else(|| "priority is NULL".to_string())?;
 
         let requested_duration: i32 = row
-            .get::<i32, _>(2)
+            .get::<i32, _>(3)
             .ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
 
         let requested_hours = (requested_duration as f64) / 3600.0;
 
         // Parse visibility periods JSON to compute total hours
-        let visibility_json: Option<&str> = row.get(3);
+        let visibility_json: Option<&str> = row.get(4);
         let total_visibility_hours = if let Some(json) = visibility_json {
             match serde_json::from_str::<Vec<serde_json::Value>>(json) {
                 Ok(periods) => periods.iter().fold(0.0, |acc, period| {
@@ -1771,17 +1783,18 @@ pub async fn fetch_insights_blocks(
         };
 
         // Compute elevation range
-        let min_alt = row.get::<f64, _>(4).unwrap_or(0.0);
-        let max_alt = row.get::<f64, _>(5).unwrap_or(90.0);
+        let min_alt = row.get::<f64, _>(5).unwrap_or(0.0);
+        let max_alt = row.get::<f64, _>(6).unwrap_or(90.0);
         let elevation_range_deg = max_alt - min_alt;
 
         // Get scheduled times
-        let scheduled_start_mjd = row.get::<f64, _>(6);
-        let scheduled_stop_mjd = row.get::<f64, _>(7);
+        let scheduled_start_mjd = row.get::<f64, _>(7);
+        let scheduled_stop_mjd = row.get::<f64, _>(8);
         let scheduled = scheduled_start_mjd.is_some() && scheduled_stop_mjd.is_some();
 
         blocks.push(InsightsBlock {
             scheduling_block_id,
+            original_block_id,
             priority,
             total_visibility_hours,
             requested_hours,
@@ -1811,6 +1824,7 @@ pub async fn fetch_trends_blocks(
     let sql = r#"
         SELECT 
             sb.scheduling_block_id,
+            COALESCE(sb.original_block_id, CAST(sb.scheduling_block_id AS NVARCHAR(256))),
             sb.priority,
             sb.requested_duration_sec,
             sb.visibility_periods_json,
@@ -1842,18 +1856,23 @@ pub async fn fetch_trends_blocks(
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
 
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
+
         let priority: f64 = row
-            .get::<f64, _>(1)
+            .get::<f64, _>(2)
             .ok_or_else(|| "priority is NULL".to_string())?;
 
         let requested_duration: i32 = row
-            .get::<i32, _>(2)
+            .get::<i32, _>(3)
             .ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
 
         let requested_hours = (requested_duration as f64) / 3600.0;
 
         // Parse visibility periods JSON to compute total hours
-        let visibility_json: Option<&str> = row.get(3);
+        let visibility_json: Option<&str> = row.get(4);
         let total_visibility_hours = if let Some(json) = visibility_json {
             match serde_json::from_str::<Vec<serde_json::Value>>(json) {
                 Ok(periods) => periods.iter().fold(0.0, |acc, period| {
@@ -1874,10 +1893,11 @@ pub async fn fetch_trends_blocks(
         };
 
         // Check if scheduled
-        let scheduled = row.get::<f64, _>(4).is_some() && row.get::<f64, _>(5).is_some();
+        let scheduled = row.get::<f64, _>(5).is_some() && row.get::<f64, _>(6).is_some();
 
         blocks.push(TrendsBlock {
             scheduling_block_id,
+            original_block_id,
             priority,
             total_visibility_hours,
             requested_hours,
@@ -1904,6 +1924,7 @@ pub async fn fetch_visibility_map_data(
     let sql = r#"
         SELECT 
             sb.scheduling_block_id,
+            COALESCE(sb.original_block_id, CAST(sb.scheduling_block_id AS NVARCHAR(256))),
             sb.priority,
             sb.visibility_periods_json,
             ssb.start_time_mjd,
@@ -1936,12 +1957,17 @@ pub async fn fetch_visibility_map_data(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+        
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
 
         let priority: f64 = row
-            .get::<f64, _>(1)
+            .get::<f64, _>(2)
             .ok_or_else(|| "priority is NULL".to_string())?;
 
-        let visibility_json: Option<&str> = row.get(2);
+        let visibility_json: Option<&str> = row.get(3);
         let num_visibility_periods = if let Some(json) = visibility_json {
             match serde_json::from_str::<Vec<serde_json::Value>>(json) {
                 Ok(periods) => periods
@@ -1957,7 +1983,7 @@ pub async fn fetch_visibility_map_data(
             0
         };
 
-        let scheduled = match (row.get::<f64, _>(3), row.get::<f64, _>(4)) {
+        let scheduled = match (row.get::<f64, _>(4), row.get::<f64, _>(5)) {
             (Some(_), Some(_)) => true,
             _ => false,
         };
@@ -1971,6 +1997,7 @@ pub async fn fetch_visibility_map_data(
 
         blocks.push(VisibilityBlockSummary {
             scheduling_block_id,
+            original_block_id,
             priority,
             num_visibility_periods,
             scheduled,
@@ -2219,6 +2246,7 @@ pub async fn fetch_schedule_timeline_blocks(
     let sql = r#"
         SELECT 
             sb.scheduling_block_id,
+            COALESCE(sb.original_block_id, CAST(sb.scheduling_block_id AS NVARCHAR(256))),
             sb.priority,
             ssb.start_time_mjd,
             ssb.stop_time_mjd,
@@ -2255,33 +2283,38 @@ pub async fn fetch_schedule_timeline_blocks(
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
 
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
+
         let priority: f64 = row
-            .get::<f64, _>(1)
+            .get::<f64, _>(2)
             .ok_or_else(|| "priority is NULL".to_string())?;
 
         let scheduled_start_mjd: f64 = row
-            .get::<f64, _>(2)
+            .get::<f64, _>(3)
             .ok_or_else(|| "start_time_mjd is NULL".to_string())?;
 
         let scheduled_stop_mjd: f64 = row
-            .get::<f64, _>(3)
+            .get::<f64, _>(4)
             .ok_or_else(|| "stop_time_mjd is NULL".to_string())?;
 
-        let ra_deg: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
-        let dec_deg: f64 = row.get::<f64, _>(5).unwrap_or(0.0);
+        let ra_deg: f64 = row.get::<f64, _>(5).unwrap_or(0.0);
+        let dec_deg: f64 = row.get::<f64, _>(6).unwrap_or(0.0);
 
         // Convert requested duration from seconds to hours
         // Handle both i32 and f64 types from database
-        let requested_hours = if let Some(val) = row.get::<i32, _>(6) {
+        let requested_hours = if let Some(val) = row.get::<i32, _>(7) {
             val as f64 / 3600.0
-        } else if let Some(val) = row.get::<f64, _>(6) {
+        } else if let Some(val) = row.get::<f64, _>(7) {
             val / 3600.0
         } else {
             0.0
         };
 
         // Parse visibility periods to calculate total visibility hours and period count
-        let visibility_json: Option<&str> = row.get(7);
+        let visibility_json: Option<&str> = row.get(8);
         let (total_visibility_hours, num_visibility_periods) = if let Some(json) = visibility_json
         {
             match serde_json::from_str::<Vec<serde_json::Value>>(json) {
@@ -2308,6 +2341,7 @@ pub async fn fetch_schedule_timeline_blocks(
 
         blocks.push(ScheduleTimelineBlock {
             scheduling_block_id,
+            original_block_id,
             priority,
             scheduled_start_mjd,
             scheduled_stop_mjd,

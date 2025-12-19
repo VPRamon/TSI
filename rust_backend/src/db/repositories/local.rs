@@ -375,14 +375,18 @@ impl AnalyticsRepository for LocalRepository {
         &self,
         schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::db::models::LightweightBlock>> {
-        use crate::db::models::{LightweightBlock, SchedulingBlockId};
+        use crate::db::models::LightweightBlock;
         
         let schedule = self.get_schedule_impl(schedule_id)?;
         
         // Convert schedule blocks to LightweightBlock format
         let blocks: Vec<LightweightBlock> = schedule.blocks.iter().enumerate().map(|(idx, b)| {
+            // Use original_block_id if available, otherwise fallback to internal ID
+            let original_block_id = b.original_block_id.clone()
+                .unwrap_or_else(|| format!("{}", idx + 1));
+            
             LightweightBlock {
-                id: SchedulingBlockId(idx as i64 + 1),
+                original_block_id,
                 priority: b.priority,
                 priority_bin: "".to_string(), // Will be computed by sky_map service
                 requested_duration_seconds: b.requested_duration.value(),
@@ -698,8 +702,13 @@ impl VisualizationRepository for LocalRepository {
         
         // Convert schedule blocks to VisibilityBlockSummary
         let blocks: Vec<VisibilityBlockSummary> = schedule.blocks.iter().enumerate().map(|(idx, b)| {
+            // Use original_block_id if available, otherwise fallback to internal ID
+            let original_block_id = b.original_block_id.clone()
+                .unwrap_or_else(|| format!("{}", idx + 1));
+            
             VisibilityBlockSummary {
                 scheduling_block_id: idx as i64 + 1,
+                original_block_id,
                 priority: b.priority,
                 num_visibility_periods: b.visibility_periods.len(),
                 scheduled: b.scheduled_period.is_some(),
@@ -798,8 +807,13 @@ impl VisualizationRepository for LocalRepository {
             
             let requested_hours = b.requested_duration.value() / 3600.0;
             
+            // Use original_block_id if available, otherwise fallback to internal ID
+            let original_block_id = b.original_block_id.clone()
+                .unwrap_or_else(|| format!("{}", idx + 1));
+            
             Some(ScheduleTimelineBlock {
                 scheduling_block_id: idx as i64 + 1,
+                original_block_id,
                 priority: b.priority,
                 scheduled_start_mjd: scheduled_period.start.value(),
                 scheduled_stop_mjd: scheduled_period.stop.value(),

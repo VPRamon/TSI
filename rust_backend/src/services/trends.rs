@@ -420,13 +420,15 @@ pub async fn get_trends_data(
 
     // Convert LightweightBlock to TrendsBlock
     // Note: total_visibility_hours is approximated using requested_duration
-    let mut blocks: Vec<TrendsBlock> = lightweight_blocks.into_iter()
-        .map(|b| {
+    let blocks: Vec<TrendsBlock> = lightweight_blocks.into_iter()
+        .enumerate()
+        .map(|(idx, b)| {
             let total_visibility_hours = b.requested_duration_seconds / 3600.0;
             let requested_hours = b.requested_duration_seconds / 3600.0;
             
             TrendsBlock {
-                scheduling_block_id: b.id.0,
+                scheduling_block_id: idx as i64 + 1,  // Sequential index for internal tracking
+                original_block_id: b.original_block_id,
                 priority: b.priority,
                 total_visibility_hours,
                 requested_hours,
@@ -482,6 +484,7 @@ mod tests {
         let blocks = vec![
             TrendsBlock {
                 scheduling_block_id: 1,
+                original_block_id: "SB001".to_string(),
                 priority: 5.0,
                 total_visibility_hours: 10.0,
                 requested_hours: 2.0,
@@ -489,6 +492,7 @@ mod tests {
             },
             TrendsBlock {
                 scheduling_block_id: 2,
+                original_block_id: "SB002".to_string(),
                 priority: 3.0,
                 total_visibility_hours: 5.0,
                 requested_hours: 1.0,
@@ -507,6 +511,7 @@ mod tests {
         let blocks = vec![
             TrendsBlock {
                 scheduling_block_id: 1,
+                original_block_id: "SB001".to_string(),
                 priority: 5.0,
                 total_visibility_hours: 10.0,
                 requested_hours: 2.0,
@@ -514,6 +519,7 @@ mod tests {
             },
             TrendsBlock {
                 scheduling_block_id: 2,
+                original_block_id: "SB002".to_string(),
                 priority: 5.0,
                 total_visibility_hours: 8.0,
                 requested_hours: 1.5,
@@ -521,6 +527,7 @@ mod tests {
             },
             TrendsBlock {
                 scheduling_block_id: 3,
+                original_block_id: "SB003".to_string(),
                 priority: 3.0,
                 total_visibility_hours: 5.0,
                 requested_hours: 1.0,
