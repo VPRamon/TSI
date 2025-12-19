@@ -4,14 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Any
+from datetime import datetime, timezone
 
 import pandas as pd
 import tsi_rust
-
-from tsi_rust_api import TSIBackend
-
 
 MJD_EPOCH = datetime(1858, 11, 17, tzinfo=timezone.utc)
 SECONDS_PER_DAY = 86400.0
@@ -27,7 +23,7 @@ def _ensure_utc(dt: datetime) -> datetime:
 @dataclass(frozen=True)
 class ModifiedJulianDate:
     """Lightweight Modified Julian Date representation with datetime helpers.
-    
+
     Note: Core MJD conversions now use Rust backend (tsi_rust.mjd_to_datetime,
     tsi_rust.datetime_to_mjd) for better performance and accuracy.
     """
@@ -76,7 +72,7 @@ def datetime_to_mjd(dt: datetime) -> float:
 
 def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
     """Parse visibility periods into timestamp tuples.
-    
+
     Expected format: "[(mjd_start, mjd_stop), (mjd_start, mjd_stop), ...]"
     """
     if not visibility_str or str(visibility_str).strip() in ("", "[]"):
@@ -85,11 +81,12 @@ def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd
     try:
         # Parse the string representation of a list of tuples
         import ast
+
         parsed = ast.literal_eval(str(visibility_str))
-        
+
         if not isinstance(parsed, list):
             return []
-        
+
         result = []
         for item in parsed:
             if isinstance(item, (tuple, list)) and len(item) == 2:
@@ -98,7 +95,7 @@ def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd
                 start_ts = mjd_to_datetime(float(start_mjd))
                 stop_ts = mjd_to_datetime(float(stop_mjd))
                 result.append((start_ts, stop_ts))
-        
+
         return result
     except Exception:
         return []

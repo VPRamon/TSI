@@ -6,14 +6,17 @@ use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
-use crate::python::database::get_repository;
 use crate::db::repository::AnalyticsRepository;
+use crate::python::database::get_repository;
 
 /// Compute overview metrics from trends blocks.
 fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
     let total_count = blocks.len();
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
-    let zero_visibility_count = blocks.iter().filter(|b| b.total_visibility_hours == 0.0).count();
+    let zero_visibility_count = blocks
+        .iter()
+        .filter(|b| b.total_visibility_hours == 0.0)
+        .count();
     let scheduling_rate = if total_count > 0 {
         scheduled_count as f64 / total_count as f64
     } else {
@@ -25,24 +28,15 @@ fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
     let visibilities: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours).collect();
     let times: Vec<f64> = blocks.iter().map(|b| b.requested_hours).collect();
 
-    let priority_min = priorities
-        .iter()
-        .copied()
-        .fold(f64::INFINITY, f64::min);
-    let priority_max = priorities
-        .iter()
-        .copied()
-        .fold(f64::NEG_INFINITY, f64::max);
+    let priority_min = priorities.iter().copied().fold(f64::INFINITY, f64::min);
+    let priority_max = priorities.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let priority_mean = if !priorities.is_empty() {
         priorities.iter().sum::<f64>() / priorities.len() as f64
     } else {
         0.0
     };
 
-    let visibility_min = visibilities
-        .iter()
-        .copied()
-        .fold(f64::INFINITY, f64::min);
+    let visibility_min = visibilities.iter().copied().fold(f64::INFINITY, f64::min);
     let visibility_max = visibilities
         .iter()
         .copied()
@@ -131,14 +125,8 @@ fn compute_by_bins(
 
     // Find min and max
     let values: Vec<f64> = blocks.iter().map(|b| get_value(b)).collect();
-    let min_val = values
-        .iter()
-        .copied()
-        .fold(f64::INFINITY, f64::min);
-    let max_val = values
-        .iter()
-        .copied()
-        .fold(f64::NEG_INFINITY, f64::max);
+    let min_val = values.iter().copied().fold(f64::INFINITY, f64::min);
+    let max_val = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
 
     if min_val == max_val {
         // All values are the same
@@ -204,16 +192,13 @@ fn compute_smoothed_trend(
     }
 
     let x_values: Vec<f64> = blocks.iter().map(|b| get_x(b)).collect();
-    let y_values: Vec<f64> = blocks.iter().map(|b| if b.scheduled { 1.0 } else { 0.0 }).collect();
+    let y_values: Vec<f64> = blocks
+        .iter()
+        .map(|b| if b.scheduled { 1.0 } else { 0.0 })
+        .collect();
 
-    let x_min = x_values
-        .iter()
-        .copied()
-        .fold(f64::INFINITY, f64::min);
-    let x_max = x_values
-        .iter()
-        .copied()
-        .fold(f64::NEG_INFINITY, f64::max);
+    let x_min = x_values.iter().copied().fold(f64::INFINITY, f64::min);
+    let x_max = x_values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
 
     if x_min == x_max {
         // All values are the same
@@ -276,18 +261,9 @@ fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin
     let vis_values: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours).collect();
     let time_values: Vec<f64> = blocks.iter().map(|b| b.requested_hours).collect();
 
-    let vis_min = vis_values
-        .iter()
-        .copied()
-        .fold(f64::INFINITY, f64::min);
-    let vis_max = vis_values
-        .iter()
-        .copied()
-        .fold(f64::NEG_INFINITY, f64::max);
-    let time_min = time_values
-        .iter()
-        .copied()
-        .fold(f64::INFINITY, f64::min);
+    let vis_min = vis_values.iter().copied().fold(f64::INFINITY, f64::min);
+    let vis_max = vis_values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let time_min = time_values.iter().copied().fold(f64::INFINITY, f64::min);
     let time_max = time_values
         .iter()
         .copied()
@@ -353,12 +329,8 @@ pub fn compute_trends_data(
 
     // Compute empirical rates
     let by_priority = compute_by_priority(&blocks);
-    let by_visibility = compute_by_bins(
-        &blocks,
-        |b| b.total_visibility_hours,
-        n_bins,
-        "Visibility",
-    );
+    let by_visibility =
+        compute_by_bins(&blocks, |b| b.total_visibility_hours, n_bins, "Visibility");
     let by_time = compute_by_bins(&blocks, |b| b.requested_hours, n_bins, "Time");
 
     // Compute smoothed trends
@@ -368,21 +340,14 @@ pub fn compute_trends_data(
         bandwidth,
         n_smooth_points,
     );
-    let smoothed_time = compute_smoothed_trend(
-        &blocks,
-        |b| b.requested_hours,
-        bandwidth,
-        n_smooth_points,
-    );
+    let smoothed_time =
+        compute_smoothed_trend(&blocks, |b| b.requested_hours, bandwidth, n_smooth_points);
 
     // Compute heatmap bins
     let heatmap_bins = compute_heatmap_bins(&blocks, n_bins);
 
     // Get unique priority values for filtering
-    let mut priority_values: Vec<f64> = blocks
-        .iter()
-        .map(|b| b.priority)
-        .collect();
+    let mut priority_values: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
     priority_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     priority_values.dedup();
 
@@ -401,7 +366,7 @@ pub fn compute_trends_data(
 
 /// Get complete trends data with computed analytics.
 /// Uses pre-computed analytics table when available for ~10-100x faster performance.
-/// 
+///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 pub async fn get_trends_data(
     schedule_id: i64,
@@ -410,24 +375,25 @@ pub async fn get_trends_data(
     n_smooth_points: usize,
 ) -> Result<TrendsData, String> {
     // Get the initialized repository
-    let repo = get_repository()
-        .map_err(|e| format!("Failed to get repository: {}", e))?;
-    
+    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
+
     // Fetch lightweight blocks and convert to TrendsBlock
-    let lightweight_blocks = repo.fetch_analytics_blocks_for_sky_map(schedule_id)
+    let lightweight_blocks = repo
+        .fetch_analytics_blocks_for_sky_map(schedule_id)
         .await
         .map_err(|e| format!("Failed to fetch analytics blocks: {}", e))?;
 
     // Convert LightweightBlock to TrendsBlock
     // Note: total_visibility_hours is approximated using requested_duration
-    let blocks: Vec<TrendsBlock> = lightweight_blocks.into_iter()
+    let blocks: Vec<TrendsBlock> = lightweight_blocks
+        .into_iter()
         .enumerate()
         .map(|(idx, b)| {
             let total_visibility_hours = b.requested_duration_seconds / 3600.0;
             let requested_hours = b.requested_duration_seconds / 3600.0;
-            
+
             TrendsBlock {
-                scheduling_block_id: idx as i64 + 1,  // Sequential index for internal tracking
+                scheduling_block_id: idx as i64 + 1, // Sequential index for internal tracking
                 original_block_id: b.original_block_id,
                 priority: b.priority,
                 total_visibility_hours,
@@ -437,7 +403,7 @@ pub async fn get_trends_data(
         })
         .filter(|b| b.total_visibility_hours > 0.0) // Filter out zero visibility
         .collect();
-    
+
     if blocks.is_empty() {
         return Err(format!(
             "No analytics data available for schedule_id={}. Run populate_schedule_analytics() first.",
@@ -449,7 +415,7 @@ pub async fn get_trends_data(
 }
 
 /// Get complete trends data with computed analytics and metadata.
-/// 
+///
 /// **Note**: Impossible blocks are automatically excluded.
 #[pyfunction]
 pub fn py_get_trends_data(

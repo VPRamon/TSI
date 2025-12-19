@@ -245,10 +245,7 @@ connect_timeout = 30
 
         let config: RepositoryConfig = toml::from_str(toml).unwrap();
         assert_eq!(config.repository.repo_type, "local");
-        assert_eq!(
-            config.repository_type().unwrap(),
-            RepositoryType::Local
-        );
+        assert_eq!(config.repository_type().unwrap(), RepositoryType::Local);
         assert!(config.to_db_config().unwrap().is_none());
     }
 
@@ -271,10 +268,7 @@ max_connections = 20
 
         let config: RepositoryConfig = toml::from_str(toml).unwrap();
         assert_eq!(config.repository.repo_type, "azure");
-        assert_eq!(
-            config.repository_type().unwrap(),
-            RepositoryType::Azure
-        );
+        assert_eq!(config.repository_type().unwrap(), RepositoryType::Azure);
 
         let db_config = config.to_db_config().unwrap().unwrap();
         assert_eq!(db_config.server, "myserver.database.windows.net");

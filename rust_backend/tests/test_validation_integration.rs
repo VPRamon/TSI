@@ -6,6 +6,10 @@
 //! 3. Validation integrates correctly with analytics pipeline
 //! 4. All validation rules work as expected
 
+use siderust::{
+    astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS, units::angular::Degrees,
+    units::time::Seconds,
+};
 use tsi_rust::db::{
     models::{Constraints, Period, Schedule, SchedulingBlock, SchedulingBlockId},
     repositories::LocalRepository,
@@ -14,12 +18,6 @@ use tsi_rust::db::{
 use tsi_rust::services::validation::{
     validate_block, validate_blocks, BlockForValidation, Criticality, IssueCategory,
     ValidationStatus,
-};
-use siderust::{
-    astro::ModifiedJulianDate,
-    coordinates::spherical::direction::ICRS,
-    units::angular::Degrees,
-    units::time::Seconds,
 };
 
 // ==================== Helper Functions ====================
@@ -78,8 +76,16 @@ fn create_validation_input(block: &SchedulingBlock) -> BlockForValidation {
         constraint_stop_mjd: None,
         scheduled_start_mjd: None,
         scheduled_stop_mjd: None,
-        target_ra_deg: block.target.ra().to::<siderust::units::angular::Degree>().value(),
-        target_dec_deg: block.target.dec().to::<siderust::units::angular::Degree>().value(),
+        target_ra_deg: block
+            .target
+            .ra()
+            .to::<siderust::units::angular::Degree>()
+            .value(),
+        target_dec_deg: block
+            .target
+            .dec()
+            .to::<siderust::units::angular::Degree>()
+            .value(),
     }
 }
 
@@ -108,11 +114,12 @@ fn test_validation_rule_zero_visibility() {
 
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].status, ValidationStatus::Impossible);
-    assert_eq!(
-        results[0].issue_category,
-        Some(IssueCategory::Visibility)
-    );
-    assert!(results[0].description.as_ref().unwrap().contains("no time windows"));
+    assert_eq!(results[0].issue_category, Some(IssueCategory::Visibility));
+    assert!(results[0]
+        .description
+        .as_ref()
+        .unwrap()
+        .contains("no time windows"));
 }
 
 #[test]
@@ -196,10 +203,7 @@ fn test_validation_rule_invalid_coordinates() {
     assert!(results_ra.iter().any(|r| {
         r.status == ValidationStatus::Error
             && r.issue_category == Some(IssueCategory::Coordinate)
-            && r.issue_type
-                .as_ref()
-                .unwrap()
-                .contains("Right Ascension")
+            && r.issue_type.as_ref().unwrap().contains("Right Ascension")
     }));
 
     // Invalid Dec (> 90)
@@ -282,10 +286,7 @@ fn test_validation_rule_narrow_elevation_warning() {
 
     assert!(results.iter().any(|r| {
         r.status == ValidationStatus::Warning
-            && r.issue_type
-                .as_ref()
-                .unwrap()
-                .contains("narrow elevation")
+            && r.issue_type.as_ref().unwrap().contains("narrow elevation")
     }));
 }
 
@@ -320,9 +321,9 @@ fn test_validation_multiple_issues_per_block() {
     let input = BlockForValidation {
         schedule_id: 1,
         scheduling_block_id: 108,
-        priority: -1.0,            // Issue 1: Negative priority
-        requested_duration_sec: 0, // Issue 2: Zero duration
-        min_observation_sec: -100, // Issue 3: Negative min obs
+        priority: -1.0,              // Issue 1: Negative priority
+        requested_duration_sec: 0,   // Issue 2: Zero duration
+        min_observation_sec: -100,   // Issue 3: Negative min obs
         total_visibility_hours: 0.0, // Issue 4: Zero visibility
         min_alt_deg: Some(30.0),
         max_alt_deg: Some(80.0),
@@ -330,7 +331,7 @@ fn test_validation_multiple_issues_per_block() {
         constraint_stop_mjd: None,
         scheduled_start_mjd: None,
         scheduled_stop_mjd: None,
-        target_ra_deg: 400.0, // Issue 5: Invalid RA
+        target_ra_deg: 400.0,  // Issue 5: Invalid RA
         target_dec_deg: 100.0, // Issue 6: Invalid Dec
     };
 
@@ -512,13 +513,13 @@ async fn test_validation_report_structure() {
     println!("Valid blocks: {}", report.valid_blocks);
     println!("Impossible blocks: {}", report.impossible_blocks.len());
     println!("Validation errors: {}", report.validation_errors.len());
-    println!(
-        "Validation warnings: {}",
-        report.validation_warnings.len()
-    );
+    println!("Validation warnings: {}", report.validation_warnings.len());
 
     assert_eq!(report.total_blocks, 3);
-    assert!(report.valid_blocks >= 1, "Should have at least 1 valid block");
+    assert!(
+        report.valid_blocks >= 1,
+        "Should have at least 1 valid block"
+    );
     assert!(
         !report.impossible_blocks.is_empty(),
         "Should have impossible blocks"

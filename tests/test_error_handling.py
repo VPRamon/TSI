@@ -7,30 +7,23 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from tsi.error_handling import (
+    ErrorContext,
+    is_transient_error,
+    log_error,
+    safe_execute,
+    with_retry,
+)
 from tsi.exceptions import (
-    TSIError,
     ConfigurationError,
-    ServerError,
-    ServerError,
-    ServerError,
-    ServerError,
-    ServerError,
-    ServerError,
-    ServerError,
     DataError,
     DataValidationError,
-    ServerError,
-    SchemaError,
     OperationError,
     OperationTimeoutError,
     RetryExhaustedError,
-)
-from tsi.error_handling import (
-    is_transient_error,
-    with_retry,
-    log_error,
-    safe_execute,
-    ErrorContext,
+    SchemaError,
+    ServerError,
+    TSIError,
 )
 
 
@@ -148,11 +141,13 @@ class TestWithRetryDecorator:
 
     def test_retries_on_transient_error(self):
         """Test that transient errors trigger retries."""
-        mock_func = Mock(side_effect=[
-            ServerError("Connection failed"),
-            ServerError("Connection failed"),
-            "success"
-        ])
+        mock_func = Mock(
+            side_effect=[
+                ServerError("Connection failed"),
+                ServerError("Connection failed"),
+                "success",
+            ]
+        )
         decorated = with_retry(max_attempts=3, initial_delay=0.01)(mock_func)
 
         result = decorated()
@@ -184,16 +179,10 @@ class TestWithRetryDecorator:
 
     def test_retry_with_specific_exceptions(self):
         """Test retry_on parameter for specific exception types."""
-        mock_func = Mock(side_effect=[
-            ValueError("Error 1"),
-            ValueError("Error 2"),
-            "success"
-        ])
-        decorated = with_retry(
-            max_attempts=3,
-            retry_on=(ValueError,),
-            initial_delay=0.01
-        )(mock_func)
+        mock_func = Mock(side_effect=[ValueError("Error 1"), ValueError("Error 2"), "success"])
+        decorated = with_retry(max_attempts=3, retry_on=(ValueError,), initial_delay=0.01)(
+            mock_func
+        )
 
         result = decorated()
 
@@ -202,18 +191,10 @@ class TestWithRetryDecorator:
 
     def test_exponential_backoff(self):
         """Test that retry delays increase exponentially."""
-        mock_func = Mock(side_effect=[
-            ServerError("Error"),
-            ServerError("Error"),
-            "success"
-        ])
-        
+        mock_func = Mock(side_effect=[ServerError("Error"), ServerError("Error"), "success"])
+
         start_time = time.time()
-        decorated = with_retry(
-            max_attempts=3,
-            initial_delay=0.1,
-            backoff_factor=2.0
-        )(mock_func)
+        decorated = with_retry(max_attempts=3, initial_delay=0.1, backoff_factor=2.0)(mock_func)
         result = decorated()
         elapsed = time.time() - start_time
 
@@ -251,7 +232,7 @@ class TestSafeExecute:
         """Test that errors are logged by default."""
         mock_func = Mock(side_effect=Exception("Test error"))
 
-        with patch('tsi.error_handling.log_error') as mock_log:
+        with patch("tsi.error_handling.log_error") as mock_log:
             safe_execute(mock_func, error_context="test operation")
             mock_log.assert_called_once()
 
@@ -259,7 +240,7 @@ class TestSafeExecute:
         """Test that logging can be disabled."""
         mock_func = Mock(side_effect=Exception("Test error"))
 
-        with patch('tsi.error_handling.log_error') as mock_log:
+        with patch("tsi.error_handling.log_error") as mock_log:
             safe_execute(mock_func, log_errors=False)
             mock_log.assert_not_called()
 
@@ -271,7 +252,7 @@ class TestLogError:
         """Test basic error logging."""
         error = ValueError("Test error")
 
-        with patch('tsi.error_handling.logger') as mock_logger:
+        with patch("tsi.error_handling.logger") as mock_logger:
             log_error(error, "test operation", include_traceback=False)
             mock_logger.error.assert_called_once()
 
@@ -279,7 +260,7 @@ class TestLogError:
         """Test error logging with traceback."""
         error = ValueError("Test error")
 
-        with patch('tsi.error_handling.logger') as mock_logger:
+        with patch("tsi.error_handling.logger") as mock_logger:
             log_error(error, "test operation", include_traceback=True)
             mock_logger.exception.assert_called_once()
 
@@ -288,9 +269,9 @@ class TestLogError:
         error = ValueError("Test error")
         extra = {"key1": "value1", "key2": "value2"}
 
-        with patch('tsi.error_handling.logger') as mock_logger:
+        with patch("tsi.error_handling.logger") as mock_logger:
             log_error(error, "test operation", extra=extra)
-            
+
             call_args = mock_logger.error.call_args[0][0]
             assert "key1=value1" in call_args
             assert "key2=value2" in call_args
@@ -302,7 +283,7 @@ class TestErrorContext:
     def test_successful_operation_no_error(self):
         """Test context manager with successful operation."""
         with ErrorContext("test operation") as ctx:
-            result = "success"
+            pass
 
         assert ctx.error is None
         assert ctx.get_value("success") == "success"
@@ -333,9 +314,9 @@ class TestErrorContext:
 
     def test_logs_error(self):
         """Test that errors are logged."""
-        with patch('tsi.error_handling.log_error') as mock_log:
+        with patch("tsi.error_handling.log_error") as mock_log:
             try:
-                with ErrorContext("test operation") as ctx:
+                with ErrorContext("test operation"):
                     raise ValueError("Test error")
             except ValueError:
                 pass

@@ -16,13 +16,13 @@ def render_search_filters(blocks: list) -> dict:
         Dictionary with filter values
     """
     from tsi.services.utils.time import mjd_to_datetime
-    
+
     # Extract unique months from blocks
     unique_months = set()
     for block in blocks:
         month_label = mjd_to_datetime(block.scheduled_start_mjd).strftime("%Y-%m")
         unique_months.add(month_label)
-    
+
     col_search1, col_search2, col_search3 = st.columns(3)
 
     with col_search1:

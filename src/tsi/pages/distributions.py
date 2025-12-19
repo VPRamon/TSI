@@ -3,12 +3,12 @@
 import streamlit as st
 
 from tsi import state
-from tsi.components.distributions.distributions_controls import render_filter_control
 from tsi.components.distributions.distributions_layout import render_figure_layout
 from tsi.components.distributions.distributions_stats import render_statistical_summary
 from tsi.plots.distributions import build_figures
 from tsi.services import database as db
 from tsi.utils.error_display import display_backend_error
+
 
 def render() -> None:
     """Render the Distributions page."""

@@ -9,39 +9,39 @@ from tsi.plots.sky_map import build_figure
 
 def _compute_cache_key(blocks, controls: dict) -> str:
     """Compute a cache key representing the filtered blocks.
-    
+
     Args:
         blocks: Filtered list of blocks
         controls: Filter controls dictionary
-        
+
     Returns:
         A string cache key that changes when filters change
     """
     # Use block count and first/last block IDs to create a simple but effective cache key
     if not blocks:
         return "empty"
-    
+
     block_ids = []
     for block in blocks:
         block_id = getattr(block.original_block_id, "value", None)
         if block_id is not None:
             block_ids.append(int(block_id))
-    
+
     if not block_ids:
         return f"count_{len(blocks)}"
-    
+
     # Create a key from count, min/max IDs, and filter values
     key_parts = [
         f"n={len(blocks)}",
         f"ids={min(block_ids)}-{max(block_ids)}",
         f"sched={controls.get('scheduled_filter', 'All')}",
     ]
-    
+
     # Add priority range if present
     if "priority_range" in controls:
         pr = controls["priority_range"]
         key_parts.append(f"pri={pr[0]:.2f}-{pr[1]:.2f}")
-    
+
     return "_".join(key_parts)
 
 

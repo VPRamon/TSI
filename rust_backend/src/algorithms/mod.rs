@@ -25,9 +25,5 @@
 pub mod analysis;
 pub mod conflicts;
 
-pub use analysis::{
-    get_top_observations, AnalyticsSnapshot,
-};
-pub use conflicts::{
-    find_conflicts, SchedulingConflict,
-};
+pub use analysis::{get_top_observations, AnalyticsSnapshot};
+pub use conflicts::{find_conflicts, SchedulingConflict};

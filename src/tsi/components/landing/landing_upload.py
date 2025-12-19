@@ -69,13 +69,13 @@ def upload_schedule(
             # Read file contents
             schedule_content = schedule_file.read()
             if isinstance(schedule_content, bytes):
-                schedule_content = schedule_content.decode('utf-8')
+                schedule_content = schedule_content.decode("utf-8")
 
             visibility_content = None
             if visibility_file is not None:
                 visibility_content = visibility_file.read()
                 if isinstance(visibility_content, bytes):
-                    visibility_content = visibility_content.decode('utf-8')
+                    visibility_content = visibility_content.decode("utf-8")
 
             # Store in database (preprocesses automatically)
             metadata = db.store_schedule_db(
@@ -87,7 +87,7 @@ def upload_schedule(
             st.success(f"✅ Schedule stored successfully (ID: {metadata['schedule_id']})")
 
             # Now load it
-            load_schedule_from_db(metadata['schedule_id'], schedule_name)
+            load_schedule_from_db(metadata["schedule_id"], schedule_name)
 
     except Exception as e:
         st.error(f"❌ Error uploading schedule: {str(e)}")

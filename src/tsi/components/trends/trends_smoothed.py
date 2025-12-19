@@ -27,19 +27,21 @@ def render_smoothed_trends(
         return
 
     # Convert to DataFrame for plotting
-    df = pd.DataFrame([
-        {
-            "x": p.x,
-            "rate": p.y_smoothed,
-            "n_samples": p.n_samples,
-        }
-        for p in smoothed_points
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "x": p.x,
+                "rate": p.y_smoothed,
+                "n_samples": p.n_samples,
+            }
+            for p in smoothed_points
+        ]
+    )
 
     # Create simple line chart
     st.markdown(f"**Smoothed Scheduling Rate by {x_var_name}**")
     st.line_chart(df.set_index("x")["rate"])
-    
+
     with st.expander("View smoothed data"):
         display_df = df.copy()
         display_df.columns = [x_var_name, "Rate", "Samples"]

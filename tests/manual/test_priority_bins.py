@@ -56,40 +56,40 @@ def test_priority_bins():
 
     # if result.validation.errors:
     #     print("\n❌ Errors:")
-        for error in result.validation.errors:
-            print(f"   - {error}")
+    #     for error in result.validation.errors:
+    #         print(f"   - {error}")
 
-    if result.validation.warnings:
-        print("\n⚠️  Warnings:")
-        for warning in result.validation.warnings:
-            print(f"   - {warning}")
+    # if result.validation.warnings:
+    #     print("\n⚠️  Warnings:")
+    #     for warning in result.validation.warnings:
+    #         print(f"   - {warning}")
 
-    # Check priority statistics
-    print("\n📊 Priority Statistics:")
-    print(f"   Min: {df['priority'].min():.2f}")
-    print(f"   Max: {df['priority'].max():.2f}")
-    print(f"   Mean: {df['priority'].mean():.2f}")
-    print(f"   Median: {df['priority'].median():.2f}")
+    # # Check priority statistics
+    # print("\n📊 Priority Statistics:")
+    # print(f"   Min: {df['priority'].min():.2f}")
+    # print(f"   Max: {df['priority'].max():.2f}")
+    # print(f"   Mean: {df['priority'].mean():.2f}")
+    # print(f"   Median: {df['priority'].median():.2f}")
 
-    # Check priority bins
-    print("\n🎯 Priority Bins Distribution:")
-    bin_counts = df["priority_bin"].value_counts().sort_index()
-    for bin_name, count in bin_counts.items():
-        pct = count / len(df) * 100
-        print(f"   {bin_name:20s}: {count:4d} ({pct:5.1f}%)")
+    # # Check priority bins
+    # print("\n🎯 Priority Bins Distribution:")
+    # bin_counts = df["priority_bin"].value_counts().sort_index()
+    # for bin_name, count in bin_counts.items():
+    #     pct = count / len(df) * 100
+    #     print(f"   {bin_name:20s}: {count:4d} ({pct:5.1f}%)")
 
-    # Show examples of high priority blocks
-    print("\n🔝 Top 5 Highest Priority Blocks:")
-    top5 = df.nlargest(5, "priority")[
-        ["schedulingBlockId", "priority", "priority_bin", "scheduled_flag"]
-    ]
-    for _, row in top5.iterrows():
-        print(
-            f"   ID {row['schedulingBlockId']}: priority={row['priority']:.1f}, bin={row['priority_bin']}, scheduled={row['scheduled_flag']}"
-        )
+    # # Show examples of high priority blocks
+    # print("\n🔝 Top 5 Highest Priority Blocks:")
+    # top5 = df.nlargest(5, "priority")[
+    #     ["schedulingBlockId", "priority", "priority_bin", "scheduled_flag"]
+    # ]
+    # for _, row in top5.iterrows():
+    #     print(
+    #         f"   ID {row['schedulingBlockId']}: priority={row['priority']:.1f}, bin={row['priority_bin']}, scheduled={row['scheduled_flag']}"
+    #     )
 
-    print("\n" + "=" * 60)
-    print("✅ Test complete!")
+    # print("\n" + "=" * 60)
+    # print("✅ Test complete!")
 
 
 if __name__ == "__main__":

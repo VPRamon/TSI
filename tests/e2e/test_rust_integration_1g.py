@@ -8,15 +8,18 @@ and maintains backward compatibility with existing functionality.
 import pandas as pd
 import pytest
 
+from tsi.models.schemas import AnalyticsMetrics
 from tsi.services import (
     compute_metrics,
     find_conflicts,
     get_top_observations,
-    load_json,
     validate_dataframe,
 )
-from tsi.services.data.loaders import filter_by_priority, filter_by_scheduled, load_schedule_rust
-from tsi.models.schemas import AnalyticsMetrics
+from tsi.services.data.loaders import (
+    filter_by_priority,
+    filter_by_scheduled,
+    load_schedule_rust,
+)
 from tsi.services.rust_backend import BACKEND
 
 
@@ -35,9 +38,9 @@ def rust_find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
 class TestRustIntegrationE2E:
     """End-to-end tests for Rust backend integration."""
 
-    def test_load_json_uses_rust(self):
-        """Test that load_json uses Rust backend."""
-        df = load_json("data/schedule.json")
+    def test_load_schedule_rust_uses_rust(self):
+        """Test that load_schedule_rust uses Rust backend."""
+        df = load_schedule_rust("data/schedule.json")
         assert isinstance(df, pd.DataFrame)
         assert len(df) > 0
         assert "schedulingBlockId" in df.columns
@@ -45,7 +48,7 @@ class TestRustIntegrationE2E:
 
     def test_compute_metrics_uses_rust(self):
         """Test that compute_metrics uses Rust backend and returns Pydantic model."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
         metrics = compute_metrics(df)
 
         # Check it's a Pydantic model (has model_dump method)
@@ -59,7 +62,7 @@ class TestRustIntegrationE2E:
 
     def test_get_top_observations_uses_rust(self):
         """Test that get_top_observations uses Rust backend."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
         top_10 = get_top_observations(df, by="priority", n=10)
 
         assert isinstance(top_10, pd.DataFrame)
@@ -71,7 +74,7 @@ class TestRustIntegrationE2E:
 
     def test_find_conflicts_uses_rust(self):
         """Test that find_conflicts uses Rust backend."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
         conflicts = find_conflicts(df)
 
         assert isinstance(conflicts, pd.DataFrame)
@@ -80,7 +83,7 @@ class TestRustIntegrationE2E:
 
     def test_validate_dataframe_uses_rust(self):
         """Test that validate_dataframe uses Rust backend for data validation."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
         is_valid, errors = validate_dataframe(df)
 
         assert isinstance(is_valid, bool)
@@ -90,7 +93,7 @@ class TestRustIntegrationE2E:
 
     def test_filter_by_priority_integration(self):
         """Test priority filtering through services layer."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
 
         # Filter for high priority (8-10)
         high_priority = filter_by_priority(df, min_priority=8.0, max_priority=10.0)
@@ -105,7 +108,7 @@ class TestRustIntegrationE2E:
 
     def test_filter_by_scheduled_integration(self):
         """Test scheduled filtering through services layer."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
 
         # Filter for scheduled only
         scheduled = filter_by_scheduled(df, filter_type="Scheduled")
@@ -119,7 +122,7 @@ class TestRustIntegrationE2E:
 
     def test_rust_backend_consistency(self):
         """Test that Rust backend produces consistent results."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
 
         # Compute metrics twice
         metrics1 = rust_compute_metrics(df)
@@ -151,7 +154,7 @@ class TestRustIntegrationE2E:
     @pytest.mark.skip(reason="Requires pytest-benchmark plugin")
     def test_performance_comparison_metrics(self, benchmark):
         """Benchmark metrics computation (optional - requires pytest-benchmark)."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
 
         # Benchmark Rust implementation
         result = benchmark(rust_compute_metrics, df)
@@ -161,7 +164,7 @@ class TestRustIntegrationE2E:
 
     def test_top_observations_ordering(self):
         """Test that top observations maintain proper ordering."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
 
         # Get top 20 by priority
         top_20 = rust_get_top_observations(df, by="priority", n=20)
@@ -175,7 +178,7 @@ class TestRustIntegrationE2E:
 
     def test_conflicts_detection_accuracy(self):
         """Test conflict detection returns valid results."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
         conflicts = rust_find_conflicts(df)
 
         # If conflicts exist, they should have required columns
@@ -192,7 +195,7 @@ class TestBackwardCompatibility:
 
     def test_metrics_schema_compatibility(self):
         """Test that metrics schema is compatible with existing code."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
         metrics = compute_metrics(df)
 
         # Check Pydantic model has expected fields
@@ -211,7 +214,7 @@ class TestBackwardCompatibility:
 
     def test_dataframe_structure_unchanged(self):
         """Test that DataFrames have expected structure after loading."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
 
         # Check required columns exist
         required_cols = [
@@ -226,7 +229,7 @@ class TestBackwardCompatibility:
 
     def test_filter_functions_signature_compatible(self):
         """Test that filter functions maintain compatible signatures."""
-        df = load_json("data/schedule.json")
+        df = load_schedule_rust("data/schedule.json")
 
         # These should all work with named arguments
         result1 = filter_by_priority(df, min_priority=0.0, max_priority=10.0)

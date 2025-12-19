@@ -68,7 +68,7 @@ def validate_and_display_discrepancies(
                         pd.DataFrame({"schedulingBlockId": sorted(only_in_current)}),
                         hide_index=True,
                         height=200,
-                        width='stretch',
+                        width="stretch",
                     )
 
         with col2:
@@ -79,7 +79,7 @@ def validate_and_display_discrepancies(
                         pd.DataFrame({"schedulingBlockId": sorted(only_in_comparison)}),
                         hide_index=True,
                         height=200,
-                        width='stretch',
+                        width="stretch",
                     )
 
         st.info(f"**Common blocks:** {len(common_ids_current)} blocks will be used for comparison")

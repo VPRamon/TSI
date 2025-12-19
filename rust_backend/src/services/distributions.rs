@@ -97,22 +97,20 @@ pub fn compute_distribution_data(
 }
 
 /// Get complete distribution data with computed statistics using ETL analytics.
-/// 
+///
 /// This function retrieves blocks from the analytics.schedule_blocks_analytics table
 /// which contains pre-computed, denormalized data for optimal performance.
-/// 
+///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
-pub async fn get_distribution_data(
-    schedule_id: i64,
-) -> Result<DistributionData, String> {
+pub async fn get_distribution_data(schedule_id: i64) -> Result<DistributionData, String> {
     // Get the initialized repository
-    let repo = get_repository()
-        .map_err(|e| format!("Failed to get repository: {}", e))?;
-    
-    let mut blocks = repo.fetch_analytics_blocks_for_distribution(schedule_id)
+    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
+
+    let mut blocks = repo
+        .fetch_analytics_blocks_for_distribution(schedule_id)
         .await
         .map_err(|e| format!("Failed to fetch analytics blocks: {}", e))?;
-    
+
     if blocks.is_empty() {
         return Err(format!(
             "No analytics data available for schedule_id={}. Run populate_schedule_analytics() first.",
@@ -128,12 +126,10 @@ pub async fn get_distribution_data(
 
 /// Get complete distribution data with computed statistics and metadata.
 /// This is the main Python-callable function for the distributions feature.
-/// 
+///
 /// **Note**: Impossible blocks are automatically excluded.
 #[pyfunction]
-pub fn py_get_distribution_data(
-    schedule_id: i64,
-) -> PyResult<DistributionData> {
+pub fn py_get_distribution_data(schedule_id: i64) -> PyResult<DistributionData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -148,9 +144,7 @@ pub fn py_get_distribution_data(
 
 /// Alias for compatibility - uses analytics path.
 #[pyfunction]
-pub fn py_get_distribution_data_analytics(
-    schedule_id: i64,
-) -> PyResult<DistributionData> {
+pub fn py_get_distribution_data_analytics(schedule_id: i64) -> PyResult<DistributionData> {
     py_get_distribution_data(schedule_id)
 }
 

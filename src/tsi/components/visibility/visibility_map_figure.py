@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi.plots.timeline import build_visibility_histogram_from_bins
-from tsi.services.database import get_visibility_histogram, get_schedule_time_range
+from tsi.services.database import get_schedule_time_range, get_visibility_histogram
 
 
 def render_visibility_map_figure(
@@ -33,7 +33,7 @@ def render_visibility_map_figure(
     Returns:
         The Plotly figure object produced by build_visibility_histogram_from_bins,
         or None if generation fails.
-        
+
     Raises:
         ValueError: If schedule_id is None or database is not reachable
         RuntimeError: If backend histogram generation fails
@@ -52,7 +52,7 @@ def render_visibility_map_figure(
             f"No visibility periods found for schedule ID {schedule_id}. "
             "Cannot generate visibility map without visibility data."
         )
-    
+
     start_time, end_time = time_range
 
     # Prepare filters - convert to integers for backend
@@ -94,6 +94,6 @@ def render_visibility_map_figure(
     )
 
     # Display the figure
-    st.plotly_chart(fig, width='stretch', key=key)
+    st.plotly_chart(fig, width="stretch", key=key)
 
     return fig

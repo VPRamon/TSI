@@ -16,31 +16,6 @@ Core modules at the root level:
 # ============================================================================
 # Core Backend & Database
 # ============================================================================
-from tsi.services.rust_backend import BACKEND
-from tsi.services.database import (
-    db_health_check,
-    fetch_dark_periods_db,
-    fetch_possible_periods_db,
-    get_distribution_data,
-    get_sky_map_data,
-    get_visibility_map_data,
-    list_schedules_db,
-    store_schedule_db,
-)
-
-# ============================================================================
-# ETL Data Access Layer
-# ============================================================================
-from tsi.services.data_access import (
-    get_sky_map_data as get_sky_map_data_etl,
-    get_distribution_data as get_distribution_data_etl,
-    get_schedule_timeline_data,
-    get_insights_data,
-    get_trends_data,
-    get_compare_data,
-    get_visibility_map_data as get_visibility_map_data_etl,
-)
-
 # ============================================================================
 # Data: Loading, Preparation, Analytics
 # ============================================================================
@@ -55,6 +30,35 @@ from tsi.services.data import (
     load_schedule_rust,
     prepare_dataframe,
     validate_dataframe,
+)
+from tsi.services.data_access import (
+    get_compare_data,
+    get_insights_data,
+    get_schedule_timeline_data,
+    get_trends_data,
+)
+from tsi.services.data_access import (
+    get_distribution_data as get_distribution_data_etl,
+)
+
+# ============================================================================
+# ETL Data Access Layer
+# ============================================================================
+from tsi.services.data_access import (
+    get_sky_map_data as get_sky_map_data_etl,
+)
+from tsi.services.data_access import (
+    get_visibility_map_data as get_visibility_map_data_etl,
+)
+from tsi.services.database import (
+    db_health_check,
+    fetch_dark_periods_db,
+    fetch_possible_periods_db,
+    get_distribution_data,
+    get_sky_map_data,
+    get_visibility_map_data,
+    list_schedules_db,
+    store_schedule_db,
 )
 
 # ============================================================================
@@ -86,6 +90,7 @@ from tsi.services.processors import (
     prepare_scheduled_data,
     validate_required_columns,
 )
+from tsi.services.rust_backend import BACKEND
 
 # ============================================================================
 # Utils: Time, Visibility, Reporting

@@ -202,7 +202,9 @@ pub async fn store_schedule_with_options<R: FullRepository>(
                     }
                 }
             } else {
-                info!("Service layer: Phase 3/3: Skipped visibility time bins (skip_time_bins=true)");
+                info!(
+                    "Service layer: Phase 3/3: Skipped visibility time bins (skip_time_bins=true)"
+                );
             }
         }
     } else {

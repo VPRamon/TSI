@@ -1,11 +1,5 @@
 """Data loading, preparation, and analytics modules."""
 
-from tsi.services.data.loaders import (
-    get_filtered_dataframe,
-    load_schedule_rust,
-    prepare_dataframe,
-    validate_dataframe,
-)
 from tsi.services.data.analytics import (
     AnalyticsSnapshot,
     compute_correlations,
@@ -13,6 +7,12 @@ from tsi.services.data.analytics import (
     find_conflicts,
     generate_insights,
     get_top_observations,
+)
+from tsi.services.data.loaders import (
+    get_filtered_dataframe,
+    load_schedule_rust,
+    prepare_dataframe,
+    validate_dataframe,
 )
 
 __all__ = [

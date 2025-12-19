@@ -16,16 +16,32 @@ def render_comparison_tables(compare_data) -> None:
         compare_data: CompareData object from Rust backend with pre-computed statistics
     """
     st.subheader("📊 Summary Tables")
-    
-    # Extract data from CompareData
-    current_scheduled = [b for b in compare_data.current_blocks if b.scheduled and b.scheduling_block_id in compare_data.common_ids]
-    comparison_scheduled = [b for b in compare_data.comparison_blocks if b.scheduled and b.scheduling_block_id in compare_data.common_ids]
-    
-    newly_scheduled = [c for c in compare_data.scheduling_changes if c.change_type == "newly_scheduled"]
-    newly_unscheduled = [c for c in compare_data.scheduling_changes if c.change_type == "newly_unscheduled"]
 
-    newly_scheduled = [c for c in compare_data.scheduling_changes if c.change_type == "newly_scheduled"]
-    newly_unscheduled = [c for c in compare_data.scheduling_changes if c.change_type == "newly_unscheduled"]
+    # Extract data from CompareData
+    current_scheduled = [
+        b
+        for b in compare_data.current_blocks
+        if b.scheduled and b.scheduling_block_id in compare_data.common_ids
+    ]
+    comparison_scheduled = [
+        b
+        for b in compare_data.comparison_blocks
+        if b.scheduled and b.scheduling_block_id in compare_data.common_ids
+    ]
+
+    newly_scheduled = [
+        c for c in compare_data.scheduling_changes if c.change_type == "newly_scheduled"
+    ]
+    newly_unscheduled = [
+        c for c in compare_data.scheduling_changes if c.change_type == "newly_unscheduled"
+    ]
+
+    newly_scheduled = [
+        c for c in compare_data.scheduling_changes if c.change_type == "newly_scheduled"
+    ]
+    newly_unscheduled = [
+        c for c in compare_data.scheduling_changes if c.change_type == "newly_unscheduled"
+    ]
 
     # Add custom styling for the tables
     table_style = """
@@ -164,12 +180,20 @@ def _build_metrics_table(
 
     current_total_priority = sum(b.priority for b in current_scheduled) if current_count > 0 else 0
     current_mean_priority = current_total_priority / current_count if current_count > 0 else 0
-    current_priorities = sorted([b.priority for b in current_scheduled]) if current_count > 0 else [0]
-    current_median_priority = current_priorities[len(current_priorities) // 2] if current_count > 0 else 0
+    current_priorities = (
+        sorted([b.priority for b in current_scheduled]) if current_count > 0 else [0]
+    )
+    current_median_priority = (
+        current_priorities[len(current_priorities) // 2] if current_count > 0 else 0
+    )
 
-    comp_total_priority = sum(b.priority for b in comparison_scheduled) if comparison_count > 0 else 0
+    comp_total_priority = (
+        sum(b.priority for b in comparison_scheduled) if comparison_count > 0 else 0
+    )
     comp_mean_priority = comp_total_priority / comparison_count if comparison_count > 0 else 0
-    comp_priorities = sorted([b.priority for b in comparison_scheduled]) if comparison_count > 0 else [0]
+    comp_priorities = (
+        sorted([b.priority for b in comparison_scheduled]) if comparison_count > 0 else [0]
+    )
     comp_median_priority = comp_priorities[len(comp_priorities) // 2] if comparison_count > 0 else 0
 
     # Calculate deltas
@@ -218,14 +242,22 @@ def _build_time_metrics_table(
     current_count = len(current_scheduled)
     comparison_count = len(comparison_scheduled)
 
-    current_total_time = sum(b.requested_hours for b in current_scheduled) if current_count > 0 else 0
+    current_total_time = (
+        sum(b.requested_hours for b in current_scheduled) if current_count > 0 else 0
+    )
     current_mean_time = current_total_time / current_count if current_count > 0 else 0
-    current_times = sorted([b.requested_hours for b in current_scheduled]) if current_count > 0 else [0]
+    current_times = (
+        sorted([b.requested_hours for b in current_scheduled]) if current_count > 0 else [0]
+    )
     current_median_time = current_times[len(current_times) // 2] if current_count > 0 else 0
 
-    comp_total_time = sum(b.requested_hours for b in comparison_scheduled) if comparison_count > 0 else 0
+    comp_total_time = (
+        sum(b.requested_hours for b in comparison_scheduled) if comparison_count > 0 else 0
+    )
     comp_mean_time = comp_total_time / comparison_count if comparison_count > 0 else 0
-    comp_times = sorted([b.requested_hours for b in comparison_scheduled]) if comparison_count > 0 else [0]
+    comp_times = (
+        sorted([b.requested_hours for b in comparison_scheduled]) if comparison_count > 0 else [0]
+    )
     comp_median_time = comp_times[len(comp_times) // 2] if comparison_count > 0 else 0
 
     # For gaps, we need scheduled blocks - skip for now as it requires additional data
@@ -293,10 +325,12 @@ def _render_change_details(
                 # Convert to DataFrame for display
                 display_data = []
                 for change in newly_scheduled:
-                    display_data.append({
-                        "Block ID": change.scheduling_block_id,
-                        "Priority": f"{change.priority:.2f}",
-                    })
+                    display_data.append(
+                        {
+                            "Block ID": change.scheduling_block_id,
+                            "Priority": f"{change.priority:.2f}",
+                        }
+                    )
                 display_df = pd.DataFrame(display_data)
                 st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
         else:
@@ -309,10 +343,12 @@ def _render_change_details(
                 # Convert to DataFrame for display
                 display_data = []
                 for change in newly_unscheduled:
-                    display_data.append({
-                        "Block ID": change.scheduling_block_id,
-                        "Priority": f"{change.priority:.2f}",
-                    })
+                    display_data.append(
+                        {
+                            "Block ID": change.scheduling_block_id,
+                            "Priority": f"{change.priority:.2f}",
+                        }
+                    )
                 display_df = pd.DataFrame(display_data)
                 st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
         else:

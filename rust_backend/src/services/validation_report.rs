@@ -161,7 +161,7 @@ impl From<ValidationReportData> for PyValidationReportData {
 pub fn py_get_validation_report(schedule_id: i64) -> PyResult<PyValidationReportData> {
     // Get the initialized repository
     let repo = get_repository()?;
-    
+
     // Create Tokio runtime to bridge async database operations
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(

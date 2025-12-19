@@ -8,7 +8,7 @@ and transforming schedule DataFrames.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Literal, TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pandas as pd
 import polars as pl

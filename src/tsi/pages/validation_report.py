@@ -5,8 +5,11 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi import state
-from tsi.components.validation.validation_summary import render_summary_metrics, render_criticality_stats
 from tsi.components.validation.validation_issues import render_unified_validation_table
+from tsi.components.validation.validation_summary import (
+    render_criticality_stats,
+    render_summary_metrics,
+)
 from tsi.services import database as db
 
 
@@ -36,11 +39,11 @@ def render() -> None:
 
     # If everything is valid, show success message
     total_issues = (
-        len(validation_data.get("impossible_blocks", [])) +
-        len(validation_data.get("validation_errors", [])) +
-        len(validation_data.get("validation_warnings", []))
+        len(validation_data.get("impossible_blocks", []))
+        + len(validation_data.get("validation_errors", []))
+        + len(validation_data.get("validation_warnings", []))
     )
-    
+
     if total_issues == 0:
         st.success("✅ All validation checks passed! No issues found in the schedule data.")
         st.info(
@@ -48,7 +51,7 @@ def render() -> None:
             "No impossible blocks were found, and all data is clean."
         )
         return
-    
+
     # Show info about filtering
     impossible_count = len(validation_data.get("impossible_blocks", []))
     if impossible_count > 0:

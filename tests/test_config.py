@@ -26,7 +26,7 @@ class TestSettingsDefaults:
     def test_data_path_defaults(self):
         """Test data path configuration defaults."""
         settings = Settings()
-        
+
         assert settings.data_root == Path("data")
         assert settings.sample_dataset == Path("data") / "schedule.json"
         assert settings.artifacts_dir == Path("src/tsi/modeling/artifacts")
@@ -34,7 +34,7 @@ class TestSettingsDefaults:
     def test_ui_defaults(self):
         """Test UI configuration defaults."""
         settings = Settings()
-        
+
         assert settings.app_title == "Telescope Scheduling Intelligence"
         assert settings.app_icon == "🔭"
         assert settings.layout == "wide"
@@ -46,7 +46,7 @@ class TestSettingsDefaults:
     def test_performance_defaults(self):
         """Test performance configuration defaults."""
         settings = Settings()
-        
+
         assert settings.cache_ttl == 3600
         assert settings.max_workers == 4
         assert settings.enable_rust_backend is True
@@ -54,7 +54,7 @@ class TestSettingsDefaults:
     def test_plot_defaults(self):
         """Test plot configuration defaults."""
         settings = Settings()
-        
+
         assert settings.plot_height == 600
         assert settings.plot_margin_left == 80
         assert settings.plot_margin_right == 80
@@ -64,7 +64,7 @@ class TestSettingsDefaults:
     def test_feature_flags_defaults(self):
         """Test feature flag defaults."""
         settings = Settings()
-        
+
         assert settings.enable_file_upload is True
         assert settings.enable_comparison is True
 
@@ -98,7 +98,7 @@ class TestPlotMargins:
         """Test that plot margins are returned as a dictionary."""
         settings = Settings()
         margins = settings.get_plot_margin()
-        
+
         assert isinstance(margins, dict)
         assert margins["l"] == 80
         assert margins["r"] == 80
@@ -108,13 +108,10 @@ class TestPlotMargins:
     def test_get_plot_margin_custom(self):
         """Test plot margins with custom values."""
         settings = Settings(
-            plot_margin_left=100,
-            plot_margin_right=50,
-            plot_margin_top=120,
-            plot_margin_bottom=60
+            plot_margin_left=100, plot_margin_right=50, plot_margin_top=120, plot_margin_bottom=60
         )
         margins = settings.get_plot_margin()
-        
+
         assert margins["l"] == 100
         assert margins["r"] == 50
         assert margins["t"] == 120
@@ -128,10 +125,10 @@ class TestSettingsCaching:
         """Test that get_settings() returns the same cached instance."""
         # Clear the cache first
         get_settings.cache_clear()
-        
+
         settings1 = get_settings()
         settings2 = get_settings()
-        
+
         assert settings1 is settings2
 
     def test_get_settings_returns_settings_instance(self):

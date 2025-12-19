@@ -6,12 +6,11 @@
 
 use async_trait::async_trait;
 
+use super::error::RepositoryResult;
 use crate::db::analytics::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin,
-    VisibilityTimeMetadata,
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeMetadata,
 };
 use crate::db::models::{DistributionBlock, LightweightBlock};
-use super::error::RepositoryResult;
 
 /// Repository trait for analytics operations.
 ///
@@ -124,8 +123,7 @@ pub trait AnalyticsRepository: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<PriorityRate>)` - Priority distribution data
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_priority_rates(&self, schedule_id: i64)
-        -> RepositoryResult<Vec<PriorityRate>>;
+    async fn fetch_priority_rates(&self, schedule_id: i64) -> RepositoryResult<Vec<PriorityRate>>;
 
     /// Fetch visibility bins for histogram.
     ///
@@ -135,10 +133,8 @@ pub trait AnalyticsRepository: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<VisibilityBin>)` - Visibility histogram data
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_visibility_bins(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<VisibilityBin>>;
+    async fn fetch_visibility_bins(&self, schedule_id: i64)
+        -> RepositoryResult<Vec<VisibilityBin>>;
 
     /// Fetch heatmap bin data.
     ///
@@ -148,10 +144,7 @@ pub trait AnalyticsRepository: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<HeatmapBinData>)` - Heatmap data
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_heatmap_bins(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<HeatmapBinData>>;
+    async fn fetch_heatmap_bins(&self, schedule_id: i64) -> RepositoryResult<Vec<HeatmapBinData>>;
 
     /// Check if summary analytics exist for a schedule.
     ///

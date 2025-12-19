@@ -7,7 +7,7 @@ finding conflicts, and optimization routines.
 
 from __future__ import annotations
 
-from typing import Any, TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 import polars as pl
@@ -39,15 +39,17 @@ def compute_metrics(schedule_id: int) -> dict[str, Any]:
     Example:
         >>> summary = compute_metrics(schedule_id=1)
         >>> print(f"Scheduled: {summary['scheduling_rate']:.1%}")
-    
+
     Note:
         Requires py_populate_summary_analytics() to have been called first.
         This is automatically done during py_store_schedule() if populate_analytics=True.
     """
     summary = tsi_rust.py_get_schedule_summary(schedule_id)
     if summary is None:
-        raise ValueError(f"No analytics data found for schedule {schedule_id}. Run py_populate_summary_analytics() first.")
-    
+        raise ValueError(
+            f"No analytics data found for schedule {schedule_id}. Run py_populate_summary_analytics() first."
+        )
+
     # Convert to dict with field mapping
     return {
         "total_observations": summary.total_blocks,

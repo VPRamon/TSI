@@ -5,9 +5,9 @@
 
 use async_trait::async_trait;
 
+use super::error::RepositoryResult;
 use crate::db::validation::ValidationReportData;
 use crate::services::validation::ValidationResult;
-use super::error::RepositoryResult;
 
 /// Repository trait for validation operations.
 ///

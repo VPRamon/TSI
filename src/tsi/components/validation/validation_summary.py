@@ -10,18 +10,18 @@ import streamlit as st
 def render_summary_metrics(validation_data: dict[str, Any]) -> None:
     """
     Render summary metrics for validation report.
-    
+
     Args:
         validation_data: Dictionary with validation information
     """
     metrics = validation_data.get("metrics", {})
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         total_blocks = metrics.get("total_blocks", 0)
         st.metric("Total Blocks", f"{total_blocks:,}")
-    
+
     with col2:
         impossible_count = len(validation_data.get("impossible_blocks", []))
         delta_color = "off" if impossible_count == 0 else "inverse"
@@ -29,46 +29,38 @@ def render_summary_metrics(validation_data: dict[str, Any]) -> None:
             "Impossible to Schedule",
             impossible_count,
             delta=f"{(impossible_count / total_blocks * 100):.1f}%" if total_blocks > 0 else "0%",
-            delta_color=delta_color
+            delta_color=delta_color,
         )
-    
+
     with col3:
         error_count = len(validation_data.get("validation_errors", []))
         delta_color = "off" if error_count == 0 else "inverse"
-        st.metric(
-            "Validation Errors",
-            error_count,
-            delta_color=delta_color
-        )
-    
+        st.metric("Validation Errors", error_count, delta_color=delta_color)
+
     with col4:
         warning_count = len(validation_data.get("validation_warnings", []))
         delta_color = "off" if warning_count == 0 else "inverse"
-        st.metric(
-            "Warnings",
-            warning_count,
-            delta_color=delta_color
-        )
+        st.metric("Warnings", warning_count, delta_color=delta_color)
 
 
 def render_criticality_stats(validation_data: dict[str, Any]) -> None:
     """
     Render statistics by criticality level.
-    
+
     Args:
         validation_data: Dictionary with validation information
     """
     st.subheader("📊 Issues by Criticality")
-    
+
     # Count issues by criticality
     critical_count = 0
     high_count = 0
     medium_count = 0
     low_count = 0
-    
+
     # Impossible blocks are always critical
     critical_count += len(validation_data.get("impossible_blocks", []))
-    
+
     # Count validation errors by criticality
     for error in validation_data.get("validation_errors", []):
         criticality = error.get("criticality", "Medium")
@@ -80,7 +72,7 @@ def render_criticality_stats(validation_data: dict[str, Any]) -> None:
             medium_count += 1
         else:
             low_count += 1
-    
+
     # Count warnings by criticality
     for warning in validation_data.get("validation_warnings", []):
         criticality = warning.get("criticality", "Low")
@@ -90,34 +82,24 @@ def render_criticality_stats(validation_data: dict[str, Any]) -> None:
             medium_count += 1
         else:
             low_count += 1
-    
+
     # Display in columns
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         st.metric(
-            "🔴 Critical",
-            critical_count,
-            help="Issues that make blocks impossible to schedule"
+            "🔴 Critical", critical_count, help="Issues that make blocks impossible to schedule"
         )
-    
+
     with col2:
         st.metric(
-            "🟠 High",
-            high_count,
-            help="Serious data quality issues that may prevent scheduling"
+            "🟠 High", high_count, help="Serious data quality issues that may prevent scheduling"
         )
-    
+
     with col3:
         st.metric(
-            "🟡 Medium",
-            medium_count,
-            help="Data issues that can likely be corrected automatically"
+            "🟡 Medium", medium_count, help="Data issues that can likely be corrected automatically"
         )
-    
+
     with col4:
-        st.metric(
-            "🟢 Low",
-            low_count,
-            help="Minor concerns or informational notices"
-        )
+        st.metric("🟢 Low", low_count, help="Minor concerns or informational notices")

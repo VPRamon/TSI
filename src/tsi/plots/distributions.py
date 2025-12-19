@@ -3,7 +3,7 @@
 import plotly.graph_objects as go
 import streamlit as st
 
-from tsi.config import PLOT_HEIGHT, CACHE_TTL
+from tsi.config import CACHE_TTL, PLOT_HEIGHT
 
 
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)

@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-import pandas as pd
 import streamlit as st
 
 if TYPE_CHECKING:
-    from altair import Chart
+    pass
 
-from tsi.modeling.trends import LogisticModelResult, create_prediction_grid, predict_probs
-from tsi.plots.trends import pred_curve_vs_visibility
+from tsi.modeling.trends import LogisticModelResult
 
 
 def render_model_metrics(model_result: LogisticModelResult) -> None:
@@ -62,15 +60,14 @@ def render_prediction_plot(
     )
 
     # Display coefficients
-    if hasattr(model_result, 'coefficients') and model_result.coefficients:
+    if hasattr(model_result, "coefficients") and model_result.coefficients:
         with st.expander("View model coefficients"):
             import pandas as pd
-            coef_df = pd.DataFrame({
-                "Feature": model_result.feature_names,
-                "Coefficient": model_result.coefficients
-            })
-            st.dataframe(coef_df, width="stretch")
 
+            coef_df = pd.DataFrame(
+                {"Feature": model_result.feature_names, "Coefficient": model_result.coefficients}
+            )
+            st.dataframe(coef_df, width="stretch")
 
 
 def render_model_information(

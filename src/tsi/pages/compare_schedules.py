@@ -6,9 +6,9 @@ import pandas as pd
 import streamlit as st
 
 from tsi import state
+from tsi.components.compare.compare_plots import render_comparison_plots
 from tsi.components.compare.compare_tables import render_comparison_tables
 from tsi.components.compare.compare_upload import render_file_upload
-from tsi.components.compare.compare_plots import render_comparison_plots
 from tsi.services import database as db
 from tsi.theme import add_vertical_space
 
@@ -71,8 +71,12 @@ def _display_comparison(compare_data) -> None:
 
         with col1:
             if len(compare_data.only_in_current) > 0:
-                st.warning(f"**Blocks only in {compare_data.current_name}:** {len(compare_data.only_in_current)}")
-                with st.expander(f"View {len(compare_data.only_in_current)} blocks", expanded=False):
+                st.warning(
+                    f"**Blocks only in {compare_data.current_name}:** {len(compare_data.only_in_current)}"
+                )
+                with st.expander(
+                    f"View {len(compare_data.only_in_current)} blocks", expanded=False
+                ):
                     st.dataframe(
                         pd.DataFrame({"schedulingBlockId": sorted(compare_data.only_in_current)}),
                         hide_index=True,
@@ -82,16 +86,24 @@ def _display_comparison(compare_data) -> None:
 
         with col2:
             if len(compare_data.only_in_comparison) > 0:
-                st.warning(f"**Blocks only in {compare_data.comparison_name}:** {len(compare_data.only_in_comparison)}")
-                with st.expander(f"View {len(compare_data.only_in_comparison)} blocks", expanded=False):
+                st.warning(
+                    f"**Blocks only in {compare_data.comparison_name}:** {len(compare_data.only_in_comparison)}"
+                )
+                with st.expander(
+                    f"View {len(compare_data.only_in_comparison)} blocks", expanded=False
+                ):
                     st.dataframe(
-                        pd.DataFrame({"schedulingBlockId": sorted(compare_data.only_in_comparison)}),
+                        pd.DataFrame(
+                            {"schedulingBlockId": sorted(compare_data.only_in_comparison)}
+                        ),
                         hide_index=True,
                         height=200,
                         use_container_width=True,
                     )
 
-        st.info(f"**Common blocks:** {len(compare_data.common_ids)} blocks will be used for comparison")
+        st.info(
+            f"**Common blocks:** {len(compare_data.common_ids)} blocks will be used for comparison"
+        )
 
         add_vertical_space(1)
         st.divider()

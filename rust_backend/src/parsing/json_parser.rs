@@ -95,21 +95,25 @@ fn parse_possible_periods_from_str(json_str: &str) -> Result<HashMap<i64, Vec<Pe
     // 1. {"SchedulingBlock": {...}} - object with block IDs as keys (expected format)
     // 2. {...} - any other object format (return empty, visibility is optional)
     // 3. [...] - array format (return empty, unsupported but graceful)
-    
+
     // Try to get SchedulingBlock object (expected format)
     if let Some(scheduling_block_obj) = value.get("SchedulingBlock").and_then(|v| v.as_object()) {
         let mut result = HashMap::new();
 
         for (block_id_str, periods_array) in scheduling_block_obj {
-            let block_id: i64 = block_id_str
-                .parse()
-                .with_context(|| format!("Invalid block ID in SchedulingBlock: {}", block_id_str))?;
+            let block_id: i64 = block_id_str.parse().with_context(|| {
+                format!("Invalid block ID in SchedulingBlock: {}", block_id_str)
+            })?;
 
             let periods_arr = periods_array.as_array().with_context(|| {
                 format!(
                     "Expected array of periods for block {}, got: {:?}",
                     block_id_str,
-                    periods_array.to_string().chars().take(100).collect::<String>()
+                    periods_array
+                        .to_string()
+                        .chars()
+                        .take(100)
+                        .collect::<String>()
                 )
             })?;
 
@@ -166,19 +170,17 @@ fn parse_scheduling_block(
         .context("Missing or invalid 'schedulingBlockId'")?;
 
     // Store original block ID as string for database tracking
-    let original_block_id = value
-        .get("schedulingBlockId")
-        .and_then(|v| {
-            if let Some(s) = v.as_str() {
-                Some(s.to_string())
-            } else if let Some(i) = v.as_i64() {
-                Some(i.to_string())
-            } else if let Some(f) = v.as_f64() {
-                Some(f.to_string())
-            } else {
-                None
-            }
-        });
+    let original_block_id = value.get("schedulingBlockId").and_then(|v| {
+        if let Some(s) = v.as_str() {
+            Some(s.to_string())
+        } else if let Some(i) = v.as_i64() {
+            Some(i.to_string())
+        } else if let Some(f) = v.as_f64() {
+            Some(f.to_string())
+        } else {
+            None
+        }
+    });
 
     // Extract priority
     let priority = value

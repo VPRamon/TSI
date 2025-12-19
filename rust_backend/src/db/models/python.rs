@@ -1,5 +1,5 @@
 //! PyO3 wrapper types for Python interop.
-//! 
+//!
 //! This module contains specialized types for Python integration, visualization data,
 //! and advanced analytics:
 //! - Visibility histogram types (VisibilityBlockSummary, VisibilityMapData, VisibilityBin)
@@ -19,8 +19,8 @@ use pyo3::prelude::*;
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct VisibilityBlockSummary {
-    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
-    pub original_block_id: String,  // Original ID from JSON (shown to user)
+    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
     pub num_visibility_periods: usize,
     pub scheduled: bool,
@@ -32,7 +32,7 @@ impl VisibilityBlockSummary {
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
     }
-    
+
     #[getter]
     pub fn original_block_id(&self) -> String {
         self.original_block_id.clone()
@@ -159,8 +159,8 @@ pub struct BlockHistogramData {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct ScheduleTimelineBlock {
-    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
-    pub original_block_id: String,  // Original ID from JSON (shown to user)
+    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
     pub scheduled_start_mjd: f64,
     pub scheduled_stop_mjd: f64,
@@ -177,7 +177,7 @@ impl ScheduleTimelineBlock {
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
     }
-    
+
     #[getter]
     pub fn original_block_id(&self) -> String {
         self.original_block_id.clone()
@@ -226,7 +226,10 @@ impl ScheduleTimelineBlock {
     fn __repr__(&self) -> String {
         format!(
             "ScheduleTimelineBlock(id={}, priority={:.2}, start={:.2}, stop={:.2})",
-            self.original_block_id, self.priority, self.scheduled_start_mjd, self.scheduled_stop_mjd
+            self.original_block_id,
+            self.priority,
+            self.scheduled_start_mjd,
+            self.scheduled_stop_mjd
         )
     }
 }
@@ -302,8 +305,8 @@ impl ScheduleTimelineData {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct InsightsBlock {
-    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
-    pub original_block_id: String,  // Original ID from JSON (shown to user)
+    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
     pub total_visibility_hours: f64,
     pub requested_hours: f64,
@@ -319,7 +322,7 @@ impl InsightsBlock {
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
     }
-    
+
     #[getter]
     pub fn original_block_id(&self) -> String {
         self.original_block_id.clone()
@@ -484,8 +487,8 @@ impl CorrelationEntry {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct ConflictRecord {
-    pub block_id_1: String,  // Original ID from JSON
-    pub block_id_2: String,  // Original ID from JSON
+    pub block_id_1: String, // Original ID from JSON
+    pub block_id_2: String, // Original ID from JSON
     pub start_time_1: f64,
     pub stop_time_1: f64,
     pub start_time_2: f64,
@@ -542,8 +545,8 @@ impl ConflictRecord {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct TopObservation {
-    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
-    pub original_block_id: String,  // Original ID from JSON (shown to user)
+    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
     pub total_visibility_hours: f64,
     pub requested_hours: f64,
@@ -556,7 +559,7 @@ impl TopObservation {
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
     }
-    
+
     #[getter]
     pub fn original_block_id(&self) -> String {
         self.original_block_id.clone()
@@ -671,8 +674,8 @@ impl InsightsData {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct TrendsBlock {
-    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
-    pub original_block_id: String,  // Original ID from JSON (shown to user)
+    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
     pub total_visibility_hours: f64,
     pub requested_hours: f64,
@@ -685,7 +688,7 @@ impl TrendsBlock {
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
     }
-    
+
     #[getter]
     pub fn original_block_id(&self) -> String {
         self.original_block_id.clone()
@@ -992,9 +995,7 @@ impl TrendsData {
     fn __repr__(&self) -> String {
         format!(
             "TrendsData(total={}, scheduled={}, rate={:.2})",
-            self.metrics.total_count,
-            self.metrics.scheduled_count,
-            self.metrics.scheduling_rate
+            self.metrics.total_count, self.metrics.scheduled_count, self.metrics.scheduling_rate
         )
     }
 }

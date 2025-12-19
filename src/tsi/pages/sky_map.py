@@ -6,9 +6,8 @@ import streamlit as st
 
 from tsi import state
 from tsi.components.sky_map.sky_map_controls import render_sidebar_controls
-from tsi.components.sky_map.sky_map_stats import render_stats
 from tsi.components.sky_map.sky_map_figure import render_sky_map_figure
-from tsi.plots.sky_map import build_figure
+from tsi.components.sky_map.sky_map_stats import render_stats
 from tsi.services import database as db
 from tsi.services.filters.sky_map import filter_blocks
 
@@ -56,7 +55,7 @@ def render() -> None:
             schedule_window=controls["schedule_window"],
         )
 
-        fig = render_sky_map_figure(
+        render_sky_map_figure(
             blocks=filtered_blocks,
             controls=controls,
             priority_bins=sky_map_data.priority_bins,

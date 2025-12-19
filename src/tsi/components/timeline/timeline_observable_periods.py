@@ -44,19 +44,21 @@ def render_observable_periods_info(dark_periods: list[tuple[float, float]]) -> N
         stop_dt = mjd_to_datetime(stop_mjd)
         duration_hours = (stop_mjd - start_mjd) * 24.0
         month_label = start_dt.strftime("%Y-%m")
-        display_data.append({
-            "Start": start_dt.strftime("%Y-%m-%d %H:%M"),
-            "End": stop_dt.strftime("%Y-%m-%d %H:%M"),
-            "Duration (h)": duration_hours,
-            "Month": month_label,
-        })
+        display_data.append(
+            {
+                "Start": start_dt.strftime("%Y-%m-%d %H:%M"),
+                "End": stop_dt.strftime("%Y-%m-%d %H:%M"),
+                "Duration (h)": duration_hours,
+                "Month": month_label,
+            }
+        )
 
     dark_display = pd.DataFrame(display_data)
 
     # Display the table
     st.dataframe(
         dark_display,
-        width='stretch',
+        width="stretch",
         hide_index=True,
         height=min(300, 60 + 24 * min(len(dark_display), 8)),
     )

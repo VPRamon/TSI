@@ -202,7 +202,7 @@ def build_visibility_histogram_from_bins(
         start_dt = datetime.fromtimestamp(bin_start_unix, tz=timezone.utc)
         bin_starts.append(start_dt)
         bin_counts.append(count)
-        
+
         # Calculate bin width in milliseconds for Plotly
         bin_width_ms = (bin_end_unix - bin_start_unix) * 1000
         bin_widths.append(bin_width_ms)
@@ -220,7 +220,9 @@ def build_visibility_histogram_from_bins(
                 color=bin_counts,
                 colorscale="Viridis",
                 colorbar=dict(title="Number of<br>Visible Blocks"),
-                line=dict(width=0.5, color="rgba(255, 255, 255, 0.15)"),  # Subtle border between bars
+                line=dict(
+                    width=0.5, color="rgba(255, 255, 255, 0.15)"
+                ),  # Subtle border between bars
             ),
             hovertemplate=(
                 "<b>%{y} visible blocks</b><br>" "Time: %{x|%Y-%m-%d %H:%M}<br>" "<extra></extra>"

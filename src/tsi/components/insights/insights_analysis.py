@@ -46,16 +46,16 @@ def render_correlation_analysis(correlations: list[Any]) -> None:
     for corr in correlations:
         variables.add(corr.variable1)
         variables.add(corr.variable2)
-    
+
     variables = sorted(variables)
-    
+
     # Create correlation matrix
     corr_matrix = pd.DataFrame(
         1.0,  # diagonal is always 1
         index=variables,
         columns=variables,
     )
-    
+
     # Fill in the correlation values
     for corr in correlations:
         corr_matrix.loc[corr.variable1, corr.variable2] = corr.correlation
@@ -88,4 +88,4 @@ def render_correlation_analysis(correlations: list[Any]) -> None:
 
     with col2:
         fig = build_correlation_heatmap(corr_matrix)
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, width="stretch")

@@ -14,7 +14,7 @@ SRC_PATH = PROJECT_ROOT / "src"
 if str(SRC_PATH) not in sys.path:
     sys.path.insert(0, str(SRC_PATH))
 
-import tsi_rust
+import tsi_rust  # noqa: E402
 
 
 @pytest.mark.skip(reason="py_preprocess_schedule not available in tsi_rust module")
@@ -25,9 +25,7 @@ def test_extraction() -> None:
 
     # Load using the Rust backend
     df_polars, validation = tsi_rust.py_preprocess_schedule(
-        str(schedule_path),
-        None,
-        validate=False
+        str(schedule_path), None, validate=False
     )
     df = df_polars.to_pandas()
 

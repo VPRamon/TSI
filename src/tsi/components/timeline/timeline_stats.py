@@ -17,9 +17,9 @@ def render_dark_period_summary(dark_periods: list[tuple[float, float]]) -> None:
     """
     if not dark_periods:
         return
-    
+
     from tsi.services.utils.time import mjd_to_datetime
-    
+
     st.markdown("---")
     st.subheader("ℹ️ Observable periods information")
 
@@ -41,18 +41,20 @@ def render_dark_period_summary(dark_periods: list[tuple[float, float]]) -> None:
         stop_dt = mjd_to_datetime(stop_mjd)
         duration_hours = (stop_mjd - start_mjd) * 24.0
         month_label = start_dt.strftime("%Y-%m")
-        display_data.append({
-            "Start": start_dt.strftime("%Y-%m-%d %H:%M"),
-            "End": stop_dt.strftime("%Y-%m-%d %H:%M"),
-            "Duration (h)": duration_hours,
-            "Month": month_label,
-        })
-    
+        display_data.append(
+            {
+                "Start": start_dt.strftime("%Y-%m-%d %H:%M"),
+                "End": stop_dt.strftime("%Y-%m-%d %H:%M"),
+                "Duration (h)": duration_hours,
+                "Month": month_label,
+            }
+        )
+
     dark_display = pd.DataFrame(display_data)
 
     st.dataframe(
         dark_display,
-        width='stretch',
+        width="stretch",
         hide_index=True,
         height=min(300, 60 + 24 * min(len(dark_display), 8)),
     )
@@ -67,7 +69,7 @@ def render_key_metrics(blocks: list, unique_months: list[str]) -> None:
         unique_months: List of unique month labels
     """
     from tsi.services.utils.time import mjd_to_datetime
-    
+
     st.markdown("---")
     col1, col2, col3, col4 = st.columns(4)
 
@@ -75,7 +77,9 @@ def render_key_metrics(blocks: list, unique_months: list[str]) -> None:
         st.metric("Scheduled blocks", f"{len(blocks):,}")
 
     with col2:
-        total_hours = sum((block.scheduled_stop_mjd - block.scheduled_start_mjd) * 24.0 for block in blocks)
+        total_hours = sum(
+            (block.scheduled_stop_mjd - block.scheduled_start_mjd) * 24.0 for block in blocks
+        )
         st.metric("Total hours", f"{total_hours:,.1f}")
 
     with col3:
@@ -94,7 +98,9 @@ def render_key_metrics(blocks: list, unique_months: list[str]) -> None:
         max_mjd = max(block.scheduled_stop_mjd for block in blocks)
         min_date = mjd_to_datetime(min_mjd)
         max_date = mjd_to_datetime(max_mjd)
-        st.caption(f"**Time range:** {format_datetime_utc(min_date)} → {format_datetime_utc(max_date)}")
+        st.caption(
+            f"**Time range:** {format_datetime_utc(min_date)} → {format_datetime_utc(max_date)}"
+        )
 
 
 def render_download_button(display_df: pd.DataFrame) -> None:

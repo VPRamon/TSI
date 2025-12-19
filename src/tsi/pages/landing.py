@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import logging
+
 import streamlit as st
 
 from app_config import get_settings
 from tsi.components.landing.landing_database import render_database_section
 from tsi.components.landing.landing_upload import render_upload_section
-from tsi.exceptions import ServerError
 from tsi.theme import add_vertical_space, render_landing_title
 
 logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def render() -> None:
     """Render the landing page with data selection options."""
-    settings = get_settings()
+    get_settings()
 
     # Add significant vertical space at the top
     add_vertical_space(4)

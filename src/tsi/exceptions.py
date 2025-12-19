@@ -3,9 +3,9 @@
 This module defines application-specific exceptions for better error handling.
 Since Python handles only the UI layer, we keep the exception hierarchy minimal.
 
-Security Note: 
-Backend errors contain detailed internal information that should NOT be displayed 
-directly to end users. Use the `to_user_message()` method or the helper functions 
+Security Note:
+Backend errors contain detailed internal information that should NOT be displayed
+directly to end users. Use the `to_user_message()` method or the helper functions
 from `tsi.utils.error_display` for consistent, sanitized error display in the UI.
 
 Exception Hierarchy:
@@ -17,7 +17,7 @@ Exception Hierarchy:
 Usage:
     >>> from tsi.exceptions import ServerError
     >>> from tsi.utils.error_display import display_error
-    >>> 
+    >>>
     >>> try:
     ...     # Backend operation
     ...     store_schedule_db(name, data)
@@ -42,7 +42,7 @@ class TSIError(Exception):
     def __init__(self, message: str, details: dict | None = None, user_message: str | None = None):
         """
         Initialize TSI error.
-        
+
         Args:
             message: Detailed error message for logging
             details: Optional dictionary with additional error context
@@ -59,13 +59,13 @@ class TSIError(Exception):
             details_str = ", ".join(f"{k}={v}" for k, v in self.details.items())
             return f"{self.message} ({details_str})"
         return self.message
-    
+
     def to_user_message(self) -> str:
         """Return a user-friendly error message, hiding sensitive implementation details.
-        
+
         This method should be used when displaying errors in the UI to avoid
         exposing database schemas, connection strings, or internal system details.
-        
+
         Returns:
             User-friendly error message
         """
@@ -76,22 +76,25 @@ class TSIError(Exception):
 
 # ===== Configuration Errors =====
 
+
 class ConfigurationError(TSIError):
     """Raised when application configuration is invalid or missing."""
+
     pass
 
 
 # ===== Server/Backend Errors =====
 
+
 class ServerError(TSIError):
     """Raised when any backend/database/service operation fails.
-    
+
     This is a catch-all for all backend errors (database connections, queries,
     Rust backend issues, etc.) since Python is just the UI layer.
-    
+
     Note: Detailed error information is logged but a generic message is shown to users.
     """
-    
+
     def __init__(self, message: str, details: dict | None = None, user_message: str | None = None):
         if user_message is None:
             user_message = "A server error occurred. Please try again later."
@@ -100,16 +103,19 @@ class ServerError(TSIError):
 
 # ===== Data Errors =====
 
+
 class DataError(TSIError):
     """Raised when data validation or loading fails in the UI layer."""
+
     pass
 
 
 # ===== Timeout and Retry Errors =====
 
+
 class OperationTimeoutError(TSIError):
     """Raised when an operation exceeds its allowed time limit."""
-    
+
     def __init__(self, message: str, details: dict | None = None, user_message: str | None = None):
         if user_message is None:
             user_message = "The operation took too long and timed out. Please try again."
@@ -118,7 +124,7 @@ class OperationTimeoutError(TSIError):
 
 class RetryExhaustedError(TSIError):
     """Raised when retry attempts are exhausted for an operation."""
-    
+
     def __init__(self, message: str, details: dict | None = None, user_message: str | None = None):
         if user_message is None:
             user_message = "The operation failed after multiple attempts. Please try again later."
