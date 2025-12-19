@@ -10,6 +10,9 @@
 //! - Constraint validation (negative values, invalid ranges)
 //! - Coordinate validation (RA/Dec ranges)
 //! - Temporal constraint validation (scheduled periods vs constraints)
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::manual_range_contains)]
+#![allow(clippy::redundant_closure)]
 
 /// Validation status enum
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

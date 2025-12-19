@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import streamlit as st
 
@@ -54,7 +56,7 @@ def render() -> None:
     _display_comparison(compare_data)
 
 
-def _display_comparison(compare_data) -> None:
+def _display_comparison(compare_data: Any) -> None:
     """
     Display comparison between two schedules using pre-computed CompareData.
 

@@ -83,7 +83,7 @@ def _render_status_selector() -> str:
     """Render scheduling status radio selector."""
     scheduled_filter = render_status_filter(key="sky_scheduled_filter")
     state.set_scheduled_filter(scheduled_filter)
-    return scheduled_filter
+    return scheduled_filter  # type: ignore[no-any-return]
 
 
 def _render_color_selector() -> str:
@@ -190,7 +190,7 @@ def _normalize_datetime(value: Any) -> datetime | None:
 
 def _mjd_to_datetime(mjd_value: float) -> datetime:
     """Helper to convert raw MJD values to datetime for UI controls."""
-    return ModifiedJulianDate(mjd_value).to_datetime()
+    return ModifiedJulianDate(mjd_value).to_datetime()  # type: ignore[no-any-return]
 
 
 def reset_sky_map_controls() -> None:

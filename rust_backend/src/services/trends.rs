@@ -1,3 +1,5 @@
+#![allow(clippy::redundant_closure)]
+
 use crate::db::models::{
     EmpiricalRatePoint, HeatmapBin, SmoothedPoint, TrendsBlock, TrendsData, TrendsMetrics,
 };

@@ -71,7 +71,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _import_rust():
+def _import_rust() -> Any:
     """
     Import the Rust backend module.
 
@@ -95,7 +95,7 @@ def _import_rust():
     return tsi_rust
 
 
-def _rust_call(method: str, *args: Any):
+def _rust_call(method: str, *args: Any) -> Any:
     """
     Call a Rust backend function by name with error handling.
 
@@ -149,7 +149,7 @@ def db_health_check() -> bool:
     try:
         result = _rust_call("py_db_health_check")
         logger.debug("Database health check passed")
-        return result
+        return result  # type: ignore[no-any-return]
     except Exception as e:
         raise ServerError("Database health check failed", details={"error": str(e)}) from e
 
@@ -197,7 +197,7 @@ def store_schedule_db(
             f"Successfully stored schedule '{schedule_name}' "
             f"(analytics={populate_analytics}, skip_bins={skip_time_bins})"
         )
-        return result
+        return result  # type: ignore[no-any-return]
     except Exception as e:
         raise ServerError(
             f"Failed to store schedule '{schedule_name}'",
@@ -219,14 +219,14 @@ def list_schedules_db() -> list[dict[str, Any]]:
     try:
         result = _rust_call("py_list_schedules")
         logger.debug(f"Retrieved {len(result)} schedules from database")
-        return result
+        return result  # type: ignore[no-any-return]
     except Exception as e:
         raise ServerError("Failed to list schedules", details={"error": str(e)}) from e
 
 
 def get_schedule_blocks(schedule_id: int) -> list[Any]:
     """Fetch scheduling block models via PyO3 bindings."""
-    return _rust_call("py_get_schedule_blocks", schedule_id)
+    return _rust_call("py_get_schedule_blocks", schedule_id)  # type: ignore[no-any-return]
 
 
 def get_sky_map_data(
@@ -274,7 +274,7 @@ def get_visibility_map_data(
 def get_distribution_data(
     *,
     schedule_id: int,
-):
+) -> Any:
     """
     Get complete distribution data with computed statistics.
 
@@ -309,7 +309,7 @@ def get_distribution_data(
 def get_schedule_timeline_data(
     *,
     schedule_id: int,
-):
+) -> Any:
     """
     Get complete schedule timeline data with computed statistics and metadata.
 
@@ -338,7 +338,7 @@ def get_schedule_timeline_data(
 def get_insights_data(
     *,
     schedule_id: int,
-):
+) -> Any:
     """
     Get complete insights data with computed analytics and metadata.
 
@@ -375,7 +375,7 @@ def get_trends_data(
     n_bins: int = 10,
     bandwidth: float = 0.3,
     n_smooth_points: int = 100,
-):
+) -> Any:
     """
     Get complete trends data with computed empirical rates, smoothed curves, and heatmap bins.
 
@@ -417,7 +417,7 @@ def get_compare_data(
     comparison_schedule_id: int,
     current_name: str,
     comparison_name: str,
-):
+) -> Any:
     """
     Get complete comparison data for two schedules from the database.
 
@@ -454,13 +454,13 @@ def get_compare_data(
 def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:
     """Fetch dark periods for a schedule (with global fallback)."""
     df_polars = _rust_call("py_fetch_dark_periods", schedule_id)
-    return df_polars.to_pandas()
+    return df_polars.to_pandas()  # type: ignore[no-any-return]
 
 
 def fetch_possible_periods_db(schedule_id: int) -> pd.DataFrame:
     """Fetch possible/visibility periods for a schedule."""
     df_polars = _rust_call("py_fetch_possible_periods", schedule_id)
-    return df_polars.to_pandas()
+    return df_polars.to_pandas()  # type: ignore[no-any-return]
 
 
 def _standardize_schedule_df(df: pd.DataFrame) -> pd.DataFrame:
@@ -600,7 +600,7 @@ def get_visibility_histogram(
             )
             if result:
                 logger.debug(f"Using pre-computed visibility histogram for schedule {schedule_id}")
-                return result
+                return result  # type: ignore[no-any-return]
         except Exception as e:
             logger.debug(f"Analytics histogram not available, falling back: {e}")
 
@@ -609,7 +609,7 @@ def get_visibility_histogram(
     priority_max = priority_range[1] if priority_range else None
 
     # Fall back to real-time computation (slower but supports filters)
-    return _rust_call(
+    return _rust_call(  # type: ignore[no-any-return]
         "py_get_visibility_histogram",
         schedule_id,
         start_unix,

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import streamlit as st
 
 from tsi.theme import add_vertical_space
 
 
-def render_comparison_tables(compare_data) -> None:
+def render_comparison_tables(compare_data: Any) -> None:
     """
     Display compact comparison tables for metrics.
 

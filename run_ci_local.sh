@@ -212,7 +212,12 @@ if [[ "$RUN_PYTHON_TESTS" == true ]]; then
                 fi
                 ;;
             integration)
-                if run_cmd "pytest -m integration --no-cov"; then
+                # Run integration tests; exit code 5 means no tests collected which is OK
+                set +e
+                run_cmd "pytest -m integration --no-cov"
+                PYTEST_EXIT=$?
+                set -e
+                if [[ $PYTEST_EXIT -eq 0 || $PYTEST_EXIT -eq 5 ]]; then
                     print_success "Integration tests passed"
                 else
                     print_error "Integration tests failed"

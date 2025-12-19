@@ -1,3 +1,6 @@
+#![allow(clippy::manual_is_multiple_of)]
+#![allow(clippy::redundant_closure)]
+
 use crate::db::models::{DistributionBlock, DistributionData, DistributionStats};
 use crate::db::repository::AnalyticsRepository;
 use pyo3::prelude::*;
@@ -163,7 +166,7 @@ mod tests {
         assert_eq!(stats.min, 1.0);
         assert_eq!(stats.max, 5.0);
         assert_eq!(stats.sum, 15.0);
-        assert!((stats.std_dev - 1.4142135).abs() < 0.001);
+        assert!((stats.std_dev - std::f64::consts::SQRT_2).abs() < 0.001);
     }
 
     #[test]

@@ -93,7 +93,7 @@ def load_dark_periods(path: str | Path) -> pd.DataFrame:
         >>> df = load_dark_periods("data/dark_periods.json")
         >>> print(f"Loaded {len(df)} dark periods")
     """
-    return _load_dark_periods(path)
+    return _load_dark_periods(path)  # type: ignore[no-any-return]
 
 
 def compute_metrics(df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
@@ -102,7 +102,7 @@ def compute_metrics(df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
 
     Note: For new code, use tsi.backend.compute_metrics directly.
     """
-    return _compute_metrics(df)
+    return _compute_metrics(df)  # type: ignore[no-any-return]
 
 
 def filter_by_priority(

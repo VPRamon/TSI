@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 import streamlit as st
+
+DeltaColor = Literal["normal", "inverse", "off"]
 
 
 def render_summary_metrics(validation_data: dict[str, Any]) -> None:
@@ -24,7 +26,7 @@ def render_summary_metrics(validation_data: dict[str, Any]) -> None:
 
     with col2:
         impossible_count = len(validation_data.get("impossible_blocks", []))
-        delta_color = "off" if impossible_count == 0 else "inverse"
+        delta_color: DeltaColor = "off" if impossible_count == 0 else "inverse"
         st.metric(
             "Impossible to Schedule",
             impossible_count,
@@ -34,13 +36,13 @@ def render_summary_metrics(validation_data: dict[str, Any]) -> None:
 
     with col3:
         error_count = len(validation_data.get("validation_errors", []))
-        delta_color = "off" if error_count == 0 else "inverse"
-        st.metric("Validation Errors", error_count, delta_color=delta_color)
+        delta_color_err: DeltaColor = "off" if error_count == 0 else "inverse"
+        st.metric("Validation Errors", error_count, delta_color=delta_color_err)
 
     with col4:
         warning_count = len(validation_data.get("validation_warnings", []))
-        delta_color = "off" if warning_count == 0 else "inverse"
-        st.metric("Warnings", warning_count, delta_color=delta_color)
+        delta_color_warn: DeltaColor = "off" if warning_count == 0 else "inverse"
+        st.metric("Warnings", warning_count, delta_color=delta_color_warn)
 
 
 def render_criticality_stats(validation_data: dict[str, Any]) -> None:

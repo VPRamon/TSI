@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 
-def render_statistical_summary(distribution_data) -> None:
+def render_statistical_summary(distribution_data: Any) -> None:
     """
     Render statistical summary for the distribution data.
 
@@ -27,7 +29,7 @@ def render_statistical_summary(distribution_data) -> None:
         _render_requested_hours_stats(distribution_data.requested_hours_stats)
 
 
-def _render_priority_stats(stats) -> None:
+def _render_priority_stats(stats: Any) -> None:
     """Render priority statistics."""
     st.markdown("**Priority**")
     st.write(f"Mean: {stats.mean:.2f}")
@@ -35,7 +37,7 @@ def _render_priority_stats(stats) -> None:
     st.write(f"Std Dev: {stats.std_dev:.2f}")
 
 
-def _render_visibility_stats(stats) -> None:
+def _render_visibility_stats(stats: Any) -> None:
     """Render visibility hours statistics."""
     st.markdown("**Visibility Hours**")
     st.write(f"Mean: {stats.mean:.1f}")
@@ -43,7 +45,7 @@ def _render_visibility_stats(stats) -> None:
     st.write(f"Total: {stats.sum:,.0f}")
 
 
-def _render_requested_hours_stats(stats) -> None:
+def _render_requested_hours_stats(stats: Any) -> None:
     """Render requested hours statistics."""
     st.markdown("**Requested Hours**")
     st.write(f"Mean: {stats.mean:.2f}")

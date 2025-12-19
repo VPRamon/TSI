@@ -110,10 +110,31 @@ class DataError(TSIError):
     pass
 
 
+class DataValidationError(DataError):
+    """Raised when data validation fails."""
+
+    pass
+
+
+class SchemaError(DataError):
+    """Raised when data schema is invalid or doesn't match expectations."""
+
+    pass
+
+
+# ===== Operation Errors =====
+
+
+class OperationError(TSIError):
+    """Base class for operation-related errors."""
+
+    pass
+
+
 # ===== Timeout and Retry Errors =====
 
 
-class OperationTimeoutError(TSIError):
+class OperationTimeoutError(OperationError):
     """Raised when an operation exceeds its allowed time limit."""
 
     def __init__(self, message: str, details: dict | None = None, user_message: str | None = None):
@@ -122,7 +143,7 @@ class OperationTimeoutError(TSIError):
         super().__init__(message, details, user_message)
 
 
-class RetryExhaustedError(TSIError):
+class RetryExhaustedError(OperationError):
     """Raised when retry attempts are exhausted for an operation."""
 
     def __init__(self, message: str, details: dict | None = None, user_message: str | None = None):
@@ -136,6 +157,9 @@ __all__ = [
     "ServerError",
     "ConfigurationError",
     "DataError",
+    "DataValidationError",
+    "SchemaError",
+    "OperationError",
     "OperationTimeoutError",
     "RetryExhaustedError",
 ]

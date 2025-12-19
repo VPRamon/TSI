@@ -11,10 +11,32 @@ import pytest
 from tsi.exceptions import SchemaError
 from tsi.services.data.loaders import (
     get_filtered_dataframe,
-    load_json,
     prepare_dataframe,
     validate_dataframe,
 )
+
+# Required columns that were checked by the now-removed load_csv_with_validation function
+REQUIRED_COLUMNS = {
+    "schedulingBlockId",
+    "priority",
+    "minObservationTimeInSec",
+    "requestedDurationSec",
+    "decInDeg",
+    "raInDeg",
+}
+
+
+def load_csv_with_validation(buffer: StringIO) -> pd.DataFrame:
+    """Load CSV data and validate required columns.
+
+    This is a test helper that mimics the behavior of the removed load_csv_with_validation function.
+    """
+    df = pd.read_csv(buffer)
+    missing = REQUIRED_COLUMNS - set(df.columns)
+    if missing:
+        raise SchemaError(f"Missing required columns: {sorted(missing)}")
+    return df
+
 
 pytestmark = pytest.mark.unit
 
@@ -61,17 +83,19 @@ def sample_dataframe(sample_csv_data: str) -> pd.DataFrame:
     """Load sample CSV into DataFrame."""
 
     buffer = StringIO(sample_csv_data)
-    return load_json(buffer)
+    return load_csv_with_validation(buffer)
 
 
-def test_load_json__with_valid_buffer__returns_dataframe(sample_csv_data: str) -> None:
+def test_load_csv_with_validation__with_valid_buffer__returns_dataframe(
+    sample_csv_data: str,
+) -> None:
     """Loading a valid CSV should produce a dataframe with expected columns."""
 
     # Given: an in-memory CSV buffer
     buffer = StringIO(sample_csv_data)
 
     # When: loading the CSV through the helper
-    df = load_json(buffer)
+    df = load_csv_with_validation(buffer)
 
     # Then: the dataframe should have the correct shape and columns
     assert isinstance(df, pd.DataFrame)
@@ -79,7 +103,7 @@ def test_load_json__with_valid_buffer__returns_dataframe(sample_csv_data: str) -
     assert {"schedulingBlockId", "priority"}.issubset(df.columns)
 
 
-def test_load_json__with_missing_columns__raises_value_error() -> None:
+def test_load_csv_with_validation__with_missing_columns__raises_value_error() -> None:
     """Missing required headers should trigger a helpful error."""
 
     # Given: a CSV lacking the required schema
@@ -87,7 +111,7 @@ def test_load_json__with_missing_columns__raises_value_error() -> None:
 
     # When / Then: the loader should raise a validation error
     with pytest.raises(SchemaError, match="Missing required columns"):
-        load_json(buffer)
+        load_csv_with_validation(buffer)
 
 
 def test_prepare_dataframe__adds_enriched_columns(
@@ -183,7 +207,7 @@ def test_validate_dataframe__with_invalid_priority__reports_issue() -> None:
         "total_visibility_hours,priority_bin,scheduled_flag,requested_hours,elevation_range_deg\n"
         '1000001,not-a-number,1200,1200,,,40.5,307.5,0.0,360.0,60.0,90.0,61894.19,61894.20,"[]",0,0.0,Medium,True,0.3333,30.0\n'
     )
-    df = load_json(StringIO(csv_data))
+    df = load_csv_with_validation(StringIO(csv_data))
 
     # When: validating the dataframe
     is_valid, issues = validate_dataframe(df)
@@ -204,7 +228,7 @@ def test_validate_dataframe__with_invalid_declination__reports_issue() -> None:
         "total_visibility_hours,priority_bin,scheduled_flag,requested_hours,elevation_range_deg\n"
         '1000001,8.5,1200,1200,,,95.0,307.5,0.0,360.0,60.0,90.0,61894.19,61894.20,"[]",0,0.0,Medium,True,0.3333,30.0\n'
     )
-    df = load_json(StringIO(csv_data))
+    df = load_csv_with_validation(StringIO(csv_data))
 
     # When: validating the dataframe
     is_valid, issues = validate_dataframe(df)

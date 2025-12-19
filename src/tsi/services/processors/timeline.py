@@ -34,7 +34,7 @@ def prepare_scheduled_data(df: pd.DataFrame) -> pd.DataFrame | None:
         scheduled_df["scheduled_start_dt"].dt.tz_localize(None).dt.to_period("M")
     )
     scheduled_df["scheduled_month_label"] = scheduled_df["scheduled_start_dt"].dt.strftime("%Y-%m")
-    scheduled_df["duration_hours"] = (
+    scheduled_df["duration_hours"] = (  # type: ignore[attr-defined]
         scheduled_df["scheduled_stop_dt"] - scheduled_df["scheduled_start_dt"]
     ).dt.total_seconds() / 3600.0
 

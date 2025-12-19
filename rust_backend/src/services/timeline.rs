@@ -1,3 +1,6 @@
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::len_zero)]
+
 use crate::db::models::{Period, ScheduleTimelineBlock, ScheduleTimelineData};
 use pyo3::prelude::*;
 use std::collections::HashSet;

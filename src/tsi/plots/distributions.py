@@ -1,5 +1,7 @@
 """Distribution plotting functionality."""
 
+from typing import Any
+
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -7,7 +9,7 @@ from tsi.config import CACHE_TTL, PLOT_HEIGHT
 
 
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
-def build_figures(_distribution_data, priority_bins: int = 20) -> dict[str, go.Figure]:
+def build_figures(_distribution_data: Any, priority_bins: int = 20) -> dict[str, go.Figure]:
     """
     Build multiple distribution plots from DistributionData.
 
@@ -44,7 +46,7 @@ def build_figures(_distribution_data, priority_bins: int = 20) -> dict[str, go.F
     return figures
 
 
-def _build_priority_histogram(blocks, distribution_data, bins: int) -> go.Figure:
+def _build_priority_histogram(blocks: Any, distribution_data: Any, bins: int) -> go.Figure:
     """Build priority distribution histogram with scheduled/unscheduled breakdown."""
     scheduled_count = distribution_data.scheduled_count
     total_count = distribution_data.total_count
@@ -93,7 +95,7 @@ def _build_priority_histogram(blocks, distribution_data, bins: int) -> go.Figure
     return fig
 
 
-def _build_visibility_histogram(blocks, distribution_data) -> go.Figure:
+def _build_visibility_histogram(blocks: Any, distribution_data: Any) -> go.Figure:
     """Build total visibility hours distribution with scheduled/unscheduled breakdown."""
     scheduled_count = distribution_data.scheduled_count
     total_count = distribution_data.total_count
@@ -142,7 +144,7 @@ def _build_visibility_histogram(blocks, distribution_data) -> go.Figure:
     return fig
 
 
-def _build_duration_histogram(blocks, distribution_data) -> go.Figure:
+def _build_duration_histogram(blocks: Any, distribution_data: Any) -> go.Figure:
     """Build requested duration distribution with scheduled/unscheduled breakdown."""
     scheduled_count = distribution_data.scheduled_count
     total_count = distribution_data.total_count
@@ -191,7 +193,7 @@ def _build_duration_histogram(blocks, distribution_data) -> go.Figure:
     return fig
 
 
-def _build_elevation_histogram(blocks, distribution_data) -> go.Figure:
+def _build_elevation_histogram(blocks: Any, distribution_data: Any) -> go.Figure:
     """Build elevation constraint range distribution with scheduled/unscheduled breakdown."""
     scheduled_count = distribution_data.scheduled_count
     total_count = distribution_data.total_count
@@ -240,7 +242,7 @@ def _build_elevation_histogram(blocks, distribution_data) -> go.Figure:
     return fig
 
 
-def _build_scheduled_bar(distribution_data) -> go.Figure:
+def _build_scheduled_bar(distribution_data: Any) -> go.Figure:
     """Build scheduled vs unscheduled bar chart."""
     scheduled_count = distribution_data.scheduled_count
     unscheduled_count = distribution_data.unscheduled_count
@@ -283,7 +285,7 @@ def _build_scheduled_bar(distribution_data) -> go.Figure:
     return fig
 
 
-def _build_priority_comparison(blocks, distribution_data) -> go.Figure:
+def _build_priority_comparison(blocks: Any, distribution_data: Any) -> go.Figure:
     """Build violin/box plot comparing priority by scheduled status."""
     fig = go.Figure()
 
@@ -327,7 +329,7 @@ def _build_priority_comparison(blocks, distribution_data) -> go.Figure:
     return fig
 
 
-def build_correlation_heatmap(corr_matrix) -> go.Figure:
+def build_correlation_heatmap(corr_matrix: Any) -> go.Figure:
     """
     Build correlation heatmap.
 

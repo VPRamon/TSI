@@ -102,13 +102,14 @@ def _render_priority_filter_section(
 ) -> tuple[float, float]:
     """Render priority filter section."""
     st.subheader("🎯 Priority Filter")
-    return render_priority_filter(
+    result = render_priority_filter(
         key="visibility_histogram_priority_filter",
         min_value=priority_min,
         max_value=priority_max,
         default=(priority_min, priority_max),
         label="Filter by Priority Range",
     )
+    return result  # type: ignore[no-any-return]
 
 
 def _render_block_id_filter_section(all_block_ids: list) -> list | None:

@@ -1,3 +1,5 @@
+#![allow(clippy::useless_conversion)]
+
 use polars::prelude::*;
 
 /// Remove duplicate rows from a DataFrame

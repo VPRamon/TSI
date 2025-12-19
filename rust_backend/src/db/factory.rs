@@ -4,6 +4,7 @@
 //! based on runtime configuration.
 
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use super::repo_config::RepositoryConfig;
@@ -20,7 +21,9 @@ pub enum RepositoryType {
     Local,
 }
 
-impl RepositoryType {
+impl FromStr for RepositoryType {
+    type Err = String;
+
     /// Parse repository type from string.
     ///
     /// # Arguments
@@ -29,21 +32,23 @@ impl RepositoryType {
     /// # Returns
     /// * `Ok(RepositoryType)` if valid
     /// * `Err` if invalid
-    pub fn from_str(s: &str) -> Result<Self, String> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "azure" => Ok(Self::Azure),
             "local" => Ok(Self::Local),
             _ => Err(format!("Unknown repository type: {}", s)),
         }
     }
+}
 
+impl RepositoryType {
     /// Get repository type from environment variable.
     ///
     /// Reads `REPOSITORY_TYPE` environment variable. Defaults to Azure if not set.
     pub fn from_env() -> Self {
         std::env::var("REPOSITORY_TYPE")
             .ok()
-            .and_then(|s| Self::from_str(&s).ok())
+            .and_then(|s| s.parse().ok())
             .unwrap_or(Self::Azure)
     }
 }

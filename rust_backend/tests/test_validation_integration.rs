@@ -58,6 +58,7 @@ fn create_test_block(
     }
 }
 
+#[allow(dead_code)]
 fn create_validation_input(block: &SchedulingBlock) -> BlockForValidation {
     BlockForValidation {
         schedule_id: 1,

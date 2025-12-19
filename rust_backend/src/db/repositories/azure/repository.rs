@@ -365,6 +365,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[allow(clippy::default_constructed_unit_structs)]
     fn test_azure_repository_creation() {
         let _repo = AzureRepository::new();
         let _repo2 = AzureRepository::default();

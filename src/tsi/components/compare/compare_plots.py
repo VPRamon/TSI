@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 from tsi.plots.compare_plots import (
@@ -12,7 +14,7 @@ from tsi.plots.compare_plots import (
 )
 
 
-def render_comparison_plots(compare_data) -> None:
+def render_comparison_plots(compare_data: Any) -> None:
     """
     Display comparison visualizations from CompareData.
 

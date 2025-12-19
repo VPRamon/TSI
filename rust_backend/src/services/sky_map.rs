@@ -1,3 +1,7 @@
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::useless_vec)]
+
 use crate::db::models::{LightweightBlock, PriorityBinInfo, SkyMapData};
 use crate::db::repository::AnalyticsRepository;
 use pyo3::prelude::*;

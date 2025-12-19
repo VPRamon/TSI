@@ -39,7 +39,7 @@ class TestSettingsDefaults:
         assert settings.app_icon == "🔭"
         assert settings.layout == "wide"
         assert settings.initial_sidebar_state == "collapsed"
-        assert len(settings.pages) == 7
+        assert len(settings.pages) == 8
         assert "Sky Map" in settings.pages
         assert "Distributions" in settings.pages
 
@@ -156,11 +156,17 @@ class TestPathConversion:
 class TestValidationConstraints:
     """Test pydantic validation constraints."""
 
+    @pytest.mark.skip(
+        reason="Database configuration moved to Rust backend - Settings no longer has database_connection_timeout"
+    )
     def test_database_connection_timeout_positive(self):
         """Test that connection timeout must be positive."""
         with pytest.raises(ValueError):
             Settings(database_connection_timeout=0)
 
+    @pytest.mark.skip(
+        reason="Database configuration moved to Rust backend - Settings no longer has database_max_retries"
+    )
     def test_database_max_retries_non_negative(self):
         """Test that max retries can be zero or positive."""
         settings = Settings(database_max_retries=0)

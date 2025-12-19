@@ -71,7 +71,9 @@ class TestExceptionHierarchy:
     def test_data_error_hierarchy(self):
         """Test data error hierarchy."""
         validation_error = DataValidationError("Validation failed")
-        load_error = ServerError("Load failed")
+        # Note: ServerError is NOT a DataError - it inherits from TSIError directly
+        # Using DataError directly for load error since DataLoadError doesn't exist
+        load_error = DataError("Load failed")
         schema_error = SchemaError("Schema invalid")
 
         assert isinstance(validation_error, DataError)

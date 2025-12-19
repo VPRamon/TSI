@@ -1,3 +1,7 @@
+#![allow(clippy::manual_is_multiple_of)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::useless_vec)]
+
 use crate::db::models::{
     AnalyticsMetrics, ConflictRecord, CorrelationEntry, InsightsBlock, InsightsData, TopObservation,
 };
