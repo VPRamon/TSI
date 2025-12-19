@@ -485,6 +485,7 @@ pub async fn fetch_analytics_blocks_for_sky_map(
     let sql = r#"
         SELECT 
             scheduling_block_id,
+            COALESCE(original_block_id, CAST(scheduling_block_id AS NVARCHAR(256))),
             priority,
             requested_duration_sec,
             target_ra_deg,
@@ -513,23 +514,29 @@ pub async fn fetch_analytics_blocks_for_sky_map(
     let mut blocks = Vec::with_capacity(rows.len());
 
     for row in rows {
-        let id: i64 = row
+        let _id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+        
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
+        
         let priority: f64 = row
-            .get::<f64, _>(1)
+            .get::<f64, _>(2)
             .ok_or_else(|| "priority is NULL".to_string())?;
         let requested_duration: i32 = row
-            .get::<i32, _>(2)
+            .get::<i32, _>(3)
             .ok_or_else(|| "requested_duration_sec is NULL".to_string())?;
         let ra: f64 = row
-            .get::<f64, _>(3)
+            .get::<f64, _>(4)
             .ok_or_else(|| "target_ra_deg is NULL".to_string())?;
         let dec: f64 = row
-            .get::<f64, _>(4)
+            .get::<f64, _>(5)
             .ok_or_else(|| "target_dec_deg is NULL".to_string())?;
 
-        let scheduled_period = match (row.get::<f64, _>(5), row.get::<f64, _>(6)) {
+        let scheduled_period = match (row.get::<f64, _>(6), row.get::<f64, _>(7)) {
             (Some(start_mjd), Some(stop_mjd)) => crate::db::models::Period::new(
                 ModifiedJulianDate::new(start_mjd),
                 ModifiedJulianDate::new(stop_mjd),
@@ -538,7 +545,7 @@ pub async fn fetch_analytics_blocks_for_sky_map(
         };
 
         blocks.push(LightweightBlock {
-            id: crate::db::models::SchedulingBlockId(id),
+            original_block_id,
             priority,
             priority_bin: String::new(), // Will be computed by service layer
             requested_duration_seconds: requested_duration as f64,
@@ -628,22 +635,23 @@ pub async fn fetch_analytics_blocks_for_timeline(
     // Only select scheduled blocks (where scheduled times exist)
     let sql = r#"
         SELECT 
-            scheduling_block_id,
-            priority,
-            scheduled_start_mjd,
-            scheduled_stop_mjd,
-            target_ra_deg,
-            target_dec_deg,
-            requested_hours,
-            total_visibility_hours,
-            visibility_period_count
-        FROM analytics.schedule_blocks_analytics
-        WHERE schedule_id = @P1
-          AND is_scheduled = 1
-          AND scheduled_start_mjd IS NOT NULL
-          AND scheduled_stop_mjd IS NOT NULL
-          AND COALESCE(validation_impossible, is_impossible) = 0
-        ORDER BY scheduled_start_mjd
+            a.scheduling_block_id,
+            COALESCE(a.original_block_id, CAST(a.scheduling_block_id AS NVARCHAR(256))),
+            a.priority,
+            a.scheduled_start_mjd,
+            a.scheduled_stop_mjd,
+            a.target_ra_deg,
+            a.target_dec_deg,
+            a.requested_hours,
+            a.total_visibility_hours,
+            a.visibility_period_count
+        FROM analytics.schedule_blocks_analytics a
+        WHERE a.schedule_id = @P1
+          AND a.is_scheduled = 1
+          AND a.scheduled_start_mjd IS NOT NULL
+          AND a.scheduled_stop_mjd IS NOT NULL
+          AND COALESCE(a.validation_impossible, a.is_impossible) = 0
+        ORDER BY a.scheduled_start_mjd
     "#;
 
     let mut query = Query::new(sql);
@@ -665,21 +673,28 @@ pub async fn fetch_analytics_blocks_for_timeline(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        let priority: f64 = row.get::<f64, _>(1).unwrap_or(0.0);
+        
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
+        
+        let priority: f64 = row.get::<f64, _>(2).unwrap_or(0.0);
         let scheduled_start_mjd: f64 = row
-            .get::<f64, _>(2)
+            .get::<f64, _>(3)
             .ok_or_else(|| "scheduled_start_mjd is NULL".to_string())?;
         let scheduled_stop_mjd: f64 = row
-            .get::<f64, _>(3)
+            .get::<f64, _>(4)
             .ok_or_else(|| "scheduled_stop_mjd is NULL".to_string())?;
-        let ra_deg: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
-        let dec_deg: f64 = row.get::<f64, _>(5).unwrap_or(0.0);
-        let requested_hours: f64 = row.get::<f64, _>(6).unwrap_or(0.0);
-        let total_visibility_hours: f64 = row.get::<f64, _>(7).unwrap_or(0.0);
-        let visibility_period_count: i32 = row.get::<i32, _>(8).unwrap_or(0);
+        let ra_deg: f64 = row.get::<f64, _>(5).unwrap_or(0.0);
+        let dec_deg: f64 = row.get::<f64, _>(6).unwrap_or(0.0);
+        let requested_hours: f64 = row.get::<f64, _>(7).unwrap_or(0.0);
+        let total_visibility_hours: f64 = row.get::<f64, _>(8).unwrap_or(0.0);
+        let visibility_period_count: i32 = row.get::<i32, _>(9).unwrap_or(0);
 
         blocks.push(ScheduleTimelineBlock {
             scheduling_block_id,
+            original_block_id,
             priority,
             scheduled_start_mjd,
             scheduled_stop_mjd,
@@ -717,6 +732,7 @@ pub async fn fetch_analytics_blocks_for_visibility_map(
     let sql = r#"
         SELECT 
             scheduling_block_id,
+            COALESCE(original_block_id, CAST(scheduling_block_id AS NVARCHAR(256))),
             priority,
             visibility_period_count,
             is_scheduled
@@ -748,11 +764,17 @@ pub async fn fetch_analytics_blocks_for_visibility_map(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
+        
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
+        
         let priority: f64 = row
-            .get::<f64, _>(1)
+            .get::<f64, _>(2)
             .ok_or_else(|| "priority is NULL".to_string())?;
-        let num_visibility_periods: i32 = row.get::<i32, _>(2).unwrap_or(0);
-        let scheduled: bool = row.get::<bool, _>(3).unwrap_or(false);
+        let num_visibility_periods: i32 = row.get::<i32, _>(3).unwrap_or(0);
+        let scheduled: bool = row.get::<bool, _>(4).unwrap_or(false);
 
         if scheduled {
             scheduled_count += 1;
@@ -763,6 +785,7 @@ pub async fn fetch_analytics_blocks_for_visibility_map(
 
         blocks.push(VisibilityBlockSummary {
             scheduling_block_id,
+            original_block_id,
             priority,
             num_visibility_periods: num_visibility_periods as usize,
             scheduled,
@@ -808,18 +831,19 @@ pub async fn fetch_analytics_blocks_for_insights(
 
     let sql = r#"
         SELECT 
-            scheduling_block_id,
-            priority,
-            total_visibility_hours,
-            requested_hours,
-            elevation_range_deg,
-            is_scheduled,
-            scheduled_start_mjd,
-            scheduled_stop_mjd
-        FROM analytics.schedule_blocks_analytics
-        WHERE schedule_id = @P1
-          AND COALESCE(validation_impossible, is_impossible) = 0
-        ORDER BY scheduling_block_id
+            a.scheduling_block_id,
+            COALESCE(a.original_block_id, CAST(a.scheduling_block_id AS NVARCHAR(256))),
+            a.priority,
+            a.total_visibility_hours,
+            a.requested_hours,
+            a.elevation_range_deg,
+            a.is_scheduled,
+            a.scheduled_start_mjd,
+            a.scheduled_stop_mjd
+        FROM analytics.schedule_blocks_analytics a
+        WHERE a.schedule_id = @P1
+          AND COALESCE(a.validation_impossible, a.is_impossible) = 0
+        ORDER BY a.scheduling_block_id
     "#;
 
     let mut query = Query::new(sql);
@@ -841,16 +865,23 @@ pub async fn fetch_analytics_blocks_for_insights(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        let priority: f64 = row.get::<f64, _>(1).unwrap_or(0.0);
-        let total_visibility_hours: f64 = row.get::<f64, _>(2).unwrap_or(0.0);
-        let requested_hours: f64 = row.get::<f64, _>(3).unwrap_or(0.0);
-        let elevation_range_deg: f64 = row.get::<f64, _>(4).unwrap_or(90.0);
-        let scheduled: bool = row.get::<bool, _>(5).unwrap_or(false);
-        let scheduled_start_mjd: Option<f64> = row.get::<f64, _>(6);
-        let scheduled_stop_mjd: Option<f64> = row.get::<f64, _>(7);
+        
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
+        
+        let priority: f64 = row.get::<f64, _>(2).unwrap_or(0.0);
+        let total_visibility_hours: f64 = row.get::<f64, _>(3).unwrap_or(0.0);
+        let requested_hours: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
+        let elevation_range_deg: f64 = row.get::<f64, _>(5).unwrap_or(90.0);
+        let scheduled: bool = row.get::<bool, _>(6).unwrap_or(false);
+        let scheduled_start_mjd: Option<f64> = row.get::<f64, _>(7);
+        let scheduled_stop_mjd: Option<f64> = row.get::<f64, _>(8);
 
         blocks.push(InsightsBlock {
             scheduling_block_id,
+            original_block_id,
             priority,
             total_visibility_hours,
             requested_hours,
@@ -886,15 +917,16 @@ pub async fn fetch_analytics_blocks_for_trends(
 
     let sql = r#"
         SELECT 
-            scheduling_block_id,
-            priority,
-            total_visibility_hours,
-            requested_hours,
-            is_scheduled
-        FROM analytics.schedule_blocks_analytics
-        WHERE schedule_id = @P1
-          AND COALESCE(validation_impossible, is_impossible) = 0
-        ORDER BY scheduling_block_id
+            a.scheduling_block_id,
+            COALESCE(a.original_block_id, CAST(a.scheduling_block_id AS NVARCHAR(256))),
+            a.priority,
+            a.total_visibility_hours,
+            a.requested_hours,
+            a.is_scheduled
+        FROM analytics.schedule_blocks_analytics a
+        WHERE a.schedule_id = @P1
+          AND COALESCE(a.validation_impossible, a.is_impossible) = 0
+        ORDER BY a.scheduling_block_id
     "#;
 
     let mut query = Query::new(sql);
@@ -916,13 +948,20 @@ pub async fn fetch_analytics_blocks_for_trends(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        let priority: f64 = row.get::<f64, _>(1).unwrap_or(0.0);
-        let total_visibility_hours: f64 = row.get::<f64, _>(2).unwrap_or(0.0);
-        let requested_hours: f64 = row.get::<f64, _>(3).unwrap_or(0.0);
-        let scheduled: bool = row.get::<bool, _>(4).unwrap_or(false);
+        
+        let original_block_id: String = row
+            .get::<&str, _>(1)
+            .ok_or_else(|| "original_block_id is NULL".to_string())?
+            .to_string();
+        
+        let priority: f64 = row.get::<f64, _>(2).unwrap_or(0.0);
+        let total_visibility_hours: f64 = row.get::<f64, _>(3).unwrap_or(0.0);
+        let requested_hours: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
+        let scheduled: bool = row.get::<bool, _>(5).unwrap_or(false);
 
         blocks.push(TrendsBlock {
             scheduling_block_id,
+            original_block_id,
             priority,
             total_visibility_hours,
             requested_hours,

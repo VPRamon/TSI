@@ -19,7 +19,8 @@ use pyo3::prelude::*;
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct VisibilityBlockSummary {
-    pub scheduling_block_id: i64,
+    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
+    pub original_block_id: String,  // Original ID from JSON (shown to user)
     pub priority: f64,
     pub num_visibility_periods: usize,
     pub scheduled: bool,
@@ -28,8 +29,13 @@ pub struct VisibilityBlockSummary {
 #[pymethods]
 impl VisibilityBlockSummary {
     #[getter]
-    pub fn scheduling_block_id(&self) -> i64 {
-        self.scheduling_block_id
+    pub fn scheduling_block_id(&self) -> String {
+        self.original_block_id.clone()
+    }
+    
+    #[getter]
+    pub fn original_block_id(&self) -> String {
+        self.original_block_id.clone()
     }
 
     #[getter]
@@ -50,7 +56,7 @@ impl VisibilityBlockSummary {
     fn __repr__(&self) -> String {
         format!(
             "VisibilityBlockSummary(id={}, priority={:.2}, periods={}, scheduled={})",
-            self.scheduling_block_id, self.priority, self.num_visibility_periods, self.scheduled
+            self.original_block_id, self.priority, self.num_visibility_periods, self.scheduled
         )
     }
 }
@@ -153,7 +159,8 @@ pub struct BlockHistogramData {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct ScheduleTimelineBlock {
-    pub scheduling_block_id: i64,
+    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
+    pub original_block_id: String,  // Original ID from JSON (shown to user)
     pub priority: f64,
     pub scheduled_start_mjd: f64,
     pub scheduled_stop_mjd: f64,
@@ -167,8 +174,13 @@ pub struct ScheduleTimelineBlock {
 #[pymethods]
 impl ScheduleTimelineBlock {
     #[getter]
-    pub fn scheduling_block_id(&self) -> i64 {
-        self.scheduling_block_id
+    pub fn scheduling_block_id(&self) -> String {
+        self.original_block_id.clone()
+    }
+    
+    #[getter]
+    pub fn original_block_id(&self) -> String {
+        self.original_block_id.clone()
     }
 
     #[getter]
@@ -214,7 +226,7 @@ impl ScheduleTimelineBlock {
     fn __repr__(&self) -> String {
         format!(
             "ScheduleTimelineBlock(id={}, priority={:.2}, start={:.2}, stop={:.2})",
-            self.scheduling_block_id, self.priority, self.scheduled_start_mjd, self.scheduled_stop_mjd
+            self.original_block_id, self.priority, self.scheduled_start_mjd, self.scheduled_stop_mjd
         )
     }
 }
@@ -290,7 +302,8 @@ impl ScheduleTimelineData {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct InsightsBlock {
-    pub scheduling_block_id: i64,
+    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
+    pub original_block_id: String,  // Original ID from JSON (shown to user)
     pub priority: f64,
     pub total_visibility_hours: f64,
     pub requested_hours: f64,
@@ -303,8 +316,13 @@ pub struct InsightsBlock {
 #[pymethods]
 impl InsightsBlock {
     #[getter]
-    pub fn scheduling_block_id(&self) -> i64 {
-        self.scheduling_block_id
+    pub fn scheduling_block_id(&self) -> String {
+        self.original_block_id.clone()
+    }
+    
+    #[getter]
+    pub fn original_block_id(&self) -> String {
+        self.original_block_id.clone()
     }
 
     #[getter]
@@ -345,7 +363,7 @@ impl InsightsBlock {
     fn __repr__(&self) -> String {
         format!(
             "InsightsBlock(id={}, priority={:.2}, scheduled={})",
-            self.scheduling_block_id, self.priority, self.scheduled
+            self.original_block_id, self.priority, self.scheduled
         )
     }
 }
@@ -466,8 +484,8 @@ impl CorrelationEntry {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct ConflictRecord {
-    pub block_id_1: i64,
-    pub block_id_2: i64,
+    pub block_id_1: String,  // Original ID from JSON
+    pub block_id_2: String,  // Original ID from JSON
     pub start_time_1: f64,
     pub stop_time_1: f64,
     pub start_time_2: f64,
@@ -478,13 +496,13 @@ pub struct ConflictRecord {
 #[pymethods]
 impl ConflictRecord {
     #[getter]
-    pub fn block_id_1(&self) -> i64 {
-        self.block_id_1
+    pub fn block_id_1(&self) -> String {
+        self.block_id_1.clone()
     }
 
     #[getter]
-    pub fn block_id_2(&self) -> i64 {
-        self.block_id_2
+    pub fn block_id_2(&self) -> String {
+        self.block_id_2.clone()
     }
 
     #[getter]
@@ -524,7 +542,8 @@ impl ConflictRecord {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct TopObservation {
-    pub scheduling_block_id: i64,
+    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
+    pub original_block_id: String,  // Original ID from JSON (shown to user)
     pub priority: f64,
     pub total_visibility_hours: f64,
     pub requested_hours: f64,
@@ -534,8 +553,13 @@ pub struct TopObservation {
 #[pymethods]
 impl TopObservation {
     #[getter]
-    pub fn scheduling_block_id(&self) -> i64 {
-        self.scheduling_block_id
+    pub fn scheduling_block_id(&self) -> String {
+        self.original_block_id.clone()
+    }
+    
+    #[getter]
+    pub fn original_block_id(&self) -> String {
+        self.original_block_id.clone()
     }
 
     #[getter]
@@ -561,7 +585,7 @@ impl TopObservation {
     fn __repr__(&self) -> String {
         format!(
             "TopObservation(id={}, priority={:.2}, visibility={:.1}h)",
-            self.scheduling_block_id, self.priority, self.total_visibility_hours
+            self.original_block_id, self.priority, self.total_visibility_hours
         )
     }
 }
@@ -647,7 +671,8 @@ impl InsightsData {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct TrendsBlock {
-    pub scheduling_block_id: i64,
+    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
+    pub original_block_id: String,  // Original ID from JSON (shown to user)
     pub priority: f64,
     pub total_visibility_hours: f64,
     pub requested_hours: f64,
@@ -657,8 +682,13 @@ pub struct TrendsBlock {
 #[pymethods]
 impl TrendsBlock {
     #[getter]
-    pub fn scheduling_block_id(&self) -> i64 {
-        self.scheduling_block_id
+    pub fn scheduling_block_id(&self) -> String {
+        self.original_block_id.clone()
+    }
+    
+    #[getter]
+    pub fn original_block_id(&self) -> String {
+        self.original_block_id.clone()
     }
 
     #[getter]
@@ -684,7 +714,7 @@ impl TrendsBlock {
     fn __repr__(&self) -> String {
         format!(
             "TrendsBlock(id={}, priority={:.2}, scheduled={})",
-            self.scheduling_block_id, self.priority, self.scheduled
+            self.original_block_id, self.priority, self.scheduled
         )
     }
 }

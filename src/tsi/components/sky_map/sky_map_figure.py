@@ -23,7 +23,7 @@ def _compute_cache_key(blocks, controls: dict) -> str:
     
     block_ids = []
     for block in blocks:
-        block_id = getattr(block.id, "value", None)
+        block_id = getattr(block.original_block_id, "value", None)
         if block_id is not None:
             block_ids.append(int(block_id))
     

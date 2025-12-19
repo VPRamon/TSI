@@ -54,9 +54,7 @@ def build_figure(
     priority_bins = []
 
     for block in blocks:
-        block_id = getattr(block.id, "value", None)
-        scheduling_block_id = int(block_id) if block_id is not None else None
-        block_ids.append(scheduling_block_id)
+        block_ids.append(block.original_block_id)
 
         priorities.append(float(block.priority))
         requested_hours.append(float(block.requested_duration_seconds) / 3600.0)

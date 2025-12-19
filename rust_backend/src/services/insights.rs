@@ -205,6 +205,7 @@ fn get_top_observations(blocks: &[InsightsBlock], by: &str, n: usize) -> Vec<Top
         .take(n)
         .map(|b| TopObservation {
             scheduling_block_id: b.scheduling_block_id,
+            original_block_id: b.original_block_id.clone(),
             priority: b.priority,
             total_visibility_hours: b.total_visibility_hours,
             requested_hours: b.requested_hours,
@@ -247,8 +248,8 @@ fn find_conflicts(blocks: &[InsightsBlock]) -> Vec<ConflictRecord> {
                 let overlap_hours = overlap_days * 24.0;
 
                 conflicts.push(ConflictRecord {
-                    block_id_1: block1.scheduling_block_id,
-                    block_id_2: block2.scheduling_block_id,
+                    block_id_1: block1.original_block_id.clone(),
+                    block_id_2: block2.original_block_id.clone(),
                     start_time_1: start1,
                     stop_time_1: stop1,
                     start_time_2: start2,
@@ -316,7 +317,7 @@ pub async fn get_insights_data(
     }
     
     // Convert LightweightBlock to InsightsBlock
-    let mut blocks: Vec<InsightsBlock> = lightweight_blocks.into_iter().map(|b| {
+    let mut blocks: Vec<InsightsBlock> = lightweight_blocks.into_iter().enumerate().map(|(idx, b)| {
         let (scheduled_start_mjd, scheduled_stop_mjd, scheduled) = match &b.scheduled_period {
             Some(period) => (
                 Some(period.start.value()),
@@ -330,7 +331,8 @@ pub async fn get_insights_data(
         let elevation_range_deg = (b.requested_duration_seconds / 3600.0) * 10.0;
         
         InsightsBlock {
-            scheduling_block_id: b.id.0,
+            scheduling_block_id: idx as i64 + 1,  // Sequential index for internal tracking
+            original_block_id: b.original_block_id,
             priority: b.priority,
             total_visibility_hours: b.requested_duration_seconds / 3600.0, // Use requested as proxy
             requested_hours: b.requested_duration_seconds / 3600.0,
@@ -377,6 +379,7 @@ mod tests {
         let blocks = vec![
             InsightsBlock {
                 scheduling_block_id: 1,
+                original_block_id: "SB001".to_string(),
                 priority: 5.0,
                 total_visibility_hours: 10.0,
                 requested_hours: 2.0,
@@ -387,6 +390,7 @@ mod tests {
             },
             InsightsBlock {
                 scheduling_block_id: 2,
+                original_block_id: "SB002".to_string(),
                 priority: 3.0,
                 total_visibility_hours: 0.0,
                 requested_hours: 1.0,
@@ -418,6 +422,7 @@ mod tests {
         let blocks = vec![
             InsightsBlock {
                 scheduling_block_id: 1,
+                original_block_id: "SB001".to_string(),
                 priority: 5.0,
                 total_visibility_hours: 10.0,
                 requested_hours: 2.0,
@@ -428,6 +433,7 @@ mod tests {
             },
             InsightsBlock {
                 scheduling_block_id: 2,
+                original_block_id: "SB002".to_string(),
                 priority: 8.0,
                 total_visibility_hours: 5.0,
                 requested_hours: 1.0,

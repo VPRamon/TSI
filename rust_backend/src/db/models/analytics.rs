@@ -9,14 +9,14 @@
 
 use pyo3::prelude::*;
 
-use super::schedule::{Period, SchedulingBlockId};
+use super::schedule::Period;
 
 /// Lightweight scheduling block for sky map visualization.
 /// Contains only the essential fields needed for plotting.
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct LightweightBlock {
-    pub id: SchedulingBlockId,
+    pub original_block_id: String,  // Original ID from JSON (shown to user)
     pub priority: f64,
     pub priority_bin: String,
     pub requested_duration_seconds: f64,
@@ -28,8 +28,8 @@ pub struct LightweightBlock {
 #[pymethods]
 impl LightweightBlock {
     #[getter]
-    pub fn id(&self) -> SchedulingBlockId {
-        self.id
+    pub fn original_block_id(&self) -> String {
+        self.original_block_id.clone()
     }
 
     #[getter]
@@ -65,7 +65,7 @@ impl LightweightBlock {
     fn __repr__(&self) -> String {
         format!(
             "LightweightBlock(id={}, priority={:.2}, ra={:.2}, dec={:.2}, scheduled={})",
-            self.id.0,
+            self.original_block_id,
             self.priority,
             self.target_ra_deg,
             self.target_dec_deg,
