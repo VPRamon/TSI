@@ -374,6 +374,7 @@ pub fn py_fetch_compare_blocks(schedule_id: i64) -> PyResult<Vec<crate::db::mode
 /// ```
 #[pyfunction]
 #[pyo3(signature = (schedule_id, start_unix, end_unix, bin_duration_minutes, priority_min=None, priority_max=None, block_ids=None))]
+#[allow(clippy::too_many_arguments)]
 pub fn py_get_visibility_histogram(
     py: Python,
     schedule_id: i64,

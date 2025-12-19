@@ -248,17 +248,20 @@ class ErrorContext:
         self.reraise = reraise
         self.log_traceback = log_traceback
         self.default_value = default_value
-        self.error: Exception | None = None
+        self.error: BaseException | None = None
 
-    def __enter__(self):
+    def __enter__(self) -> "ErrorContext":
         """Enter context manager."""
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object
+    ) -> bool:
         """Exit context manager and handle any exception."""
         if exc_val is not None:
             self.error = exc_val
-            log_error(exc_val, self.context, include_traceback=self.log_traceback)
+            if isinstance(exc_val, Exception):
+                log_error(exc_val, self.context, include_traceback=self.log_traceback)
 
             if not self.reraise:
                 # Suppress exception and return False to indicate no error

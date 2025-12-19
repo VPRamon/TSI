@@ -36,12 +36,12 @@ def render_report_downloads(
     # Convert Rust data structures to pandas DataFrames for report generation
     if correlations:
         # Convert correlations to matrix format
-        variables = set()
+        variables_set: set[Any] = set()
         for corr in correlations:
-            variables.add(corr.variable1)
-            variables.add(corr.variable2)
+            variables_set.add(corr.variable1)
+            variables_set.add(corr.variable2)
 
-        variables = sorted(variables)
+        variables = sorted(variables_set)
         corr_matrix = pd.DataFrame(
             1.0,  # diagonal is always 1
             index=variables,

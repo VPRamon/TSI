@@ -1,3 +1,6 @@
+#![allow(clippy::manual_map)]
+#![allow(clippy::unnecessary_cast)]
+
 use crate::db::models::*;
 use anyhow::{Context, Result};
 use serde_json::Value;

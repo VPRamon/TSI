@@ -32,7 +32,7 @@ class ModifiedJulianDate:
 
     def to_datetime(self) -> datetime:
         """Convert to a timezone-aware UTC datetime using Rust backend."""
-        return tsi_rust.mjd_to_datetime(self.value)
+        return tsi_rust.mjd_to_datetime(self.value)  # type: ignore[no-any-return]
 
     def to_timestamp(self) -> pd.Timestamp:
         """Convert to pandas Timestamp."""
@@ -67,7 +67,7 @@ def mjd_to_datetime(mjd: float) -> pd.Timestamp:
 def datetime_to_mjd(dt: datetime) -> float:
     """Convert a timezone-aware datetime to Modified Julian Date using Rust backend."""
     dt_utc = _ensure_utc(dt)
-    return tsi_rust.datetime_to_mjd(dt_utc)
+    return tsi_rust.datetime_to_mjd(dt_utc)  # type: ignore[no-any-return]
 
 
 def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:

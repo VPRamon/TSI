@@ -226,6 +226,7 @@ pub struct SchedulingBlock {
 impl SchedulingBlock {
     #[new]
     #[pyo3(signature = (id, ra_deg, dec_deg, constraints, priority, min_observation_seconds, requested_duration_seconds, visibility_periods, scheduled_period=None))]
+    #[allow(clippy::too_many_arguments)]
     pub fn py_new(
         id: SchedulingBlockId,
         ra_deg: f64,

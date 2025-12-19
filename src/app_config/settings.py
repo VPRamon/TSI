@@ -142,7 +142,7 @@ class Settings(BaseSettings):
 
     @field_validator("data_root", "sample_dataset", "artifacts_dir", mode="before")
     @classmethod
-    def convert_to_path(cls, v):
+    def convert_to_path(cls, v: str | Path) -> Path:
         """Convert string paths to Path objects."""
         if isinstance(v, str):
             return Path(v)

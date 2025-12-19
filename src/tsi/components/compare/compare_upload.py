@@ -138,16 +138,21 @@ def _render_file_upload_section() -> tuple[int | None, str | None]:
     try:
         with st.spinner("Uploading and processing comparison schedule..."):
             # Read file contents
-            schedule_content = uploaded_json.read()
-            if isinstance(schedule_content, bytes):
-                schedule_content = schedule_content.decode("utf-8")
+            schedule_content_raw = uploaded_json.read()
+            schedule_content: str
+            if isinstance(schedule_content_raw, bytes):
+                schedule_content = schedule_content_raw.decode("utf-8")
+            else:
+                schedule_content = schedule_content_raw
             uploaded_json.seek(0)  # Reset for potential re-read
 
-            visibility_content = None
+            visibility_content: str | None = None
             if uploaded_visibility is not None:
-                visibility_content = uploaded_visibility.read()
-                if isinstance(visibility_content, bytes):
-                    visibility_content = visibility_content.decode("utf-8")
+                visibility_content_raw = uploaded_visibility.read()
+                if isinstance(visibility_content_raw, bytes):
+                    visibility_content = visibility_content_raw.decode("utf-8")
+                else:
+                    visibility_content = visibility_content_raw
                 uploaded_visibility.seek(0)
 
             # Store in database (preprocesses automatically)

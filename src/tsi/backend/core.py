@@ -11,6 +11,8 @@ Example:
     >>> df = backend.load_schedule("data/schedule.json")
 """
 
+# mypy: disable-error-code="no-any-return"
+
 from __future__ import annotations
 
 import logging
@@ -24,7 +26,9 @@ from tsi.exceptions import ServerError
 if TYPE_CHECKING:
     from datetime import datetime
     from pathlib import Path
-    from typing import Any, Literal
+    from typing import Literal
+
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -453,6 +457,6 @@ class TSIBackend:
 
 
 # Expose the Rust module for direct access when needed
-def get_rust_module():
+def get_rust_module() -> Any:
     """Get direct access to the tsi_rust module."""
     return tsi_rust

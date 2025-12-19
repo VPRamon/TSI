@@ -1,4 +1,5 @@
 //! Integration tests for visibility histogram computation.
+#![allow(clippy::len_zero)]
 
 #[cfg(test)]
 mod visibility_histogram_tests {

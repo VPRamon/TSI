@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 use super::config::{DbAuthMethod, DbConfig};
 use super::factory::RepositoryType;

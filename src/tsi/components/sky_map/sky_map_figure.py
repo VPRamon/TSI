@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import streamlit as st
 
 from tsi.plots.sky_map import build_figure
 
 
-def _compute_cache_key(blocks, controls: dict) -> str:
+def _compute_cache_key(blocks: Any, controls: dict[str, Any]) -> str:
     """Compute a cache key representing the filtered blocks.
 
     Args:
@@ -46,9 +48,9 @@ def _compute_cache_key(blocks, controls: dict) -> str:
 
 
 def render_sky_map_figure(
-    blocks,
-    controls: dict,
-    priority_bins,
+    blocks: Any,
+    controls: dict[str, Any],
+    priority_bins: Any,
     key: str = "sky_map_chart",
 ) -> object:
     """Build and render the sky map Plotly figure.

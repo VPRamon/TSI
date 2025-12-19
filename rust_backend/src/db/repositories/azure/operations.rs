@@ -1,4 +1,7 @@
 //! Database CRUD operations for schedules, dark periods, and visibility data (SQL Server).
+#![allow(clippy::explicit_auto_deref)]
+#![allow(clippy::needless_question_mark)]
+#![allow(clippy::match_like_matches_macro)]
 
 use chrono::{DateTime, Utc};
 use log::{debug, info};
@@ -807,7 +810,7 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
         "No existing schedule found for checksum {}. Proceeding with full insert",
         schedule.checksum
     );
-    let metadata = insert_full_schedule(&mut *conn, schedule).await?;
+    let metadata = insert_full_schedule(&mut conn, schedule).await?;
 
     // NOTE: Analytics population is now handled by the service layer
     // to allow flexible control over when and if analytics are computed.

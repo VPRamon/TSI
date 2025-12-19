@@ -42,12 +42,12 @@ def render_correlation_analysis(correlations: list[Any]) -> None:
 
     # Convert Rust CorrelationEntry objects to DataFrame in matrix format
     # First, collect all unique variables
-    variables = set()
+    variables_set: set[Any] = set()
     for corr in correlations:
-        variables.add(corr.variable1)
-        variables.add(corr.variable2)
+        variables_set.add(corr.variable1)
+        variables_set.add(corr.variable2)
 
-    variables = sorted(variables)
+    variables = sorted(variables_set)
 
     # Create correlation matrix
     corr_matrix = pd.DataFrame(

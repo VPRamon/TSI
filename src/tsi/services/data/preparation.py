@@ -50,7 +50,8 @@ def parse_visibility_for_rows(df: pd.DataFrame, visibility_column: str = "visibi
         if value is None or (isinstance(value, float) and pd.isna(value)):
             return None
         try:
-            return parse_visibility_periods(str(value))
+            result = parse_visibility_periods(str(value))
+            return result  # type: ignore[no-any-return, return-value]
         except Exception:
             return None
 

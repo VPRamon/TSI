@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -837,7 +837,7 @@ def _add_observation_traces_from_blocks(
 
 def _add_multi_month_observation_from_block(
     fig: go.Figure,
-    block,
+    block: Any,
     start_dt: pd.Timestamp,
     stop_dt: pd.Timestamp,
     month_to_position: dict[str, int],
@@ -930,10 +930,10 @@ def _add_multi_month_observation_from_block(
 
 def _add_single_month_observation_from_block(
     fig: go.Figure,
-    block,
+    block: Any,
     start_dt: pd.Timestamp,
     stop_dt: pd.Timestamp,
-    month_to_position: dict,
+    month_to_position: dict[str, int],
     normalized_priority: float,
     block_id: int,
     priority: float,

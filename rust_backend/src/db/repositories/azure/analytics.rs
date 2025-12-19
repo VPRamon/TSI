@@ -10,6 +10,9 @@
 //!
 //! This eliminates expensive JOINs and JSON parsing on every page load.
 
+#![allow(clippy::type_complexity)]
+#![allow(clippy::collapsible_if)]
+
 use log::{debug, info, warn};
 use tiberius::Query;
 
