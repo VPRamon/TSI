@@ -1,5 +1,14 @@
 """Processing modules for timeline, trends, sky map, and comparison views."""
 
+from tsi.services.processors.compare import (
+    calculate_observation_gaps,
+)
+from tsi.services.processors.sky_map import (
+    compute_priority_range,
+    get_priority_range,  # Backwards compatibility alias
+    get_scheduled_time_range,
+    prepare_priority_bins_from_blocks,
+)
 from tsi.services.processors.timeline import (
     apply_search_filters,
     filter_dark_periods,
@@ -10,15 +19,6 @@ from tsi.services.processors.timeline import (
 from tsi.services.processors.trends import (
     apply_trends_filters,
     validate_required_columns,
-)
-from tsi.services.processors.sky_map import (
-    compute_priority_range,
-    get_priority_range,  # Backwards compatibility alias
-    get_scheduled_time_range,
-    prepare_priority_bins_from_blocks,
-)
-from tsi.services.processors.compare import (
-    calculate_observation_gaps,
 )
 
 __all__ = [

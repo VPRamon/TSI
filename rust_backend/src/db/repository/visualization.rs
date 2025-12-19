@@ -5,10 +5,10 @@
 
 use async_trait::async_trait;
 
+use super::error::RepositoryResult;
 use crate::db::models::{
     BlockHistogramData, CompareBlock, ScheduleTimelineBlock, VisibilityMapData,
 };
-use super::error::RepositoryResult;
 
 /// Repository trait for visualization-specific queries.
 ///
@@ -73,8 +73,5 @@ pub trait VisualizationRepository: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<CompareBlock>)` - Blocks for comparison
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_compare_blocks(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<CompareBlock>>;
+    async fn fetch_compare_blocks(&self, schedule_id: i64) -> RepositoryResult<Vec<CompareBlock>>;
 }

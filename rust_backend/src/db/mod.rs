@@ -67,8 +67,8 @@ pub mod config;
 pub mod factory;
 pub mod models;
 pub mod repo_config;
-pub mod repository;
 pub mod repositories;
+pub mod repository;
 pub mod services;
 
 // ==================== Service Layer (Recommended for new code) ====================
@@ -76,9 +76,8 @@ pub mod services;
 
 pub use services::{
     ensure_analytics, fetch_dark_periods, fetch_possible_periods, get_blocks_for_schedule,
-    get_schedule, get_schedule_time_range, get_scheduling_block,
-    has_analytics_data, has_summary_analytics, has_visibility_time_bins, health_check,
-    list_schedules, store_schedule,
+    get_schedule, get_schedule_time_range, get_scheduling_block, has_analytics_data,
+    has_summary_analytics, has_visibility_time_bins, health_check, list_schedules, store_schedule,
 };
 
 // ==================== Repository Pattern Exports ====================
@@ -89,12 +88,12 @@ pub use models::{ScheduleInfo, ScheduleMetadata};
 pub use repo_config::RepositoryConfig;
 
 // Repository trait and implementations
-pub use repository::{
-    AnalyticsRepository, FullRepository, RepositoryError, RepositoryResult,
-    ScheduleRepository, ValidationRepository, VisualizationRepository,
-};
-pub use repositories::{AzureRepository, LocalRepository};
 pub use factory::{RepositoryBuilder, RepositoryFactory, RepositoryType};
+pub use repositories::{AzureRepository, LocalRepository};
+pub use repository::{
+    AnalyticsRepository, FullRepository, RepositoryError, RepositoryResult, ScheduleRepository,
+    ValidationRepository, VisualizationRepository,
+};
 
 // ==================== Backward Compatibility (Legacy) ====================
 // These exports are for backward compatibility with existing code.
@@ -102,27 +101,22 @@ pub use factory::{RepositoryBuilder, RepositoryFactory, RepositoryType};
 
 // Re-export Azure module functions and types for backward compatibility
 pub use repositories::azure::{
-    analytics, operations, pool, validation,
-    HeatmapBinData, PriorityRate, ScheduleSummary, ValidationReportData,
-    VisibilityBin, VisibilityTimeBin, VisibilityTimeMetadata,
+    analytics, operations, pool, validation, HeatmapBinData, PriorityRate, ScheduleSummary,
+    ValidationReportData, VisibilityBin, VisibilityTimeBin, VisibilityTimeMetadata,
 };
 
 // Phase 1: Block-level analytics (backward compatibility)
 pub use repositories::azure::analytics::{
     delete_schedule_analytics as delete_schedule_analytics_legacy,
-    fetch_analytics_blocks_for_distribution,
-    fetch_analytics_blocks_for_sky_map,
+    fetch_analytics_blocks_for_distribution, fetch_analytics_blocks_for_sky_map,
     has_analytics_data as has_analytics_data_legacy,
     populate_schedule_analytics as populate_schedule_analytics_legacy,
 };
 
 // Phase 2: Summary analytics (backward compatibility)
 pub use repositories::azure::analytics::{
-    delete_summary_analytics as delete_summary_analytics_legacy,
-    fetch_heatmap_bins,
-    fetch_priority_rates,
-    fetch_schedule_summary,
-    fetch_visibility_bins,
+    delete_summary_analytics as delete_summary_analytics_legacy, fetch_heatmap_bins,
+    fetch_priority_rates, fetch_schedule_summary, fetch_visibility_bins,
     has_summary_analytics as has_summary_analytics_legacy,
     populate_summary_analytics as populate_summary_analytics_legacy,
 };
@@ -130,8 +124,7 @@ pub use repositories::azure::analytics::{
 // Phase 3: Visibility time bins (backward compatibility)
 pub use repositories::azure::analytics::{
     delete_visibility_time_bins as delete_visibility_time_bins_legacy,
-    fetch_visibility_histogram_from_analytics,
-    fetch_visibility_metadata,
+    fetch_visibility_histogram_from_analytics, fetch_visibility_metadata,
     has_visibility_time_bins as has_visibility_time_bins_legacy,
     populate_visibility_time_bins as populate_visibility_time_bins_legacy,
 };

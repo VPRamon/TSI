@@ -3,9 +3,15 @@
 
 import socket
 import sys
+from pathlib import Path
+
+# Add scripts to path for credentials
+scripts_dir = Path(__file__).parent.parent / "scripts"
+if str(scripts_dir) not in sys.path:
+    sys.path.insert(0, str(scripts_dir))
 
 try:
-    from scripts.db_credentials import server, database, username, password
+    from db_credentials import database, password, server, username
 except ImportError as e:
     print(f"❌ Failed to import credentials: {e}")
     sys.exit(1)
@@ -20,7 +26,7 @@ print()
 # Test 1: DNS resolution
 print("🔍 Test 1: DNS Resolution")
 try:
-    hostname = server.split(':')[0]  # Remove port if present
+    hostname = server.split(":")[0]  # Remove port if present
     ip = socket.gethostbyname(hostname)
     print(f"   ✅ Resolved {hostname} to {ip}")
 except socket.gaierror as e:
@@ -35,9 +41,9 @@ try:
     sock.settimeout(10)
     result = sock.connect_ex((hostname, 1433))
     sock.close()
-    
+
     if result == 0:
-        print(f"   ✅ Port 1433 is reachable")
+        print("   ✅ Port 1433 is reachable")
     else:
         print(f"   ❌ Cannot connect to port 1433 (error code: {result})")
         print("   → Possible causes:")
@@ -45,8 +51,8 @@ try:
         print("      - Port 1433 blocked by local firewall")
         print("      - Server is down or doesn't exist")
         sys.exit(1)
-except socket.timeout:
-    print(f"   ❌ Connection timeout after 10 seconds")
+except TimeoutError:
+    print("   ❌ Connection timeout after 10 seconds")
     print("   → Azure firewall is likely blocking your IP")
     print("   → Add your IP in Azure Portal → SQL Server → Networking")
     sys.exit(1)

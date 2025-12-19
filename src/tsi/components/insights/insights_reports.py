@@ -40,14 +40,14 @@ def render_report_downloads(
         for corr in correlations:
             variables.add(corr.variable1)
             variables.add(corr.variable2)
-        
+
         variables = sorted(variables)
         corr_matrix = pd.DataFrame(
             1.0,  # diagonal is always 1
             index=variables,
             columns=variables,
         )
-        
+
         for corr in correlations:
             corr_matrix.loc[corr.variable1, corr.variable2] = corr.correlation
             corr_matrix.loc[corr.variable2, corr.variable1] = corr.correlation
@@ -56,33 +56,37 @@ def render_report_downloads(
 
     # Convert top priority to DataFrame
     if top_priority:
-        top_priority_df = pd.DataFrame([
-            {
-                "scheduling_block_id": obs.scheduling_block_id,
-                "priority": obs.priority,
-                "total_visibility_hours": obs.total_visibility_hours,
-                "requested_hours": obs.requested_hours,
-                "scheduled": obs.scheduled,
-            }
-            for obs in top_priority
-        ])
+        top_priority_df = pd.DataFrame(
+            [
+                {
+                    "scheduling_block_id": obs.scheduling_block_id,
+                    "priority": obs.priority,
+                    "total_visibility_hours": obs.total_visibility_hours,
+                    "requested_hours": obs.requested_hours,
+                    "scheduled": obs.scheduled,
+                }
+                for obs in top_priority
+            ]
+        )
     else:
         top_priority_df = pd.DataFrame()
 
     # Convert conflicts to DataFrame
     if conflicts:
-        conflicts_df = pd.DataFrame([
-            {
-                "block_id_1": conflict.block_id_1,
-                "block_id_2": conflict.block_id_2,
-                "start_time_1": conflict.start_time_1,
-                "stop_time_1": conflict.stop_time_1,
-                "start_time_2": conflict.start_time_2,
-                "stop_time_2": conflict.stop_time_2,
-                "overlap_hours": conflict.overlap_hours,
-            }
-            for conflict in conflicts
-        ])
+        conflicts_df = pd.DataFrame(
+            [
+                {
+                    "block_id_1": conflict.block_id_1,
+                    "block_id_2": conflict.block_id_2,
+                    "start_time_1": conflict.start_time_1,
+                    "stop_time_1": conflict.stop_time_1,
+                    "start_time_2": conflict.start_time_2,
+                    "stop_time_2": conflict.stop_time_2,
+                    "overlap_hours": conflict.overlap_hours,
+                }
+                for conflict in conflicts
+            ]
+        )
     else:
         conflicts_df = pd.DataFrame()
 
@@ -103,7 +107,7 @@ def render_report_downloads(
             data=md_report,
             file_name="telescope_scheduling_report.md",
             mime="text/markdown",
-            width='stretch',
+            width="stretch",
         )
 
     with col2:
@@ -121,7 +125,7 @@ def render_report_downloads(
             data=html_report,
             file_name="telescope_scheduling_report.html",
             mime="text/html",
-            width='stretch',
+            width="stretch",
         )
 
     st.caption("Reports contain all key metrics, insights, correlations, and conflict information.")

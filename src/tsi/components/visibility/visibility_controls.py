@@ -9,8 +9,8 @@ import streamlit as st
 from tsi import state
 from tsi.components.toolbar.toolbar import (
     render_number_input,
-    render_priority_range_control,
     render_priority_filter,
+    render_priority_range_control,
     render_reset_filters_button,
 )
 
@@ -207,9 +207,7 @@ def render_generate_button() -> bool:
     """
     col_btn1, col_btn2 = st.columns([1, 4])
     with col_btn1:
-        generate_clicked = st.button(
-            "🔄 Generate Histogram", type="primary", width='stretch'
-        )
+        generate_clicked = st.button("🔄 Generate Histogram", type="primary", width="stretch")
     with col_btn2:
         st.caption("")
 

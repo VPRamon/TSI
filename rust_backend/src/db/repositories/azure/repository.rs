@@ -8,8 +8,8 @@ use async_trait::async_trait;
 
 use super::{analytics, operations, validation};
 use crate::db::{
-    repository::*,
     models::{Period, Schedule, ScheduleInfo, ScheduleMetadata},
+    repository::*,
 };
 use crate::services::validation::ValidationResult;
 
@@ -86,10 +86,7 @@ impl ScheduleRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn get_schedule_time_range(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Option<Period>> {
+    async fn get_schedule_time_range(&self, schedule_id: i64) -> RepositoryResult<Option<Period>> {
         operations::get_schedule_time_range(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -125,10 +122,7 @@ impl ScheduleRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn fetch_possible_periods(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<Period>> {
+    async fn fetch_possible_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>> {
         operations::fetch_possible_periods(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -343,8 +337,8 @@ impl VisualizationRepository for AzureRepository {
             priority_max,
             block_ids.as_deref(),
         )
-            .await
-            .map_err(RepositoryError::from)
+        .await
+        .map_err(RepositoryError::from)
     }
 
     async fn fetch_schedule_timeline_blocks(

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 import streamlit as st
+from tsi_rust import Period
 
 from tsi import state
 from tsi.components.shared.filters import render_status_filter
@@ -16,10 +17,8 @@ from tsi.components.toolbar.toolbar import (
 )
 from tsi.services.utils.time import ModifiedJulianDate
 
-from tsi_rust import Period
-
 if TYPE_CHECKING:
-    from tsi_rust import LightweightBlock, SkyMapData
+    from tsi_rust import LightweightBlock
 
 
 def render_sidebar_controls(

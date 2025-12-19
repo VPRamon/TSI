@@ -5,8 +5,8 @@
 
 use async_trait::async_trait;
 
-use crate::db::models::{Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock};
 use super::error::RepositoryResult;
+use crate::db::models::{Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock};
 
 /// Repository trait for core schedule database operations.
 ///
@@ -67,10 +67,7 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `Ok(Some(Period))` - Time range as a Period
     /// * `Ok(None)` - If the schedule has no time constraints
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn get_schedule_time_range(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Option<Period>>;
+    async fn get_schedule_time_range(&self, schedule_id: i64) -> RepositoryResult<Option<Period>>;
 
     // ==================== Scheduling Block Operations ====================
 
@@ -121,8 +118,5 @@ pub trait ScheduleRepository: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<Period>)` - List of visibility periods
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_possible_periods(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<Period>>;
+    async fn fetch_possible_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>>;
 }

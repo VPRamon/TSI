@@ -1,11 +1,11 @@
 use crate::db::models::{Period, ScheduleTimelineBlock, ScheduleTimelineData};
 use pyo3::prelude::*;
-use tokio::runtime::Runtime;
 use std::collections::HashSet;
+use tokio::runtime::Runtime;
 
 // Import the global repository accessor
-use crate::python::database::get_repository;
 use crate::db::repository::VisualizationRepository;
+use crate::python::database::get_repository;
 
 /// Compute schedule timeline data with statistics and metadata.
 /// This function takes the raw blocks and computes everything needed for visualization.
@@ -21,7 +21,10 @@ pub fn compute_schedule_timeline_data(
             total_count: 0,
             scheduled_count: 0,
             unique_months: vec![],
-            dark_periods: dark_periods.into_iter().map(|p| (p.start.value(), p.stop.value())).collect(),
+            dark_periods: dark_periods
+                .into_iter()
+                .map(|p| (p.start.value(), p.stop.value()))
+                .collect(),
         });
     }
 
@@ -39,7 +42,7 @@ pub fn compute_schedule_timeline_data(
         // Unix epoch (Jan 1, 1970) = MJD 40587
         let unix_timestamp = (block.scheduled_start_mjd - 40587.0) * 86400.0;
         let datetime = chrono::DateTime::from_timestamp(unix_timestamp as i64, 0);
-        
+
         if let Some(dt) = datetime {
             let month_label = dt.format("%Y-%m").to_string();
             unique_months.insert(month_label);
@@ -68,22 +71,25 @@ pub fn compute_schedule_timeline_data(
         total_count: blocks.len(),
         scheduled_count: blocks.len(),
         unique_months: sorted_months,
-        dark_periods: dark_periods.into_iter().map(|p| (p.start.value(), p.stop.value())).collect(),
+        dark_periods: dark_periods
+            .into_iter()
+            .map(|p| (p.start.value(), p.stop.value()))
+            .collect(),
     })
 }
 
 /// Get complete schedule timeline data with computed statistics and metadata.
 /// This function orchestrates fetching blocks and dark periods from the database
 /// and computing the timeline data.
-/// 
+///
 /// Uses the analytics table for optimal performance when available.
 pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<ScheduleTimelineData, String> {
     // Get the initialized repository
-    let repo = get_repository()
-        .map_err(|e| format!("Failed to get repository: {}", e))?;
-    
+    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
+
     // Fetch timeline blocks from visualization repository
-    let blocks = repo.fetch_schedule_timeline_blocks(schedule_id)
+    let blocks = repo
+        .fetch_schedule_timeline_blocks(schedule_id)
         .await
         .map_err(|e| format!("Failed to fetch timeline blocks: {}", e))?;
 

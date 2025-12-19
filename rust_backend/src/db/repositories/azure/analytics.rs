@@ -220,13 +220,14 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
     // Phase 4: Data Validation (NEW)
     // Validate all blocks and persist validation results
     // ============================================================================
-    
+
     info!("Starting validation for schedule_id={}", schedule_id);
-    
+
     // Convert analytics rows to validation input format
-    let blocks_for_validation: Vec<crate::services::validation::BlockForValidation> = 
-        analytics_rows.iter().map(|row| {
-            crate::services::validation::BlockForValidation {
+    let blocks_for_validation: Vec<crate::services::validation::BlockForValidation> =
+        analytics_rows
+            .iter()
+            .map(|row| crate::services::validation::BlockForValidation {
                 schedule_id: row.schedule_id,
                 scheduling_block_id: row.scheduling_block_id,
                 priority: row.priority,
@@ -241,16 +242,19 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
                 scheduled_stop_mjd: row.scheduled_stop_mjd,
                 target_ra_deg: row.target_ra_deg,
                 target_dec_deg: row.target_dec_deg,
-            }
-        }).collect();
-    
+            })
+            .collect();
+
     // Run validation
     let validation_results = crate::services::validation::validate_blocks(&blocks_for_validation);
-    
+
     // Persist validation results
     match super::validation::insert_validation_results(&validation_results).await {
         Ok(count) => {
-            info!("Inserted {} validation results for schedule_id={}", count, schedule_id);
+            info!(
+                "Inserted {} validation results for schedule_id={}",
+                count, schedule_id
+            );
         }
         Err(e) => {
             log::warn!("Failed to insert validation results: {}", e);
@@ -260,7 +264,10 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
     // Update validation_impossible flags in analytics table
     match super::validation::update_validation_impossible_flags(schedule_id).await {
         Ok(count) => {
-            info!("Updated {} validation_impossible flags for schedule_id={}", count, schedule_id);
+            info!(
+                "Updated {} validation_impossible flags for schedule_id={}",
+                count, schedule_id
+            );
         }
         Err(e) => {
             log::warn!("Failed to update validation_impossible flags: {}", e);
@@ -374,7 +381,10 @@ struct AnalyticsRow {
 type DbClient = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
 
 /// Bulk insert analytics rows in batches.
-async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Result<usize, String> {
+async fn bulk_insert_analytics(
+    conn: &mut DbClient,
+    rows: &[AnalyticsRow],
+) -> Result<usize, String> {
     if rows.is_empty() {
         return Ok(0);
     }
@@ -394,7 +404,7 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
                 "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
                 base + 1, base + 2, base + 3, base + 4, base + 5, base + 6,
                 base + 7, base + 8, base + 9, base + 10, base + 11, base + 12,
-                base + 13, base + 14, base + 15, base + 16, base + 17, base + 18, 
+                base + 13, base + 14, base + 15, base + 16, base + 17, base + 18,
                 base + 19, base + 20, base + 21
             ));
         }
@@ -428,7 +438,11 @@ async fn bulk_insert_analytics(conn: &mut DbClient, rows: &[AnalyticsRow]) -> Re
             values_clauses.join(", ")
         );
 
-        debug!("SQL for batch insert ({} rows): {}", chunk.len(), &sql[..sql.len().min(500)]);
+        debug!(
+            "SQL for batch insert ({} rows): {}",
+            chunk.len(),
+            &sql[..sql.len().min(500)]
+        );
 
         let mut insert = Query::new(sql);
 
@@ -517,12 +531,12 @@ pub async fn fetch_analytics_blocks_for_sky_map(
         let _id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        
+
         let original_block_id: String = row
             .get::<&str, _>(1)
             .ok_or_else(|| "original_block_id is NULL".to_string())?
             .to_string();
-        
+
         let priority: f64 = row
             .get::<f64, _>(2)
             .ok_or_else(|| "priority is NULL".to_string())?;
@@ -673,12 +687,12 @@ pub async fn fetch_analytics_blocks_for_timeline(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        
+
         let original_block_id: String = row
             .get::<&str, _>(1)
             .ok_or_else(|| "original_block_id is NULL".to_string())?
             .to_string();
-        
+
         let priority: f64 = row.get::<f64, _>(2).unwrap_or(0.0);
         let scheduled_start_mjd: f64 = row
             .get::<f64, _>(3)
@@ -764,12 +778,12 @@ pub async fn fetch_analytics_blocks_for_visibility_map(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        
+
         let original_block_id: String = row
             .get::<&str, _>(1)
             .ok_or_else(|| "original_block_id is NULL".to_string())?
             .to_string();
-        
+
         let priority: f64 = row
             .get::<f64, _>(2)
             .ok_or_else(|| "priority is NULL".to_string())?;
@@ -865,12 +879,12 @@ pub async fn fetch_analytics_blocks_for_insights(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        
+
         let original_block_id: String = row
             .get::<&str, _>(1)
             .ok_or_else(|| "original_block_id is NULL".to_string())?
             .to_string();
-        
+
         let priority: f64 = row.get::<f64, _>(2).unwrap_or(0.0);
         let total_visibility_hours: f64 = row.get::<f64, _>(3).unwrap_or(0.0);
         let requested_hours: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
@@ -948,12 +962,12 @@ pub async fn fetch_analytics_blocks_for_trends(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        
+
         let original_block_id: String = row
             .get::<&str, _>(1)
             .ok_or_else(|| "original_block_id is NULL".to_string())?
             .to_string();
-        
+
         let priority: f64 = row.get::<f64, _>(2).unwrap_or(0.0);
         let total_visibility_hours: f64 = row.get::<f64, _>(3).unwrap_or(0.0);
         let requested_hours: f64 = row.get::<f64, _>(4).unwrap_or(0.0);
@@ -1104,7 +1118,8 @@ pub async fn populate_summary_analytics(schedule_id: i64, n_bins: usize) -> Resu
     );
 
     // First, check if block-level analytics exist
-    let check_sql = "SELECT COUNT(*) FROM analytics.schedule_blocks_analytics WHERE schedule_id = @P1";
+    let check_sql =
+        "SELECT COUNT(*) FROM analytics.schedule_blocks_analytics WHERE schedule_id = @P1";
     let mut check_query = Query::new(check_sql);
     check_query.bind(schedule_id);
 
@@ -1118,9 +1133,7 @@ pub async fn populate_summary_analytics(schedule_id: i64, n_bins: usize) -> Resu
         .await
         .map_err(|e| format!("Failed to read count: {e}"))?;
 
-    let block_count: i32 = check_row
-        .and_then(|r| r.get(0))
-        .unwrap_or(0);
+    let block_count: i32 = check_row.and_then(|r| r.get(0)).unwrap_or(0);
 
     if block_count == 0 {
         warn!(
@@ -1402,10 +1415,7 @@ async fn populate_visibility_bins(
             .map_err(|e| format!("Failed to insert visibility bin {}: {}", i, e))?;
     }
 
-    debug!(
-        "Inserted visibility bins for schedule_id={}",
-        schedule_id
-    );
+    debug!("Inserted visibility bins for schedule_id={}", schedule_id);
     Ok(())
 }
 
@@ -1871,6 +1881,7 @@ struct VisibilityPeriod {
 #[derive(Debug)]
 struct BlockVisibilityData {
     scheduling_block_id: i64,
+    #[allow(dead_code)]
     priority: f64,
     priority_quartile: u8,
     is_scheduled: bool,
@@ -1963,7 +1974,10 @@ pub async fn populate_visibility_time_bins(
     // Delete existing data for this schedule
     let delete_start = std::time::Instant::now();
     delete_visibility_time_bins_internal(&mut conn, schedule_id).await?;
-    debug!("Deleted existing bins in {:.2}s", delete_start.elapsed().as_secs_f64());
+    debug!(
+        "Deleted existing bins in {:.2}s",
+        delete_start.elapsed().as_secs_f64()
+    );
 
     // Fetch all blocks with visibility data
     let fetch_start = std::time::Instant::now();
@@ -1996,7 +2010,7 @@ pub async fn populate_visibility_time_bins(
         warn!("No blocks found for schedule_id={}", schedule_id);
         return Ok((0, 0));
     }
-    
+
     info!(
         "Fetched {} blocks in {:.2}s, processing visibility periods...",
         rows.len(),
@@ -2035,7 +2049,12 @@ pub async fn populate_visibility_time_bins(
             }
         }
 
-        raw_blocks.push((block_id, priority, visibility_json.map(|s| s.to_string()), is_scheduled != 0));
+        raw_blocks.push((
+            block_id,
+            priority,
+            visibility_json.map(|s| s.to_string()),
+            is_scheduled != 0,
+        ));
     }
 
     if time_min >= time_max {
@@ -2078,7 +2097,7 @@ pub async fn populate_visibility_time_bins(
         if !periods.is_empty() {
             blocks.push(BlockVisibilityData {
                 scheduling_block_id: block_id,
-                priority: priority,
+                priority,
                 priority_quartile: quartile,
                 is_scheduled,
                 periods,
@@ -2088,21 +2107,32 @@ pub async fn populate_visibility_time_bins(
 
     // Initialize bins
     let bin_init_start = std::time::Instant::now();
-    let mut bin_data: Vec<(i64, i64, std::collections::HashSet<i64>, [i32; 4], i32, i32)> =
-        (0..num_bins)
-            .map(|i| {
-                let bin_start = time_min + (i as i64) * bin_duration;
-                let bin_end = std::cmp::min(bin_start + bin_duration, time_max);
-                (bin_start, bin_end, std::collections::HashSet::new(), [0; 4], 0, 0)
-            })
-            .collect();
-    debug!("Initialized {} bins in {:.2}s", num_bins, bin_init_start.elapsed().as_secs_f64());
+    let mut bin_data: Vec<(i64, i64, std::collections::HashSet<i64>, [i32; 4], i32, i32)> = (0
+        ..num_bins)
+        .map(|i| {
+            let bin_start = time_min + (i as i64) * bin_duration;
+            let bin_end = std::cmp::min(bin_start + bin_duration, time_max);
+            (
+                bin_start,
+                bin_end,
+                std::collections::HashSet::new(),
+                [0; 4],
+                0,
+                0,
+            )
+        })
+        .collect();
+    debug!(
+        "Initialized {} bins in {:.2}s",
+        num_bins,
+        bin_init_start.elapsed().as_secs_f64()
+    );
 
     // Populate bins with block visibility (this is the O(n*m) operation)
     info!("Processing block-to-bin assignments (may take 1-2 minutes for large schedules)...");
     let bin_pop_start = std::time::Instant::now();
     let mut total_assignments = 0usize;
-    
+
     for (idx, block) in blocks.iter().enumerate() {
         if idx > 0 && idx % 100 == 0 {
             debug!(
@@ -2112,7 +2142,7 @@ pub async fn populate_visibility_time_bins(
                 (idx as f64 / blocks.len() as f64) * 100.0
             );
         }
-        
+
         for period in &block.periods {
             // Find overlapping bins
             let start_bin = ((period.start_unix - time_min) / bin_duration).max(0) as usize;
@@ -2124,8 +2154,14 @@ pub async fn populate_visibility_time_bins(
                     continue;
                 }
 
-                let (bin_start, bin_end, ref mut block_ids, ref mut quartile_counts, ref mut sched_count, ref mut unsched_count) =
-                    bin_data[bin_idx];
+                let (
+                    bin_start,
+                    bin_end,
+                    ref mut block_ids,
+                    ref mut quartile_counts,
+                    ref mut sched_count,
+                    ref mut unsched_count,
+                ) = bin_data[bin_idx];
 
                 // Check if period actually overlaps with this bin
                 if period.start_unix < bin_end && period.end_unix > bin_start {
@@ -2146,7 +2182,7 @@ pub async fn populate_visibility_time_bins(
             }
         }
     }
-    
+
     info!(
         "Completed bin population in {:.2}s: {} block-to-bin assignments",
         bin_pop_start.elapsed().as_secs_f64(),
@@ -2232,8 +2268,17 @@ async fn bulk_insert_visibility_bins(
             let base = i * 11;
             values_clauses.push(format!(
                 "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
-                base + 1, base + 2, base + 3, base + 4, base + 5, base + 6,
-                base + 7, base + 8, base + 9, base + 10, base + 11
+                base + 1,
+                base + 2,
+                base + 3,
+                base + 4,
+                base + 5,
+                base + 6,
+                base + 7,
+                base + 8,
+                base + 9,
+                base + 10,
+                base + 11
             ));
         }
 
@@ -2251,8 +2296,10 @@ async fn bulk_insert_visibility_bins(
 
         let mut query = Query::new(sql);
 
-        for (bin_idx, (bin_start, bin_end, block_ids, quartile_counts, sched_count, unsched_count)) in
-            chunk.iter().enumerate()
+        for (
+            bin_idx,
+            (bin_start, bin_end, block_ids, quartile_counts, sched_count, unsched_count),
+        ) in chunk.iter().enumerate()
         {
             let global_bin_idx = chunk_idx * BATCH_SIZE + bin_idx;
             query.bind(schedule_id);
@@ -2359,7 +2406,9 @@ pub async fn has_visibility_time_bins(schedule_id: i64) -> Result<bool, String> 
 }
 
 /// Fetch visibility metadata for a schedule.
-pub async fn fetch_visibility_metadata(schedule_id: i64) -> Result<Option<VisibilityTimeMetadata>, String> {
+pub async fn fetch_visibility_metadata(
+    schedule_id: i64,
+) -> Result<Option<VisibilityTimeMetadata>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -2432,10 +2481,15 @@ pub async fn fetch_visibility_histogram_from_analytics(
 
     // First get the base bin duration
     let metadata = fetch_visibility_metadata_internal(&mut conn, schedule_id).await?;
-    
+
     let base_bin_duration = match metadata {
         Some(m) => m.bin_duration_seconds as i64,
-        None => return Err(format!("No visibility time bins found for schedule_id={}", schedule_id)),
+        None => {
+            return Err(format!(
+                "No visibility time bins found for schedule_id={}",
+                schedule_id
+            ))
+        }
     };
 
     // Fetch relevant base bins

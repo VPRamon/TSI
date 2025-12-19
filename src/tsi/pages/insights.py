@@ -3,13 +3,16 @@
 import streamlit as st
 
 from tsi import state
-from tsi.components.insights.insights_analysis import render_automated_insights, render_correlation_analysis
-from tsi.components.insights.insights_controls import render_filter_controls
+from tsi.components.insights.insights_analysis import (
+    render_automated_insights,
+    render_correlation_analysis,
+)
 from tsi.components.insights.insights_metrics import render_key_metrics, render_priority_analysis
 from tsi.components.insights.insights_reports import render_report_downloads
 from tsi.components.insights.insights_tables import render_integrity_checks, render_top_observations
-from tsi.services.data.analytics import generate_insights
 from tsi.services import database as db
+from tsi.services.data.analytics import generate_insights
+
 
 def render() -> None:
     """Render the Insights & Conclusions page."""
@@ -74,5 +77,5 @@ def render() -> None:
         insights,
         insights_data.correlations,
         insights_data.top_priority,
-        insights_data.conflicts
+        insights_data.conflicts,
     )

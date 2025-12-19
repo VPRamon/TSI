@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from tsi.config import ASSETS_DIR, APP_TITLE, APP_ICON
+from tsi.config import APP_ICON, APP_TITLE, ASSETS_DIR
 
 
 def load_custom_css() -> None:
@@ -14,9 +14,9 @@ def load_custom_css() -> None:
 def apply_page_config() -> None:
     """Configure Streamlit page settings using centralized configuration."""
     from app_config import get_settings
-    
+
     settings = get_settings()
-    
+
     st.set_page_config(
         page_title=settings.app_title,
         page_icon=settings.app_icon,
@@ -34,7 +34,7 @@ def render_landing_title(title: str | None = None) -> None:
     """
     if title is None:
         title = APP_TITLE
-    
+
     st.markdown(
         f'<h1 class="landing-title">{APP_ICON} {title}</h1>',
         unsafe_allow_html=True,

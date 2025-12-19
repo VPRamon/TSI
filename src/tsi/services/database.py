@@ -55,18 +55,18 @@ See individual function docstrings for details.
 from __future__ import annotations
 
 import logging
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from app_config import get_settings
+from tsi.error_handling import log_error, with_retry
 from tsi.exceptions import (
     ServerError,
 )
-from tsi.error_handling import with_retry, log_error
 
 if TYPE_CHECKING:
-    from tsi_rust import LightweightBlock, SkyMapData, VisibilityMapData, ScheduleTimelineData
+    from tsi_rust import SkyMapData, VisibilityMapData
 
 logger = logging.getLogger(__name__)
 
@@ -74,24 +74,23 @@ logger = logging.getLogger(__name__)
 def _import_rust():
     """
     Import the Rust backend module.
-    
+
     Raises:
         ServerError: If tsi_rust module is not compiled/available
     """
     settings = get_settings()
-    
+
     if not settings.enable_rust_backend:
         raise ServerError(
-            "Rust backend is disabled in configuration",
-            details={"enable_rust_backend": False}
+            "Rust backend is disabled in configuration", details={"enable_rust_backend": False}
         )
-    
+
     try:
         import tsi_rust  # type: ignore[import-not-found]
     except ImportError as e:
         raise ServerError(
             "Rust backend is not available. Please compile the extension before using database features.",
-            details={"install_command": "maturin develop --release"}
+            details={"install_command": "maturin develop --release"},
         ) from e
     return tsi_rust
 
@@ -99,14 +98,14 @@ def _import_rust():
 def _rust_call(method: str, *args: Any):
     """
     Call a Rust backend function by name with error handling.
-    
+
     Args:
         method: Name of the Rust function (e.g., "py_list_schedules")
         *args: Arguments to pass to the Rust function
-        
+
     Returns:
         Result from the Rust function
-        
+
     Raises:
         ServerError: If Rust backend cannot be imported or operation fails
     """
@@ -118,15 +117,14 @@ def _rust_call(method: str, *args: Any):
         raise
     except AttributeError as e:
         raise ServerError(
-            f"Rust backend method '{method}' not found",
-            details={"method": method}
+            f"Rust backend method '{method}' not found", details={"method": method}
         ) from e
     except Exception as e:
         # Log and re-raise other errors with context
         log_error(
             e,
             f"Rust backend call '{method}' failed",
-            extra={"method": method, "args_count": len(args)}
+            extra={"method": method, "args_count": len(args)},
         )
         raise
 
@@ -139,12 +137,12 @@ def _rust_call(method: str, *args: Any):
 def db_health_check() -> bool:
     """
     Check database connectivity.
-    
+
     Backend: Rust (tiberius)
-    
+
     Returns:
         True if database is reachable, False otherwise
-        
+
     Raises:
         ServerError: If health check fails with an error
     """
@@ -153,10 +151,8 @@ def db_health_check() -> bool:
         logger.debug("Database health check passed")
         return result
     except Exception as e:
-        raise ServerError(
-            "Database health check failed",
-            details={"error": str(e)}
-        ) from e
+        raise ServerError("Database health check failed", details={"error": str(e)}) from e
+
 
 @with_retry(max_attempts=3, backoff_factor=1.5)
 def store_schedule_db(
@@ -168,22 +164,22 @@ def store_schedule_db(
 ) -> dict[str, Any]:
     """
     Store a preprocessed schedule in the database.
-    
+
     Backend: Rust (tiberius)
-    
+
     Args:
         schedule_name: Human-readable schedule name
         schedule_json: JSON string containing schedule data
         visibility_json: Optional JSON string with visibility periods
         populate_analytics: If True, compute block and summary analytics (recommended)
         skip_time_bins: If True, skip expensive visibility time bin computation (default: True for performance)
-        
+
     Returns:
         Dictionary with storage results including schedule_id
-        
+
     Raises:
         ServerError: If storage operation fails
-        
+
     Performance:
         - Fast mode (default): ~10-30 seconds for 1500 blocks
         - Full analytics (skip_time_bins=False): ~2-5 minutes for 1500 blocks
@@ -205,7 +201,7 @@ def store_schedule_db(
     except Exception as e:
         raise ServerError(
             f"Failed to store schedule '{schedule_name}'",
-            details={"schedule_name": schedule_name, "error": str(e)}
+            details={"schedule_name": schedule_name, "error": str(e)},
         ) from e
 
 
@@ -213,10 +209,10 @@ def store_schedule_db(
 def list_schedules_db() -> list[dict[str, Any]]:
     """
     List available schedules using the Rust backend.
-    
+
     Returns:
         List of schedule metadata dictionaries
-        
+
     Raises:
         ServerError: If query fails
     """
@@ -225,15 +221,13 @@ def list_schedules_db() -> list[dict[str, Any]]:
         logger.debug(f"Retrieved {len(result)} schedules from database")
         return result
     except Exception as e:
-        raise ServerError(
-            "Failed to list schedules",
-            details={"error": str(e)}
-        ) from e
+        raise ServerError("Failed to list schedules", details={"error": str(e)}) from e
 
 
 def get_schedule_blocks(schedule_id: int) -> list[Any]:
     """Fetch scheduling block models via PyO3 bindings."""
     return _rust_call("py_get_schedule_blocks", schedule_id)
+
 
 def get_sky_map_data(
     *,
@@ -241,9 +235,9 @@ def get_sky_map_data(
 ) -> SkyMapData:
     """
     Get complete sky map data with computed bins and metadata.
-    
+
     Retrieves data from ETL analytics tables which contain pre-computed metrics.
-    
+
     This is the main function for the sky map feature. It returns a SkyMapData
     object containing:
     - blocks: List of LightweightBlock objects with computed priority bins
@@ -252,11 +246,12 @@ def get_sky_map_data(
     - ra_min, ra_max, dec_min, dec_max: Coordinate ranges
     - total_count, scheduled_count: Statistics
     - scheduled_time_min, scheduled_time_max: Time range for scheduled blocks
-    
+
     All processing (querying, bin computation, statistics) is done in Rust
     for maximum performance. The frontend just needs to plot the data.
     """
     from tsi.services.data_access import get_sky_map_data as get_data
+
     return get_data(schedule_id)
 
 
@@ -282,9 +277,9 @@ def get_distribution_data(
 ):
     """
     Get complete distribution data with computed statistics.
-    
+
     Retrieves data from ETL analytics tables which contain pre-computed metrics.
-    
+
     This is the main function for the distributions feature. It returns a DistributionData
     object containing:
     - blocks: List of DistributionBlock objects with only required fields
@@ -293,20 +288,21 @@ def get_distribution_data(
     - requested_hours_stats: DistributionStats for requested_hours
     - total_count, scheduled_count, unscheduled_count: Counts
     - impossible_count: Number of blocks with zero visibility
-    
+
     Note:
         Impossible blocks (zero visibility) are automatically excluded during ETL.
-    
+
     All processing (querying, statistics computation) is done in Rust
     for maximum performance. The frontend just needs to plot the data.
-    
+
     Args:
         schedule_id: Database ID of the schedule to load
-    
+
     Returns:
         DistributionData object with all required data and pre-computed statistics
     """
     from tsi.services.data_access import get_distribution_data as get_data
+
     return get_data(schedule_id)
 
 
@@ -316,7 +312,7 @@ def get_schedule_timeline_data(
 ):
     """
     Get complete schedule timeline data with computed statistics and metadata.
-    
+
     This is the main function for the scheduled timeline feature. It returns a ScheduleTimelineData
     object containing:
     - blocks: List of ScheduleTimelineBlock objects with scheduled times and coordinates
@@ -324,17 +320,18 @@ def get_schedule_timeline_data(
     - total_count, scheduled_count: Statistics
     - unique_months: List of unique month labels (YYYY-MM format)
     - dark_periods: List of (start_mjd, stop_mjd) tuples for dark periods
-    
+
     All processing (querying, statistics computation, month extraction) is done in Rust
     for maximum performance. The frontend just needs to render the timeline.
-    
+
     Args:
         schedule_id: Database ID of the schedule to load
-    
+
     Returns:
         ScheduleTimelineData object with all required data and pre-computed metadata
     """
     from tsi.services.data_access import get_schedule_timeline_data as get_data
+
     return get_data(schedule_id)
 
 
@@ -344,7 +341,7 @@ def get_insights_data(
 ):
     """
     Get complete insights data with computed analytics and metadata.
-    
+
     This is the main function for the insights feature. It returns an InsightsData
     object containing:
     - blocks: List of InsightsBlock objects with all required fields
@@ -354,20 +351,21 @@ def get_insights_data(
     - top_visibility: List of TopObservation objects sorted by visibility hours
     - conflicts: List of ConflictRecord objects for overlapping scheduled observations
     - total_count, scheduled_count, impossible_count: Summary statistics
-    
+
     Note:
         Impossible blocks (zero visibility) are automatically excluded during ETL.
-    
+
     All processing (querying, analytics computation, correlations, conflict detection)
     is done in Rust for maximum performance. The frontend just needs to render the data.
-    
+
     Args:
         schedule_id: Database ID of the schedule to load
-    
+
     Returns:
         InsightsData object with all required data and pre-computed analytics
     """
     from tsi.services.data_access import get_insights_data as get_data
+
     return get_data(schedule_id)
 
 
@@ -380,7 +378,7 @@ def get_trends_data(
 ):
     """
     Get complete trends data with computed empirical rates, smoothed curves, and heatmap bins.
-    
+
     This is the main function for the trends feature. It returns a TrendsData
     object containing:
     - blocks: List of TrendsBlock objects with scheduling data
@@ -392,23 +390,24 @@ def get_trends_data(
     - smoothed_time: List of SmoothedPoint objects for requested time trend
     - heatmap_bins: List of HeatmapBin objects for 2D visualization
     - priority_values: Unique priority values for filtering
-    
+
     Note:
         Impossible blocks (zero visibility) are automatically excluded during ETL.
-    
+
     All processing (querying, binning, smoothing, heatmap computation) is done in Rust
     for maximum performance. The frontend just needs to render the data.
-    
+
     Args:
         schedule_id: Database ID of the schedule to load
         n_bins: Number of bins for continuous variables (default: 10)
         bandwidth: Bandwidth for smoothing as fraction of range (default: 0.3)
         n_smooth_points: Number of points in smoothed curves (default: 100)
-    
+
     Returns:
         TrendsData object with all required data and pre-computed analytics
     """
     from tsi.services.data_access import get_trends_data as get_data
+
     return get_data(schedule_id, n_bins, bandwidth, n_smooth_points)
 
 
@@ -421,7 +420,7 @@ def get_compare_data(
 ):
     """
     Get complete comparison data for two schedules from the database.
-    
+
     This is the main function for the schedule comparison feature. It returns a CompareData
     object containing:
     - current_blocks: List of CompareBlock objects from the current schedule
@@ -434,20 +433,21 @@ def get_compare_data(
     - scheduling_changes: List of SchedulingChange objects tracking status changes
     - current_name: Name of the current schedule
     - comparison_name: Name of the comparison schedule
-    
+
     All processing (querying, comparison, statistics computation) is done in Rust
     for maximum performance. The frontend just needs to render the comparison.
-    
+
     Args:
         current_schedule_id: Database ID of the current schedule
         comparison_schedule_id: Database ID of the schedule to compare with
         current_name: Display name for the current schedule
         comparison_name: Display name for the comparison schedule
-    
+
     Returns:
         CompareData object with all required data and pre-computed comparisons
     """
     from tsi.services.data_access import get_compare_data as get_data
+
     return get_data(current_schedule_id, comparison_schedule_id, current_name, comparison_name)
 
 
@@ -502,7 +502,9 @@ def _standardize_schedule_df(df: pd.DataFrame) -> pd.DataFrame:
 
     # Derive simple metrics/defaults to satisfy downstream expectations
     if "requested_duration_sec" in df.columns:
-        df["minObservationTimeInSec"] = df.get("minObservationTimeInSec", df["requested_duration_sec"])
+        df["minObservationTimeInSec"] = df.get(
+            "minObservationTimeInSec", df["requested_duration_sec"]
+        )
         df["requested_hours"] = df["requested_duration_sec"] / 3600.0
     else:
         df["requested_duration_sec"] = None
@@ -547,7 +549,7 @@ def get_visibility_histogram(
     Returns a list of time bins with counts of visible scheduling blocks.
     This function offloads heavy computation to Rust and returns only
     the minimal JSON-serializable payload needed for visualization.
-    
+
     Performance Note:
         When no filters (priority_range, block_ids) are applied, uses pre-computed
         analytics bins which is ~10-100x faster. With filters, falls back to
@@ -584,7 +586,7 @@ def get_visibility_histogram(
     # Convert pandas timestamps to Unix timestamps
     start_unix = int(start.timestamp())
     end_unix = int(end.timestamp())
-    
+
     # Try fast analytics path when no filters are applied
     # (pre-computed bins are much faster but don't support filtering)
     if priority_range is None and block_ids is None:
@@ -622,20 +624,20 @@ def get_visibility_histogram(
 def get_schedule_time_range(schedule_id: int) -> tuple[pd.Timestamp, pd.Timestamp] | None:
     """
     Get the time range (min/max timestamps) for a schedule's visibility periods.
-    
+
     This function queries the database to find the earliest and latest times
     across all visibility periods for the given schedule.
-    
+
     Args:
         schedule_id: Schedule ID to analyze
-        
+
     Returns:
         Tuple of (start_time, end_time) as pandas Timestamps, or None if no
         visibility periods exist or if schedule not found.
-        
+
     Raises:
         RuntimeError: If database query fails
-        
+
     Example:
         >>> time_range = get_schedule_time_range(schedule_id=1)
         >>> if time_range:
@@ -645,99 +647,105 @@ def get_schedule_time_range(schedule_id: int) -> tuple[pd.Timestamp, pd.Timestam
         ...     print("No visibility periods found")
     """
     result = _rust_call("py_get_schedule_time_range", schedule_id)
-    
+
     if result is None:
         return None
-    
+
     start_unix, end_unix = result
-    
+
     # Convert Unix timestamps to pandas timestamps (UTC)
-    start_time = pd.Timestamp(start_unix, unit='s', tz='UTC')
-    end_time = pd.Timestamp(end_unix, unit='s', tz='UTC')
-    
+    start_time = pd.Timestamp(start_unix, unit="s", tz="UTC")
+    end_time = pd.Timestamp(end_unix, unit="s", tz="UTC")
+
     return start_time, end_time
 
 
 def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
     """
     Get validation report data for a schedule.
-    
+
     This function retrieves validation results computed during the ETL Transform stage.
     Validation results are persisted to the database and include:
     - Blocks that are impossible to schedule (zero/insufficient visibility)
     - Validation errors (constraint violations, invalid values)
     - Warnings (potential data quality issues)
-    
+
     Args:
         schedule_id: Schedule ID to analyze
-        
+
     Returns:
         Dictionary containing:
         - metrics: Overall statistics (total_blocks, valid_blocks, etc.)
         - impossible_blocks: List of blocks that cannot be scheduled
         - validation_errors: List of data validation errors
         - validation_warnings: List of data warnings
-        
+
     Example:
         >>> data = get_validation_report_data(schedule_id=1)
         >>> print(f"Found {len(data['impossible_blocks'])} impossible blocks")
-        
+
     Note:
         Validation is performed automatically during schedule upload as part of the ETL process.
         Impossible blocks are automatically filtered from analytics queries.
     """
     # Get validation data from Rust backend
     report = _rust_call("py_get_validation_report", schedule_id)
-    
+
     # Convert Rust objects to Python dictionaries for backward compatibility
     impossible_blocks = []
     for issue in report.impossible_blocks:
-        impossible_blocks.append({
-            "block_id": issue.block_id,
-            "original_block_id": issue.original_block_id,
-            "issue_type": issue.issue_type,
-            "category": issue.category,
-            "criticality": issue.criticality,
-            "field_name": issue.field_name,
-            "current_value": issue.current_value,
-            "expected_value": issue.expected_value,
-            "description": issue.description,
-            # Legacy fields for compatibility
-            "priority": 0.0,  # Not stored in validation results
-            "reason": issue.issue_type,
-            "requested_duration_hours": 0.0,  # Not stored
-            "total_visibility_hours": 0.0,  # Not stored
-            "min_duration_hours": 0.0,  # Not stored
-            "details": issue.description,
-        })
-    
+        impossible_blocks.append(
+            {
+                "block_id": issue.block_id,
+                "original_block_id": issue.original_block_id,
+                "issue_type": issue.issue_type,
+                "category": issue.category,
+                "criticality": issue.criticality,
+                "field_name": issue.field_name,
+                "current_value": issue.current_value,
+                "expected_value": issue.expected_value,
+                "description": issue.description,
+                # Legacy fields for compatibility
+                "priority": 0.0,  # Not stored in validation results
+                "reason": issue.issue_type,
+                "requested_duration_hours": 0.0,  # Not stored
+                "total_visibility_hours": 0.0,  # Not stored
+                "min_duration_hours": 0.0,  # Not stored
+                "details": issue.description,
+            }
+        )
+
     validation_errors = []
     for issue in report.validation_errors:
-        validation_errors.append({
-            "block_id": issue.block_id,
-            "original_block_id": issue.original_block_id,
-            "error_type": issue.issue_type,
-            "field": issue.field_name or "",
-            "value": issue.current_value or "",
-            "expected_range": issue.expected_value or "",
-            "issue": issue.description,
-            "description": issue.description,
-            "criticality": issue.criticality,
-        })
-    
+        validation_errors.append(
+            {
+                "block_id": issue.block_id,
+                "original_block_id": issue.original_block_id,
+                "error_type": issue.issue_type,
+                "field": issue.field_name or "",
+                "value": issue.current_value or "",
+                "expected_range": issue.expected_value or "",
+                "issue": issue.description,
+                "description": issue.description,
+                "criticality": issue.criticality,
+            }
+        )
+
     validation_warnings = []
     for issue in report.validation_warnings:
-        validation_warnings.append({
-            "block_id": issue.block_id,
-            "original_block_id": issue.original_block_id,
-            "warning_type": issue.issue_type,
-            "field": issue.field_name or "",
-            "value": issue.current_value or "",
-            "note": issue.description,
-            "description": issue.description,
-            "criticality": issue.criticality,
-        })
-    
+        validation_warnings.append(
+            {
+                "block_id": issue.block_id,
+                "original_block_id": issue.original_block_id,
+                "warning_type": issue.issue_type,
+                "field": issue.field_name or "",
+                "value": issue.current_value or "",
+                "note": issue.description,
+                "description": issue.description,
+                "criticality": issue.criticality,
+            }
+        )
+
     return {
         "metrics": {
             "total_blocks": report.total_blocks,
@@ -755,10 +763,10 @@ def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
 def _compute_validation_report_fallback(schedule_id: int) -> dict[str, Any]:
     """
     DEPRECATED: Fallback implementation for validation report computation.
-    
+
     This function is no longer used. Validation is now performed during the ETL
     Transform stage and results are stored in the database.
-    
+
     Kept for reference only.
     """
     logger.warning(
@@ -766,96 +774,108 @@ def _compute_validation_report_fallback(schedule_id: int) -> dict[str, Any]:
         "Validation is now performed during ETL. This fallback should not be used."
     )
     from tsi.services.data_access import get_insights_data
-    
+
     # Get raw data
     insights_data = get_insights_data(schedule_id=schedule_id, filter_impossible=False)
     blocks = insights_data.blocks
-    
+
     impossible_blocks = []
     validation_errors = []
     validation_warnings = []
-    
+
     # Check for impossible blocks
     for block in blocks:
         # Check if no visibility (total_visibility_hours is 0 or very small)
         if block.total_visibility_hours < 0.001:  # Less than ~3.6 seconds
-            impossible_blocks.append({
-                "block_id": block.scheduling_block_id,
-                "priority": block.priority,
-                "reason": "No visibility periods available",
-                "requested_duration_hours": block.requested_hours,
-                "total_visibility_hours": block.total_visibility_hours,
-                "min_duration_hours": block.requested_hours,  # Use requested as proxy for minimum
-                "details": "This block has no time windows when it's visible",
-                "criticality": "Critical",
-            })
+            impossible_blocks.append(
+                {
+                    "block_id": block.scheduling_block_id,
+                    "priority": block.priority,
+                    "reason": "No visibility periods available",
+                    "requested_duration_hours": block.requested_hours,
+                    "total_visibility_hours": block.total_visibility_hours,
+                    "min_duration_hours": block.requested_hours,  # Use requested as proxy for minimum
+                    "details": "This block has no time windows when it's visible",
+                    "criticality": "Critical",
+                }
+            )
         # Check if visibility is less than requested duration
         elif block.total_visibility_hours < block.requested_hours:
-            impossible_blocks.append({
-                "block_id": block.scheduling_block_id,
-                "priority": block.priority,
-                "reason": "Visibility less than requested duration",
-                "requested_duration_hours": block.requested_hours,
-                "total_visibility_hours": block.total_visibility_hours,
-                "min_duration_hours": block.requested_hours,
-                "details": f"Needs {block.requested_hours:.2f}h but only {block.total_visibility_hours:.2f}h available",
-                "criticality": "Critical",
-            })
-    
+            impossible_blocks.append(
+                {
+                    "block_id": block.scheduling_block_id,
+                    "priority": block.priority,
+                    "reason": "Visibility less than requested duration",
+                    "requested_duration_hours": block.requested_hours,
+                    "total_visibility_hours": block.total_visibility_hours,
+                    "min_duration_hours": block.requested_hours,
+                    "details": f"Needs {block.requested_hours:.2f}h but only {block.total_visibility_hours:.2f}h available",
+                    "criticality": "Critical",
+                }
+            )
+
     # Check for validation errors
     for block in blocks:
         # Check for negative priority
         if block.priority < 0:
-            validation_errors.append({
-                "block_id": block.scheduling_block_id,
-                "error_type": "Negative priority",
-                "field": "priority",
-                "value": block.priority,
-                "expected_range": ">= 0",
-                "issue": f"Priority {block.priority} cannot be negative",
-                "description": "Priority values must be non-negative",
-                "criticality": "High",
-            })
-        
+            validation_errors.append(
+                {
+                    "block_id": block.scheduling_block_id,
+                    "error_type": "Negative priority",
+                    "field": "priority",
+                    "value": block.priority,
+                    "expected_range": ">= 0",
+                    "issue": f"Priority {block.priority} cannot be negative",
+                    "description": "Priority values must be non-negative",
+                    "criticality": "High",
+                }
+            )
+
         # Check for negative durations
         if block.requested_hours < 0:
-            validation_errors.append({
-                "block_id": block.scheduling_block_id,
-                "error_type": "Negative duration",
-                "field": "requested_hours",
-                "value": block.requested_hours,
-                "issue": "Duration cannot be negative",
-                "description": "Requested duration must be a positive value",
-                "criticality": "High",
-            })
-        
+            validation_errors.append(
+                {
+                    "block_id": block.scheduling_block_id,
+                    "error_type": "Negative duration",
+                    "field": "requested_hours",
+                    "value": block.requested_hours,
+                    "issue": "Duration cannot be negative",
+                    "description": "Requested duration must be a positive value",
+                    "criticality": "High",
+                }
+            )
+
         # Check for invalid elevation range (should be 0-90 degrees typically)
         if block.elevation_range_deg < 0 or block.elevation_range_deg > 180:
-            validation_errors.append({
-                "block_id": block.scheduling_block_id,
-                "error_type": "Invalid elevation range",
-                "field": "elevation_range_deg",
-                "value": block.elevation_range_deg,
-                "expected_range": "0-180",
-                "issue": f"Elevation range {block.elevation_range_deg} is physically impossible",
-                "description": "Elevation range should be between 0 and 180 degrees",
-                "criticality": "Medium",
-            })
-    
+            validation_errors.append(
+                {
+                    "block_id": block.scheduling_block_id,
+                    "error_type": "Invalid elevation range",
+                    "field": "elevation_range_deg",
+                    "value": block.elevation_range_deg,
+                    "expected_range": "0-180",
+                    "issue": f"Elevation range {block.elevation_range_deg} is physically impossible",
+                    "description": "Elevation range should be between 0 and 180 degrees",
+                    "criticality": "Medium",
+                }
+            )
+
     # Check for warnings
     for block in blocks:
         # Warn about very narrow elevation ranges (might be hard to observe)
         if 0 < block.elevation_range_deg < 5:
-            validation_warnings.append({
-                "block_id": block.scheduling_block_id,
-                "warning_type": "Very narrow elevation range",
-                "field": "elevation_range_deg",
-                "value": block.elevation_range_deg,
-                "note": "Such a narrow elevation range may make scheduling difficult",
-                "description": "Elevation ranges below 5 degrees are uncommon",
-                "criticality": "Medium",
-            })
-    
+            validation_warnings.append(
+                {
+                    "block_id": block.scheduling_block_id,
+                    "warning_type": "Very narrow elevation range",
+                    "field": "elevation_range_deg",
+                    "value": block.elevation_range_deg,
+                    "note": "Such a narrow elevation range may make scheduling difficult",
+                    "description": "Elevation ranges below 5 degrees are uncommon",
+                    "criticality": "Medium",
+                }
+            )
+
     return {
         "metrics": {
             "total_blocks": len(blocks),

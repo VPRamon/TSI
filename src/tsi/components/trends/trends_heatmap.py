@@ -27,28 +27,29 @@ def render_heatmap_section(
         return
 
     # Convert to DataFrame for plotting
-    df = pd.DataFrame([
-        {
-            "vis_bin": b.visibility_mid,
-            "time_bin": b.time_mid,
-            "rate": b.scheduled_rate,
-            "count": b.count,
-        }
-        for b in heatmap_bins
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "vis_bin": b.visibility_mid,
+                "time_bin": b.time_mid,
+                "rate": b.scheduled_rate,
+                "count": b.count,
+            }
+            for b in heatmap_bins
+        ]
+    )
 
     # Pivot for heatmap display
     heatmap_data = df.pivot(index="time_bin", columns="vis_bin", values="rate")
-    
+
     st.markdown("**Heatmap: Visibility × Requested Time**")
     st.caption("Shows scheduling rate for different combinations of visibility and requested time")
-    
+
     # Use Streamlit's experimental data editor with color mapping
     st.dataframe(
-        heatmap_data.style.background_gradient(cmap="RdYlGn", vmin=0, vmax=1),
-        width="stretch"
+        heatmap_data.style.background_gradient(cmap="RdYlGn", vmin=0, vmax=1), width="stretch"
     )
-    
+
     with st.expander("View heatmap data"):
         display_df = df.copy()
         display_df["rate"] = display_df["rate"].apply(lambda x: f"{x:.1%}")

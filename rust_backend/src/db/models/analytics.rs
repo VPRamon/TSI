@@ -1,5 +1,5 @@
 //! Analytics and visualization domain models.
-//! 
+//!
 //! This module contains types for analytics, visualizations, and statistical data:
 //! - LightweightBlock: Simplified block for sky map visualization
 //! - DistributionBlock: Block data for distribution visualizations
@@ -16,7 +16,7 @@ use super::schedule::Period;
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct LightweightBlock {
-    pub original_block_id: String,  // Original ID from JSON (shown to user)
+    pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
     pub priority_bin: String,
     pub requested_duration_seconds: f64,

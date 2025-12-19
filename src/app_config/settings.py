@@ -32,7 +32,6 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -43,7 +42,7 @@ logger = logging.getLogger(__name__)
 class Settings(BaseSettings):
     """
     Centralized application configuration.
-    
+
     All settings can be overridden via environment variables or a .env file.
     Environment variables take precedence over .env file values.
     """
@@ -158,23 +157,24 @@ class Settings(BaseSettings):
             "b": self.plot_margin_bottom,
         }
 
+
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     """
     Return a cached Settings instance.
-    
+
     This function caches the settings to avoid re-reading environment variables
     and .env files on every call.
-    
+
     Returns:
         Cached Settings instance
     """
     settings = Settings()
-    
+
     # Log configuration status
     logger.info(f"Data root: {settings.data_root}")
     logger.info(f"Cache TTL: {settings.cache_ttl}s")
     logger.info(f"Rust backend enabled: {settings.enable_rust_backend}")
     logger.info("Note: Database configuration is managed by Rust backend via environment variables")
-    
+
     return settings

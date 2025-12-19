@@ -2,16 +2,14 @@
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
-use tokio::runtime::Runtime;
 use std::sync::OnceLock;
+use tokio::runtime::Runtime;
 
 use crate::db::{
     models::{Schedule, SchedulingBlock},
-    services, repositories::LocalRepository, RepositoryFactory,
-    repository::{
-        analytics::AnalyticsRepository,
-        visualization::VisualizationRepository,
-    },
+    repositories::LocalRepository,
+    repository::{analytics::AnalyticsRepository, visualization::VisualizationRepository},
+    services,
 };
 
 // Global repository instance initialized once
@@ -19,13 +17,13 @@ use crate::db::{
 static REPOSITORY: OnceLock<std::sync::Arc<LocalRepository>> = OnceLock::new();
 
 /// Get a reference to the global repository instance.
-/// 
+///
 /// This function is used internally by database operations and validation reporting.
 /// It returns an error if the repository hasn't been initialized via `py_init_database()`.
 pub(crate) fn get_repository() -> PyResult<&'static std::sync::Arc<LocalRepository>> {
     REPOSITORY.get().ok_or_else(|| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-            "Database not initialized. Call py_init_database() first."
+            "Database not initialized. Call py_init_database() first.",
         )
     })
 }
@@ -86,7 +84,7 @@ fn parse_schedule_from_json(
         ))
     })?;
     schedule.name = schedule_name.to_string();
-    
+
     Ok(schedule)
 }
 
@@ -125,7 +123,7 @@ fn store_schedule_in_db(
 #[pyfunction]
 pub fn py_db_health_check() -> PyResult<bool> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -203,7 +201,7 @@ pub fn py_get_schedule(schedule_id: i64) -> PyResult<Schedule> {
     })?;
 
     let repo = get_repository()?;
-    
+
     runtime
         .block_on(services::get_schedule(repo.as_ref(), schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
@@ -213,7 +211,7 @@ pub fn py_get_schedule(schedule_id: i64) -> PyResult<Schedule> {
 #[pyfunction]
 pub fn py_get_schedule_blocks(schedule_id: i64) -> PyResult<Vec<SchedulingBlock>> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -222,7 +220,10 @@ pub fn py_get_schedule_blocks(schedule_id: i64) -> PyResult<Vec<SchedulingBlock>
     })?;
 
     runtime
-        .block_on(services::get_blocks_for_schedule(repo.as_ref(), schedule_id))
+        .block_on(services::get_blocks_for_schedule(
+            repo.as_ref(),
+            schedule_id,
+        ))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
 }
 
@@ -230,7 +231,7 @@ pub fn py_get_schedule_blocks(schedule_id: i64) -> PyResult<Vec<SchedulingBlock>
 #[pyfunction]
 pub fn py_list_schedules() -> PyResult<PyObject> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -266,7 +267,7 @@ pub fn py_list_schedules() -> PyResult<PyObject> {
 #[pyfunction]
 pub fn py_fetch_dark_periods(schedule_id: i64) -> PyResult<PyObject> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -291,7 +292,7 @@ pub fn py_fetch_dark_periods(schedule_id: i64) -> PyResult<PyObject> {
 #[pyfunction]
 pub fn py_fetch_possible_periods(schedule_id: i64) -> PyResult<PyObject> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -314,11 +315,9 @@ pub fn py_fetch_possible_periods(schedule_id: i64) -> PyResult<PyObject> {
 
 /// Fetch compare blocks for a schedule (minimal data for comparison).
 #[pyfunction]
-pub fn py_fetch_compare_blocks(
-    schedule_id: i64,
-) -> PyResult<Vec<crate::db::models::CompareBlock>> {
+pub fn py_fetch_compare_blocks(schedule_id: i64) -> PyResult<Vec<crate::db::models::CompareBlock>> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -402,7 +401,7 @@ pub fn py_get_visibility_histogram(
     // Release GIL for database and compute operations
     let bins = py.allow_threads(|| -> PyResult<_> {
         let repo = get_repository()?;
-        
+
         let runtime = Runtime::new().map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "Failed to create async runtime: {}",
@@ -481,7 +480,7 @@ pub fn py_get_visibility_histogram(
 #[pyfunction]
 pub fn py_get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64)>> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -490,7 +489,10 @@ pub fn py_get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64
     })?;
 
     let time_range_period = runtime
-        .block_on(services::get_schedule_time_range(repo.as_ref(), schedule_id))
+        .block_on(services::get_schedule_time_range(
+            repo.as_ref(),
+            schedule_id,
+        ))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
 
     // Convert Period to Unix timestamps
@@ -512,7 +514,7 @@ pub fn py_get_visibility_map_data(
     schedule_id: i64,
 ) -> PyResult<crate::db::models::VisibilityMapData> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -554,7 +556,7 @@ pub fn py_get_visibility_map_data(
 #[pyfunction]
 pub fn py_populate_analytics(schedule_id: i64) -> PyResult<usize> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -577,7 +579,7 @@ pub fn py_populate_analytics(schedule_id: i64) -> PyResult<usize> {
 #[pyfunction]
 pub fn py_has_analytics_data(schedule_id: i64) -> PyResult<bool> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -600,7 +602,7 @@ pub fn py_has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 #[pyfunction]
 pub fn py_delete_analytics(schedule_id: i64) -> PyResult<usize> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -635,7 +637,7 @@ pub fn py_delete_analytics(schedule_id: i64) -> PyResult<usize> {
 #[pyo3(signature = (schedule_id, n_bins=10))]
 pub fn py_populate_summary_analytics(schedule_id: i64, n_bins: usize) -> PyResult<()> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -658,7 +660,7 @@ pub fn py_populate_summary_analytics(schedule_id: i64, n_bins: usize) -> PyResul
 #[pyfunction]
 pub fn py_has_summary_analytics(schedule_id: i64) -> PyResult<bool> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -681,7 +683,7 @@ pub fn py_has_summary_analytics(schedule_id: i64) -> PyResult<bool> {
 #[pyfunction]
 pub fn py_delete_summary_analytics(schedule_id: i64) -> PyResult<usize> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -702,9 +704,11 @@ pub fn py_delete_summary_analytics(schedule_id: i64) -> PyResult<usize> {
 /// Returns:
 ///     ScheduleSummary object if data exists, None otherwise
 #[pyfunction]
-pub fn py_get_schedule_summary(schedule_id: i64) -> PyResult<Option<crate::db::analytics::ScheduleSummary>> {
+pub fn py_get_schedule_summary(
+    schedule_id: i64,
+) -> PyResult<Option<crate::db::analytics::ScheduleSummary>> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -725,9 +729,11 @@ pub fn py_get_schedule_summary(schedule_id: i64) -> PyResult<Option<crate::db::a
 /// Returns:
 ///     List of PriorityRate objects
 #[pyfunction]
-pub fn py_get_priority_rates(schedule_id: i64) -> PyResult<Vec<crate::db::analytics::PriorityRate>> {
+pub fn py_get_priority_rates(
+    schedule_id: i64,
+) -> PyResult<Vec<crate::db::analytics::PriorityRate>> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -748,9 +754,11 @@ pub fn py_get_priority_rates(schedule_id: i64) -> PyResult<Vec<crate::db::analyt
 /// Returns:
 ///     List of VisibilityBin objects
 #[pyfunction]
-pub fn py_get_visibility_bins(schedule_id: i64) -> PyResult<Vec<crate::db::analytics::VisibilityBin>> {
+pub fn py_get_visibility_bins(
+    schedule_id: i64,
+) -> PyResult<Vec<crate::db::analytics::VisibilityBin>> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -771,9 +779,11 @@ pub fn py_get_visibility_bins(schedule_id: i64) -> PyResult<Vec<crate::db::analy
 /// Returns:
 ///     List of HeatmapBinData objects
 #[pyfunction]
-pub fn py_get_heatmap_bins(schedule_id: i64) -> PyResult<Vec<crate::db::analytics::HeatmapBinData>> {
+pub fn py_get_heatmap_bins(
+    schedule_id: i64,
+) -> PyResult<Vec<crate::db::analytics::HeatmapBinData>> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -818,7 +828,7 @@ pub fn py_populate_visibility_time_bins(
     bin_duration_seconds: Option<i64>,
 ) -> PyResult<(usize, usize)> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -827,10 +837,7 @@ pub fn py_populate_visibility_time_bins(
     })?;
 
     runtime
-        .block_on(repo.populate_visibility_time_bins(
-            schedule_id,
-            bin_duration_seconds,
-        ))
+        .block_on(repo.populate_visibility_time_bins(schedule_id, bin_duration_seconds))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
 }
 
@@ -844,7 +851,7 @@ pub fn py_populate_visibility_time_bins(
 #[pyfunction]
 pub fn py_has_visibility_time_bins(schedule_id: i64) -> PyResult<bool> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -867,7 +874,7 @@ pub fn py_has_visibility_time_bins(schedule_id: i64) -> PyResult<bool> {
 #[pyfunction]
 pub fn py_delete_visibility_time_bins(schedule_id: i64) -> PyResult<usize> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -892,7 +899,7 @@ pub fn py_get_visibility_metadata(
     schedule_id: i64,
 ) -> PyResult<Option<crate::db::analytics::VisibilityTimeMetadata>> {
     let repo = get_repository()?;
-    
+
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -964,7 +971,7 @@ pub fn py_get_visibility_histogram_analytics(
     // Release GIL for database operations
     let bins = py.allow_threads(|| -> PyResult<_> {
         let repo = get_repository()?;
-        
+
         let runtime = Runtime::new().map_err(|e| {
             PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
                 "Failed to create async runtime: {}",

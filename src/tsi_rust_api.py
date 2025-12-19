@@ -37,23 +37,31 @@ from typing import Any, cast
 import pandas as pd
 import polars as pl
 
-# Re-export from new location
-from tsi.backend.core import TSIBackend
 from tsi.backend import (
-    load_schedule_file,
-    load_dark_periods as _load_dark_periods,
     compute_metrics as _compute_metrics,
+)
+from tsi.backend import (
     filter_by_priority as _filter_by_priority,
 )
+from tsi.backend import (
+    load_dark_periods as _load_dark_periods,
+)
+from tsi.backend import (
+    load_schedule_file,
+)
+
+# Re-export from new location
+from tsi.backend.core import TSIBackend
 
 # Also expose Rust module availability check
 try:
     import tsi_rust  # noqa: F401 - re-export for backwards compatibility
 except ImportError:
     from tsi.exceptions import ServerError
+
     raise ServerError(
         "tsi_rust module not found. Please compile the Rust backend with: maturin develop --release",
-        details={"install_command": "maturin develop --release"}
+        details={"install_command": "maturin develop --release"},
     )
 
 

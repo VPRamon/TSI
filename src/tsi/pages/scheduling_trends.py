@@ -25,6 +25,7 @@ from tsi.modeling.trends import fit_logistic_with_interactions
 from tsi.services import database as db
 from tsi.utils.error_display import display_backend_error
 
+
 @st.cache_data(show_spinner="Training logistic model...")
 def _fit_model_cached(
     schedule_id: int,
@@ -37,33 +38,42 @@ def _fit_model_cached(
     try:
         # Load data from Rust backend (impossible blocks already filtered during ETL)
         trends_data = db.get_trends_data(schedule_id=schedule_id)
-        
+
         # Filter blocks based on controls
         blocks = trends_data.blocks
         filtered_blocks = [
-            b for b in blocks
-            if (b.total_visibility_hours >= vis_range[0] and
-                b.total_visibility_hours <= vis_range[1] and
-                b.requested_hours >= time_range[0] and
-                b.requested_hours <= time_range[1] and
-                b.priority in selected_priorities)
+            b
+            for b in blocks
+            if (
+                b.total_visibility_hours >= vis_range[0]
+                and b.total_visibility_hours <= vis_range[1]
+                and b.requested_hours >= time_range[0]
+                and b.requested_hours <= time_range[1]
+                and b.priority in selected_priorities
+            )
         ]
-        
+
         if len(filtered_blocks) < 20:
-            return None, f"Insufficient data for model training: {len(filtered_blocks)} blocks (minimum 20 required)"
-        
+            return (
+                None,
+                f"Insufficient data for model training: {len(filtered_blocks)} blocks (minimum 20 required)",
+            )
+
         # Convert to DataFrame for model training
         import pandas as pd
-        df_model = pd.DataFrame([
-            {
-                "priority": b.priority,
-                "total_visibility_hours": b.total_visibility_hours,
-                "requested_hours": b.requested_hours,
-                "scheduled_flag": 1 if b.scheduled else 0,
-            }
-            for b in filtered_blocks
-        ])
-        
+
+        df_model = pd.DataFrame(
+            [
+                {
+                    "priority": b.priority,
+                    "total_visibility_hours": b.total_visibility_hours,
+                    "requested_hours": b.requested_hours,
+                    "scheduled_flag": 1 if b.scheduled else 0,
+                }
+                for b in filtered_blocks
+            ]
+        )
+
         model_result = fit_logistic_with_interactions(
             df_model,
             exclude_zero_visibility=False,  # Already filtered if requested
@@ -112,10 +122,9 @@ def render() -> None:
 
     # Render sidebar controls
     controls = render_sidebar_controls(trends_data)
-    
+
     # Reload with updated parameters if controls changed
-    if (controls["n_bins"] != 10 or 
-        controls["bandwidth"] != 0.3):
+    if controls["n_bins"] != 10 or controls["bandwidth"] != 0.3:
         with st.spinner("Recomputing with updated parameters..."):
             trends_data = db.get_trends_data(
                 schedule_id=schedule_id,
@@ -123,17 +132,20 @@ def render() -> None:
                 bandwidth=controls["bandwidth"],
                 n_smooth_points=100,
             )
-    
+
     # Filter blocks based on controls
     filtered_blocks = [
-        b for b in trends_data.blocks
-        if (b.total_visibility_hours >= controls["vis_range"][0] and
-            b.total_visibility_hours <= controls["vis_range"][1] and
-            b.requested_hours >= controls["time_range"][0] and
-            b.requested_hours <= controls["time_range"][1] and
-            b.priority in controls["selected_priorities"])
+        b
+        for b in trends_data.blocks
+        if (
+            b.total_visibility_hours >= controls["vis_range"][0]
+            and b.total_visibility_hours <= controls["vis_range"][1]
+            and b.requested_hours >= controls["time_range"][0]
+            and b.requested_hours <= controls["time_range"][1]
+            and b.priority in controls["selected_priorities"]
+        )
     ]
-    
+
     if len(filtered_blocks) == 0:
         st.warning("⚠️ No observations match the selected filters.")
         return

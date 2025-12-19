@@ -210,10 +210,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
     let mut results = Vec::new();
 
     // === CRITICAL: Visibility Checks ===
-    
+
     // Check 1: Zero visibility (impossible to schedule)
     let requested_hours = block.requested_duration_sec as f64 / 3600.0;
-    
+
     if block.total_visibility_hours < 0.001 {
         // Less than ~3.6 seconds
         results.push(ValidationResult::impossible(
@@ -343,7 +343,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
             "Invalid Right Ascension".to_string(),
             IssueCategory::Coordinate,
             Criticality::Medium,
-            format!("Right Ascension {:.2}° is outside valid range", block.target_ra_deg),
+            format!(
+                "Right Ascension {:.2}° is outside valid range",
+                block.target_ra_deg
+            ),
             Some("target_ra_deg".to_string()),
             Some(format!("{:.2}", block.target_ra_deg)),
             Some("0-360".to_string()),
@@ -358,7 +361,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
             "Invalid Declination".to_string(),
             IssueCategory::Coordinate,
             Criticality::Medium,
-            format!("Declination {:.2}° is outside valid range", block.target_dec_deg),
+            format!(
+                "Declination {:.2}° is outside valid range",
+                block.target_dec_deg
+            ),
             Some("target_dec_deg".to_string()),
             Some(format!("{:.2}", block.target_dec_deg)),
             Some("-90 to +90".to_string()),
@@ -374,7 +380,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
                 "Invalid elevation constraint range".to_string(),
                 IssueCategory::Constraint,
                 Criticality::Medium,
-                format!("Minimum altitude ({:.1}°) exceeds maximum altitude ({:.1}°)", min_alt, max_alt),
+                format!(
+                    "Minimum altitude ({:.1}°) exceeds maximum altitude ({:.1}°)",
+                    min_alt, max_alt
+                ),
                 Some("min_alt_deg".to_string()),
                 Some(format!("{:.1}", min_alt)),
                 Some(format!("<= {:.1}", max_alt)),
@@ -382,7 +391,7 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
         }
 
         let elevation_range = max_alt - min_alt;
-        
+
         // Check 11: Physically impossible elevation range
         if elevation_range < 0.0 || elevation_range > 180.0 {
             results.push(ValidationResult::error(
@@ -391,7 +400,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
                 "Physically impossible elevation range".to_string(),
                 IssueCategory::Constraint,
                 Criticality::Medium,
-                format!("Elevation range {:.1}° is physically impossible", elevation_range),
+                format!(
+                    "Elevation range {:.1}° is physically impossible",
+                    elevation_range
+                ),
                 Some("elevation_range".to_string()),
                 Some(format!("{:.1}", elevation_range)),
                 Some("0-180".to_string()),
@@ -405,7 +417,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
                 "Very narrow elevation range".to_string(),
                 IssueCategory::Constraint,
                 Criticality::Medium,
-                format!("Elevation range of {:.1}° may make scheduling difficult", elevation_range),
+                format!(
+                    "Elevation range of {:.1}° may make scheduling difficult",
+                    elevation_range
+                ),
                 Some("elevation_range".to_string()),
                 Some(format!("{:.1}", elevation_range)),
             ));
@@ -413,7 +428,9 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
     }
 
     // Check 13: Invalid time constraint range
-    if let (Some(start_mjd), Some(stop_mjd)) = (block.constraint_start_mjd, block.constraint_stop_mjd) {
+    if let (Some(start_mjd), Some(stop_mjd)) =
+        (block.constraint_start_mjd, block.constraint_stop_mjd)
+    {
         if start_mjd > stop_mjd {
             results.push(ValidationResult::error(
                 block.schedule_id,
@@ -421,7 +438,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
                 "Invalid time constraint range".to_string(),
                 IssueCategory::Constraint,
                 Criticality::High,
-                format!("Constraint start time ({:.2} MJD) is after stop time ({:.2} MJD)", start_mjd, stop_mjd),
+                format!(
+                    "Constraint start time ({:.2} MJD) is after stop time ({:.2} MJD)",
+                    start_mjd, stop_mjd
+                ),
                 Some("constraint_start_mjd".to_string()),
                 Some(format!("{:.2}", start_mjd)),
                 Some(format!("<= {:.2}", stop_mjd)),
@@ -455,7 +475,9 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
 
     // === SCHEDULED PERIOD VALIDATION ===
 
-    if let (Some(sched_start), Some(sched_stop)) = (block.scheduled_start_mjd, block.scheduled_stop_mjd) {
+    if let (Some(sched_start), Some(sched_stop)) =
+        (block.scheduled_start_mjd, block.scheduled_stop_mjd)
+    {
         // Check 15: Invalid scheduled period range
         if sched_start > sched_stop {
             results.push(ValidationResult::error(
@@ -464,7 +486,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
                 "Invalid scheduled period".to_string(),
                 IssueCategory::ScheduledPeriod,
                 Criticality::High,
-                format!("Scheduled start time ({:.2} MJD) is after stop time ({:.2} MJD)", sched_start, sched_stop),
+                format!(
+                    "Scheduled start time ({:.2} MJD) is after stop time ({:.2} MJD)",
+                    sched_start, sched_stop
+                ),
                 Some("scheduled_start_mjd".to_string()),
                 Some(format!("{:.2}", sched_start)),
                 Some(format!("<= {:.2}", sched_stop)),
@@ -495,11 +520,12 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
         }
 
         // Check 17: Scheduled period outside time constraint
-        if let (Some(constraint_start), Some(constraint_stop)) = 
-            (block.constraint_start_mjd, block.constraint_stop_mjd) {
+        if let (Some(constraint_start), Some(constraint_stop)) =
+            (block.constraint_start_mjd, block.constraint_stop_mjd)
+        {
             // Add small epsilon tolerance for floating point comparisons (0.0001 days ≈ 8.64 seconds)
             let epsilon = 0.0001;
-            
+
             if sched_start < constraint_start - epsilon || sched_stop > constraint_stop + epsilon {
                 results.push(ValidationResult::error(
                     block.schedule_id,
@@ -521,7 +547,10 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
 
     // If no issues found, mark as valid
     if results.is_empty() {
-        results.push(ValidationResult::valid(block.schedule_id, block.scheduling_block_id));
+        results.push(ValidationResult::valid(
+            block.schedule_id,
+            block.scheduling_block_id,
+        ));
     }
 
     results

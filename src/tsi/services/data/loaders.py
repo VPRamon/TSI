@@ -9,8 +9,8 @@ from typing import Any, cast
 import pandas as pd
 
 from tsi.config import REQUIRED_COLUMNS
+from tsi.error_handling import with_retry
 from tsi.exceptions import ServerError
-from tsi.error_handling import with_retry, log_error
 from tsi.services.data.preparation import PreparationResult
 from tsi.services.data.preparation import prepare_dataframe as core_prepare_dataframe
 from tsi.services.data.preparation import validate_schema as core_validate_schema
@@ -33,14 +33,14 @@ def emit_warning(message: str) -> None:
 def load_schedule_rust(path: str | Path | Any, format: str = "auto") -> pd.DataFrame:
     """
     Load schedule data using the Rust backend (supports file-like objects).
-    
+
     Args:
         path: Path to schedule file or file-like object
         format: File format ('auto', 'csv', or 'json')
-        
+
     Returns:
         DataFrame with schedule data
-        
+
     Raises:
         ServerError: If loading fails
     """
@@ -49,7 +49,7 @@ def load_schedule_rust(path: str | Path | Any, format: str = "auto") -> pd.DataF
     except Exception as e:
         raise ServerError(
             f"Failed to load schedule from {path}",
-            details={"path": str(path), "format": format, "error": str(e)}
+            details={"path": str(path), "format": format, "error": str(e)},
         ) from e
 
 
@@ -75,6 +75,7 @@ def filter_by_scheduled(df: pd.DataFrame, filter_type: str = "All") -> pd.DataFr
         For full filtering with multiple criteria, use get_filtered_dataframe().
     """
     return cast(pd.DataFrame, BACKEND.filter_by_scheduled(df, filter_type))  # type: ignore[arg-type]
+
 
 def _prepare_dataframe_core(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     """

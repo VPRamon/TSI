@@ -86,7 +86,9 @@ def prepare_dataframe(df: pd.DataFrame) -> PreparationResult:
     if "fixedStopTime" in prepared.columns:
         prepared["fixed_stop_dt"] = prepared["fixedStopTime"].apply(parse_optional_mjd)
     if "scheduled_period.start" in prepared.columns:
-        prepared["scheduled_start_dt"] = prepared["scheduled_period.start"].apply(parse_optional_mjd)
+        prepared["scheduled_start_dt"] = prepared["scheduled_period.start"].apply(
+            parse_optional_mjd
+        )
     if "scheduled_period.stop" in prepared.columns:
         prepared["scheduled_stop_dt"] = prepared["scheduled_period.stop"].apply(parse_optional_mjd)
 

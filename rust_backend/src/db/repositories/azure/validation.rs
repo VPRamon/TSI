@@ -176,7 +176,10 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
         .await
         .map_err(|e| format!("Failed to get connection: {e}"))?;
 
-    debug!("Fetching validation results for schedule_id={}", schedule_id);
+    debug!(
+        "Fetching validation results for schedule_id={}",
+        schedule_id
+    );
 
     // Fetch all validation results for this schedule, joining with analytics to get original_block_id
     let query_sql = r#"
@@ -276,10 +279,8 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
         }
     }
 
-    let total_blocks = valid_count
-        + impossible_blocks.len()
-        + validation_errors.len()
-        + validation_warnings.len();
+    let total_blocks =
+        valid_count + impossible_blocks.len() + validation_errors.len() + validation_warnings.len();
 
     Ok(ValidationReportData {
         schedule_id,

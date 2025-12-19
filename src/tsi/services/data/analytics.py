@@ -32,13 +32,13 @@ class AnalyticsSnapshot:
 
 def compute_metrics(schedule_id: int) -> AnalyticsMetrics:
     """Compute comprehensive analytics metrics from pre-computed database summary.
-    
+
     Args:
         schedule_id: The ID of the schedule to get metrics for
-    
+
     Returns:
         AnalyticsMetrics with schedule summary statistics
-    
+
     Note:
         This now uses database-backed analytics (much faster than DataFrame processing).
         Requires analytics to be pre-computed via py_populate_summary_analytics().
@@ -50,17 +50,17 @@ def compute_metrics(schedule_id: int) -> AnalyticsMetrics:
 def compute_correlations(df: pd.DataFrame, *, columns: Sequence[str] | None = None) -> pd.DataFrame:
     """
     Compute a Spearman correlation matrix for the selected columns.
-    
+
     Args:
         df: DataFrame with scheduling data
         columns: List of column names to analyze. If None, uses default CORRELATION_COLUMNS.
-        
+
     Returns:
         Correlation matrix DataFrame
     """
     if columns is None:
         columns = CORRELATION_COLUMNS
-    
+
     cols_to_analyze = [col for col in columns if col in df.columns]
     if len(cols_to_analyze) < 2:
         return pd.DataFrame()
@@ -95,22 +95,24 @@ def _snapshot_from_metrics(metrics: AnalyticsMetrics) -> AnalyticsSnapshot:
     return AnalyticsSnapshot(**metrics.model_dump())
 
 
-def generate_insights(blocks: list | pd.DataFrame, metrics: AnalyticsMetrics | AnalyticsSnapshot) -> list[str]:
+def generate_insights(
+    blocks: list | pd.DataFrame, metrics: AnalyticsMetrics | AnalyticsSnapshot
+) -> list[str]:
     """
     Generate automated insights from the data.
-    
+
     Args:
         blocks: List of InsightsBlock objects from Rust or DataFrame with scheduling data
         metrics: Either AnalyticsMetrics (Pydantic/Rust) or AnalyticsSnapshot (dataclass)
-        
+
     Returns:
         List of insight strings
     """
     # Handle both Rust metrics and Pydantic metrics
-    if hasattr(metrics, 'model_dump'):
+    if hasattr(metrics, "model_dump"):
         # Pydantic model
         snapshot = _snapshot_from_metrics(metrics)
-    elif hasattr(metrics, 'total_observations'):
+    elif hasattr(metrics, "total_observations"):
         # Rust AnalyticsMetrics or AnalyticsSnapshot
         snapshot = AnalyticsSnapshot(
             total_observations=metrics.total_observations,

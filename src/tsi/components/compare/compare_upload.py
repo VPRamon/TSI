@@ -18,90 +18,90 @@ def render_file_upload() -> tuple[int | None, str | None, None]:
         - If nothing selected: (None, None, None)
     """
     st.subheader("Select Comparison Schedule")
-    
+
     # Create tabs for database vs file upload
     tab_db, tab_file = st.tabs(["📊 From Database", "📁 Upload File"])
-    
+
     with tab_db:
         comparison_id, comparison_name = _render_database_selection()
         if comparison_id is not None:
             return (comparison_id, comparison_name, None)
-    
+
     with tab_file:
         comparison_id, comparison_name = _render_file_upload_section()
         if comparison_id is not None:
             return (comparison_id, comparison_name, None)
-    
+
     return (None, None, None)
 
 
 def _render_database_selection() -> tuple[int | None, str | None]:
     """
     Render the database selection section for comparison schedule.
-    
+
     Returns:
         Tuple of (schedule_id, schedule_name) if selected, (None, None) otherwise
     """
     try:
         schedules = db.list_schedules_db()
-        
+
         if not schedules:
             st.info("No schedules available in the database.")
             return (None, None)
-        
+
         # Get current schedule ID to filter it out
         current_schedule_id = state.get_schedule_id()
-        
+
         # Filter out the current schedule
-        available_schedules = [s for s in schedules if s['schedule_id'] != current_schedule_id]
-        
+        available_schedules = [s for s in schedules if s["schedule_id"] != current_schedule_id]
+
         if not available_schedules:
             st.info("No other schedules available for comparison.")
             return (None, None)
-        
+
         # Create options for selectbox
         schedule_options = {
-            f"{s['schedule_name']} (ID: {s['schedule_id']})": (s['schedule_id'], s['schedule_name'])
+            f"{s['schedule_name']} (ID: {s['schedule_id']})": (s["schedule_id"], s["schedule_name"])
             for s in available_schedules
         }
-        
+
         selected_option = st.selectbox(
             "Choose a schedule to compare",
             options=list(schedule_options.keys()),
             key="comparison_schedule_selector",
-            help="Select a schedule from the database to compare with the current schedule"
+            help="Select a schedule from the database to compare with the current schedule",
         )
-        
+
         if selected_option:
             schedule_id, schedule_name = schedule_options[selected_option]
-            
+
             # Store in session state
             if st.session_state.get("comparison_schedule_id") != schedule_id:
                 st.session_state["comparison_schedule_id"] = schedule_id
                 st.session_state["comparison_filename"] = schedule_name
                 st.session_state["comparison_source"] = "database"
                 st.rerun()
-            
+
             return (schedule_id, schedule_name)
-    
+
     except Exception as e:
         st.error(f"Failed to list schedules: {e}")
         return (None, None)
-    
+
     return (None, None)
 
 
 def _render_file_upload_section() -> tuple[int | None, str | None]:
     """
     Render the file upload section for comparison schedule.
-    
+
     When a file is uploaded, it is stored in the database and the schedule_id is returned.
-    
+
     Returns:
         Tuple of (schedule_id, schedule_name) if uploaded, (None, None) otherwise
     """
     from tsi.services import database as db
-    
+
     uploaded_json = st.file_uploader(
         "Choose a schedule.json file to compare",
         type=["json"],
@@ -125,7 +125,7 @@ def _render_file_upload_section() -> tuple[int | None, str | None]:
     if uploaded_visibility is not None:
         vis_token = f":{uploaded_visibility.name}:{uploaded_visibility.size}"
     file_token = f"{uploaded_json.name}:{uploaded_json.size}{vis_token}"
-    last_token = st.session_state.get("comparison_file_token")
+    st.session_state.get("comparison_file_token")
 
     # Check if we already processed this file
     if st.session_state.get("comparison_file_token") == file_token:
@@ -174,4 +174,3 @@ def _render_file_upload_section() -> tuple[int | None, str | None]:
         st.error(f"❌ Error uploading comparison schedule: {str(e)}")
         st.exception(e)
         return (None, None)
-

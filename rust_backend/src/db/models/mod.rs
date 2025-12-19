@@ -1,7 +1,7 @@
 //! Domain models for the scheduling system.
-//! 
+//!
 //! This module is organized into several submodules:
-//! 
+//!
 //! - [`schedule`]: Core schedule types (Schedule, SchedulingBlock, Period, Constraints)
 //! - [`metadata`]: Schedule metadata and info types (ScheduleMetadata, ScheduleInfo)
 //! - [`analytics`]: Analytics and visualization types (LightweightBlock, DistributionData, SkyMapData)
@@ -19,10 +19,10 @@ pub use analytics::{
 };
 pub use metadata::{ScheduleInfo, ScheduleMetadata};
 pub use python::{
-    AnalyticsMetrics, BlockHistogramData, CompareBlock, CompareData, CompareStats,
-    ConflictRecord, CorrelationEntry, EmpiricalRatePoint, HeatmapBin, InsightsBlock,
-    InsightsData, ScheduleTimelineBlock, ScheduleTimelineData, SchedulingChange, SmoothedPoint,
-    TopObservation, TrendsBlock, TrendsData, TrendsMetrics, VisibilityBin, VisibilityBlockSummary,
+    AnalyticsMetrics, BlockHistogramData, CompareBlock, CompareData, CompareStats, ConflictRecord,
+    CorrelationEntry, EmpiricalRatePoint, HeatmapBin, InsightsBlock, InsightsData,
+    ScheduleTimelineBlock, ScheduleTimelineData, SchedulingChange, SmoothedPoint, TopObservation,
+    TrendsBlock, TrendsData, TrendsMetrics, VisibilityBin, VisibilityBlockSummary,
     VisibilityMapData,
 };
 pub use schedule::{

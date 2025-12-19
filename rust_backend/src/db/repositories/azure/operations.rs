@@ -9,11 +9,11 @@ use siderust::{
 use std::collections::HashMap;
 use tiberius::{numeric::Numeric, Query, Row};
 
+use super::pool;
 use crate::db::models::{
     Constraints, Period, Schedule, ScheduleId, ScheduleInfo, ScheduleMetadata, SchedulingBlock,
     SchedulingBlockId,
 };
-use super::pool;
 
 type DbClient = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
 
@@ -302,7 +302,7 @@ impl<'a> ScheduleInserter<'a> {
                 };
                 json_strings.push(visibility_json);
 
-                let base = i * 7;  // Changed from 6 to 7 for additional field
+                let base = i * 7; // Changed from 6 to 7 for additional field
                 values_clauses.push(format!(
                     "(@P{}, @P{}, @P{}, @P{}, @P{}, @P{}, @P{})",
                     base + 1,
@@ -370,14 +370,12 @@ impl<'a> ScheduleInserter<'a> {
 
             for (i, block) in chunk.iter().enumerate() {
                 // Look up the correct scheduling_block_id using original_block_id
-                let sb_id = id_map
-                    .get(&block.original_block_id)
-                    .ok_or_else(|| {
-                        format!(
-                            "Failed to find scheduling_block_id for original_block_id: {:?}",
-                            block.original_block_id
-                        )
-                    })?;
+                let sb_id = id_map.get(&block.original_block_id).ok_or_else(|| {
+                    format!(
+                        "Failed to find scheduling_block_id for original_block_id: {:?}",
+                        block.original_block_id
+                    )
+                })?;
                 let (start_mjd, stop_mjd) = if let Some(period) = &block.scheduled_period {
                     (Some(period.start.value()), Some(period.stop.value()))
                 } else {
@@ -785,11 +783,11 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
             "Schedule '{}' already present as id {} (upload timestamp: {})",
             schedule_name, schedule_id, upload_timestamp
         );
-        
+
         // NOTE: For existing schedules, analytics population is skipped to avoid
         // redundant computation. Analytics can be re-computed if needed using
         // separate API endpoints. This avoids slow duplicate uploads.
-        
+
         // Return metadata for the existing schedule
         return Ok(ScheduleMetadata {
             schedule_id: Some(schedule_id),
@@ -1137,7 +1135,7 @@ async fn fetch_scheduling_blocks(
             original_block_id: original_block_id.map(|s| s.to_string()),
             target,
             constraints,
-            priority: priority,
+            priority,
             min_observation: Seconds::new(min_obs as f64),
             requested_duration: Seconds::new(req_dur as f64),
             visibility_periods,
@@ -1388,9 +1386,7 @@ pub async fn get_blocks_for_schedule(schedule_id: i64) -> Result<Vec<SchedulingB
 }
 
 /// Fetch dark periods for a schedule (public version for Python).
-pub async fn fetch_dark_periods_public(
-    schedule_id: Option<i64>,
-) -> Result<Vec<Period>, String> {
+pub async fn fetch_dark_periods_public(schedule_id: Option<i64>) -> Result<Vec<Period>, String> {
     if let Some(sid) = schedule_id {
         let pool = pool::get_pool()?;
         let mut conn = pool
@@ -1551,7 +1547,7 @@ pub async fn fetch_lightweight_blocks(
         let _id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        
+
         let original_block_id: String = row
             .get::<&str, _>(1)
             .ok_or_else(|| "original_block_id is NULL".to_string())?
@@ -1957,7 +1953,7 @@ pub async fn fetch_visibility_map_data(
         let scheduling_block_id: i64 = row
             .get::<i64, _>(0)
             .ok_or_else(|| "scheduling_block_id is NULL".to_string())?;
-        
+
         let original_block_id: String = row
             .get::<&str, _>(1)
             .ok_or_else(|| "original_block_id is NULL".to_string())?
@@ -2217,12 +2213,9 @@ pub async fn get_schedule_time_range(schedule_id: i64) -> Result<Option<Period>,
             max,
             max - min
         );
-        Period::new(
-            ModifiedJulianDate::new(min),
-            ModifiedJulianDate::new(max),
-        )
-        .ok_or_else(|| "Invalid time range: start >= stop".to_string())
-        .map(Some)
+        Period::new(ModifiedJulianDate::new(min), ModifiedJulianDate::new(max))
+            .ok_or_else(|| "Invalid time range: start >= stop".to_string())
+            .map(Some)
     } else {
         debug!("No visibility periods found for schedule {}", schedule_id);
         Ok(None)
@@ -2315,8 +2308,7 @@ pub async fn fetch_schedule_timeline_blocks(
 
         // Parse visibility periods to calculate total visibility hours and period count
         let visibility_json: Option<&str> = row.get(8);
-        let (total_visibility_hours, num_visibility_periods) = if let Some(json) = visibility_json
-        {
+        let (total_visibility_hours, num_visibility_periods) = if let Some(json) = visibility_json {
             match serde_json::from_str::<Vec<serde_json::Value>>(json) {
                 Ok(periods) => {
                     let mut total_hours = 0.0;

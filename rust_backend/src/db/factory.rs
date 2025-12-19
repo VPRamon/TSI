@@ -7,8 +7,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use super::repo_config::RepositoryConfig;
-use super::repository::{RepositoryError, RepositoryResult, ScheduleRepository};
 use super::repositories::{AzureRepository, LocalRepository};
+use super::repository::{RepositoryError, RepositoryResult, ScheduleRepository};
 use super::{config::DbConfig, repositories::azure::pool};
 
 /// Repository type configuration.
@@ -116,7 +116,7 @@ impl RepositoryFactory {
         // Initialize pool if not already done
         pool::init_pool(config)
             .await
-            .map_err(|e| RepositoryError::ConnectionError(e))?;
+            .map_err(RepositoryError::ConnectionError)?;
 
         Ok(Arc::new(AzureRepository::new()))
     }
@@ -142,8 +142,7 @@ impl RepositoryFactory {
 
         match repo_type {
             RepositoryType::Azure => {
-                let config = DbConfig::from_env()
-                    .map_err(|e| RepositoryError::ConfigurationError(e))?;
+                let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
                 let azure = Self::create_azure(&config).await?;
                 Ok(azure as Arc<dyn ScheduleRepository>)
             }
@@ -263,8 +262,7 @@ impl RepositoryBuilder {
         self.repo_type = RepositoryType::from_env();
 
         if self.repo_type == RepositoryType::Azure {
-            let config = DbConfig::from_env()
-                .map_err(|e| RepositoryError::ConfigurationError(e))?;
+            let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
             self.config = Some(config);
         }
 
@@ -349,9 +347,18 @@ mod tests {
 
     #[test]
     fn test_repository_type_from_str() {
-        assert_eq!(RepositoryType::from_str("azure").unwrap(), RepositoryType::Azure);
-        assert_eq!(RepositoryType::from_str("local").unwrap(), RepositoryType::Local);
-        assert_eq!(RepositoryType::from_str("Azure").unwrap(), RepositoryType::Azure);
+        assert_eq!(
+            RepositoryType::from_str("azure").unwrap(),
+            RepositoryType::Azure
+        );
+        assert_eq!(
+            RepositoryType::from_str("local").unwrap(),
+            RepositoryType::Local
+        );
+        assert_eq!(
+            RepositoryType::from_str("Azure").unwrap(),
+            RepositoryType::Azure
+        );
         assert!(RepositoryType::from_str("invalid").is_err());
     }
 
@@ -375,6 +382,9 @@ mod tests {
     #[tokio::test]
     async fn test_azure_requires_config() {
         let result = RepositoryFactory::create(RepositoryType::Azure, None).await;
-        assert!(matches!(result, Err(RepositoryError::ConfigurationError(_))));
+        assert!(matches!(
+            result,
+            Err(RepositoryError::ConfigurationError(_))
+        ));
     }
 }

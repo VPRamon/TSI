@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 use tsi_rust::db::{
-    models::Schedule, repositories::LocalRepository, 
-    AnalyticsRepository, RepositoryError, ScheduleRepository, ValidationRepository,
+    models::Schedule, repositories::LocalRepository, AnalyticsRepository, RepositoryError,
+    ScheduleRepository, ValidationRepository,
 };
 
 #[tokio::test]
@@ -50,7 +50,7 @@ async fn test_list_schedules() {
     // Add schedules
     for i in 1..=3 {
         let schedule = Schedule {
-        id: None,
+            id: None,
             name: format!("Schedule {}", i),
             blocks: vec![],
             dark_periods: vec![],
@@ -120,12 +120,18 @@ async fn test_summary_analytics_lifecycle() {
 
     // Initially no summary
     assert!(!repo.has_summary_analytics(schedule_id).await.unwrap());
-    assert!(repo.fetch_schedule_summary(schedule_id).await.unwrap().is_none());
+    assert!(repo
+        .fetch_schedule_summary(schedule_id)
+        .await
+        .unwrap()
+        .is_none());
 
     // Populate summary
-    repo.populate_summary_analytics(schedule_id, 10).await.unwrap();
+    repo.populate_summary_analytics(schedule_id, 10)
+        .await
+        .unwrap();
     assert!(repo.has_summary_analytics(schedule_id).await.unwrap());
-    
+
     let summary = repo.fetch_schedule_summary(schedule_id).await.unwrap();
     assert!(summary.is_some());
     assert_eq!(summary.unwrap().schedule_id, schedule_id);
@@ -155,7 +161,7 @@ async fn test_validation_lifecycle() {
 
     // The validation results require ValidationResult structs from services module
     // For now, just test the has/delete methods
-    
+
     // Delete (should return 0 as nothing exists)
     let deleted = repo.delete_validation_results(schedule_id).await.unwrap();
     assert_eq!(deleted, 0);
@@ -173,7 +179,7 @@ async fn test_concurrent_access() {
         let repo_clone = repo.clone();
         set.spawn(async move {
             let schedule = Schedule {
-        id: None,
+                id: None,
                 name: format!("Concurrent Schedule {}", i),
                 blocks: vec![],
                 dark_periods: vec![],
@@ -214,7 +220,12 @@ async fn test_helper_methods() {
         dark_periods: vec![],
         checksum: "helper".to_string(),
     };
-    let schedule_id = repo.store_schedule(&schedule).await.unwrap().schedule_id.unwrap();
+    let schedule_id = repo
+        .store_schedule(&schedule)
+        .await
+        .unwrap()
+        .schedule_id
+        .unwrap();
 
     assert_eq!(repo.schedule_count(), 1);
     assert!(repo.has_schedule(schedule_id));
@@ -240,8 +251,11 @@ async fn test_connection_unhealthy() {
         dark_periods: vec![],
         checksum: "fail".to_string(),
     };
-    
+
     let result = repo.store_schedule(&schedule).await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), RepositoryError::ConnectionError(_)));
+    assert!(matches!(
+        result.unwrap_err(),
+        RepositoryError::ConnectionError(_)
+    ));
 }

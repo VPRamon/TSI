@@ -1,5 +1,5 @@
 //! Schedule metadata and information models.
-//! 
+//!
 //! This module contains types for schedule metadata and summary information:
 //! - ScheduleMetadata: Lightweight metadata for schedule listings
 //! - ScheduleInfo: Extended schedule information with block statistics

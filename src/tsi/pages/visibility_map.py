@@ -8,8 +8,8 @@ from tsi.components.visibility.visibility_controls import (
     render_histogram_settings,
     render_sidebar_controls,
 )
-from tsi.components.visibility.visibility_stats import render_chart_info, render_dataset_statistics
 from tsi.components.visibility.visibility_map_figure import render_visibility_map_figure
+from tsi.components.visibility.visibility_stats import render_chart_info, render_dataset_statistics
 from tsi.services import database as db
 from tsi.services.utils.visibility_processing import (
     compute_effective_priority_range,
@@ -90,7 +90,7 @@ def render() -> None:
             ):
                 # Call the modular figure component
                 try:
-                    fig = render_visibility_map_figure(
+                    render_visibility_map_figure(
                         schedule_id=schedule_id,
                         settings=settings,
                         effective_priority_range=effective_priority_range,
@@ -99,4 +99,3 @@ def render() -> None:
                 except Exception as e:
                     st.error(f"Failed to generate histogram: {e}")
                     st.exception(e)
-

@@ -12,8 +12,7 @@ if TYPE_CHECKING:
 
 
 def render_empirical_proportions(
-    empirical_points: list[EmpiricalRatePoint], 
-    x_var_name: str
+    empirical_points: list[EmpiricalRatePoint], x_var_name: str
 ) -> None:
     """
     Render empirical proportions plot section.
@@ -27,25 +26,27 @@ def render_empirical_proportions(
         return
 
     # Convert to DataFrame for plotting
-    df = pd.DataFrame([
-        {
-            "x": p.mid_value,
-            "rate": p.scheduled_rate,
-            "count": p.count,
-            "label": p.bin_label,
-        }
-        for p in empirical_points
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "x": p.mid_value,
+                "rate": p.scheduled_rate,
+                "count": p.count,
+                "label": p.bin_label,
+            }
+            for p in empirical_points
+        ]
+    )
 
     # Create simple plot with Streamlit
     st.markdown(f"**Empirical Scheduling Rate by {x_var_name}**")
-    
+
     # Display as a table and bar chart
     display_df = df.copy()
     display_df.columns = [x_var_name, "Rate", "Count", "Scheduled"]
     display_df["Rate"] = display_df["Rate"].apply(lambda x: f"{x:.1%}")
-    
+
     st.bar_chart(df.set_index("x")["rate"])
-    
+
     with st.expander("View data table"):
         st.dataframe(display_df, width="stretch")

@@ -23,7 +23,6 @@ if TYPE_CHECKING:
     pass
 
 # Import Rust module (available after core module validates it)
-import tsi_rust
 
 
 def load_schedule_file(
@@ -95,7 +94,7 @@ def load_schedule_from_string(
         blocks = data["schedulingBlocks"]
     else:
         blocks = data if isinstance(data, list) else [data]
-    
+
     df_pandas = pd.DataFrame(blocks)
     if use_pandas:
         return df_pandas
@@ -118,11 +117,11 @@ def load_dark_periods(path: str | Path) -> pd.DataFrame:
         >>> print(f"Loaded {len(df)} dark periods")
     """
     import json as json_module
-    
+
     path = Path(path)
     with open(path) as f:
         data = json_module.load(f)
-    
+
     # Handle different JSON structures
     if "dark_periods" in data:
         periods = data["dark_periods"]
@@ -130,7 +129,7 @@ def load_dark_periods(path: str | Path) -> pd.DataFrame:
         periods = data
     else:
         periods = [data]
-    
+
     return pd.DataFrame(periods)
 
 
@@ -163,7 +162,12 @@ def load_schedule_from_any(
         if format == "auto":
             raise ValueError("Format must be specified when reading from a buffer")
         if format == "json":
-            return cast(pd.DataFrame, load_schedule_from_string(content, format="json", use_pandas=use_pandas))
+            return cast(
+                pd.DataFrame,
+                load_schedule_from_string(content, format="json", use_pandas=use_pandas),
+            )
         raise ValueError(f"Unsupported format: {format}")
 
-    return cast(pd.DataFrame, load_schedule_file(Path(source), format=format, use_pandas=use_pandas))
+    return cast(
+        pd.DataFrame, load_schedule_file(Path(source), format=format, use_pandas=use_pandas)
+    )

@@ -25,22 +25,25 @@ def _apply_filters(blocks: list, filters: dict) -> list:
     if filters["search_id"]:
         search_term = filters["search_id"].lower()
         filtered_blocks = [
-            block for block in filtered_blocks
+            block
+            for block in filtered_blocks
             if search_term in str(block.scheduling_block_id).lower()
         ]
 
     # Filter by month
     if filters["search_month"]:
         filtered_blocks = [
-            block for block in filtered_blocks
-            if mjd_to_datetime(block.scheduled_start_mjd).strftime("%Y-%m").startswith(filters["search_month"])
+            block
+            for block in filtered_blocks
+            if mjd_to_datetime(block.scheduled_start_mjd)
+            .strftime("%Y-%m")
+            .startswith(filters["search_month"])
         ]
 
     # Filter by minimum priority
     if filters["min_priority_filter"] is not None:
         filtered_blocks = [
-            block for block in filtered_blocks
-            if block.priority >= filters["min_priority_filter"]
+            block for block in filtered_blocks if block.priority >= filters["min_priority_filter"]
         ]
 
     return filtered_blocks
@@ -58,17 +61,23 @@ def _blocks_to_dataframe(blocks: list) -> pd.DataFrame:
     """
     display_data = []
     for block in blocks:
-        display_data.append({
-            "Block ID": block.scheduling_block_id,
-            "Priority": block.priority,
-            "Scheduled Start": mjd_to_datetime(block.scheduled_start_mjd).strftime("%Y-%m-%d %H:%M UTC"),
-            "Scheduled Stop": mjd_to_datetime(block.scheduled_stop_mjd).strftime("%Y-%m-%d %H:%M UTC"),
-            "Duration (h)": (block.scheduled_stop_mjd - block.scheduled_start_mjd) * 24.0,
-            "RA (°)": block.ra_deg,
-            "Dec (°)": block.dec_deg,
-            "Requested (h)": block.requested_hours,
-            "Total Visibility (h)": block.total_visibility_hours,
-        })
+        display_data.append(
+            {
+                "Block ID": block.scheduling_block_id,
+                "Priority": block.priority,
+                "Scheduled Start": mjd_to_datetime(block.scheduled_start_mjd).strftime(
+                    "%Y-%m-%d %H:%M UTC"
+                ),
+                "Scheduled Stop": mjd_to_datetime(block.scheduled_stop_mjd).strftime(
+                    "%Y-%m-%d %H:%M UTC"
+                ),
+                "Duration (h)": (block.scheduled_stop_mjd - block.scheduled_start_mjd) * 24.0,
+                "RA (°)": block.ra_deg,
+                "Dec (°)": block.dec_deg,
+                "Requested (h)": block.requested_hours,
+                "Total Visibility (h)": block.total_visibility_hours,
+            }
+        )
 
     return pd.DataFrame(display_data)
 
@@ -112,7 +121,7 @@ def render_observation_details_table(blocks: list, filters: dict) -> pd.DataFram
                 },
                 na_rep="-",
             ),
-            width='stretch',
+            width="stretch",
             height=400,
             hide_index=True,
         )

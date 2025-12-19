@@ -18,7 +18,7 @@ def load_schedule_from_any(
 ) -> pd.DataFrame:
     """
     Load schedule data from a path or file-like object via the Rust backend.
-    
+
     Note: CSV format is no longer supported - use JSON only.
     """
     if hasattr(source, "read"):

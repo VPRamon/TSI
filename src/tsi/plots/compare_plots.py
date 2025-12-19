@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
 from tsi.config import PLOT_HEIGHT
 
@@ -27,6 +26,9 @@ def create_priority_distribution_plot(
         Plotly Figure
     """
     fig = go.Figure()
+
+    current_count = len(current_priorities)
+    comparison_count = len(comparison_priorities)
 
     trace_current = go.Histogram(
         x=current_priorities,

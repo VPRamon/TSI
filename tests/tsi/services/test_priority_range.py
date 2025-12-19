@@ -9,7 +9,6 @@ import pytest
 
 from tsi.services.processors.sky_map import compute_priority_range, get_priority_range
 
-
 pytestmark = pytest.mark.unit
 
 

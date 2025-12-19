@@ -125,18 +125,18 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
 }
 
 /// Get complete sky map data with computed bins and metadata using ETL analytics.
-/// 
+///
 /// This function retrieves blocks from the analytics repository
 /// which contains pre-computed, denormalized data for optimal performance.
 pub async fn get_sky_map_data(schedule_id: i64) -> Result<SkyMapData, String> {
     // Get the initialized repository
-    let repo = get_repository()
-        .map_err(|e| format!("Failed to get repository: {}", e))?;
-    
-    let blocks = repo.fetch_analytics_blocks_for_sky_map(schedule_id)
+    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
+
+    let blocks = repo
+        .fetch_analytics_blocks_for_sky_map(schedule_id)
         .await
         .map_err(|e| format!("Failed to fetch analytics blocks: {}", e))?;
-    
+
     if blocks.is_empty() {
         return Err(format!(
             "No analytics data available for schedule_id={}. Run populate_schedule_analytics() first.",

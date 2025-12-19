@@ -23,19 +23,27 @@ requested_hours = requested_duration_sec / 3600.0
 print("=== Scheduled Period Validation ===")
 print(f"Scheduled start: {scheduled_start_mjd} MJD")
 print(f"Scheduled stop: {scheduled_stop_mjd} MJD")
-print(f"Scheduled duration: {scheduled_duration_days:.10f} days = {scheduled_duration_hours:.6f} hours = {scheduled_duration_sec:.2f} seconds")
+print(
+    f"Scheduled duration: {scheduled_duration_days:.10f} days = {scheduled_duration_hours:.6f} hours = {scheduled_duration_sec:.2f} seconds"
+)
 print(f"Requested duration: {requested_duration_sec} seconds = {requested_hours:.6f} hours")
 print()
 
 # Check 16: Scheduled duration exceeds requested duration
 tolerance = 1.01
 if scheduled_duration_hours > requested_hours * tolerance:
-    print(f"❌ ISSUE: Scheduled duration ({scheduled_duration_hours:.6f}h) exceeds requested ({requested_hours:.6f}h * {tolerance})")
+    print(
+        f"❌ ISSUE: Scheduled duration ({scheduled_duration_hours:.6f}h) exceeds requested ({requested_hours:.6f}h * {tolerance})"
+    )
 else:
-    print(f"✓ OK: Scheduled duration ({scheduled_duration_hours:.6f}h) <= requested ({requested_hours:.6f}h * {tolerance})")
+    print(
+        f"✓ OK: Scheduled duration ({scheduled_duration_hours:.6f}h) <= requested ({requested_hours:.6f}h * {tolerance})"
+    )
 
 difference_sec = scheduled_duration_sec - requested_duration_sec
-print(f"   Difference: {difference_sec:.6f} seconds ({difference_sec / requested_duration_sec * 100:.4f}%)")
+print(
+    f"   Difference: {difference_sec:.6f} seconds ({difference_sec / requested_duration_sec * 100:.4f}%)"
+)
 print()
 
 # Check 17: Scheduled period outside time constraint
@@ -55,13 +63,13 @@ print(f"Hypothetical constraint: [{constraint_start}, {constraint_stop}] MJD")
 print(f"Scheduled period: [{scheduled_start_mjd}, {scheduled_stop_mjd}] MJD")
 
 if scheduled_start_mjd < constraint_start or scheduled_stop_mjd > constraint_stop:
-    print(f"❌ Would fail: Scheduled period is outside constraint")
+    print("❌ Would fail: Scheduled period is outside constraint")
     if scheduled_start_mjd < constraint_start:
         print(f"   Start {scheduled_start_mjd} < constraint start {constraint_start}")
     if scheduled_stop_mjd > constraint_stop:
         print(f"   Stop {scheduled_stop_mjd} > constraint stop {constraint_stop}")
 else:
-    print(f"✓ Would pass: Scheduled period is within constraint")
+    print("✓ Would pass: Scheduled period is within constraint")
 print()
 
 # Check 14: Time constraint duration less than requested duration
@@ -73,6 +81,10 @@ print(f"Constraint duration: {constraint_duration_hours:.6f} hours")
 print(f"Requested duration: {requested_hours:.6f} hours")
 
 if constraint_duration_hours < requested_hours:
-    print(f"❌ Would fail: Constraint ({constraint_duration_hours:.2f}h) < requested ({requested_hours:.2f}h)")
+    print(
+        f"❌ Would fail: Constraint ({constraint_duration_hours:.2f}h) < requested ({requested_hours:.2f}h)"
+    )
 else:
-    print(f"✓ Would pass: Constraint ({constraint_duration_hours:.2f}h) >= requested ({requested_hours:.2f}h)")
+    print(
+        f"✓ Would pass: Constraint ({constraint_duration_hours:.2f}h) >= requested ({requested_hours:.2f}h)"
+    )

@@ -31,16 +31,18 @@ def render_top_observations(
     with tab1:
         if top_priority:
             # Convert Rust TopObservation objects to DataFrame
-            df = pd.DataFrame([
-                {
-                    "scheduling_block_id": obs.scheduling_block_id,
-                    "priority": obs.priority,
-                    "total_visibility_hours": obs.total_visibility_hours,
-                    "requested_hours": obs.requested_hours,
-                    "scheduled": obs.scheduled,
-                }
-                for obs in top_priority
-            ])
+            df = pd.DataFrame(
+                [
+                    {
+                        "scheduling_block_id": obs.scheduling_block_id,
+                        "priority": obs.priority,
+                        "total_visibility_hours": obs.total_visibility_hours,
+                        "requested_hours": obs.requested_hours,
+                        "scheduled": obs.scheduled,
+                    }
+                    for obs in top_priority
+                ]
+            )
             render_data_preview(
                 df,
                 max_rows=10,
@@ -52,16 +54,18 @@ def render_top_observations(
     with tab2:
         if top_visibility:
             # Convert Rust TopObservation objects to DataFrame
-            df = pd.DataFrame([
-                {
-                    "scheduling_block_id": obs.scheduling_block_id,
-                    "priority": obs.priority,
-                    "total_visibility_hours": obs.total_visibility_hours,
-                    "requested_hours": obs.requested_hours,
-                    "scheduled": obs.scheduled,
-                }
-                for obs in top_visibility
-            ])
+            df = pd.DataFrame(
+                [
+                    {
+                        "scheduling_block_id": obs.scheduling_block_id,
+                        "priority": obs.priority,
+                        "total_visibility_hours": obs.total_visibility_hours,
+                        "requested_hours": obs.requested_hours,
+                        "scheduled": obs.scheduled,
+                    }
+                    for obs in top_visibility
+                ]
+            )
             render_data_preview(
                 df,
                 max_rows=10,
@@ -82,18 +86,20 @@ def render_integrity_checks(conflicts: list[Any]) -> None:
 
     # Convert Rust ConflictRecord objects to DataFrame
     if conflicts:
-        conflicts_df = pd.DataFrame([
-            {
-                "block_id_1": conflict.block_id_1,
-                "block_id_2": conflict.block_id_2,
-                "start_time_1": conflict.start_time_1,
-                "stop_time_1": conflict.stop_time_1,
-                "start_time_2": conflict.start_time_2,
-                "stop_time_2": conflict.stop_time_2,
-                "overlap_hours": conflict.overlap_hours,
-            }
-            for conflict in conflicts
-        ])
+        conflicts_df = pd.DataFrame(
+            [
+                {
+                    "block_id_1": conflict.block_id_1,
+                    "block_id_2": conflict.block_id_2,
+                    "start_time_1": conflict.start_time_1,
+                    "stop_time_1": conflict.stop_time_1,
+                    "start_time_2": conflict.start_time_2,
+                    "stop_time_2": conflict.stop_time_2,
+                    "overlap_hours": conflict.overlap_hours,
+                }
+                for conflict in conflicts
+            ]
+        )
     else:
         conflicts_df = pd.DataFrame()
 
@@ -103,14 +109,16 @@ def render_integrity_checks(conflicts: list[Any]) -> None:
         st.warning(
             f"""
             **⚠️ {len(conflicts_df)} scheduling conflicts detected!**
-            
+
             These observations have overlapping scheduled times, which may indicate:
             - Double-booking of telescope time
             - Scheduling algorithm errors
             - Data integrity issues
-            
+
             Review the conflict details above and adjust schedules accordingly.
             """
         )
     else:
-        st.success("✅ No scheduling conflicts detected. All scheduled observations are properly sequenced.")
+        st.success(
+            "✅ No scheduling conflicts detected. All scheduled observations are properly sequenced."
+        )

@@ -23,6 +23,14 @@ Or using the functional API:
 
 from __future__ import annotations
 
+from tsi.backend.analytics import (
+    compute_metrics,
+    compute_priority_range,
+    find_conflicts,
+    get_top_observations,
+    greedy_schedule,
+)
+
 # Re-export from submodules for convenience
 from tsi.backend.core import TSIBackend
 from tsi.backend.loaders import (
@@ -30,13 +38,6 @@ from tsi.backend.loaders import (
     load_schedule_file,
     load_schedule_from_any,
     load_schedule_from_string,
-)
-from tsi.backend.analytics import (
-    compute_metrics,
-    compute_priority_range,
-    find_conflicts,
-    get_top_observations,
-    greedy_schedule,
 )
 from tsi.backend.transformations import (
     datetime_to_mjd,

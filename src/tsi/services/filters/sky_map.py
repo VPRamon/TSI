@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from tsi.services.utils.time import ModifiedJulianDate
 
 if TYPE_CHECKING:
-    from tsi_rust import Period, LightweightBlock
+    from tsi_rust import LightweightBlock, Period
+
 
 def filter_blocks(
     blocks: list[LightweightBlock],

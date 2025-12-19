@@ -30,7 +30,7 @@ def render_sidebar_controls(trends_data: TrendsData) -> dict:
         if not blocks:
             st.warning("No data available")
             return {}
-        
+
         vis_values = [b.total_visibility_hours for b in blocks]
         time_values = [b.requested_hours for b in blocks]
         priority_values = sorted(set(b.priority for b in blocks))

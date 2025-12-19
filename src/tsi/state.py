@@ -1,7 +1,7 @@
 """Session state management utilities."""
 
-from typing import Any
 import logging
+from typing import Any
 
 import streamlit as st
 
@@ -32,15 +32,15 @@ def _initialize_database() -> None:
     # Check if already initialized in this session
     if st.session_state.get(KEY_DB_INITIALIZED, False):
         return
-    
+
     try:
         # Import and initialize the Rust backend database
         # py_init_database is a module-level function, not a method on BACKEND
         import tsi_rust
-        
+
         # This will initialize with local in-memory storage (no database config needed)
         tsi_rust.py_init_database()
-        
+
         st.session_state[KEY_DB_INITIALIZED] = True
         logger.info("Database initialized successfully with local storage")
     except Exception as e:
@@ -98,7 +98,7 @@ def initialize_state() -> None:
 
     if KEY_COMPARISON_SCHEDULE not in st.session_state:
         st.session_state[KEY_COMPARISON_SCHEDULE] = None
-    
+
     # Initialize database connection automatically
     _initialize_database()
 

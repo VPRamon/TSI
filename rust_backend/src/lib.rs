@@ -144,12 +144,12 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_get_visibility_histogram, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_schedule_time_range, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_visibility_map_data, m)?)?;
-    
+
     // Phase 1: Block-level analytics ETL functions
     m.add_function(wrap_pyfunction!(python::py_populate_analytics, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_has_analytics_data, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_delete_analytics, m)?)?;
-    
+
     // Phase 2: Summary analytics ETL functions
     m.add_function(wrap_pyfunction!(python::py_populate_summary_analytics, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_has_summary_analytics, m)?)?;
@@ -158,24 +158,39 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(python::py_get_priority_rates, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_visibility_bins, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_heatmap_bins, m)?)?;
-    
+
     // Phase 3: Visibility time bins (pre-computed histogram) functions
-    m.add_function(wrap_pyfunction!(python::py_populate_visibility_time_bins, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        python::py_populate_visibility_time_bins,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(python::py_has_visibility_time_bins, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_delete_visibility_time_bins, m)?)?;
     m.add_function(wrap_pyfunction!(python::py_get_visibility_metadata, m)?)?;
-    m.add_function(wrap_pyfunction!(python::py_get_visibility_histogram_analytics, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        python::py_get_visibility_histogram_analytics,
+        m
+    )?)?;
 
     // Register service functions (ETL-based)
     m.add_function(wrap_pyfunction!(services::py_get_sky_map_data, m)?)?;
-    m.add_function(wrap_pyfunction!(services::py_get_sky_map_data_analytics, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        services::py_get_sky_map_data_analytics,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(services::py_get_distribution_data, m)?)?;
-    m.add_function(wrap_pyfunction!(services::py_get_distribution_data_analytics, m)?)?;
-    m.add_function(wrap_pyfunction!(services::py_get_schedule_timeline_data, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        services::py_get_distribution_data_analytics,
+        m
+    )?)?;
+    m.add_function(wrap_pyfunction!(
+        services::py_get_schedule_timeline_data,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(services::py_get_insights_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_trends_data, m)?)?;
     m.add_function(wrap_pyfunction!(services::py_get_compare_data, m)?)?;
-    
+
     // Validation report function
     m.add_function(wrap_pyfunction!(services::py_get_validation_report, m)?)?;
 
@@ -217,17 +232,17 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<db::models::CompareStats>()?;
     m.add_class::<db::models::SchedulingChange>()?;
     m.add_class::<db::models::CompareData>()?;
-    
+
     // Phase 2: Summary analytics classes
     m.add_class::<db::ScheduleSummary>()?;
     m.add_class::<db::PriorityRate>()?;
     m.add_class::<db::VisibilityBin>()?;
     m.add_class::<db::HeatmapBinData>()?;
-    
+
     // Phase 3: Visibility time bins classes
     m.add_class::<db::VisibilityTimeMetadata>()?;
     m.add_class::<db::VisibilityTimeBin>()?;
-    
+
     // Validation report classes
     m.add_class::<services::PyValidationIssue>()?;
     m.add_class::<services::PyValidationReportData>()?;

@@ -6,7 +6,7 @@ from typing import Any
 import plotly.graph_objects as go
 import streamlit as st
 
-from tsi.config import PLOT_HEIGHT, PLOT_MARGIN, CACHE_TTL
+from tsi.config import CACHE_TTL, PLOT_HEIGHT, PLOT_MARGIN
 
 
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
@@ -60,11 +60,11 @@ def build_figure(
         requested_hours.append(float(block.requested_duration_seconds) / 3600.0)
         ra_values.append(float(block.target_ra_deg))
         dec_values.append(float(block.target_dec_deg))
-        
+
         scheduled_period = getattr(block, "scheduled_period", None)
         is_scheduled = scheduled_period is not None
         scheduled_flags.append(is_scheduled)
-        
+
         priority_bin = str(getattr(block, "priority_bin", ""))
         priority_bins.append(priority_bin)
 

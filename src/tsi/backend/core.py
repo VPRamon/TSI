@@ -34,7 +34,7 @@ try:
 except ImportError as e:
     raise ServerError(
         "tsi_rust module not found. Please compile the Rust backend with: maturin develop --release",
-        details={"install_command": "maturin develop --release"}
+        details={"install_command": "maturin develop --release"},
     ) from e
 
 
@@ -89,6 +89,7 @@ class TSIBackend:
             >>> print(df.columns)
         """
         from tsi.backend.loaders import load_schedule_file
+
         return load_schedule_file(path, format=format, use_pandas=self.use_pandas)
 
     def load_schedule_from_string(
@@ -109,6 +110,7 @@ class TSIBackend:
             >>> df = backend.load_schedule_from_string(json_str, format="json")
         """
         from tsi.backend.loaders import load_schedule_from_string
+
         return load_schedule_from_string(content, format=format, use_pandas=self.use_pandas)
 
     # ===== Preprocessing =====
@@ -129,6 +131,7 @@ class TSIBackend:
             ...     print(result['errors'])
         """
         from typing import cast
+
         df_polars = self._to_polars(df)
         validation_result = tsi_rust.py_validate_schedule(df_polars)
         return cast(dict[str, Any], validation_result.to_dict())
@@ -152,6 +155,7 @@ class TSIBackend:
             >>> print(f"Scheduled: {metrics['scheduled_percentage']:.1f}%")
         """
         from tsi.backend.analytics import compute_metrics
+
         return compute_metrics(self._to_polars(df))
 
     def get_top_observations(
@@ -173,6 +177,7 @@ class TSIBackend:
             >>> print(top_10[['schedulingBlockId', 'priority']])
         """
         from tsi.backend.analytics import get_top_observations
+
         # get_top_observations already returns pandas DataFrame
         return get_top_observations(self._to_polars(df), n=n, by=by)
 
@@ -191,6 +196,7 @@ class TSIBackend:
             >>> print(f"Found {len(conflicts)} conflicts")
         """
         from tsi.backend.analytics import find_conflicts
+
         # find_conflicts already returns pandas DataFrame
         return find_conflicts(self._to_polars(df))
 
@@ -213,6 +219,7 @@ class TSIBackend:
             >>> print(f"Selected {len(result['selected_ids'])} observations")
         """
         from tsi.backend.analytics import greedy_schedule
+
         return greedy_schedule(self._to_polars(df), max_iterations=max_iterations)
 
     # ===== Transformations & Filtering =====
@@ -239,7 +246,10 @@ class TSIBackend:
             >>> high_priority = backend.filter_by_priority(df, min_priority=15.0)
         """
         from tsi.backend.transformations import filter_by_priority
-        return filter_by_priority(self._to_polars(df), min_priority, max_priority, use_pandas=self.use_pandas)
+
+        return filter_by_priority(
+            self._to_polars(df), min_priority, max_priority, use_pandas=self.use_pandas
+        )
 
     def filter_by_scheduled(
         self,
@@ -261,6 +271,7 @@ class TSIBackend:
             >>> print(f"Unscheduled: {len(unscheduled)}")
         """
         from tsi.backend.transformations import filter_by_scheduled
+
         return filter_by_scheduled(self._to_polars(df), filter_type, use_pandas=self.use_pandas)
 
     def filter_dataframe(
@@ -296,6 +307,7 @@ class TSIBackend:
             ... )
         """
         from tsi.backend.transformations import filter_dataframe
+
         return filter_dataframe(
             self._to_polars(df),
             priority_min=priority_min,
@@ -327,7 +339,10 @@ class TSIBackend:
             >>> clean_df = backend.remove_duplicates(df, subset=["schedulingBlockId"])
         """
         from tsi.backend.transformations import remove_duplicates
-        return remove_duplicates(self._to_polars(df), subset=subset, keep=keep, use_pandas=self.use_pandas)
+
+        return remove_duplicates(
+            self._to_polars(df), subset=subset, keep=keep, use_pandas=self.use_pandas
+        )
 
     def remove_missing_coordinates(
         self, df: pd.DataFrame | pl.DataFrame
@@ -345,6 +360,7 @@ class TSIBackend:
             >>> valid_coords = backend.remove_missing_coordinates(df)
         """
         from tsi.backend.transformations import remove_missing_coordinates
+
         return remove_missing_coordinates(self._to_polars(df), use_pandas=self.use_pandas)
 
     def validate_dataframe(self, df: pd.DataFrame | pl.DataFrame) -> tuple[bool, list[str]]:
@@ -364,6 +380,7 @@ class TSIBackend:
             ...         print(f"Warning: {issue}")
         """
         from tsi.backend.transformations import validate_dataframe
+
         return validate_dataframe(self._to_polars(df))
 
     # ===== Time Conversions =====
@@ -384,6 +401,7 @@ class TSIBackend:
             >>> print(dt)  # 2022-01-01 12:00:00+00:00
         """
         from typing import cast
+
         return cast(datetime, tsi_rust.mjd_to_datetime(mjd))
 
     @staticmethod
@@ -404,6 +422,7 @@ class TSIBackend:
             >>> print(mjd)  # 59580.5
         """
         from typing import cast
+
         return cast(float, tsi_rust.datetime_to_mjd(dt))
 
     @staticmethod
@@ -418,6 +437,7 @@ class TSIBackend:
             List of (start_datetime, stop_datetime) tuples
         """
         from typing import cast
+
         return cast(list[tuple[Any, Any]], tsi_rust.parse_visibility_periods(visibility_str))
 
     # ===== Utilities =====
