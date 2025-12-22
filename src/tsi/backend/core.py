@@ -19,7 +19,6 @@ import logging
 from typing import TYPE_CHECKING
 
 import pandas as pd
-import polars as pl
 
 from tsi.exceptions import ServerError
 
@@ -77,7 +76,7 @@ class TSIBackend:
 
     def load_schedule(
         self, path: str | Path, format: Literal["auto", "csv", "json"] = "auto"
-    ) -> pd.DataFrame | pl.DataFrame:
+    ) -> pd.DataFrame:
         """
         Load schedule data from CSV or JSON file.
 
@@ -98,7 +97,7 @@ class TSIBackend:
 
     def load_schedule_from_string(
         self, content: str, format: Literal["csv", "json"] = "json"
-    ) -> pd.DataFrame | pl.DataFrame:
+    ) -> pd.DataFrame:
         """
         Load schedule data from string content.
 
@@ -119,7 +118,7 @@ class TSIBackend:
 
     # ===== Preprocessing =====
 
-    def validate_schedule(self, df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
+    def validate_schedule(self, df: pd.DataFrame) -> dict[str, Any]:
         """
         Validate schedule data structure and quality.
 
@@ -136,14 +135,14 @@ class TSIBackend:
         """
         from typing import cast
 
-        df_polars = self._to_polars(df)
+        df_polars = df
         validation_result = tsi_rust.py_validate_schedule(df_polars)
         return cast(dict[str, Any], validation_result.to_dict())
 
     # ===== Analytics & Algorithms =====
     # Implemented in tsi.backend.analytics, delegated here for convenience
 
-    def compute_metrics(self, df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
+    def compute_metrics(self, df: pd.DataFrame) -> dict[str, Any]:
         """
         Compute comprehensive scheduling metrics.
 
@@ -160,11 +159,11 @@ class TSIBackend:
         """
         from tsi.backend.analytics import compute_metrics
 
-        return compute_metrics(self._to_polars(df))
+        return compute_metrics(df)
 
     def get_top_observations(
-        self, df: pd.DataFrame | pl.DataFrame, n: int = 10, by: str = "priority"
-    ) -> pd.DataFrame | pl.DataFrame:
+        self, df: pd.DataFrame, n: int = 10, by: str = "priority"
+    ) -> pd.DataFrame:
         """
         Get top N observations sorted by specified column.
 
@@ -183,9 +182,9 @@ class TSIBackend:
         from tsi.backend.analytics import get_top_observations
 
         # get_top_observations already returns pandas DataFrame
-        return get_top_observations(self._to_polars(df), n=n, by=by)
+        return get_top_observations(df, n=n, by=by)
 
-    def find_conflicts(self, df: pd.DataFrame | pl.DataFrame) -> pd.DataFrame | pl.DataFrame:
+    def find_conflicts(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Find scheduling conflicts (overlapping observations).
 
@@ -202,10 +201,10 @@ class TSIBackend:
         from tsi.backend.analytics import find_conflicts
 
         # find_conflicts already returns pandas DataFrame
-        return find_conflicts(self._to_polars(df))
+        return find_conflicts(df)
 
     def greedy_schedule(
-        self, df: pd.DataFrame | pl.DataFrame, max_iterations: int = 1000
+        self, df: pd.DataFrame, max_iterations: int = 1000
     ) -> dict[str, Any]:
         """
         Run greedy scheduling optimization.
@@ -224,17 +223,17 @@ class TSIBackend:
         """
         from tsi.backend.analytics import greedy_schedule
 
-        return greedy_schedule(self._to_polars(df), max_iterations=max_iterations)
+        return greedy_schedule(df, max_iterations=max_iterations)
 
     # ===== Transformations & Filtering =====
     # Implemented in tsi.backend.transformations, delegated here for convenience
 
     def filter_by_priority(
         self,
-        df: pd.DataFrame | pl.DataFrame,
+        df: pd.DataFrame,
         min_priority: float = 0.0,
         max_priority: float = 100.0,
-    ) -> pd.DataFrame | pl.DataFrame:
+    ) -> pd.DataFrame:
         """
         Filter observations by priority range.
 
@@ -252,14 +251,14 @@ class TSIBackend:
         from tsi.backend.transformations import filter_by_priority
 
         return filter_by_priority(
-            self._to_polars(df), min_priority, max_priority, use_pandas=self.use_pandas
+            df, min_priority, max_priority, use_pandas=self.use_pandas
         )
 
     def filter_by_scheduled(
         self,
-        df: pd.DataFrame | pl.DataFrame,
+        df: pd.DataFrame,
         filter_type: Literal["All", "Scheduled", "Unscheduled"] = "All",
-    ) -> pd.DataFrame | pl.DataFrame:
+    ) -> pd.DataFrame:
         """
         Filter observations by scheduling status.
 
@@ -276,17 +275,17 @@ class TSIBackend:
         """
         from tsi.backend.transformations import filter_by_scheduled
 
-        return filter_by_scheduled(self._to_polars(df), filter_type, use_pandas=self.use_pandas)
+        return filter_by_scheduled(df, filter_type, use_pandas=self.use_pandas)
 
     def filter_dataframe(
         self,
-        df: pd.DataFrame | pl.DataFrame,
+        df: pd.DataFrame,
         priority_min: float = 0.0,
         priority_max: float = 100.0,
         scheduled_filter: Literal["All", "Scheduled", "Unscheduled"] = "All",
         priority_bins: list[str] | None = None,
         block_ids: list[str] | None = None,
-    ) -> pd.DataFrame | pl.DataFrame:
+    ) -> pd.DataFrame:
         """
         Apply multiple filters to DataFrame.
 
@@ -313,7 +312,7 @@ class TSIBackend:
         from tsi.backend.transformations import filter_dataframe
 
         return filter_dataframe(
-            self._to_polars(df),
+            df,
             priority_min=priority_min,
             priority_max=priority_max,
             scheduled_filter=scheduled_filter,
@@ -324,10 +323,10 @@ class TSIBackend:
 
     def remove_duplicates(
         self,
-        df: pd.DataFrame | pl.DataFrame,
+        df: pd.DataFrame,
         subset: list[str] | None = None,
         keep: Literal["first", "last", "none"] = "first",
-    ) -> pd.DataFrame | pl.DataFrame:
+    ) -> pd.DataFrame:
         """
         Remove duplicate rows from DataFrame.
 
@@ -345,12 +344,12 @@ class TSIBackend:
         from tsi.backend.transformations import remove_duplicates
 
         return remove_duplicates(
-            self._to_polars(df), subset=subset, keep=keep, use_pandas=self.use_pandas
+            df, subset=subset, keep=keep, use_pandas=self.use_pandas
         )
 
     def remove_missing_coordinates(
-        self, df: pd.DataFrame | pl.DataFrame
-    ) -> pd.DataFrame | pl.DataFrame:
+        self, df: pd.DataFrame
+    ) -> pd.DataFrame:
         """
         Remove observations with missing RA or Dec coordinates.
 
@@ -365,9 +364,9 @@ class TSIBackend:
         """
         from tsi.backend.transformations import remove_missing_coordinates
 
-        return remove_missing_coordinates(self._to_polars(df), use_pandas=self.use_pandas)
+        return remove_missing_coordinates(df, use_pandas=self.use_pandas)
 
-    def validate_dataframe(self, df: pd.DataFrame | pl.DataFrame) -> tuple[bool, list[str]]:
+    def validate_dataframe(self, df: pd.DataFrame) -> tuple[bool, list[str]]:
         """
         Validate DataFrame data quality (coordinates, priorities, etc.).
 
@@ -385,7 +384,7 @@ class TSIBackend:
         """
         from tsi.backend.transformations import validate_dataframe
 
-        return validate_dataframe(self._to_polars(df))
+        return validate_dataframe(df)
 
     # ===== Time Conversions =====
 
@@ -445,12 +444,6 @@ class TSIBackend:
         return cast(list[tuple[Any, Any]], tsi_rust.parse_visibility_periods(visibility_str))
 
     # ===== Utilities =====
-
-    def _to_polars(self, df: pd.DataFrame | pl.DataFrame) -> pl.DataFrame:
-        """Convert DataFrame to Polars format if needed."""
-        if isinstance(df, pd.DataFrame):
-            return pl.from_pandas(df)
-        return df
 
     def __repr__(self) -> str:
         return f"TSIBackend(use_pandas={self.use_pandas})"

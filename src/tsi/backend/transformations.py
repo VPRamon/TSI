@@ -8,10 +8,10 @@ and transforming schedule DataFrames.
 from __future__ import annotations
 
 from datetime import datetime
+from io import StringIO
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pandas as pd
-import polars as pl
 
 if TYPE_CHECKING:
     pass
@@ -20,12 +20,22 @@ if TYPE_CHECKING:
 import tsi_rust
 
 
+def _df_to_json(df: pd.DataFrame) -> str:
+    """Convert pandas DataFrame to JSON string for Rust."""
+    return df.to_json(orient="records")
+
+
+def _json_to_df(json_str: str) -> pd.DataFrame:
+    """Convert JSON string from Rust to pandas DataFrame."""
+    return pd.read_json(StringIO(json_str), orient="records")
+
+
 def filter_by_priority(
-    df: pd.DataFrame | pl.DataFrame,
+    df: pd.DataFrame,
     min_priority: float = 0.0,
     max_priority: float = 100.0,
     use_pandas: bool = True,
-) -> pd.DataFrame | pl.DataFrame:
+) -> pd.DataFrame:
     """
     Filter observations by priority range.
 
@@ -41,18 +51,18 @@ def filter_by_priority(
     Example:
         >>> high_priority = filter_by_priority(df, min_priority=15.0)
     """
-    df_polars = _to_polars(df)
-    result: pl.DataFrame = tsi_rust.py_filter_by_range(
-        df_polars, "priority", min_priority, max_priority
+    json_str = _df_to_json(df)
+    result_json: str = tsi_rust.py_filter_by_range(
+        json_str, "priority", min_priority, max_priority
     )
-    return cast(pd.DataFrame, result.to_pandas()) if use_pandas else result
+    return _json_to_df(result_json)
 
 
 def filter_by_scheduled(
-    df: pd.DataFrame | pl.DataFrame,
+    df: pd.DataFrame,
     filter_type: Literal["All", "Scheduled", "Unscheduled"] = "All",
     use_pandas: bool = True,
-) -> pd.DataFrame | pl.DataFrame:
+) -> pd.DataFrame:
     """
     Filter observations by scheduling status.
 
@@ -68,20 +78,20 @@ def filter_by_scheduled(
         >>> unscheduled = filter_by_scheduled(df, "Unscheduled")
         >>> print(f"Unscheduled: {len(unscheduled)}")
     """
-    df_polars = _to_polars(df)
-    result: pl.DataFrame = tsi_rust.py_filter_by_scheduled(df_polars, filter_type)
-    return cast(pd.DataFrame, result.to_pandas()) if use_pandas else result
+    json_str = _df_to_json(df)
+    result_json: str = tsi_rust.py_filter_by_scheduled(json_str, filter_type)
+    return _json_to_df(result_json)
 
 
 def filter_dataframe(
-    df: pd.DataFrame | pl.DataFrame,
+    df: pd.DataFrame,
     priority_min: float = 0.0,
     priority_max: float = 100.0,
     scheduled_filter: Literal["All", "Scheduled", "Unscheduled"] = "All",
     priority_bins: list[str] | None = None,
     block_ids: list[str] | None = None,
     use_pandas: bool = True,
-) -> pd.DataFrame | pl.DataFrame:
+) -> pd.DataFrame:
     """
     Apply multiple filters to DataFrame.
 
@@ -108,19 +118,19 @@ def filter_dataframe(
         ...     priority_bins=["High", "Very High"]
         ... )
     """
-    df_polars = _to_polars(df)
-    result: pl.DataFrame = tsi_rust.py_filter_dataframe(
-        df_polars, priority_min, priority_max, scheduled_filter, priority_bins, block_ids
+    json_str = _df_to_json(df)
+    result_json: str = tsi_rust.py_filter_dataframe(
+        json_str, priority_min, priority_max, scheduled_filter, priority_bins, block_ids
     )
-    return cast(pd.DataFrame, result.to_pandas()) if use_pandas else result
+    return _json_to_df(result_json)
 
 
 def remove_duplicates(
-    df: pd.DataFrame | pl.DataFrame,
+    df: pd.DataFrame,
     subset: list[str] | None = None,
     keep: Literal["first", "last", "none"] = "first",
     use_pandas: bool = True,
-) -> pd.DataFrame | pl.DataFrame:
+) -> pd.DataFrame:
     """
     Remove duplicate rows from DataFrame.
 
@@ -136,15 +146,15 @@ def remove_duplicates(
     Example:
         >>> clean_df = remove_duplicates(df, subset=["schedulingBlockId"])
     """
-    df_polars = _to_polars(df)
-    result: pl.DataFrame = tsi_rust.py_remove_duplicates(df_polars, subset, keep)
-    return cast(pd.DataFrame, result.to_pandas()) if use_pandas else result
+    json_str = _df_to_json(df)
+    result_json: str = tsi_rust.py_remove_duplicates(json_str, subset, keep)
+    return _json_to_df(result_json)
 
 
 def remove_missing_coordinates(
-    df: pd.DataFrame | pl.DataFrame,
+    df: pd.DataFrame,
     use_pandas: bool = True,
-) -> pd.DataFrame | pl.DataFrame:
+) -> pd.DataFrame:
     """
     Remove observations with missing RA or Dec coordinates.
 
@@ -158,12 +168,12 @@ def remove_missing_coordinates(
     Example:
         >>> valid_coords = remove_missing_coordinates(df)
     """
-    df_polars = _to_polars(df)
-    result: pl.DataFrame = tsi_rust.py_remove_missing_coordinates(df_polars)
-    return cast(pd.DataFrame, result.to_pandas()) if use_pandas else result
+    json_str = _df_to_json(df)
+    result_json: str = tsi_rust.py_remove_missing_coordinates(json_str)
+    return _json_to_df(result_json)
 
 
-def validate_dataframe(df: pd.DataFrame | pl.DataFrame) -> tuple[bool, list[str]]:
+def validate_dataframe(df: pd.DataFrame) -> tuple[bool, list[str]]:
     """
     Validate DataFrame data quality (coordinates, priorities, etc.).
 
@@ -179,8 +189,8 @@ def validate_dataframe(df: pd.DataFrame | pl.DataFrame) -> tuple[bool, list[str]
         ...     for issue in issues:
         ...         print(f"Warning: {issue}")
     """
-    df_polars = _to_polars(df)
-    return cast(tuple[bool, list[str]], tsi_rust.py_validate_dataframe(df_polars))
+    json_str = _df_to_json(df)
+    return cast(tuple[bool, list[str]], tsi_rust.py_validate_dataframe(json_str))
 
 
 # ===== Time Conversions =====
@@ -240,10 +250,3 @@ def parse_visibility_periods(
         >>> print(parsed[0][0])  # datetime object
     """
     return cast(list[tuple[datetime, datetime]], tsi_rust.parse_visibility_periods(periods))
-
-
-def _to_polars(df: pd.DataFrame | pl.DataFrame) -> pl.DataFrame:
-    """Convert DataFrame to Polars if needed."""
-    if isinstance(df, pd.DataFrame):
-        return pl.from_pandas(df)
-    return df

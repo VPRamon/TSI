@@ -1,183 +1,170 @@
-use polars::prelude::*;
-use std::ops::Not;
+use serde_json::Value;
 
-/// Filter a DataFrame by a single column condition (string value)
-pub fn filter_by_column(df: &DataFrame, column: &str, value: &str) -> PolarsResult<DataFrame> {
-    let series = df.column(column)?;
-    let string_ca = series.str()?;
-    // Create mask by comparing each element
-    let mask: BooleanChunked = string_ca
-        .into_iter()
-        .map(|opt_val| {
-            if let Some(val) = opt_val {
-                val == value
-            } else {
-                false
-            }
+/// Filter records by a single column condition (string value)
+pub fn filter_by_column(records: &[Value], column: &str, value: &str) -> Result<Vec<Value>, String> {
+    let filtered: Vec<Value> = records
+        .iter()
+        .filter(|r| {
+            r.get(column)
+                .and_then(|v| v.as_str())
+                .map(|s| s == value)
+                .unwrap_or(false)
         })
+        .cloned()
         .collect();
-    df.filter(&mask)
+    Ok(filtered)
 }
 
-/// Filter a DataFrame by numeric range
+/// Filter records by numeric range
 pub fn filter_by_range(
-    df: &DataFrame,
+    records: &[Value],
     column: &str,
     min_value: f64,
     max_value: f64,
-) -> PolarsResult<DataFrame> {
-    let series = df.column(column)?.as_materialized_series();
-
-    // Create mask for range [min_value, max_value]
-    let ge_mask = series.gt_eq(min_value)?;
-    let le_mask = series.lt_eq(max_value)?;
-    let mask = &ge_mask & &le_mask;
-
-    df.filter(&mask)
+) -> Result<Vec<Value>, String> {
+    let filtered: Vec<Value> = records
+        .iter()
+        .filter(|r| {
+            r.get(column)
+                .and_then(|v| v.as_f64())
+                .map(|val| val >= min_value && val <= max_value)
+                .unwrap_or(false)
+        })
+        .cloned()
+        .collect();
+    Ok(filtered)
 }
 
-/// Filter DataFrame by scheduled flag
+/// Filter records by scheduled flag
 pub fn filter_by_scheduled(
-    df: &DataFrame,
+    records: &[Value],
     filter_type: &str, // "All", "Scheduled", "Unscheduled"
-) -> PolarsResult<DataFrame> {
+) -> Result<Vec<Value>, String> {
     match filter_type {
-        "All" => Ok(df.clone()),
+        "All" => Ok(records.to_vec()),
         "Scheduled" => {
-            let mask = df.column("scheduled_flag")?.bool()?;
-            df.filter(mask)
+            let filtered: Vec<Value> = records
+                .iter()
+                .filter(|r| {
+                    r.get("scheduled_flag")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                })
+                .cloned()
+                .collect();
+            Ok(filtered)
         }
         "Unscheduled" => {
-            let mask = df.column("scheduled_flag")?.bool()?;
-            let not_mask = mask.not();
-            df.filter(&not_mask)
+            let filtered: Vec<Value> = records
+                .iter()
+                .filter(|r| {
+                    !r.get("scheduled_flag")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                })
+                .cloned()
+                .collect();
+            Ok(filtered)
         }
-        _ => Err(PolarsError::ComputeError(
-            format!(
-                "Invalid filter_type: {}. Must be 'All', 'Scheduled', or 'Unscheduled'",
-                filter_type
-            )
-            .into(),
+        _ => Err(format!(
+            "Invalid filter_type: {}. Must be 'All', 'Scheduled', or 'Unscheduled'",
+            filter_type
         )),
     }
 }
 
-/// Filter DataFrame by multiple conditions (priority range + scheduled filter)
+/// Filter records by multiple conditions (priority range + scheduled filter)
 pub fn filter_dataframe(
-    df: &DataFrame,
+    records: &[Value],
     priority_min: f64,
     priority_max: f64,
     scheduled_filter: &str,
     priority_bins: Option<Vec<String>>,
     block_ids: Option<Vec<String>>,
-) -> PolarsResult<DataFrame> {
+) -> Result<Vec<Value>, String> {
     // Start with priority range filter
-    let mut filtered = filter_by_range(df, "priority", priority_min, priority_max)?;
+    let mut filtered = filter_by_range(records, "priority", priority_min, priority_max)?;
 
     // Apply scheduled filter
     filtered = filter_by_scheduled(&filtered, scheduled_filter)?;
 
     // Apply priority bins filter if provided
     if let Some(bins) = priority_bins {
-        let series = filtered.column("priority_bin")?;
-        let string_ca = series.str()?;
-        // Create mask by checking if each value is in the bins list
-        let mask: BooleanChunked = string_ca
+        filtered = filtered
             .into_iter()
-            .map(|opt_val| {
-                if let Some(val) = opt_val {
-                    bins.contains(&val.to_string())
-                } else {
-                    false
-                }
+            .filter(|r| {
+                r.get("priority_bin")
+                    .and_then(|v| v.as_str())
+                    .map(|s| bins.contains(&s.to_string()))
+                    .unwrap_or(false)
             })
             .collect();
-        filtered = filtered.filter(&mask)?;
     }
 
     // Apply block IDs filter if provided
     if let Some(ids) = block_ids {
-        let series = filtered.column("schedulingBlockId")?;
-        let string_ca = series.str()?;
-        // Create mask by checking if each value is in the ids list
-        let mask: BooleanChunked = string_ca
+        filtered = filtered
             .into_iter()
-            .map(|opt_val| {
-                if let Some(val) = opt_val {
-                    ids.contains(&val.to_string())
-                } else {
-                    false
-                }
+            .filter(|r| {
+                r.get("schedulingBlockId")
+                    .and_then(|v| v.as_str())
+                    .map(|s| ids.contains(&s.to_string()))
+                    .unwrap_or(false)
             })
             .collect();
-        filtered = filtered.filter(&mask)?;
     }
 
     Ok(filtered)
 }
 
-/// Validate DataFrame structure and data quality
-pub fn validate_dataframe(df: &DataFrame) -> (bool, Vec<String>) {
+/// Validate record structure and data quality
+pub fn validate_dataframe(records: &[Value]) -> (bool, Vec<String>) {
     let mut issues: Vec<String> = Vec::new();
 
     // Check for missing schedulingBlockId
-    if let Ok(col) = df.column("schedulingBlockId") {
-        if col.null_count() > 0 {
-            issues.push("Some rows have missing schedulingBlockId".to_string());
-        }
+    let missing_id_count = records
+        .iter()
+        .filter(|r| r.get("schedulingBlockId").is_none())
+        .count();
+    if missing_id_count > 0 {
+        issues.push("Some rows have missing schedulingBlockId".to_string());
     }
 
     // Check for invalid priority values
-    if let Ok(col) = df.column("priority") {
-        if let Ok(float_col) = col.cast(&DataType::Float64) {
-            let null_count = float_col.null_count();
-            if null_count > 0 {
-                issues.push(format!("{} rows have invalid priority values", null_count));
-            }
-        }
+    let invalid_priority_count = records
+        .iter()
+        .filter(|r| r.get("priority").and_then(|v| v.as_f64()).is_none())
+        .count();
+    if invalid_priority_count > 0 {
+        issues.push(format!("{} rows have invalid priority values", invalid_priority_count));
     }
 
     // Check for invalid declination (must be in [-90, 90])
-    if let Ok(col) = df.column("decInDeg") {
-        if let Ok(float_col) = col.cast(&DataType::Float64) {
-            let series = float_col.f64().unwrap();
-            let invalid_count = series
-                .into_iter()
-                .filter(|opt| {
-                    if let Some(val) = opt {
-                        *val < -90.0 || *val > 90.0
-                    } else {
-                        false
-                    }
-                })
-                .count();
-            if invalid_count > 0 {
-                issues.push(format!("{} rows have invalid declination", invalid_count));
-            }
-        }
+    let invalid_dec_count = records
+        .iter()
+        .filter(|r| {
+            r.get("decInDeg")
+                .and_then(|v| v.as_f64())
+                .map(|val| val < -90.0 || val > 90.0)
+                .unwrap_or(false)
+        })
+        .count();
+    if invalid_dec_count > 0 {
+        issues.push(format!("{} rows have invalid declination", invalid_dec_count));
     }
 
     // Check for invalid right ascension (must be in [0, 360))
-    if let Ok(col) = df.column("raInDeg") {
-        if let Ok(float_col) = col.cast(&DataType::Float64) {
-            let series = float_col.f64().unwrap();
-            let invalid_count = series
-                .into_iter()
-                .filter(|opt| {
-                    if let Some(val) = opt {
-                        *val < 0.0 || *val >= 360.0
-                    } else {
-                        false
-                    }
-                })
-                .count();
-            if invalid_count > 0 {
-                issues.push(format!(
-                    "{} rows have invalid right ascension",
-                    invalid_count
-                ));
-            }
-        }
+    let invalid_ra_count = records
+        .iter()
+        .filter(|r| {
+            r.get("raInDeg")
+                .and_then(|v| v.as_f64())
+                .map(|val| val < 0.0 || val >= 360.0)
+                .unwrap_or(false)
+        })
+        .count();
+    if invalid_ra_count > 0 {
+        issues.push(format!("{} rows have invalid right ascension", invalid_ra_count));
     }
 
     (issues.is_empty(), issues)
@@ -186,52 +173,99 @@ pub fn validate_dataframe(df: &DataFrame) -> (bool, Vec<String>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
-    fn sample_dataframe() -> DataFrame {
-        DataFrame::new(vec![
-            Series::new("priority".into(), &[5.0, 10.0, 15.0, 20.0]).into(),
-            Series::new("scheduled_flag".into(), &[true, false, true, false]).into(),
-            Series::new(
-                "priority_bin".into(),
-                &["Low", "Medium", "High", "Very High"],
-            )
-            .into(),
-        ])
-        .unwrap()
+    fn sample_records() -> Vec<Value> {
+        vec![
+            json!({
+                "priority": 5.0,
+                "scheduled_flag": true,
+                "priority_bin": "Low",
+            }),
+            json!({
+                "priority": 10.0,
+                "scheduled_flag": false,
+                "priority_bin": "Medium",
+            }),
+            json!({
+                "priority": 15.0,
+                "scheduled_flag": true,
+                "priority_bin": "High",
+            }),
+            json!({
+                "priority": 20.0,
+                "scheduled_flag": false,
+                "priority_bin": "Very High",
+            }),
+        ]
     }
 
     #[test]
     fn test_filter_by_range() {
-        let df = sample_dataframe();
-        let filtered = filter_by_range(&df, "priority", 5.0, 15.0).unwrap();
-        assert_eq!(filtered.height(), 3);
+        let records = sample_records();
+        let filtered = filter_by_range(&records, "priority", 8.0, 18.0).unwrap();
+        assert_eq!(filtered.len(), 2);
+        // Should include 10.0 and 15.0
+        assert_eq!(filtered[0].get("priority").unwrap().as_f64().unwrap(), 10.0);
+        assert_eq!(filtered[1].get("priority").unwrap().as_f64().unwrap(), 15.0);
     }
 
     #[test]
     fn test_filter_by_scheduled() {
-        let df = sample_dataframe();
-        let scheduled = filter_by_scheduled(&df, "Scheduled").unwrap();
-        assert_eq!(scheduled.height(), 2);
+        let records = sample_records();
 
-        let unscheduled = filter_by_scheduled(&df, "Unscheduled").unwrap();
-        assert_eq!(unscheduled.height(), 2);
+        let all = filter_by_scheduled(&records, "All").unwrap();
+        assert_eq!(all.len(), 4);
 
-        let all = filter_by_scheduled(&df, "All").unwrap();
-        assert_eq!(all.height(), 4);
+        let scheduled = filter_by_scheduled(&records, "Scheduled").unwrap();
+        assert_eq!(scheduled.len(), 2);
+
+        let unscheduled = filter_by_scheduled(&records, "Unscheduled").unwrap();
+        assert_eq!(unscheduled.len(), 2);
+    }
+
+    #[test]
+    fn test_filter_dataframe() {
+        let records = sample_records();
+
+        // Priority 8-18, scheduled only
+        let filtered = filter_dataframe(
+            &records,
+            8.0,
+            18.0,
+            "Scheduled",
+            None,
+            None,
+        )
+        .unwrap();
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0].get("priority").unwrap().as_f64().unwrap(), 15.0);
     }
 
     #[test]
     fn test_validate_dataframe() {
-        let df = DataFrame::new(vec![
-            Series::new("schedulingBlockId".into(), &["SB001", "SB002"]).into(),
-            Series::new("priority".into(), &[5.0, 10.0]).into(),
-            Series::new("decInDeg".into(), &[45.0, -30.0]).into(),
-            Series::new("raInDeg".into(), &[120.0, 270.0]).into(),
-        ])
-        .unwrap();
-
-        let (is_valid, issues) = validate_dataframe(&df);
+        let good_records = vec![
+            json!({
+                "schedulingBlockId": "SB001",
+                "priority": 5.0,
+                "raInDeg": 120.0,
+                "decInDeg": 45.0,
+            }),
+        ];
+        let (is_valid, issues) = validate_dataframe(&good_records);
         assert!(is_valid);
         assert_eq!(issues.len(), 0);
+
+        let bad_records = vec![
+            json!({
+                "priority": 5.0,
+                "raInDeg": 400.0,  // Invalid
+                "decInDeg": -100.0, // Invalid
+            }),
+        ];
+        let (is_valid, issues) = validate_dataframe(&bad_records);
+        assert!(!is_valid);
+        assert!(issues.len() >= 2);
     }
 }
+

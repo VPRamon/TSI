@@ -56,7 +56,7 @@
 //! observation schedules. Key optimizations include:
 //!
 //! - Zero-copy parsing where possible
-//! - Polars DataFrames for columnar data processing
+//! - Efficient JSON-based data processing with serde_json
 //! - Parallel batch operations
 //! - Minimal allocations in hot paths
 
