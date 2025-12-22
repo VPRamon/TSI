@@ -144,6 +144,7 @@ pub struct Constraints {
     pub max_alt: Degrees,
     pub min_az: Degrees,
     pub max_az: Degrees,
+    #[pyo3(get)]
     pub fixed_time: Option<Period>,
 }
 
@@ -187,11 +188,6 @@ impl Constraints {
         self.max_az.value()
     }
 
-    #[getter]
-    pub fn fixed_time(&self) -> Option<Period> {
-        self.fixed_time
-    }
-
     fn __repr__(&self) -> String {
         let fixed = self
             .fixed_time
@@ -211,14 +207,19 @@ impl Constraints {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct SchedulingBlock {
+    #[pyo3(get)]
     pub id: SchedulingBlockId,
     pub original_block_id: Option<String>, // Original schedulingBlockId from JSON
     pub target: ICRS,
+    #[pyo3(get)]
     pub constraints: Constraints,
+    #[pyo3(get)]
     pub priority: f64,
     pub min_observation: Seconds,
     pub requested_duration: Seconds,
+    #[pyo3(get)]
     pub visibility_periods: Vec<Period>,
+    #[pyo3(get)]
     pub scheduled_period: Option<Period>,
 }
 
@@ -252,11 +253,6 @@ impl SchedulingBlock {
     }
 
     #[getter]
-    pub fn id(&self) -> SchedulingBlockId {
-        self.id
-    }
-
-    #[getter]
     pub fn target_ra_deg(&self) -> f64 {
         self.target.ra().value()
     }
@@ -267,16 +263,6 @@ impl SchedulingBlock {
     }
 
     #[getter]
-    pub fn constraints(&self) -> Constraints {
-        self.constraints.clone()
-    }
-
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
     pub fn min_observation_seconds(&self) -> f64 {
         self.min_observation.value()
     }
@@ -284,16 +270,6 @@ impl SchedulingBlock {
     #[getter]
     pub fn requested_duration_seconds(&self) -> f64 {
         self.requested_duration.value()
-    }
-
-    #[getter]
-    pub fn visibility_periods(&self) -> Vec<Period> {
-        self.visibility_periods.clone()
-    }
-
-    #[getter]
-    pub fn scheduled_period(&self) -> Option<Period> {
-        self.scheduled_period
     }
 
     pub fn target_coordinates(&self) -> (f64, f64) {
@@ -318,10 +294,15 @@ impl SchedulingBlock {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct Schedule {
+    #[pyo3(get)]
     pub id: Option<ScheduleId>,
+    #[pyo3(get)]
     pub name: String,
+    #[pyo3(get)]
     pub checksum: String,
+    #[pyo3(get)]
     pub dark_periods: Vec<Period>,
+    #[pyo3(get)]
     pub blocks: Vec<SchedulingBlock>,
 }
 
@@ -342,31 +323,6 @@ impl Schedule {
             dark_periods,
             blocks,
         }
-    }
-
-    #[getter]
-    pub fn id(&self) -> Option<ScheduleId> {
-        self.id
-    }
-
-    #[getter]
-    pub fn name(&self) -> String {
-        self.name.clone()
-    }
-
-    #[getter]
-    pub fn checksum(&self) -> String {
-        self.checksum.clone()
-    }
-
-    #[getter]
-    pub fn dark_periods(&self) -> Vec<Period> {
-        self.dark_periods.clone()
-    }
-
-    #[getter]
-    pub fn blocks(&self) -> Vec<SchedulingBlock> {
-        self.blocks.clone()
     }
 
     pub fn block_count(&self) -> usize {

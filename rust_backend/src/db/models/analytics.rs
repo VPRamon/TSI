@@ -16,51 +16,24 @@ use super::schedule::Period;
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct LightweightBlock {
+    #[pyo3(get)]
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    #[pyo3(get)]
     pub priority: f64,
+    #[pyo3(get)]
     pub priority_bin: String,
+    #[pyo3(get)]
     pub requested_duration_seconds: f64,
+    #[pyo3(get)]
     pub target_ra_deg: f64,
+    #[pyo3(get)]
     pub target_dec_deg: f64,
+    #[pyo3(get)]
     pub scheduled_period: Option<Period>,
 }
 
 #[pymethods]
 impl LightweightBlock {
-    #[getter]
-    pub fn original_block_id(&self) -> String {
-        self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
-    pub fn priority_bin(&self) -> String {
-        self.priority_bin.clone()
-    }
-
-    #[getter]
-    pub fn requested_duration_seconds(&self) -> f64 {
-        self.requested_duration_seconds
-    }
-
-    #[getter]
-    pub fn target_ra_deg(&self) -> f64 {
-        self.target_ra_deg
-    }
-
-    #[getter]
-    pub fn target_dec_deg(&self) -> f64 {
-        self.target_dec_deg
-    }
-
-    #[getter]
-    pub fn scheduled_period(&self) -> Option<Period> {
-        self.scheduled_period
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -78,33 +51,18 @@ impl LightweightBlock {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct PriorityBinInfo {
+    #[pyo3(get)]
     pub label: String,
+    #[pyo3(get)]
     pub min_priority: f64,
+    #[pyo3(get)]
     pub max_priority: f64,
+    #[pyo3(get)]
     pub color: String,
 }
 
 #[pymethods]
 impl PriorityBinInfo {
-    #[getter]
-    pub fn label(&self) -> String {
-        self.label.clone()
-    }
-
-    #[getter]
-    pub fn min_priority(&self) -> f64 {
-        self.min_priority
-    }
-
-    #[getter]
-    pub fn max_priority(&self) -> f64 {
-        self.max_priority
-    }
-
-    #[getter]
-    pub fn color(&self) -> String {
-        self.color.clone()
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -119,81 +77,34 @@ impl PriorityBinInfo {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct SkyMapData {
+    #[pyo3(get)]
     pub blocks: Vec<LightweightBlock>,
+    #[pyo3(get)]
     pub priority_bins: Vec<PriorityBinInfo>,
+    #[pyo3(get)]
     pub priority_min: f64,
+    #[pyo3(get)]
     pub priority_max: f64,
+    #[pyo3(get)]
     pub ra_min: f64,
+    #[pyo3(get)]
     pub ra_max: f64,
+    #[pyo3(get)]
     pub dec_min: f64,
+    #[pyo3(get)]
     pub dec_max: f64,
+    #[pyo3(get)]
     pub total_count: usize,
+    #[pyo3(get)]
     pub scheduled_count: usize,
+    #[pyo3(get)]
     pub scheduled_time_min: Option<f64>,
+    #[pyo3(get)]
     pub scheduled_time_max: Option<f64>,
 }
 
 #[pymethods]
 impl SkyMapData {
-    #[getter]
-    pub fn blocks(&self) -> Vec<LightweightBlock> {
-        self.blocks.clone()
-    }
-
-    #[getter]
-    pub fn priority_bins(&self) -> Vec<PriorityBinInfo> {
-        self.priority_bins.clone()
-    }
-
-    #[getter]
-    pub fn priority_min(&self) -> f64 {
-        self.priority_min
-    }
-
-    #[getter]
-    pub fn priority_max(&self) -> f64 {
-        self.priority_max
-    }
-
-    #[getter]
-    pub fn ra_min(&self) -> f64 {
-        self.ra_min
-    }
-
-    #[getter]
-    pub fn ra_max(&self) -> f64 {
-        self.ra_max
-    }
-
-    #[getter]
-    pub fn dec_min(&self) -> f64 {
-        self.dec_min
-    }
-
-    #[getter]
-    pub fn dec_max(&self) -> f64 {
-        self.dec_max
-    }
-
-    #[getter]
-    pub fn total_count(&self) -> usize {
-        self.total_count
-    }
-
-    #[getter]
-    pub fn scheduled_count(&self) -> usize {
-        self.scheduled_count
-    }
-
-    #[getter]
-    pub fn scheduled_time_min(&self) -> Option<f64> {
-        self.scheduled_time_min
-    }
-
-    #[getter]
-    pub fn scheduled_time_max(&self) -> Option<f64> {
-        self.scheduled_time_max
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -213,39 +124,20 @@ impl SkyMapData {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct DistributionBlock {
+    #[pyo3(get)]
     pub priority: f64,
+    #[pyo3(get)]
     pub total_visibility_hours: f64,
+    #[pyo3(get)]
     pub requested_hours: f64,
+    #[pyo3(get)]
     pub elevation_range_deg: f64,
+    #[pyo3(get)]
     pub scheduled: bool,
 }
 
 #[pymethods]
 impl DistributionBlock {
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
-    pub fn total_visibility_hours(&self) -> f64 {
-        self.total_visibility_hours
-    }
-
-    #[getter]
-    pub fn requested_hours(&self) -> f64 {
-        self.requested_hours
-    }
-
-    #[getter]
-    pub fn elevation_range_deg(&self) -> f64 {
-        self.elevation_range_deg
-    }
-
-    #[getter]
-    pub fn scheduled(&self) -> bool {
-        self.scheduled
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -263,51 +155,24 @@ impl DistributionBlock {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct DistributionStats {
+    #[pyo3(get)]
     pub count: usize,
+    #[pyo3(get)]
     pub mean: f64,
+    #[pyo3(get)]
     pub median: f64,
+    #[pyo3(get)]
     pub std_dev: f64,
+    #[pyo3(get)]
     pub min: f64,
+    #[pyo3(get)]
     pub max: f64,
+    #[pyo3(get)]
     pub sum: f64,
 }
 
 #[pymethods]
 impl DistributionStats {
-    #[getter]
-    pub fn count(&self) -> usize {
-        self.count
-    }
-
-    #[getter]
-    pub fn mean(&self) -> f64 {
-        self.mean
-    }
-
-    #[getter]
-    pub fn median(&self) -> f64 {
-        self.median
-    }
-
-    #[getter]
-    pub fn std_dev(&self) -> f64 {
-        self.std_dev
-    }
-
-    #[getter]
-    pub fn min(&self) -> f64 {
-        self.min
-    }
-
-    #[getter]
-    pub fn max(&self) -> f64 {
-        self.max
-    }
-
-    #[getter]
-    pub fn sum(&self) -> f64 {
-        self.sum
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -322,57 +187,26 @@ impl DistributionStats {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct DistributionData {
+    #[pyo3(get)]
     pub blocks: Vec<DistributionBlock>,
+    #[pyo3(get)]
     pub priority_stats: DistributionStats,
+    #[pyo3(get)]
     pub visibility_stats: DistributionStats,
+    #[pyo3(get)]
     pub requested_hours_stats: DistributionStats,
+    #[pyo3(get)]
     pub total_count: usize,
+    #[pyo3(get)]
     pub scheduled_count: usize,
+    #[pyo3(get)]
     pub unscheduled_count: usize,
+    #[pyo3(get)]
     pub impossible_count: usize,
 }
 
 #[pymethods]
 impl DistributionData {
-    #[getter]
-    pub fn blocks(&self) -> Vec<DistributionBlock> {
-        self.blocks.clone()
-    }
-
-    #[getter]
-    pub fn priority_stats(&self) -> DistributionStats {
-        self.priority_stats.clone()
-    }
-
-    #[getter]
-    pub fn visibility_stats(&self) -> DistributionStats {
-        self.visibility_stats.clone()
-    }
-
-    #[getter]
-    pub fn requested_hours_stats(&self) -> DistributionStats {
-        self.requested_hours_stats.clone()
-    }
-
-    #[getter]
-    pub fn total_count(&self) -> usize {
-        self.total_count
-    }
-
-    #[getter]
-    pub fn scheduled_count(&self) -> usize {
-        self.scheduled_count
-    }
-
-    #[getter]
-    pub fn unscheduled_count(&self) -> usize {
-        self.unscheduled_count
-    }
-
-    #[getter]
-    pub fn impossible_count(&self) -> usize {
-        self.impossible_count
-    }
 
     fn __repr__(&self) -> String {
         format!(
