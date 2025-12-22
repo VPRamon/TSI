@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pandas as pd
-import polars as pl
 
 if TYPE_CHECKING:
     pass
@@ -29,7 +28,7 @@ def load_schedule_file(
     path: str | Path,
     format: Literal["auto", "json"] = "auto",
     use_pandas: bool = True,
-) -> pd.DataFrame | pl.DataFrame:
+) -> pd.DataFrame:
     """
     Load schedule data from JSON file.
 
@@ -64,7 +63,7 @@ def load_schedule_from_string(
     content: str,
     format: Literal["json"] = "json",
     use_pandas: bool = True,
-) -> pd.DataFrame | pl.DataFrame:
+) -> pd.DataFrame:
     """
     Load schedule data from JSON string content.
 
@@ -96,9 +95,7 @@ def load_schedule_from_string(
         blocks = data if isinstance(data, list) else [data]
 
     df_pandas = pd.DataFrame(blocks)
-    if use_pandas:
-        return df_pandas
-    return pl.from_pandas(df_pandas)
+    return df_pandas
 
 
 def load_dark_periods(path: str | Path) -> pd.DataFrame:

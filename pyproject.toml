@@ -15,7 +15,6 @@ dependencies = [
     "pytest-cov>=4.1.0",
     "responses>=0.25.0",
     "hypothesis>=6.98.0",
-    "polars>=0.20.0",
 ]
 
 [project.optional-dependencies]

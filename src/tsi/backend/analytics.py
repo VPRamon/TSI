@@ -7,16 +7,26 @@ finding conflicts, and optimization routines.
 
 from __future__ import annotations
 
+from io import StringIO
 from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
-import polars as pl
 
 if TYPE_CHECKING:
     pass
 
 # Import Rust module
 import tsi_rust
+
+
+def _df_to_json(df: pd.DataFrame) -> str:
+    """Convert pandas DataFrame to JSON string for Rust."""
+    return df.to_json(orient="records")
+
+
+def _json_to_df(json_str: str) -> pd.DataFrame:
+    """Convert JSON string from Rust to pandas DataFrame."""
+    return pd.read_json(StringIO(json_str), orient="records")
 
 
 def compute_metrics(schedule_id: int) -> dict[str, Any]:
@@ -67,7 +77,7 @@ def compute_metrics(schedule_id: int) -> dict[str, Any]:
 
 
 def get_top_observations(
-    df: pd.DataFrame | pl.DataFrame,
+    df: pd.DataFrame,
     n: int = 10,
     by: str = "priority",
 ) -> pd.DataFrame:
@@ -86,12 +96,12 @@ def get_top_observations(
         >>> top = get_top_observations(df, n=5)
         >>> print(top[['schedulingBlockId', 'priority']])
     """
-    df_polars = _to_polars(df)
-    result: pl.DataFrame = tsi_rust.py_get_top_observations(df_polars, by, n)
-    return cast(pd.DataFrame, result.to_pandas())
+    json_str = _df_to_json(df)
+    result_json: str = tsi_rust.py_get_top_observations(json_str, by, n)
+    return _json_to_df(result_json)
 
 
-def find_conflicts(df: pd.DataFrame | pl.DataFrame) -> pd.DataFrame:
+def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     """
     Find scheduling conflicts (overlapping observations).
 
@@ -106,21 +116,31 @@ def find_conflicts(df: pd.DataFrame | pl.DataFrame) -> pd.DataFrame:
         >>> if len(conflicts) > 0:
         >>>     print(f"Found {len(conflicts)} conflicts")
     """
-    df_polars = _to_polars(df)
-    result = tsi_rust.py_find_conflicts(df_polars)
+    json_str = _df_to_json(df)
+    result = tsi_rust.py_find_conflicts(json_str)
 
-    # Rust backend may return list or DataFrame depending on version
+    # Rust backend returns list of conflict objects
     if isinstance(result, list):
         if not result:
             return pd.DataFrame()
-        return pd.DataFrame(result)
+        # Convert conflict objects to dicts
+        conflict_dicts = [
+            {
+                "scheduling_block_id": c.scheduling_block_id,
+                "priority": c.priority,
+                "scheduled_start": c.scheduled_start,
+                "scheduled_stop": c.scheduled_stop,
+                "conflict_reasons": c.conflict_reasons,
+            }
+            for c in result
+        ]
+        return pd.DataFrame(conflict_dicts)
 
-    result_df: pl.DataFrame = result
-    return cast(pd.DataFrame, result_df.to_pandas())
+    return pd.DataFrame()
 
 
 def greedy_schedule(
-    df: pd.DataFrame | pl.DataFrame,
+    df: pd.DataFrame,
     max_iterations: int = 1000,
 ) -> dict[str, Any]:
     """
@@ -138,12 +158,12 @@ def greedy_schedule(
         >>> result = greedy_schedule(df, max_iterations=500)
         >>> print(f"Selected {len(result['selected_ids'])} observations")
     """
-    df_polars = _to_polars(df)
-    opt_result = tsi_rust.py_greedy_schedule(df_polars, max_iterations)
+    json_str = _df_to_json(df)
+    opt_result = tsi_rust.py_greedy_schedule(json_str, max_iterations)
     return cast(dict[str, Any], opt_result.to_dict())
 
 
-def compute_priority_range(df: pd.DataFrame | pl.DataFrame) -> tuple[int, int]:
+def compute_priority_range(df: pd.DataFrame) -> tuple[int, int]:
     """
     Compute the range of priority values in the DataFrame.
 
@@ -157,26 +177,13 @@ def compute_priority_range(df: pd.DataFrame | pl.DataFrame) -> tuple[int, int]:
         >>> pmin, pmax = compute_priority_range(df)
         >>> print(f"Priorities range from {pmin} to {pmax}")
     """
-    df_polars = _to_polars(df)
-
-    if "priority" not in df_polars.columns:
+    if "priority" not in df.columns:
         return (1, 1)
 
-    values = df_polars["priority"].drop_nulls()
+    values = df["priority"].dropna()
     if len(values) == 0:
         return (1, 1)
 
     min_val = values.min()
     max_val = values.max()
-    # Cast to int - Polars min/max returns numeric types for numeric columns
-    return (
-        int(min_val) if min_val is not None else 1,  # type: ignore[arg-type]
-        int(max_val) if max_val is not None else 1,  # type: ignore[arg-type]
-    )
-
-
-def _to_polars(df: pd.DataFrame | pl.DataFrame) -> pl.DataFrame:
-    """Convert DataFrame to Polars if needed."""
-    if isinstance(df, pd.DataFrame):
-        return pl.from_pandas(df)
-    return df
+    return (int(min_val), int(max_val))

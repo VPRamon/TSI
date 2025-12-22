@@ -3,9 +3,8 @@
 //! This module provides analytical functions for computing summary statistics,
 //! correlations, and extracting insights from telescope scheduling datasets.
 
-use polars::frame::DataFrame;
-use polars::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Summary statistics snapshot for a scheduling dataset.
 ///
@@ -63,23 +62,23 @@ pub struct AnalyticsSnapshot {
 
 /// Extracts the top N observations sorted by a specified column.
 ///
-/// Returns a subset DataFrame containing the highest-ranked observations
+/// Returns a subset of records containing the highest-ranked observations
 /// according to the sorting column, with commonly used columns selected.
 ///
 /// # Arguments
 ///
-/// * `df` - Input DataFrame
+/// * `records` - Input records as JSON objects
 /// * `by` - Column name to sort by (descending order)
 /// * `n` - Number of top rows to return
 ///
 /// # Returns
 ///
-/// * `Ok(DataFrame)` - DataFrame with top N rows and selected columns
-/// * `Err(PolarsError)` - Sort or select error
+/// * `Ok(Vec<Value>)` - Vector with top N records
+/// * `Err(String)` - Sort or processing error
 ///
 /// # Selected Columns
 ///
-/// The returned DataFrame includes:
+/// The returned records include:
 /// - `schedulingBlockId`
 /// - `priority`
 /// - `requested_hours`
@@ -89,124 +88,115 @@ pub struct AnalyticsSnapshot {
 ///
 /// # Edge Cases
 ///
-/// - Returns empty DataFrame if `n` is 0
-/// - Returns empty DataFrame if the sorting column doesn't exist
+/// - Returns empty vector if `n` is 0
+/// - Returns empty vector if the sorting column doesn't exist in any record
 /// - If fewer than N rows exist, returns all available rows
 ///
 /// # Examples
 ///
 /// ```no_run
 /// use tsi_rust::algorithms::get_top_observations;
-/// use polars::prelude::*;
 ///
-/// # fn example(df: &DataFrame) -> Result<(), PolarsError> {
+/// # fn example(records: &[serde_json::Value]) -> Result<(), String> {
 /// // Get top 10 observations by priority
-/// let top_priority = get_top_observations(df, "priority", 10)?;
-/// println!("Top priority observations:");
-/// println!("{:?}", top_priority);
+/// let top_priority = get_top_observations(records, "priority", 10)?;
+/// println!("Top priority observations: {:?}", top_priority);
 ///
 /// // Get top 5 by visibility hours
-/// let top_visibility = get_top_observations(df, "total_visibility_hours", 5)?;
+/// let top_visibility = get_top_observations(records, "total_visibility_hours", 5)?;
 /// # Ok(())
 /// # }
 /// ```
-pub fn get_top_observations(df: &DataFrame, by: &str, n: usize) -> Result<DataFrame, PolarsError> {
-    if df.column(by).is_err() || n == 0 {
-        return Ok(DataFrame::empty());
+pub fn get_top_observations(records: &[Value], by: &str, n: usize) -> Result<Vec<Value>, String> {
+    if n == 0 {
+        return Ok(vec![]);
     }
 
-    // Select relevant columns
-    let columns = [
+    // Check if the sort column exists in at least one record
+    let has_column = records.iter().any(|r| r.get(by).is_some());
+    if !has_column {
+        return Ok(vec![]);
+    }
+
+    // Create a vector of (index, sort_value) pairs
+    let mut indexed_records: Vec<(usize, f64)> = records
+        .iter()
+        .enumerate()
+        .filter_map(|(i, r)| {
+            r.get(by)
+                .and_then(|v| v.as_f64())
+                .map(|sort_val| (i, sort_val))
+        })
+        .collect();
+
+    // Sort descending by the sort value
+    indexed_records.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Take top N and extract the corresponding records
+    let columns_to_keep = vec![
         "schedulingBlockId",
         "priority",
         "requested_hours",
         "total_visibility_hours",
         "scheduled_flag",
         "priority_bin",
+        by,
     ];
 
-    let existing_cols: Vec<&str> = columns
+    let result: Vec<Value> = indexed_records
         .iter()
-        .filter(|&&col| df.column(col).is_ok())
-        .copied()
+        .take(n)
+        .map(|(idx, _)| {
+            let record = &records[*idx];
+            let mut filtered = serde_json::Map::new();
+
+            for col in &columns_to_keep {
+                if let Some(val) = record.get(col) {
+                    filtered.insert(col.to_string(), val.clone());
+                }
+            }
+
+            Value::Object(filtered)
+        })
         .collect();
 
-    // Sort descending and take top n
-    let sorted = df.sort(
-        [by],
-        SortMultipleOptions::default().with_order_descending_multi([true]),
-    )?;
-    let top = sorted.head(Some(n));
-
-    // Select only relevant columns
-    top.select(existing_cols)
+    Ok(result)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // These tests reference a removed `compute_metrics` function
-    // TODO: Update tests to use current API (get_top_observations)
-
-    /*
-    #[test]
-    fn test_compute_metrics_empty() {
-        let _df = DataFrame::empty();
-        // Should handle empty DataFrame gracefully
-    }
-
-    #[test]
-    fn test_compute_metrics_with_data() {
-        let df = df!(
-            "priority" => &[5.0, 10.0, 15.0],
-            "scheduled_flag" => &[true, false, true],
-            "total_visibility_hours" => &[1.0, 2.0, 3.0],
-            "requested_hours" => &[0.5, 1.0, 2.0],
-        )
-        .unwrap();
-
-        let metrics = compute_metrics(&df).unwrap();
-        assert_eq!(metrics.total_observations, 3);
-        assert_eq!(metrics.scheduled_count, 2);
-        assert_eq!(metrics.unscheduled_count, 1);
-        assert_eq!(metrics.mean_priority, 10.0);
-        assert_eq!(metrics.mean_priority_scheduled, 10.0);
-        assert_eq!(metrics.mean_priority_unscheduled, 10.0);
-        assert_eq!(metrics.total_visibility_hours, 6.0);
-        assert_eq!(metrics.mean_requested_hours, 1.1666666666666667);
-    }
-    */
+    use serde_json::json;
 
     #[test]
     fn test_get_top_observations() {
-        let df = df!(
-            "schedulingBlockId" => &["a", "b"],
-            "priority" => &[1.0, 3.0],
-            "requested_hours" => &[1.0, 2.0],
-            "total_visibility_hours" => &[4.0, 5.0],
-            "scheduled_flag" => &[false, true],
-            "priority_bin" => &["Low", "Medium"],
-            "extra" => &[1, 2],
-        )
-        .unwrap();
+        let records = vec![
+            json!({
+                "schedulingBlockId": "a",
+                "priority": 1.0,
+                "requested_hours": 1.0,
+                "total_visibility_hours": 4.0,
+                "scheduled_flag": false,
+                "priority_bin": "Low",
+                "extra": 1,
+            }),
+            json!({
+                "schedulingBlockId": "b",
+                "priority": 3.0,
+                "requested_hours": 2.0,
+                "total_visibility_hours": 5.0,
+                "scheduled_flag": true,
+                "priority_bin": "Medium",
+                "extra": 2,
+            }),
+        ];
 
-        let top = get_top_observations(&df, "priority", 1).unwrap();
-        assert_eq!(top.height(), 1);
-        assert_eq!(
-            top.column("schedulingBlockId")
-                .unwrap()
-                .str()
-                .unwrap()
-                .get(0),
-            Some("b")
-        );
+        let top = get_top_observations(&records, "priority", 1).unwrap();
+        assert_eq!(top.len(), 1);
+        assert_eq!(top[0].get("schedulingBlockId").unwrap().as_str().unwrap(), "b");
 
         // When column missing, returns empty
-        assert_eq!(get_top_observations(&df, "unknown", 1).unwrap().height(), 0);
-        assert_eq!(
-            get_top_observations(&df, "priority", 0).unwrap().height(),
-            0
-        );
+        assert_eq!(get_top_observations(&records, "unknown", 1).unwrap().len(), 0);
+        assert_eq!(get_top_observations(&records, "priority", 0).unwrap().len(), 0);
     }
 }

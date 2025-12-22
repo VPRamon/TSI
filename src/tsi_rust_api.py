@@ -35,7 +35,6 @@ from pathlib import Path
 from typing import Any, cast
 
 import pandas as pd
-import polars as pl
 
 from tsi.backend import (
     compute_metrics as _compute_metrics,
@@ -96,7 +95,7 @@ def load_dark_periods(path: str | Path) -> pd.DataFrame:
     return _load_dark_periods(path)  # type: ignore[no-any-return]
 
 
-def compute_metrics(df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
+def compute_metrics(df: pd.DataFrame) -> dict[str, Any]:
     """
     Quick function to compute scheduling metrics.
 
@@ -106,7 +105,7 @@ def compute_metrics(df: pd.DataFrame | pl.DataFrame) -> dict[str, Any]:
 
 
 def filter_by_priority(
-    df: pd.DataFrame | pl.DataFrame, min_priority: float = 0.0, max_priority: float = 100.0
+    df: pd.DataFrame, min_priority: float = 0.0, max_priority: float = 100.0
 ) -> pd.DataFrame:
     """
     Quick function to filter by priority range.

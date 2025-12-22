@@ -1,5 +1,5 @@
-use polars::prelude::*;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Represents a scheduling conflict
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -11,66 +11,62 @@ pub struct SchedulingConflict {
     pub conflict_reasons: String,
 }
 
-/// Find scheduling conflicts in a DataFrame
+/// Find scheduling conflicts in schedule records
 ///
 /// Detects:
 /// - Observations scheduled outside visibility windows
 /// - Violations of fixed start/stop times
 ///
 /// # Arguments
-/// * `df` - Schedule DataFrame
+/// * `records` - Vector of schedule records as JSON objects
 ///
 /// # Returns
 /// List of conflicts found
-pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsError> {
+pub fn find_conflicts(records: &[Value]) -> Result<Vec<SchedulingConflict>, String> {
     let mut conflicts = Vec::new();
 
-    // Get required columns
-    let scheduled_flag = df.column("scheduled_flag")?.bool()?;
-    let id_column = df.column("schedulingBlockId")?;
-    let priorities = df.column("priority")?.f64()?;
-
-    // Optional columns for conflict detection
-    let scheduled_start = df.column("scheduled_start_dt").ok();
-    let scheduled_stop = df.column("scheduled_stop_dt").ok();
-
-    for i in 0..df.height() {
+    for record in records {
         // Only check scheduled observations
-        if let Some(is_scheduled) = scheduled_flag.get(i) {
-            if !is_scheduled {
-                continue;
-            }
-        } else {
+        let is_scheduled = record
+            .get("scheduled_flag")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
+        if !is_scheduled {
             continue;
         }
 
-        // Handle schedulingBlockId as either int or string
-        let id = if let Ok(ids_str) = id_column.str() {
-            ids_str.get(i).unwrap_or("unknown").to_string()
-        } else if let Ok(ids_i64) = id_column.i64() {
-            ids_i64
-                .get(i)
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "unknown".to_string())
-        } else {
-            "unknown".to_string()
-        };
-        let priority = priorities.get(i).unwrap_or(0.0);
+        // Get scheduling block ID
+        let id = record
+            .get("schedulingBlockId")
+            .and_then(|v| {
+                if let Some(s) = v.as_str() {
+                    Some(s.to_string())
+                } else if let Some(i) = v.as_i64() {
+                    Some(i.to_string())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| "unknown".to_string());
+
+        let priority = record
+            .get("priority")
+            .and_then(|v| v.as_f64())
+            .unwrap_or(0.0);
 
         let mut reasons = Vec::new();
 
         // Check if scheduled_start/stop exist and are valid
-        let start_str = if let Some(col) = scheduled_start {
-            col.str()?.get(i).map(|s| s.to_string())
-        } else {
-            None
-        };
+        let start_str = record
+            .get("scheduled_start_dt")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
 
-        let stop_str = if let Some(col) = scheduled_stop {
-            col.str()?.get(i).map(|s| s.to_string())
-        } else {
-            None
-        };
+        let stop_str = record
+            .get("scheduled_stop_dt")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
 
         if start_str.is_none() || stop_str.is_none() {
             continue;
@@ -80,30 +76,22 @@ pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsE
         // This is a placeholder for the actual visibility check logic
 
         // Check fixed times
-        if let Ok(fixed_start_col) = df.column("fixed_start_dt") {
-            if let Ok(fixed_start_str) = fixed_start_col.str() {
-                if let Some(_fixed_start) = fixed_start_str.get(i) {
-                    // Compare dates (simplified)
-                    reasons.push("Scheduled before fixed start".to_string());
-                }
-            }
+        if let Some(_fixed_start) = record.get("fixed_start_dt").and_then(|v| v.as_str()) {
+            // Compare dates (simplified)
+            reasons.push("Scheduled before fixed start".to_string());
         }
 
-        if let Ok(fixed_stop_col) = df.column("fixed_stop_dt") {
-            if let Ok(fixed_stop_str) = fixed_stop_col.str() {
-                if let Some(_fixed_stop) = fixed_stop_str.get(i) {
-                    // Compare dates (simplified)
-                    reasons.push("Scheduled after fixed stop".to_string());
-                }
-            }
+        if let Some(_fixed_stop) = record.get("fixed_stop_dt").and_then(|v| v.as_str()) {
+            // Compare dates (simplified)
+            reasons.push("Scheduled after fixed stop".to_string());
         }
 
         if !reasons.is_empty() {
             conflicts.push(SchedulingConflict {
                 scheduling_block_id: id,
                 priority,
-                scheduled_start: start_str.unwrap_or_default(),
-                scheduled_stop: stop_str.unwrap_or_default(),
+                scheduled_start: start_str.unwrap(),
+                scheduled_stop: stop_str.unwrap(),
                 conflict_reasons: reasons.join("; "),
             });
         }
@@ -115,29 +103,30 @@ pub fn find_conflicts(df: &DataFrame) -> Result<Vec<SchedulingConflict>, PolarsE
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_find_conflicts_empty() {
-        let df = DataFrame::empty();
-        let _result = find_conflicts(&df);
-        // Should handle empty DataFrame
+        let records: Vec<Value> = vec![];
+        let result = find_conflicts(&records);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0);
     }
 
     #[test]
     fn test_conflict_detection() {
-        let df = df!(
-            "schedulingBlockId" => &["id-1"],
-            "priority" => &[5.0],
-            "scheduled_flag" => &[true],
-            "scheduled_start_dt" => &[Some("2024-01-01")],
-            "scheduled_stop_dt" => &[Some("2024-01-02")],
-            "fixed_start_dt" => &[Some("2024-01-03")],
-            "fixed_stop_dt" => &[Some("2024-01-04")],
-            "requested_hours" => &[2.0],
-        )
-        .unwrap();
+        let records = vec![json!({
+            "schedulingBlockId": "id-1",
+            "priority": 5.0,
+            "scheduled_flag": true,
+            "scheduled_start_dt": "2024-01-01",
+            "scheduled_stop_dt": "2024-01-02",
+            "fixed_start_dt": "2024-01-03",
+            "fixed_stop_dt": "2024-01-04",
+            "requested_hours": 2.0,
+        })];
 
-        let conflicts = find_conflicts(&df).unwrap();
+        let conflicts = find_conflicts(&records).unwrap();
         assert_eq!(conflicts.len(), 1);
         assert!(conflicts[0].conflict_reasons.contains("before fixed start"));
     }

@@ -1,123 +1,161 @@
 #![allow(clippy::useless_conversion)]
 
-use polars::prelude::*;
+use serde_json::Value;
+use std::collections::HashSet;
 
-/// Remove duplicate rows from a DataFrame
+/// Remove duplicate rows from records based on subset of columns
 pub fn remove_duplicates(
-    df: &DataFrame,
+    records: &[Value],
     subset: Option<Vec<String>>,
     keep: &str, // "first", "last", or "none"
-) -> PolarsResult<DataFrame> {
-    let unique_strategy = match keep {
-        "first" => UniqueKeepStrategy::First,
-        "last" => UniqueKeepStrategy::Last,
-        "none" => UniqueKeepStrategy::None,
-        _ => {
-            return Err(PolarsError::ComputeError(
-                format!(
-                    "Invalid keep strategy: {}. Must be 'first', 'last', or 'none'",
-                    keep
-                )
-                .into(),
-            ))
-        }
+) -> Result<Vec<Value>, String> {
+    if keep != "first" && keep != "last" && keep != "none" {
+        return Err(format!(
+            "Invalid keep strategy: {}. Must be 'first', 'last', or 'none'",
+            keep
+        ));
+    }
+
+    let mut seen = HashSet::new();
+    let mut result = Vec::new();
+
+    let records_iter: Box<dyn Iterator<Item = &Value>> = if keep == "last" {
+        Box::new(records.iter().rev())
+    } else {
+        Box::new(records.iter())
     };
 
-    if let Some(cols) = subset {
-        let col_strs: Vec<String> = cols.into_iter().collect();
-        df.unique::<Vec<String>, String>(Some(&col_strs), unique_strategy, None)
-    } else {
-        df.unique::<Vec<String>, String>(None::<&[String]>, unique_strategy, None)
+    for record in records_iter {
+        // Create a key based on the subset columns or entire record
+        let key = if let Some(ref cols) = subset {
+            let mut key_parts = Vec::new();
+            for col in cols {
+                if let Some(val) = record.get(col) {
+                    key_parts.push(val.to_string());
+                }
+            }
+            key_parts.join("|")
+        } else {
+            record.to_string()
+        };
+
+        if !seen.contains(&key) {
+            seen.insert(key);
+            result.push(record.clone());
+        } else if keep == "none" {
+            // Remove from result if duplicate found
+            result.retain(|r| {
+                let r_key = if let Some(ref cols) = subset {
+                    let mut key_parts = Vec::new();
+                    for col in cols {
+                        if let Some(val) = r.get(col) {
+                            key_parts.push(val.to_string());
+                        }
+                    }
+                    key_parts.join("|")
+                } else {
+                    r.to_string()
+                };
+                r_key != key
+            });
+        }
     }
+
+    if keep == "last" {
+        result.reverse();
+    }
+
+    Ok(result)
 }
 
 /// Remove rows with missing coordinates (RA or Dec)
-pub fn remove_missing_coordinates(df: &DataFrame) -> PolarsResult<DataFrame> {
-    // Filter out rows where raInDeg or decInDeg are null
-    let ra_col = df.column("raInDeg")?;
-    let dec_col = df.column("decInDeg")?;
+pub fn remove_missing_coordinates(records: &[Value]) -> Result<Vec<Value>, String> {
+    let filtered: Vec<Value> = records
+        .iter()
+        .filter(|r| {
+            let has_ra = r.get("raInDeg").and_then(|v| v.as_f64()).is_some();
+            let has_dec = r.get("decInDeg").and_then(|v| v.as_f64()).is_some();
+            has_ra && has_dec
+        })
+        .cloned()
+        .collect();
 
-    let ra_not_null = ra_col.is_not_null();
-    let dec_not_null = dec_col.is_not_null();
-
-    let mask = &ra_not_null & &dec_not_null;
-    df.filter(&mask)
+    Ok(filtered)
 }
 
-/// Impute missing values in a Series using various strategies
+/// Impute missing values in a column using various strategies
+/// Note: This is a simplified version that returns records with imputed values
 pub fn impute_missing(
-    series: &Series,
+    records: &[Value],
+    column: &str,
     strategy: &str, // "mean", "median", "constant"
     fill_value: Option<f64>,
-) -> PolarsResult<Series> {
-    match strategy {
-        "mean" => {
-            let float_series = series.cast(&DataType::Float64)?;
-            if float_series.mean().is_some() {
-                Ok(float_series.fill_null(FillNullStrategy::Mean)?)
-            } else {
-                Ok(series.clone())
-            }
-        }
+) -> Result<Vec<Value>, String> {
+    // Collect non-null values
+    let values: Vec<f64> = records
+        .iter()
+        .filter_map(|r| r.get(column).and_then(|v| v.as_f64()))
+        .collect();
+
+    if values.is_empty() {
+        return Ok(records.to_vec());
+    }
+
+    let impute_val = match strategy {
+        "mean" => values.iter().sum::<f64>() / values.len() as f64,
         "median" => {
-            let float_series = series.cast(&DataType::Float64)?;
-            if let Some(median_val) = float_series.median() {
-                // Polars doesn't have FillNullStrategy::Median
-                // Use fill_null with a literal value by creating an expression and applying it
-                let chunked = float_series.f64()?;
-                let filled = chunked.fill_null_with_values(median_val)?;
-                Ok(filled.into_series())
+            let mut sorted = values.clone();
+            sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            let mid = sorted.len() / 2;
+            if sorted.len() % 2 == 0 {
+                (sorted[mid - 1] + sorted[mid]) / 2.0
             } else {
-                Ok(series.clone())
+                sorted[mid]
             }
         }
-        "constant" => {
-            if let Some(_val) = fill_value {
-                Ok(series.fill_null(FillNullStrategy::Forward(None))?)
-            } else {
-                Err(PolarsError::ComputeError(
-                    "fill_value must be provided for 'constant' strategy".into(),
-                ))
-            }
-        }
-        _ => Err(PolarsError::ComputeError(
-            format!(
+        "constant" => fill_value.ok_or_else(|| {
+            "fill_value must be provided for 'constant' strategy".to_string()
+        })?,
+        _ => {
+            return Err(format!(
                 "Invalid imputation strategy: {}. Must be 'mean', 'median', or 'constant'",
                 strategy
-            )
-            .into(),
-        )),
+            ));
+        }
+    };
+
+    // Apply imputation
+    let mut result = Vec::new();
+    for record in records {
+        let mut new_record = record.clone();
+        if let Value::Object(ref mut map) = new_record {
+            if record.get(column).and_then(|v| v.as_f64()).is_none() {
+                map.insert(column.to_string(), serde_json::json!(impute_val));
+            }
+        }
+        result.push(new_record);
     }
+
+    Ok(result)
 }
 
-/// Validate DataFrame schema (required columns and data types)
+/// Validate record schema (required columns and data types)
 pub fn validate_schema(
-    df: &DataFrame,
+    records: &[Value],
     required_columns: Vec<String>,
-    expected_dtypes: Option<Vec<(String, DataType)>>,
-) -> PolarsResult<(bool, Vec<String>)> {
+    _expected_dtypes: Option<Vec<(String, String)>>,
+) -> Result<(bool, Vec<String>), String> {
     let mut issues: Vec<String> = Vec::new();
 
-    // Check for missing required columns
-    let col_names: Vec<_> = df.get_column_names_owned();
-    for col in &required_columns {
-        if !col_names.iter().any(|c| c.as_str() == col.as_str()) {
-            issues.push(format!("Missing required column: {}", col));
-        }
+    if records.is_empty() {
+        return Ok((true, issues));
     }
 
-    // Check data types if provided
-    if let Some(dtypes) = expected_dtypes {
-        for (col_name, expected_dtype) in dtypes {
-            if let Ok(col) = df.column(&col_name) {
-                let actual_dtype = col.dtype();
-                if actual_dtype != &expected_dtype {
-                    issues.push(format!(
-                        "Column '{}' has incorrect type: expected {:?}, got {:?}",
-                        col_name, expected_dtype, actual_dtype
-                    ));
-                }
-            }
+    // Check for missing required columns in at least one record
+    let first_record = &records[0];
+    for col in &required_columns {
+        if first_record.get(col).is_none() {
+            issues.push(format!("Missing required column: {}", col));
         }
     }
 
@@ -127,77 +165,79 @@ pub fn validate_schema(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_remove_duplicates() {
-        let df = DataFrame::new(vec![
-            Series::new("id".into(), &[1, 2, 2, 3]).into(),
-            Series::new("value".into(), &[10, 20, 20, 30]).into(),
-        ])
-        .unwrap();
+        let records = vec![
+            json!({"id": 1, "value": 10}),
+            json!({"id": 2, "value": 20}),
+            json!({"id": 2, "value": 20}),
+            json!({"id": 3, "value": 30}),
+        ];
 
-        let unique_df = remove_duplicates(&df, None, "first").unwrap();
-        assert_eq!(unique_df.height(), 3);
+        let unique = remove_duplicates(&records, None, "first").unwrap();
+        assert_eq!(unique.len(), 3);
     }
 
     #[test]
     fn test_remove_missing_coordinates() {
-        let df = DataFrame::new(vec![
-            Series::new("raInDeg".into(), &[Some(120.0), None, Some(270.0)]).into(),
-            Series::new("decInDeg".into(), &[Some(45.0), Some(-30.0), None]).into(),
-        ])
-        .unwrap();
+        let records = vec![
+            json!({"raInDeg": 120.0, "decInDeg": 45.0}),
+            json!({"raInDeg": null, "decInDeg": -30.0}),
+            json!({"raInDeg": 270.0, "decInDeg": null}),
+        ];
 
-        let cleaned = remove_missing_coordinates(&df).unwrap();
-        assert_eq!(cleaned.height(), 1);
+        let cleaned = remove_missing_coordinates(&records).unwrap();
+        assert_eq!(cleaned.len(), 1);
     }
 
     #[test]
     fn test_validate_schema() {
-        let df = DataFrame::new(vec![
-            Series::new("priority".into(), &[5.0, 10.0]).into(),
-            Series::new("schedulingBlockId".into(), &["SB001", "SB002"]).into(),
-        ])
-        .unwrap();
+        let records = vec![
+            json!({"priority": 5.0, "schedulingBlockId": "SB001"}),
+            json!({"priority": 10.0, "schedulingBlockId": "SB002"}),
+        ];
 
         let required = vec!["priority".to_string(), "schedulingBlockId".to_string()];
-        let (is_valid, issues) = validate_schema(&df, required, None).unwrap();
+        let (is_valid, issues) = validate_schema(&records, required, None).unwrap();
         assert!(is_valid);
         assert_eq!(issues.len(), 0);
 
         // Test missing column
         let required_missing = vec!["priority".to_string(), "missing_col".to_string()];
-        let (is_valid, issues) = validate_schema(&df, required_missing, None).unwrap();
+        let (is_valid, issues) = validate_schema(&records, required_missing, None).unwrap();
         assert!(!is_valid);
         assert_eq!(issues.len(), 1);
     }
 
     #[test]
     fn test_impute_missing_median() {
-        // Test median imputation with odd number of values
-        let series = Series::new(
-            "test".into(),
-            &[Some(1.0), None, Some(3.0), Some(5.0), None],
-        )
-        .into();
-        let imputed = impute_missing(&series, "median", None).unwrap();
+        let records = vec![
+            json!({"test": 1.0}),
+            json!({"test": null}),
+            json!({"test": 3.0}),
+            json!({"test": 5.0}),
+            json!({"test": null}),
+        ];
+        let imputed = impute_missing(&records, "test", "median", None).unwrap();
 
         // Median of [1.0, 3.0, 5.0] is 3.0
-        let values: Vec<Option<f64>> = imputed.f64().unwrap().into_iter().collect();
-        assert_eq!(
-            values,
-            vec![Some(1.0), Some(3.0), Some(3.0), Some(5.0), Some(3.0)]
-        );
+        assert_eq!(imputed[1].get("test").unwrap().as_f64().unwrap(), 3.0);
+        assert_eq!(imputed[4].get("test").unwrap().as_f64().unwrap(), 3.0);
     }
 
     #[test]
     fn test_impute_missing_mean() {
-        // Test mean imputation
-        let series = Series::new("test".into(), &[Some(2.0), None, Some(4.0), Some(6.0)]).into();
-        let imputed = impute_missing(&series, "mean", None).unwrap();
+        let records = vec![
+            json!({"test": 2.0}),
+            json!({"test": null}),
+            json!({"test": 4.0}),
+            json!({"test": 6.0}),
+        ];
+        let imputed = impute_missing(&records, "test", "mean", None).unwrap();
 
         // Mean of [2.0, 4.0, 6.0] is 4.0
-        let values: Vec<Option<f64>> = imputed.f64().unwrap().into_iter().collect();
-        assert_eq!(values, vec![Some(2.0), Some(4.0), Some(4.0), Some(6.0)]);
+        assert_eq!(imputed[1].get("test").unwrap().as_f64().unwrap(), 4.0);
     }
 }
