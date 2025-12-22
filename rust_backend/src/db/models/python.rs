@@ -20,9 +20,13 @@ use pyo3::prelude::*;
 #[derive(Debug, Clone)]
 pub struct VisibilityBlockSummary {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    #[pyo3(get)]
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    #[pyo3(get)]
     pub priority: f64,
+    #[pyo3(get)]
     pub num_visibility_periods: usize,
+    #[pyo3(get)]
     pub scheduled: bool,
 }
 
@@ -31,26 +35,6 @@ impl VisibilityBlockSummary {
     #[getter]
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn original_block_id(&self) -> String {
-        self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
-    pub fn num_visibility_periods(&self) -> usize {
-        self.num_visibility_periods
-    }
-
-    #[getter]
-    pub fn scheduled(&self) -> bool {
-        self.scheduled
     }
 
     fn __repr__(&self) -> String {
@@ -65,39 +49,20 @@ impl VisibilityBlockSummary {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct VisibilityMapData {
+    #[pyo3(get)]
     pub blocks: Vec<VisibilityBlockSummary>,
+    #[pyo3(get)]
     pub priority_min: f64,
+    #[pyo3(get)]
     pub priority_max: f64,
+    #[pyo3(get)]
     pub total_count: usize,
+    #[pyo3(get)]
     pub scheduled_count: usize,
 }
 
 #[pymethods]
 impl VisibilityMapData {
-    #[getter]
-    pub fn blocks(&self) -> Vec<VisibilityBlockSummary> {
-        self.blocks.clone()
-    }
-
-    #[getter]
-    pub fn priority_min(&self) -> f64 {
-        self.priority_min
-    }
-
-    #[getter]
-    pub fn priority_max(&self) -> f64 {
-        self.priority_max
-    }
-
-    #[getter]
-    pub fn total_count(&self) -> usize {
-        self.total_count
-    }
-
-    #[getter]
-    pub fn scheduled_count(&self) -> usize {
-        self.scheduled_count
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -160,14 +125,23 @@ pub struct BlockHistogramData {
 #[derive(Debug, Clone)]
 pub struct ScheduleTimelineBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    #[pyo3(get)]
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    #[pyo3(get)]
     pub priority: f64,
+    #[pyo3(get)]
     pub scheduled_start_mjd: f64,
+    #[pyo3(get)]
     pub scheduled_stop_mjd: f64,
+    #[pyo3(get)]
     pub ra_deg: f64,
+    #[pyo3(get)]
     pub dec_deg: f64,
+    #[pyo3(get)]
     pub requested_hours: f64,
+    #[pyo3(get)]
     pub total_visibility_hours: f64,
+    #[pyo3(get)]
     pub num_visibility_periods: usize,
 }
 
@@ -176,51 +150,6 @@ impl ScheduleTimelineBlock {
     #[getter]
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn original_block_id(&self) -> String {
-        self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
-    pub fn scheduled_start_mjd(&self) -> f64 {
-        self.scheduled_start_mjd
-    }
-
-    #[getter]
-    pub fn scheduled_stop_mjd(&self) -> f64 {
-        self.scheduled_stop_mjd
-    }
-
-    #[getter]
-    pub fn ra_deg(&self) -> f64 {
-        self.ra_deg
-    }
-
-    #[getter]
-    pub fn dec_deg(&self) -> f64 {
-        self.dec_deg
-    }
-
-    #[getter]
-    pub fn requested_hours(&self) -> f64 {
-        self.requested_hours
-    }
-
-    #[getter]
-    pub fn total_visibility_hours(&self) -> f64 {
-        self.total_visibility_hours
-    }
-
-    #[getter]
-    pub fn num_visibility_periods(&self) -> usize {
-        self.num_visibility_periods
     }
 
     fn __repr__(&self) -> String {
@@ -239,51 +168,24 @@ impl ScheduleTimelineBlock {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct ScheduleTimelineData {
+    #[pyo3(get)]
     pub blocks: Vec<ScheduleTimelineBlock>,
+    #[pyo3(get)]
     pub priority_min: f64,
+    #[pyo3(get)]
     pub priority_max: f64,
+    #[pyo3(get)]
     pub total_count: usize,
+    #[pyo3(get)]
     pub scheduled_count: usize,
+    #[pyo3(get)]
     pub unique_months: Vec<String>,
+    #[pyo3(get)]
     pub dark_periods: Vec<(f64, f64)>,
 }
 
 #[pymethods]
 impl ScheduleTimelineData {
-    #[getter]
-    pub fn blocks(&self) -> Vec<ScheduleTimelineBlock> {
-        self.blocks.clone()
-    }
-
-    #[getter]
-    pub fn priority_min(&self) -> f64 {
-        self.priority_min
-    }
-
-    #[getter]
-    pub fn priority_max(&self) -> f64 {
-        self.priority_max
-    }
-
-    #[getter]
-    pub fn total_count(&self) -> usize {
-        self.total_count
-    }
-
-    #[getter]
-    pub fn scheduled_count(&self) -> usize {
-        self.scheduled_count
-    }
-
-    #[getter]
-    pub fn unique_months(&self) -> Vec<String> {
-        self.unique_months.clone()
-    }
-
-    #[getter]
-    pub fn dark_periods(&self) -> Vec<(f64, f64)> {
-        self.dark_periods.clone()
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -306,13 +208,21 @@ impl ScheduleTimelineData {
 #[derive(Debug, Clone)]
 pub struct InsightsBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    #[pyo3(get)]
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    #[pyo3(get)]
     pub priority: f64,
+    #[pyo3(get)]
     pub total_visibility_hours: f64,
+    #[pyo3(get)]
     pub requested_hours: f64,
+    #[pyo3(get)]
     pub elevation_range_deg: f64,
+    #[pyo3(get)]
     pub scheduled: bool,
+    #[pyo3(get)]
     pub scheduled_start_mjd: Option<f64>,
+    #[pyo3(get)]
     pub scheduled_stop_mjd: Option<f64>,
 }
 
@@ -321,46 +231,6 @@ impl InsightsBlock {
     #[getter]
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn original_block_id(&self) -> String {
-        self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
-    pub fn total_visibility_hours(&self) -> f64 {
-        self.total_visibility_hours
-    }
-
-    #[getter]
-    pub fn requested_hours(&self) -> f64 {
-        self.requested_hours
-    }
-
-    #[getter]
-    pub fn elevation_range_deg(&self) -> f64 {
-        self.elevation_range_deg
-    }
-
-    #[getter]
-    pub fn scheduled(&self) -> bool {
-        self.scheduled
-    }
-
-    #[getter]
-    pub fn scheduled_start_mjd(&self) -> Option<f64> {
-        self.scheduled_start_mjd
-    }
-
-    #[getter]
-    pub fn scheduled_stop_mjd(&self) -> Option<f64> {
-        self.scheduled_stop_mjd
     }
 
     fn __repr__(&self) -> String {
@@ -375,69 +245,30 @@ impl InsightsBlock {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct AnalyticsMetrics {
+    #[pyo3(get)]
     pub total_observations: usize,
+    #[pyo3(get)]
     pub scheduled_count: usize,
+    #[pyo3(get)]
     pub unscheduled_count: usize,
+    #[pyo3(get)]
     pub scheduling_rate: f64,
+    #[pyo3(get)]
     pub mean_priority: f64,
+    #[pyo3(get)]
     pub median_priority: f64,
+    #[pyo3(get)]
     pub mean_priority_scheduled: f64,
+    #[pyo3(get)]
     pub mean_priority_unscheduled: f64,
+    #[pyo3(get)]
     pub total_visibility_hours: f64,
+    #[pyo3(get)]
     pub mean_requested_hours: f64,
 }
 
 #[pymethods]
 impl AnalyticsMetrics {
-    #[getter]
-    pub fn total_observations(&self) -> usize {
-        self.total_observations
-    }
-
-    #[getter]
-    pub fn scheduled_count(&self) -> usize {
-        self.scheduled_count
-    }
-
-    #[getter]
-    pub fn unscheduled_count(&self) -> usize {
-        self.unscheduled_count
-    }
-
-    #[getter]
-    pub fn scheduling_rate(&self) -> f64 {
-        self.scheduling_rate
-    }
-
-    #[getter]
-    pub fn mean_priority(&self) -> f64 {
-        self.mean_priority
-    }
-
-    #[getter]
-    pub fn median_priority(&self) -> f64 {
-        self.median_priority
-    }
-
-    #[getter]
-    pub fn mean_priority_scheduled(&self) -> f64 {
-        self.mean_priority_scheduled
-    }
-
-    #[getter]
-    pub fn mean_priority_unscheduled(&self) -> f64 {
-        self.mean_priority_unscheduled
-    }
-
-    #[getter]
-    pub fn total_visibility_hours(&self) -> f64 {
-        self.total_visibility_hours
-    }
-
-    #[getter]
-    pub fn mean_requested_hours(&self) -> f64 {
-        self.mean_requested_hours
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -453,27 +284,16 @@ impl AnalyticsMetrics {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct CorrelationEntry {
+    #[pyo3(get)]
     pub variable1: String,
+    #[pyo3(get)]
     pub variable2: String,
+    #[pyo3(get)]
     pub correlation: f64,
 }
 
 #[pymethods]
 impl CorrelationEntry {
-    #[getter]
-    pub fn variable1(&self) -> String {
-        self.variable1.clone()
-    }
-
-    #[getter]
-    pub fn variable2(&self) -> String {
-        self.variable2.clone()
-    }
-
-    #[getter]
-    pub fn correlation(&self) -> f64 {
-        self.correlation
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -487,51 +307,24 @@ impl CorrelationEntry {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct ConflictRecord {
+    #[pyo3(get)]
     pub block_id_1: String, // Original ID from JSON
+    #[pyo3(get)]
     pub block_id_2: String, // Original ID from JSON
+    #[pyo3(get)]
     pub start_time_1: f64,
+    #[pyo3(get)]
     pub stop_time_1: f64,
+    #[pyo3(get)]
     pub start_time_2: f64,
+    #[pyo3(get)]
     pub stop_time_2: f64,
+    #[pyo3(get)]
     pub overlap_hours: f64,
 }
 
 #[pymethods]
 impl ConflictRecord {
-    #[getter]
-    pub fn block_id_1(&self) -> String {
-        self.block_id_1.clone()
-    }
-
-    #[getter]
-    pub fn block_id_2(&self) -> String {
-        self.block_id_2.clone()
-    }
-
-    #[getter]
-    pub fn start_time_1(&self) -> f64 {
-        self.start_time_1
-    }
-
-    #[getter]
-    pub fn stop_time_1(&self) -> f64 {
-        self.stop_time_1
-    }
-
-    #[getter]
-    pub fn start_time_2(&self) -> f64 {
-        self.start_time_2
-    }
-
-    #[getter]
-    pub fn stop_time_2(&self) -> f64 {
-        self.stop_time_2
-    }
-
-    #[getter]
-    pub fn overlap_hours(&self) -> f64 {
-        self.overlap_hours
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -546,10 +339,15 @@ impl ConflictRecord {
 #[derive(Debug, Clone)]
 pub struct TopObservation {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    #[pyo3(get)]
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    #[pyo3(get)]
     pub priority: f64,
+    #[pyo3(get)]
     pub total_visibility_hours: f64,
+    #[pyo3(get)]
     pub requested_hours: f64,
+    #[pyo3(get)]
     pub scheduled: bool,
 }
 
@@ -558,31 +356,6 @@ impl TopObservation {
     #[getter]
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn original_block_id(&self) -> String {
-        self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
-    pub fn total_visibility_hours(&self) -> f64 {
-        self.total_visibility_hours
-    }
-
-    #[getter]
-    pub fn requested_hours(&self) -> f64 {
-        self.requested_hours
-    }
-
-    #[getter]
-    pub fn scheduled(&self) -> bool {
-        self.scheduled
     }
 
     fn __repr__(&self) -> String {
@@ -598,63 +371,28 @@ impl TopObservation {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct InsightsData {
+    #[pyo3(get)]
     pub blocks: Vec<InsightsBlock>,
+    #[pyo3(get)]
     pub metrics: AnalyticsMetrics,
+    #[pyo3(get)]
     pub correlations: Vec<CorrelationEntry>,
+    #[pyo3(get)]
     pub top_priority: Vec<TopObservation>,
+    #[pyo3(get)]
     pub top_visibility: Vec<TopObservation>,
+    #[pyo3(get)]
     pub conflicts: Vec<ConflictRecord>,
+    #[pyo3(get)]
     pub total_count: usize,
+    #[pyo3(get)]
     pub scheduled_count: usize,
+    #[pyo3(get)]
     pub impossible_count: usize,
 }
 
 #[pymethods]
 impl InsightsData {
-    #[getter]
-    pub fn blocks(&self) -> Vec<InsightsBlock> {
-        self.blocks.clone()
-    }
-
-    #[getter]
-    pub fn metrics(&self) -> AnalyticsMetrics {
-        self.metrics.clone()
-    }
-
-    #[getter]
-    pub fn correlations(&self) -> Vec<CorrelationEntry> {
-        self.correlations.clone()
-    }
-
-    #[getter]
-    pub fn top_priority(&self) -> Vec<TopObservation> {
-        self.top_priority.clone()
-    }
-
-    #[getter]
-    pub fn top_visibility(&self) -> Vec<TopObservation> {
-        self.top_visibility.clone()
-    }
-
-    #[getter]
-    pub fn conflicts(&self) -> Vec<ConflictRecord> {
-        self.conflicts.clone()
-    }
-
-    #[getter]
-    pub fn total_count(&self) -> usize {
-        self.total_count
-    }
-
-    #[getter]
-    pub fn scheduled_count(&self) -> usize {
-        self.scheduled_count
-    }
-
-    #[getter]
-    pub fn impossible_count(&self) -> usize {
-        self.impossible_count
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -675,10 +413,15 @@ impl InsightsData {
 #[derive(Debug, Clone)]
 pub struct TrendsBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    #[pyo3(get)]
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    #[pyo3(get)]
     pub priority: f64,
+    #[pyo3(get)]
     pub total_visibility_hours: f64,
+    #[pyo3(get)]
     pub requested_hours: f64,
+    #[pyo3(get)]
     pub scheduled: bool,
 }
 
@@ -687,31 +430,6 @@ impl TrendsBlock {
     #[getter]
     pub fn scheduling_block_id(&self) -> String {
         self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn original_block_id(&self) -> String {
-        self.original_block_id.clone()
-    }
-
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
-    pub fn total_visibility_hours(&self) -> f64 {
-        self.total_visibility_hours
-    }
-
-    #[getter]
-    pub fn requested_hours(&self) -> f64 {
-        self.requested_hours
-    }
-
-    #[getter]
-    pub fn scheduled(&self) -> bool {
-        self.scheduled
     }
 
     fn __repr__(&self) -> String {
@@ -726,33 +444,18 @@ impl TrendsBlock {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct EmpiricalRatePoint {
+    #[pyo3(get)]
     pub bin_label: String,
+    #[pyo3(get)]
     pub mid_value: f64,
+    #[pyo3(get)]
     pub scheduled_rate: f64,
+    #[pyo3(get)]
     pub count: usize,
 }
 
 #[pymethods]
 impl EmpiricalRatePoint {
-    #[getter]
-    pub fn bin_label(&self) -> String {
-        self.bin_label.clone()
-    }
-
-    #[getter]
-    pub fn mid_value(&self) -> f64 {
-        self.mid_value
-    }
-
-    #[getter]
-    pub fn scheduled_rate(&self) -> f64 {
-        self.scheduled_rate
-    }
-
-    #[getter]
-    pub fn count(&self) -> usize {
-        self.count
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -766,27 +469,16 @@ impl EmpiricalRatePoint {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct SmoothedPoint {
+    #[pyo3(get)]
     pub x: f64,
+    #[pyo3(get)]
     pub y_smoothed: f64,
+    #[pyo3(get)]
     pub n_samples: usize,
 }
 
 #[pymethods]
 impl SmoothedPoint {
-    #[getter]
-    pub fn x(&self) -> f64 {
-        self.x
-    }
-
-    #[getter]
-    pub fn y_smoothed(&self) -> f64 {
-        self.y_smoothed
-    }
-
-    #[getter]
-    pub fn n_samples(&self) -> usize {
-        self.n_samples
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -800,33 +492,18 @@ impl SmoothedPoint {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct HeatmapBin {
+    #[pyo3(get)]
     pub visibility_mid: f64,
+    #[pyo3(get)]
     pub time_mid: f64,
+    #[pyo3(get)]
     pub scheduled_rate: f64,
+    #[pyo3(get)]
     pub count: usize,
 }
 
 #[pymethods]
 impl HeatmapBin {
-    #[getter]
-    pub fn visibility_mid(&self) -> f64 {
-        self.visibility_mid
-    }
-
-    #[getter]
-    pub fn time_mid(&self) -> f64 {
-        self.time_mid
-    }
-
-    #[getter]
-    pub fn scheduled_rate(&self) -> f64 {
-        self.scheduled_rate
-    }
-
-    #[getter]
-    pub fn count(&self) -> usize {
-        self.count
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -840,87 +517,36 @@ impl HeatmapBin {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct TrendsMetrics {
+    #[pyo3(get)]
     pub total_count: usize,
+    #[pyo3(get)]
     pub scheduled_count: usize,
+    #[pyo3(get)]
     pub scheduling_rate: f64,
+    #[pyo3(get)]
     pub zero_visibility_count: usize,
+    #[pyo3(get)]
     pub priority_min: f64,
+    #[pyo3(get)]
     pub priority_max: f64,
+    #[pyo3(get)]
     pub priority_mean: f64,
+    #[pyo3(get)]
     pub visibility_min: f64,
+    #[pyo3(get)]
     pub visibility_max: f64,
+    #[pyo3(get)]
     pub visibility_mean: f64,
+    #[pyo3(get)]
     pub time_min: f64,
+    #[pyo3(get)]
     pub time_max: f64,
+    #[pyo3(get)]
     pub time_mean: f64,
 }
 
 #[pymethods]
 impl TrendsMetrics {
-    #[getter]
-    pub fn total_count(&self) -> usize {
-        self.total_count
-    }
-
-    #[getter]
-    pub fn scheduled_count(&self) -> usize {
-        self.scheduled_count
-    }
-
-    #[getter]
-    pub fn scheduling_rate(&self) -> f64 {
-        self.scheduling_rate
-    }
-
-    #[getter]
-    pub fn zero_visibility_count(&self) -> usize {
-        self.zero_visibility_count
-    }
-
-    #[getter]
-    pub fn priority_min(&self) -> f64 {
-        self.priority_min
-    }
-
-    #[getter]
-    pub fn priority_max(&self) -> f64 {
-        self.priority_max
-    }
-
-    #[getter]
-    pub fn priority_mean(&self) -> f64 {
-        self.priority_mean
-    }
-
-    #[getter]
-    pub fn visibility_min(&self) -> f64 {
-        self.visibility_min
-    }
-
-    #[getter]
-    pub fn visibility_max(&self) -> f64 {
-        self.visibility_max
-    }
-
-    #[getter]
-    pub fn visibility_mean(&self) -> f64 {
-        self.visibility_mean
-    }
-
-    #[getter]
-    pub fn time_min(&self) -> f64 {
-        self.time_min
-    }
-
-    #[getter]
-    pub fn time_max(&self) -> f64 {
-        self.time_max
-    }
-
-    #[getter]
-    pub fn time_mean(&self) -> f64 {
-        self.time_mean
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -934,63 +560,28 @@ impl TrendsMetrics {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct TrendsData {
+    #[pyo3(get)]
     pub blocks: Vec<TrendsBlock>,
+    #[pyo3(get)]
     pub metrics: TrendsMetrics,
+    #[pyo3(get)]
     pub by_priority: Vec<EmpiricalRatePoint>,
+    #[pyo3(get)]
     pub by_visibility: Vec<EmpiricalRatePoint>,
+    #[pyo3(get)]
     pub by_time: Vec<EmpiricalRatePoint>,
+    #[pyo3(get)]
     pub smoothed_visibility: Vec<SmoothedPoint>,
+    #[pyo3(get)]
     pub smoothed_time: Vec<SmoothedPoint>,
+    #[pyo3(get)]
     pub heatmap_bins: Vec<HeatmapBin>,
+    #[pyo3(get)]
     pub priority_values: Vec<f64>,
 }
 
 #[pymethods]
 impl TrendsData {
-    #[getter]
-    pub fn blocks(&self) -> Vec<TrendsBlock> {
-        self.blocks.clone()
-    }
-
-    #[getter]
-    pub fn metrics(&self) -> TrendsMetrics {
-        self.metrics.clone()
-    }
-
-    #[getter]
-    pub fn by_priority(&self) -> Vec<EmpiricalRatePoint> {
-        self.by_priority.clone()
-    }
-
-    #[getter]
-    pub fn by_visibility(&self) -> Vec<EmpiricalRatePoint> {
-        self.by_visibility.clone()
-    }
-
-    #[getter]
-    pub fn by_time(&self) -> Vec<EmpiricalRatePoint> {
-        self.by_time.clone()
-    }
-
-    #[getter]
-    pub fn smoothed_visibility(&self) -> Vec<SmoothedPoint> {
-        self.smoothed_visibility.clone()
-    }
-
-    #[getter]
-    pub fn smoothed_time(&self) -> Vec<SmoothedPoint> {
-        self.smoothed_time.clone()
-    }
-
-    #[getter]
-    pub fn heatmap_bins(&self) -> Vec<HeatmapBin> {
-        self.heatmap_bins.clone()
-    }
-
-    #[getter]
-    pub fn priority_values(&self) -> Vec<f64> {
-        self.priority_values.clone()
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -1009,33 +600,18 @@ impl TrendsData {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct CompareBlock {
+    #[pyo3(get)]
     pub scheduling_block_id: String,
+    #[pyo3(get)]
     pub priority: f64,
+    #[pyo3(get)]
     pub scheduled: bool,
+    #[pyo3(get)]
     pub requested_hours: f64,
 }
 
 #[pymethods]
 impl CompareBlock {
-    #[getter]
-    pub fn scheduling_block_id(&self) -> String {
-        self.scheduling_block_id.clone()
-    }
-
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
-    pub fn scheduled(&self) -> bool {
-        self.scheduled
-    }
-
-    #[getter]
-    pub fn requested_hours(&self) -> f64 {
-        self.requested_hours
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -1049,45 +625,22 @@ impl CompareBlock {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct CompareStats {
+    #[pyo3(get)]
     pub scheduled_count: usize,
+    #[pyo3(get)]
     pub unscheduled_count: usize,
+    #[pyo3(get)]
     pub total_priority: f64,
+    #[pyo3(get)]
     pub mean_priority: f64,
+    #[pyo3(get)]
     pub median_priority: f64,
+    #[pyo3(get)]
     pub total_hours: f64,
 }
 
 #[pymethods]
 impl CompareStats {
-    #[getter]
-    pub fn scheduled_count(&self) -> usize {
-        self.scheduled_count
-    }
-
-    #[getter]
-    pub fn unscheduled_count(&self) -> usize {
-        self.unscheduled_count
-    }
-
-    #[getter]
-    pub fn total_priority(&self) -> f64 {
-        self.total_priority
-    }
-
-    #[getter]
-    pub fn mean_priority(&self) -> f64 {
-        self.mean_priority
-    }
-
-    #[getter]
-    pub fn median_priority(&self) -> f64 {
-        self.median_priority
-    }
-
-    #[getter]
-    pub fn total_hours(&self) -> f64 {
-        self.total_hours
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -1101,27 +654,16 @@ impl CompareStats {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct SchedulingChange {
+    #[pyo3(get)]
     pub scheduling_block_id: String,
+    #[pyo3(get)]
     pub priority: f64,
+    #[pyo3(get)]
     pub change_type: String, // "newly_scheduled" or "newly_unscheduled"
 }
 
 #[pymethods]
 impl SchedulingChange {
-    #[getter]
-    pub fn scheduling_block_id(&self) -> String {
-        self.scheduling_block_id.clone()
-    }
-
-    #[getter]
-    pub fn priority(&self) -> f64 {
-        self.priority
-    }
-
-    #[getter]
-    pub fn change_type(&self) -> String {
-        self.change_type.clone()
-    }
 
     fn __repr__(&self) -> String {
         format!(
@@ -1136,69 +678,30 @@ impl SchedulingChange {
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct CompareData {
+    #[pyo3(get)]
     pub current_blocks: Vec<CompareBlock>,
+    #[pyo3(get)]
     pub comparison_blocks: Vec<CompareBlock>,
+    #[pyo3(get)]
     pub current_stats: CompareStats,
+    #[pyo3(get)]
     pub comparison_stats: CompareStats,
+    #[pyo3(get)]
     pub common_ids: Vec<String>,
+    #[pyo3(get)]
     pub only_in_current: Vec<String>,
+    #[pyo3(get)]
     pub only_in_comparison: Vec<String>,
+    #[pyo3(get)]
     pub scheduling_changes: Vec<SchedulingChange>,
+    #[pyo3(get)]
     pub current_name: String,
+    #[pyo3(get)]
     pub comparison_name: String,
 }
 
 #[pymethods]
 impl CompareData {
-    #[getter]
-    pub fn current_blocks(&self) -> Vec<CompareBlock> {
-        self.current_blocks.clone()
-    }
-
-    #[getter]
-    pub fn comparison_blocks(&self) -> Vec<CompareBlock> {
-        self.comparison_blocks.clone()
-    }
-
-    #[getter]
-    pub fn current_stats(&self) -> CompareStats {
-        self.current_stats.clone()
-    }
-
-    #[getter]
-    pub fn comparison_stats(&self) -> CompareStats {
-        self.comparison_stats.clone()
-    }
-
-    #[getter]
-    pub fn common_ids(&self) -> Vec<String> {
-        self.common_ids.clone()
-    }
-
-    #[getter]
-    pub fn only_in_current(&self) -> Vec<String> {
-        self.only_in_current.clone()
-    }
-
-    #[getter]
-    pub fn only_in_comparison(&self) -> Vec<String> {
-        self.only_in_comparison.clone()
-    }
-
-    #[getter]
-    pub fn scheduling_changes(&self) -> Vec<SchedulingChange> {
-        self.scheduling_changes.clone()
-    }
-
-    #[getter]
-    pub fn current_name(&self) -> String {
-        self.current_name.clone()
-    }
-
-    #[getter]
-    pub fn comparison_name(&self) -> String {
-        self.comparison_name.clone()
-    }
 
     fn __repr__(&self) -> String {
         format!(
