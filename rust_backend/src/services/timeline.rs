@@ -3,6 +3,7 @@
 
 use crate::db::models::{Period, ScheduleTimelineBlock, ScheduleTimelineData};
 use pyo3::prelude::*;
+use chrono::TimeZone;
 use std::collections::HashSet;
 use tokio::runtime::Runtime;
 
@@ -41,8 +42,8 @@ pub fn compute_schedule_timeline_data(
         // MJD 0 = November 17, 1858
         // Unix epoch (Jan 1, 1970) = MJD 40587
         let unix_timestamp = (block.scheduled_start_mjd.value() - 40587.0) * 86400.0;
-        if let Some(naive) = chrono::NaiveDateTime::from_timestamp_opt(unix_timestamp as i64, 0) {
-            let dt = chrono::DateTime::<chrono::Utc>::from_utc(naive, chrono::Utc);
+        // Use timezone-aware constructor to avoid deprecated NaiveDateTime/DateTime APIs
+        if let Some(dt) = chrono::Utc.timestamp_opt(unix_timestamp as i64, 0).single() {
             let month_label = dt.format("%Y-%m").to_string();
             unique_months.insert(month_label);
         }

@@ -136,7 +136,8 @@ fn mjd_to_datetime(py: Python<'_>, mjd: f64) -> PyResult<Py<PyAny>> {
 ///     Modified Julian Date as float
 #[pyfunction]
 fn datetime_to_mjd(dt: Py<PyAny>) -> PyResult<f64> {
-    Python::with_gil(|py| {
+    // Use `try_attach` to obtain a Python token without the deprecated API.
+    match pyo3::Python::try_attach(|py| {
         let dt_obj = dt.as_ref();
         let datetime_mod = py.import("datetime")?;
         let timezone = datetime_mod.getattr("timezone")?.getattr("utc")?;
@@ -154,7 +155,12 @@ fn datetime_to_mjd(dt: Py<PyAny>) -> PyResult<f64> {
 
         let mjd = timestamp / 86400.0 + 40587.0;
         Ok(mjd)
-    })
+    }) {
+        Some(res) => res,
+        None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
+            "Failed to attach to Python GIL",
+        )),
+    }
 }
 
 // =========================================================
