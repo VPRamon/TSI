@@ -1,7 +1,6 @@
-//! PyO3 wrapper types for Python interop.
+//! Visualization and analytics domain models.
 //!
-//! This module contains specialized types for Python integration, visualization data,
-//! and advanced analytics:
+//! This module contains specialized types for visualization data and analytics:
 //! - Visibility histogram types (VisibilityBlockSummary, VisibilityMapData, VisibilityBin)
 //! - Timeline types (ScheduleTimelineBlock, ScheduleTimelineData)
 //! - Insights types (InsightsBlock, AnalyticsMetrics, InsightsData)
@@ -326,4 +325,3 @@ pub struct CompareData {
     pub current_name: String,
     pub comparison_name: String,
 }
-
