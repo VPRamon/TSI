@@ -1,5 +1,5 @@
 [submodule "rust_backend/siderust"]
-	path = rust_backend/siderust
+	path = rust_backend/qtty
 	url = git@github.com:Siderust/siderust.git
 [submodule "qtty-py"]
 	path = qtty-py
