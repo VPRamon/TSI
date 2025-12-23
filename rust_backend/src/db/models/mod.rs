@@ -5,12 +5,12 @@
 //! - [`schedule`]: Core schedule types (Schedule, SchedulingBlock, Period, Constraints)
 //! - [`metadata`]: Schedule metadata and info types (ScheduleMetadata, ScheduleInfo)
 //! - [`analytics`]: Analytics and visualization types (LightweightBlock, DistributionData, SkyMapData)
-//! - [`python`]: PyO3 wrapper types for Python interop (visibility, timeline, insights, trends, comparison)
+//! - [`visualization`]: Visualization domain models (visibility, timeline, insights, trends, comparison)
 
 pub mod analytics;
 pub mod metadata;
-pub mod python;
 pub mod schedule;
+pub mod visualization;
 
 // Re-export all public types for convenience
 pub use analytics::{
@@ -18,7 +18,7 @@ pub use analytics::{
     SkyMapData,
 };
 pub use metadata::{ScheduleInfo, ScheduleMetadata};
-pub use python::{
+pub use visualization::{
     AnalyticsMetrics, BlockHistogramData, CompareBlock, CompareData, CompareStats, ConflictRecord,
     CorrelationEntry, EmpiricalRatePoint, HeatmapBin, InsightsBlock, InsightsData,
     ScheduleTimelineBlock, ScheduleTimelineData, SchedulingChange, SmoothedPoint, TopObservation,
