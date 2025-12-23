@@ -142,7 +142,7 @@ pub fn py_store_schedule(
     schedule_name: &str,
     schedule_json: &str,
     visibility_json: Option<&str>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     py_store_schedule_with_options(schedule_name, schedule_json, visibility_json, true, true)
 }
 
@@ -164,13 +164,14 @@ pub fn py_store_schedule(
 ///     - Fastest mode (populate_analytics=False, skip_time_bins=True): ~5-15 seconds for 1500 blocks
 #[pyfunction]
 #[pyo3(signature = (schedule_name, schedule_json, visibility_json=None, populate_analytics=true, skip_time_bins=true))]
+#[allow(deprecated)]
 pub fn py_store_schedule_with_options(
     schedule_name: &str,
     schedule_json: &str,
     visibility_json: Option<&str>,
     populate_analytics: bool,
     skip_time_bins: bool,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     // Heavy parsing + DB insert happens without the GIL held to avoid blocking Python.
     let metadata = Python::with_gil(|py| {
         py.allow_threads(|| -> PyResult<_> {
@@ -179,6 +180,7 @@ pub fn py_store_schedule_with_options(
         })
     })?;
 
+    // Convert to Python dict
     // Convert to Python dict
     Python::with_gil(|py| {
         let dict = PyDict::new(py);
@@ -229,7 +231,8 @@ pub fn py_get_schedule_blocks(schedule_id: i64) -> PyResult<Vec<SchedulingBlock>
 
 /// List all available schedules in the database.
 #[pyfunction]
-pub fn py_list_schedules() -> PyResult<PyObject> {
+#[allow(deprecated)]
+pub fn py_list_schedules() -> PyResult<Py<PyAny>> {
     let repo = get_repository()?;
 
     let runtime = Runtime::new().map_err(|e| {
@@ -265,7 +268,8 @@ pub fn py_list_schedules() -> PyResult<PyObject> {
 
 /// Fetch dark periods for a schedule.
 #[pyfunction]
-pub fn py_fetch_dark_periods(schedule_id: i64) -> PyResult<PyObject> {
+#[allow(deprecated)]
+pub fn py_fetch_dark_periods(schedule_id: i64) -> PyResult<Py<PyAny>> {
     let repo = get_repository()?;
 
     let runtime = Runtime::new().map_err(|e| {
@@ -290,7 +294,8 @@ pub fn py_fetch_dark_periods(schedule_id: i64) -> PyResult<PyObject> {
 
 /// Fetch possible (visibility) periods for a schedule.
 #[pyfunction]
-pub fn py_fetch_possible_periods(schedule_id: i64) -> PyResult<PyObject> {
+#[allow(deprecated)]
+pub fn py_fetch_possible_periods(schedule_id: i64) -> PyResult<Py<PyAny>> {
     let repo = get_repository()?;
 
     let runtime = Runtime::new().map_err(|e| {
@@ -375,6 +380,7 @@ pub fn py_fetch_compare_blocks(schedule_id: i64) -> PyResult<Vec<crate::db::mode
 #[pyfunction]
 #[pyo3(signature = (schedule_id, start_unix, end_unix, bin_duration_minutes, priority_min=None, priority_max=None, block_ids=None))]
 #[allow(clippy::too_many_arguments)]
+#[allow(deprecated)]
 pub fn py_get_visibility_histogram(
     py: Python,
     schedule_id: i64,
@@ -384,7 +390,7 @@ pub fn py_get_visibility_histogram(
     priority_min: Option<i32>,
     priority_max: Option<i32>,
     block_ids: Option<Vec<i64>>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     // Validate inputs
     if start_unix >= end_unix {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
@@ -948,13 +954,14 @@ pub fn py_get_visibility_metadata(
 ///     print(f"Time: {bin['bin_start_unix']}, Visible: {bin['count']}")
 /// ```
 #[pyfunction]
+#[allow(deprecated)]
 pub fn py_get_visibility_histogram_analytics(
     py: Python,
     schedule_id: i64,
     start_unix: i64,
     end_unix: i64,
     bin_duration_minutes: i64,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     // Validate inputs
     if start_unix >= end_unix {
         return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
