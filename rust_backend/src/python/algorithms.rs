@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
-use serde_json::Value;
 
-use crate::algorithms::{analysis, conflicts, SchedulingConflict};
+use crate::algorithms::SchedulingConflict;
 
 
 /// Python wrapper for SchedulingConflict

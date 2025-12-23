@@ -1,14 +1,12 @@
 //! Python bindings for database operations.
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
 use std::sync::OnceLock;
 use tokio::runtime::Runtime;
 
 use crate::db::{
-    models::{Schedule, SchedulingBlock},
+    models::Schedule,
     repositories::LocalRepository,
-    repository::{analytics::AnalyticsRepository, visualization::VisualizationRepository},
     services,
 };
 
