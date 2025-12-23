@@ -9,7 +9,7 @@ use crate::db::repository::ValidationRepository;
 use crate::db::validation::{ValidationIssue, ValidationReportData};
 
 // Import the global repository accessor from python/database module
-use crate::python::database::get_repository;
+use crate::db::get_repository;
 
 /// A single validation issue exposed to Python
 #[pyclass(module = "tsi_rust")]
@@ -160,7 +160,8 @@ impl From<ValidationReportData> for PyValidationReportData {
 // #[pyfunction] - removed, function now internal only
 pub fn py_get_validation_report(schedule_id: i64) -> PyResult<PyValidationReportData> {
     // Get the initialized repository
-    let repo = get_repository()?;
+    let repo = get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
     // Create Tokio runtime to bridge async database operations
     let runtime = Runtime::new().map_err(|e| {

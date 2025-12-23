@@ -408,3 +408,88 @@ pub async fn has_visibility_time_bins<R: FullRepository>(
 ) -> RepositoryResult<bool> {
     repo.has_visibility_time_bins(schedule_id).await
 }
+
+// =============================================================================
+// Schedule Parsing and Storage Helpers
+// =============================================================================
+
+/// Parse schedule from JSON strings.
+///
+/// This helper function reads dark periods and parses the schedule JSON,
+/// setting the schedule name.
+///
+/// # Arguments
+/// * `schedule_name` - Name to assign to the schedule
+/// * `schedule_json` - JSON string containing schedule data
+/// * `visibility_json` - Optional JSON string containing visibility periods
+///
+/// # Returns
+/// * `Ok(Schedule)` - Parsed schedule
+/// * `Err` if parsing fails or dark_periods.json cannot be read
+///
+/// # Errors
+/// Returns an error if:
+/// - The dark_periods.json file cannot be read
+/// - The JSON parsing fails
+pub fn parse_schedule_from_json(
+    schedule_name: &str,
+    schedule_json: &str,
+    visibility_json: Option<&str>,
+) -> anyhow::Result<crate::db::models::Schedule> {
+    use anyhow::Context;
+
+    let dark_periods = std::fs::read_to_string("data/dark_periods.json")
+        .context("Failed to read dark_periods.json")?;
+
+    let mut schedule: crate::db::models::Schedule =
+        crate::db::models::schedule::parse_schedule_json_str(
+            schedule_json,
+            visibility_json,
+            dark_periods.as_str(),
+        )
+        .context("Failed to parse schedule")?;
+    
+    schedule.name = schedule_name.to_string();
+
+    Ok(schedule)
+}
+
+/// Store schedule in database with options (synchronous wrapper).
+///
+/// This helper function handles the async runtime creation and repository
+/// interaction for storing a schedule. It blocks on the async operation,
+/// making it suitable for use in synchronous contexts like Python bindings.
+///
+/// # Arguments
+/// * `schedule` - The schedule to store
+/// * `populate_analytics` - Whether to run Phase 1 analytics ETL
+/// * `skip_time_bins` - Whether to skip Phase 3 time bin population
+///
+/// # Returns
+/// * `Ok(ScheduleMetadata)` - Metadata of the stored schedule
+/// * `Err` if storage or analytics population fails
+///
+/// # Errors
+/// Returns an error if:
+/// - The async runtime cannot be created
+/// - The repository is not initialized
+/// - The schedule storage fails
+/// - Analytics population fails (if requested)
+pub fn store_schedule_sync(
+    schedule: &crate::db::models::Schedule,
+    populate_analytics: bool,
+    skip_time_bins: bool,
+) -> anyhow::Result<crate::db::models::ScheduleMetadata> {
+    use anyhow::Context;
+    use tokio::runtime::Runtime;
+
+    let runtime = Runtime::new().context("Failed to create async runtime")?;
+    let repo = crate::db::get_repository().context("Repository not initialized")?;
+    
+    Ok(runtime.block_on(store_schedule_with_options(
+        repo.as_ref(),
+        schedule,
+        populate_analytics,
+        skip_time_bins,
+    ))?)
+}
