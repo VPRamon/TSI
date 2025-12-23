@@ -87,28 +87,28 @@ impl Period {
 
 #[derive(Debug, Clone)]
 pub struct Constraints {
-    pub min_alt: f64,
-    pub max_alt: f64,
-    pub min_az: f64,
-    pub max_az: f64,
+    pub min_alt: Degrees,
+    pub max_alt: Degrees,
+    pub min_az: Degrees,
+    pub max_az: Degrees,
     pub fixed_time: Option<Period>,
 }
 
 impl Constraints {
     pub fn min_alt(&self) -> Degrees {
-        Degrees::new(self.min_alt)
+        self.min_alt
     }
-    
+
     pub fn max_alt(&self) -> Degrees {
-        Degrees::new(self.max_alt)
+        self.max_alt
     }
-    
+
     pub fn min_az(&self) -> Degrees {
-        Degrees::new(self.min_az)
+        self.min_az
     }
-    
+
     pub fn max_az(&self) -> Degrees {
-        Degrees::new(self.max_az)
+        self.max_az
     }
 }
 
@@ -118,27 +118,27 @@ impl Constraints {
 pub struct SchedulingBlock {
     pub id: SchedulingBlockId,
     pub original_block_id: Option<String>,
-    pub target_ra: f64,
-    pub target_dec: f64,
+    pub target_ra: Degrees,
+    pub target_dec: Degrees,
     pub constraints: Constraints,
     pub priority: f64,
-    pub min_observation: f64,
-    pub requested_duration: f64,
+    pub min_observation: Seconds,
+    pub requested_duration: Seconds,
     pub visibility_periods: Vec<Period>,
     pub scheduled_period: Option<Period>,
 }
 
 impl SchedulingBlock {
     pub fn target(&self) -> ICRS {
-        ICRS::new(Degrees::new(self.target_ra), Degrees::new(self.target_dec))
+        ICRS::new(self.target_ra, self.target_dec)
     }
     
     pub fn min_observation_time(&self) -> Seconds {
-        Seconds::new(self.min_observation)
+        self.min_observation
     }
     
     pub fn requested_duration_time(&self) -> Seconds {
-        Seconds::new(self.requested_duration)
+        self.requested_duration
     }
 }
 
@@ -385,10 +385,10 @@ impl SchedulingBlockJson {
         };
 
         let constraints = Constraints {
-            min_alt: self.configuration.constraints.elevation_constraint.min_elevation_angle_in_deg,
-            max_alt: self.configuration.constraints.elevation_constraint.max_elevation_angle_in_deg,
-            min_az: self.configuration.constraints.azimuth_constraint.min_azimuth_angle_in_deg,
-            max_az: self.configuration.constraints.azimuth_constraint.max_azimuth_angle_in_deg,
+            min_alt: Degrees::new(self.configuration.constraints.elevation_constraint.min_elevation_angle_in_deg),
+            max_alt: Degrees::new(self.configuration.constraints.elevation_constraint.max_elevation_angle_in_deg),
+            min_az: Degrees::new(self.configuration.constraints.azimuth_constraint.min_azimuth_angle_in_deg),
+            max_az: Degrees::new(self.configuration.constraints.azimuth_constraint.max_azimuth_angle_in_deg),
             fixed_time,
         };
 
@@ -404,12 +404,12 @@ impl SchedulingBlockJson {
         Ok(SchedulingBlock {
             id: SchedulingBlockId(block_id),
             original_block_id: original_block_id.clone(),
-            target_ra: self.target.position.coord.celestial.ra_in_deg,
-            target_dec: self.target.position.coord.celestial.dec_in_deg,
+            target_ra: Degrees::new(self.target.position.coord.celestial.ra_in_deg),
+            target_dec: Degrees::new(self.target.position.coord.celestial.dec_in_deg),
             constraints,
             priority: self.priority,
-            min_observation: self.configuration.constraints.time_constraint.min_observation_time_in_sec,
-            requested_duration: self.configuration.constraints.time_constraint.requested_duration_sec,
+            min_observation: Seconds::new(self.configuration.constraints.time_constraint.min_observation_time_in_sec),
+            requested_duration: Seconds::new(self.configuration.constraints.time_constraint.requested_duration_sec),
             visibility_periods,
             scheduled_period,
         })
@@ -829,17 +829,17 @@ mod tests {
         let block_2662 = schedule.blocks.iter().find(|block| block.id.0 == 1000002662)
             .expect("Scheduling block 1000002662 should exist");
         assert_eq!(block_2662.visibility_periods.len(), 3, "Expected three possible periods");
-        assert_close(block_2662.constraints.min_alt, 45.0, "minimum altitude");
-        assert_close(block_2662.constraints.max_alt, 90.0, "maximum altitude");
-        assert_close(block_2662.constraints.min_az, 0.0, "minimum azimuth");
-        assert_close(block_2662.constraints.max_az, 360.0, "maximum azimuth");
+        assert_close(block_2662.constraints.min_alt.value(), 45.0, "minimum altitude");
+        assert_close(block_2662.constraints.max_alt.value(), 90.0, "maximum altitude");
+        assert_close(block_2662.constraints.min_az.value(), 0.0, "minimum azimuth");
+        assert_close(block_2662.constraints.max_az.value(), 360.0, "maximum azimuth");
 
         let fixed_window = block_2662.constraints.fixed_time
             .expect("Block 1000002662 should have a fixed time window");
         assert_close(fixed_window.start.value(), 61771.0, "fixed window start");
         assert_close(fixed_window.stop.value(), 61778.0, "fixed window stop");
 
-        assert_close(block_2662.min_observation, 1800.0, "min observation seconds");
-        assert_close(block_2662.requested_duration, 1800.0, "requested duration seconds");
+        assert_close(block_2662.min_observation.value(), 1800.0, "min observation seconds");
+        assert_close(block_2662.requested_duration.value(), 1800.0, "requested duration seconds");
     }
 }
