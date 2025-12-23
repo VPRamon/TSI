@@ -480,6 +480,7 @@ enum TimeValueJson {
     Direct(MjdValue),
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct MjdValue {
     value: f64,
@@ -501,6 +502,7 @@ impl TimeValueJson {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PeriodJson {
