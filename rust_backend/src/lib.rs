@@ -63,6 +63,7 @@
 use pyo3::prelude::*;
 
 pub mod algorithms;
+pub mod api;
 pub mod db;
 pub mod python;
 pub mod services;
@@ -248,3 +249,40 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     Ok(())
 }
+
+/// Python module entry point for the new TSI Rust API.
+///
+/// This is the new stable API module that isolates Python bindings from internal implementations.
+/// All PyO3 types and conversions are handled in the `api` module, allowing internal models
+/// to evolve independently.
+///
+/// # Module Contents
+///
+/// - Time conversion utilities
+/// - Database operations (store, retrieve, analytics)
+/// - Visualization data queries (sky map, distributions, timeline, insights, trends, compare)
+/// - Algorithm operations (conflict detection, top observations)
+/// - Validation reports
+///
+/// # Usage
+///
+/// ```python
+/// import tsi_rust_api
+///
+/// # Initialize database
+/// tsi_rust_api.init_database()
+///
+/// # Store schedule
+/// metadata = tsi_rust_api.store_schedule(
+///     schedule_json, possible_periods_json, dark_periods_json,
+///     "My Schedule", populate_analytics=True
+/// )
+///
+/// # Get visualization data
+/// sky_map = tsi_rust_api.get_sky_map_data(metadata.schedule_id)
+/// ```
+#[pymodule]
+fn tsi_rust_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    api::register_api_functions(m)
+}
+
