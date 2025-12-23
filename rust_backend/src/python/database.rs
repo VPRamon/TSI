@@ -72,7 +72,7 @@ fn parse_schedule_from_json(
         ))
     })?;
 
-    let mut schedule: Schedule = crate::parsing::json_parser::parse_schedule_json_str(
+    let mut schedule: Schedule = crate::db::models::schedule::parse_schedule_json_str(
         schedule_json,
         visibility_json,
         dark_periods.as_str(),
