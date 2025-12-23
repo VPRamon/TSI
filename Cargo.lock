@@ -3,12 +3,43 @@
 version = 4
 
 [[package]]
+name = "affn"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c41a6edafa8623e874327c6ed638a0c122cf54109ca7855635b7be508bb6e84c"
+dependencies = [
+ "affn-derive",
+ "nalgebra",
+ "qtty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "affn-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d16a2493966ba2daf23e9e012b46fd2ab37964e4815ebfec6b1bdb754da2af05"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddd31a130427c27518df266943a5308ed92d4b226cc639f5a8f1002816174301"
 dependencies = [
  "memchr",
+]
+
+[[package]]
+name = "alloca"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5a7d05ea6aea7e9e64d25b9156ba2fee3fdd659e34e41063cd2fc7cd020d7f4"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -387,10 +418,35 @@ dependencies = [
  "cast",
  "ciborium",
  "clap",
- "criterion-plot",
+ "criterion-plot 0.6.0",
  "itertools",
  "num-traits",
  "oorandom",
+ "plotters",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_json",
+ "tinytemplate",
+ "walkdir",
+]
+
+[[package]]
+name = "criterion"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d883447757bb0ee46f233e9dc22eb84d93a9508c9b868687b274fc431d886bf"
+dependencies = [
+ "alloca",
+ "anes",
+ "cast",
+ "ciborium",
+ "clap",
+ "criterion-plot 0.8.1",
+ "itertools",
+ "num-traits",
+ "oorandom",
+ "page_size",
  "plotters",
  "rayon",
  "regex",
@@ -405,6 +461,16 @@ name = "criterion-plot"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b1bcc0dc7dfae599d84ad0b1a55f80cde8af3725da8313b528da95ef783e338"
+dependencies = [
+ "cast",
+ "itertools",
+]
+
+[[package]]
+name = "criterion-plot"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ed943f81ea2faa8dcecbbfa50164acf95d555afec96a27871663b300e387b2e4"
 dependencies = [
  "cast",
  "itertools",
@@ -1293,6 +1359,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d05e27ee213611ffe7d6348b942e8f942b37114c00cc03cec254295a4a17852e"
 
 [[package]]
+name = "page_size"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "30d5b2194ed13191c1999ae0704b7839fb18384fa22e49b57eeaa97d79ce40da"
+dependencies = [
+ "libc",
+ "winapi",
+]
+
+[[package]]
 name = "parking_lot"
 version = "0.12.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1498,11 +1574,35 @@ dependencies = [
 [[package]]
 name = "qtty"
 version = "0.2.1"
+dependencies = [
+ "approx",
+ "proptest",
+ "qtty-core 0.2.1",
+ "qtty-derive",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "qtty"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c8cea97fdeadc974e04d3513eb2335e19a4f67139ccc6b5ca21b739ca6cedba"
 dependencies = [
- "qtty-core",
+ "qtty-core 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "qtty-derive",
+]
+
+[[package]]
+name = "qtty-core"
+version = "0.2.1"
+dependencies = [
+ "approx",
+ "libm",
+ "proptest",
+ "qtty-derive",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1534,7 +1634,7 @@ checksum = "0add78351bf7bf4651eedb1d587099d71d1bcb3ee297687604759417ef2e642d"
 dependencies = [
  "cbindgen",
  "pyo3",
- "qtty",
+ "qtty 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote",
  "syn",
 ]
@@ -1775,9 +1875,9 @@ checksum = "ba39f3699c378cd8970968dcbff9c43159ea4cfbd88d43c00b22f2ef10a435d2"
 
 [[package]]
 name = "reqwest"
-version = "0.12.24"
+version = "0.12.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9d0946410b9f7b082a427e4ef5c8ff541a88b357bc6c637c40db3a68ac70a36f"
+checksum = "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -2163,12 +2263,15 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 name = "siderust"
 version = "0.3.3"
 dependencies = [
+ "affn",
  "anyhow",
  "approx",
  "chrono",
- "criterion",
+ "criterion 0.8.1",
  "nalgebra",
+ "paste",
  "pyo3",
+ "qtty 0.2.1",
  "rayon",
  "regex",
  "reqwest",
@@ -2565,9 +2668,9 @@ dependencies = [
 
 [[package]]
 name = "tower-http"
-version = "0.6.7"
+version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cf146f99d442e8e68e585f5d798ccd3cad9a7835b917e09728880a862706456"
+checksum = "d4e6559d53cc268e5031cd8429d05415bc4cb4aefc4aa5d6cc35fbf5b924a1f8"
 dependencies = [
  "bitflags 2.10.0",
  "bytes",
@@ -2640,7 +2743,7 @@ dependencies = [
  "bb8",
  "bb8-tiberius",
  "chrono",
- "criterion",
+ "criterion 0.7.0",
  "hex",
  "log",
  "once_cell",

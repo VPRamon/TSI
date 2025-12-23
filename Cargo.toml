@@ -1,3 +1,12 @@
 [workspace]
 members = ["rust_backend"]
 resolver = "2"
+
+[workspace.package]
+version = "0.2.1"
+edition = "2021"
+authors = ["VPRamon <vallespuigramon@gmail.com>"]
+license = "AGPL-3.0"
+repository = "https://github.com/yourorg/yourrepo"
+keywords = ["astronomy", "quantities", "science"]
+categories = ["science", "aerospace"]
