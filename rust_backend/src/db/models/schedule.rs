@@ -94,25 +94,6 @@ pub struct Constraints {
     pub fixed_time: Option<Period>,
 }
 
-impl Constraints {
-    pub fn min_alt(&self) -> Degrees {
-        self.min_alt
-    }
-
-    pub fn max_alt(&self) -> Degrees {
-        self.max_alt
-    }
-
-    pub fn min_az(&self) -> Degrees {
-        self.min_az
-    }
-
-    pub fn max_az(&self) -> Degrees {
-        self.max_az
-    }
-}
-
-
 /// Atomic observing request (mirrors scheduling_blocks).
 #[derive(Debug, Clone)]
 pub struct SchedulingBlock {
@@ -132,14 +113,6 @@ impl SchedulingBlock {
     pub fn target(&self) -> ICRS {
         ICRS::new(self.target_ra, self.target_dec)
     }
-    
-    pub fn min_observation_time(&self) -> Seconds {
-        self.min_observation
-    }
-    
-    pub fn requested_duration_time(&self) -> Seconds {
-        self.requested_duration
-    }
 }
 
 
@@ -154,16 +127,6 @@ pub struct Schedule {
     pub checksum: String,
     pub dark_periods: Vec<Period>,
     pub blocks: Vec<SchedulingBlock>,
-}
-
-impl Schedule {
-    pub fn block_count(&self) -> usize {
-        self.blocks.len()
-    }
-
-    pub fn dark_period_count(&self) -> usize {
-        self.dark_periods.len()
-    }
 }
 
 // ============================================================================
