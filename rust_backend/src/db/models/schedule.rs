@@ -1,10 +1,17 @@
-//! Core schedule domain models.
+//! Core schedule domain models and JSON parsing.
 //!
-//! This module contains the primary domain types for the scheduling system:
-//! - Schedule: Top-level schedule concept with metadata and blocks
-//! - SchedulingBlock: Individual observing request
-//! - Period: Time window representation
-//! - Constraints: Observing constraints (altitude, azimuth, fixed time)
+//! # Overview
+//!
+//! This module defines the domain types for the scheduling system and provides
+//! JSON parsing using **Serde**, the standard serialization/deserialization
+//! framework in Rust.
+//!
+//! ## Domain Types
+//!
+//! - [`Schedule`]: Top-level schedule with metadata and scheduling blocks
+//! - [`SchedulingBlock`]: Individual observing request with constraints
+//! - [`Period`]: Time window in Modified Julian Date
+//! - [`Constraints`]: Observing constraints (altitude, azimuth, fixed time)
 //! - ID types: Strongly-typed identifiers for database records
 
 use siderust::{
@@ -167,52 +174,64 @@ pub struct Schedule {
 }
 
 // ============================================================================
-// JSON Parsing
+// JSON Parsing Functions
 // ============================================================================
 //
-// The domain models (Schedule, SchedulingBlock, etc.) use serde and can be
-// serialized/deserialized directly with snake_case JSON matching the schema.
-//
-// For backward compatibility with legacy camelCase JSON format from external
-// systems, we provide parsing adapters below.
+// These functions provide convenient file-based and string-based parsing with
+// support for merging separate JSON blobs (possible_periods, dark_periods)
+// when data is split across multiple files.
 
 use anyhow::{Context, Result};
-use serde::Deserialize;
 use std::collections::HashMap;
 
-/// Parse schedule JSON strings into a `Schedule` using the new snake_case format.
-/// The function will parse a full schedule JSON (matching the schema) via
-/// `parse_schedule_direct`. If `possible_periods_json` or `dark_periods_json`
-/// are provided as separate JSON blobs, they will be merged into the result.
+/// Parse schedule from JSON string with optional merging of separate period blobs.
+///
+/// This function deserializes a schedule JSON string using Serde, then optionally
+/// merges `possible_periods` and `dark_periods` from separate JSON blobs when the
+/// data is split across multiple files.
+///
+/// # Arguments
+///
+/// * `json_schedule_json` - Main schedule JSON (snake_case format matching schema)
+/// * `possible_periods_json` - Optional JSON with visibility periods per block ID
+/// * `dark_periods_json` - JSON with dark periods array or wrapper object
+///
+/// # Returns
+///
+/// A fully populated `Schedule` with merged periods and computed checksum.
 pub fn parse_schedule_json_str(
     json_schedule_json: &str,
     possible_periods_json: Option<&str>,
     dark_periods_json: &str,
 ) -> Result<Schedule> {
-    // Expect the schedule JSON to follow the new snake_case schema. Parse directly.
+    // Deserialize schedule using Serde (snake_case JSON matching schema)
     let mut schedule = parse_schedule_direct(json_schedule_json)
-        .context("Failed to parse schedule (expected snake_case format)")?;
+        .context("Failed to parse schedule JSON")?;
 
-    // If possible periods are supplied separately, merge them into block.visibility_periods
+    // If possible periods are supplied separately, merge them into block.visibility_periods.
+    // Accept either a wrapper `{"blocks": { "<id>": [ ... ] }}` or a direct map `{ "<id>": [ ... ] }`.
     if let Some(pp_json) = possible_periods_json {
         let trimmed = pp_json.trim();
         if !trimmed.is_empty() {
-            let v: serde_json::Value = serde_json::from_str(trimmed)
-                .context("Failed to parse possible periods JSON")?;
+            #[derive(serde::Deserialize)]
+            struct BlocksWrapper {
+                blocks: HashMap<String, Vec<Period>>,
+            }
 
-            if let Some(blocks_obj) = v.get("blocks").and_then(|b| b.as_object()) {
-                let mut pp_map: HashMap<i64, Vec<Period>> = HashMap::new();
-                for (k, periods_val) in blocks_obj.iter() {
-                    if let Ok(id) = k.parse::<i64>() {
-                        let periods: Vec<Period> = serde_json::from_value(periods_val.clone())
-                            .context("Failed to deserialize possible period entries")?;
-                        pp_map.insert(id, periods);
-                    }
-                }
+            // Try wrapper form first, then try direct map form.
+            let maybe_map: Option<HashMap<String, Vec<Period>>> =
+                match serde_json::from_str::<BlocksWrapper>(trimmed) {
+                    Ok(wrapper) => Some(wrapper.blocks),
+                    Err(_) => match serde_json::from_str::<HashMap<String, Vec<Period>>>(trimmed) {
+                        Ok(m) => Some(m),
+                        Err(_) => None,
+                    },
+                };
 
+            if let Some(map) = maybe_map {
                 for block in &mut schedule.blocks {
-                    if let Some(p) = pp_map.get(&block.id.0) {
-                        block.visibility_periods = p.clone();
+                    if let Some(periods) = map.get(&block.id.0.to_string()) {
+                        block.visibility_periods = periods.clone();
                     }
                 }
             }
@@ -224,14 +243,16 @@ pub fn parse_schedule_json_str(
     // or a direct array of periods.
     if schedule.dark_periods.is_empty() && !dark_periods_json.trim().is_empty() {
         let trimmed = dark_periods_json.trim();
-        let dark: serde_json::Value = serde_json::from_str(trimmed)
-            .context("Failed to parse dark periods JSON")?;
-        if let Some(arr) = dark.get("dark_periods") {
-            schedule.dark_periods = serde_json::from_value(arr.clone())
-                .context("Failed to deserialize dark_periods array")?;
-        } else if dark.is_array() {
-            schedule.dark_periods = serde_json::from_value(dark)
-                .context("Failed to deserialize direct dark_periods array")?;
+
+        #[derive(serde::Deserialize)]
+        struct DarkWrapper {
+            dark_periods: Vec<Period>,
+        }
+
+        if let Ok(wrapper) = serde_json::from_str::<DarkWrapper>(trimmed) {
+            schedule.dark_periods = wrapper.dark_periods;
+        } else if let Ok(vec) = serde_json::from_str::<Vec<Period>>(trimmed) {
+            schedule.dark_periods = vec;
         }
     }
 
@@ -244,15 +265,14 @@ pub fn parse_schedule_json_str(
 
 /// Parse schedule from new snake_case JSON format (matches schema)
 pub fn parse_schedule_direct(json_str: &str) -> Result<Schedule> {
-    let jd = &mut serde_json::Deserializer::from_str(json_str);
-    let mut schedule: Schedule = serde_path_to_error::deserialize(jd)
-        .context("Failed to parse schedule JSON")?;
-    
+    let mut schedule: Schedule = serde_json::from_str(json_str)
+        .context("Failed to deserialize schedule JSON using Serde")?;
+
     // Compute checksum if not provided
     if schedule.checksum.is_empty() {
         schedule.checksum = compute_schedule_checksum(json_str);
     }
-    
+
     Ok(schedule)
 }
 
