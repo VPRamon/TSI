@@ -9,7 +9,7 @@ use tokio::runtime::Runtime;
 
 // Import the global repository accessor
 use crate::db::repository::AnalyticsRepository;
-use crate::python::database::get_repository;
+use crate::db::get_repository;
 
 /// Compute overview metrics from trends blocks.
 fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {

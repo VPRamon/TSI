@@ -8,7 +8,7 @@ use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
-use crate::python::database::get_repository;
+use crate::db::get_repository;
 
 /// Compute sky map data with priority bins and metadata.
 /// This function takes the raw blocks and computes everything needed for visualization.

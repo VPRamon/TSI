@@ -176,7 +176,8 @@ fn datetime_to_mjd(dt: Py<PyAny>) -> PyResult<f64> {
 ///     Success message string
 #[pyfunction]
 fn init_database() -> PyResult<()> {
-    crate::python::py_init_database()
+    crate::db::init_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
 }
 
 /// Check database health and connectivity.
@@ -191,7 +192,8 @@ fn db_health_check() -> PyResult<bool> {
             e
         ))
     })?;
-    let repo = crate::python::get_repository()?;
+    let repo = crate::db::get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     runtime
         .block_on(db_services::health_check(repo.as_ref()))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
@@ -219,8 +221,10 @@ fn store_schedule(
     // py_store_schedule returns Py<PyAny> (a Python dict), not a Rust struct
     // We return the schedule name as confirmation
     let visibility_ref = visibility_json.as_deref();
-    let schedule = crate::python::parse_schedule_from_json(&schedule_name, &schedule_json, visibility_ref)?;
-    let _metadata = crate::python::store_schedule_in_db(&schedule, true, false)?;
+    let schedule = db_services::parse_schedule_from_json(&schedule_name, &schedule_json, visibility_ref)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    let _metadata = db_services::store_schedule_sync(&schedule, true, false)
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     Ok(schedule_name)
 }
 
@@ -233,7 +237,8 @@ fn list_schedules() -> PyResult<Vec<api::ScheduleInfo>> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
     })?;
-    let repo = crate::python::get_repository()?;
+    let repo = crate::db::get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     let schedules = runtime
         .block_on(db_services::list_schedules(repo.as_ref()))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
@@ -252,7 +257,8 @@ fn get_schedule(_schedule_id: i64) -> PyResult<api::Schedule> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
     })?;
-    let repo = crate::python::get_repository()?;
+    let repo = crate::db::get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     let schedule = runtime
         .block_on(db_services::get_schedule(repo.as_ref(), _schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
@@ -275,7 +281,8 @@ fn populate_analytics(schedule_id: i64) -> PyResult<usize> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
     })?;
-    let repo = crate::python::get_repository()?;
+    let repo = crate::db::get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     runtime
         .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
@@ -294,7 +301,8 @@ fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
     })?;
-    let repo = crate::python::get_repository()?;
+    let repo = crate::db::get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     runtime
         .block_on(db_services::has_analytics_data(repo.as_ref(), schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))

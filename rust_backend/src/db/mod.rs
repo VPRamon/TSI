@@ -69,10 +69,13 @@ pub mod models;
 pub mod repo_config;
 pub mod repositories;
 pub mod repository;
+pub mod repository_manager;
 pub mod services;
 
 // ==================== Service Layer (Recommended for new code) ====================
 // Use these high-level functions that work with any repository implementation
+
+pub use repository_manager::{get_repository, init_repository};
 
 pub use services::{
     ensure_analytics, fetch_dark_periods, fetch_possible_periods, get_blocks_for_schedule,

@@ -9,7 +9,7 @@ use tokio::runtime::Runtime;
 
 // Import the global repository accessor
 use crate::db::repository::VisualizationRepository;
-use crate::python::database::get_repository;
+use crate::db::get_repository;
 
 /// Compute schedule timeline data with statistics and metadata.
 /// This function takes the raw blocks and computes everything needed for visualization.

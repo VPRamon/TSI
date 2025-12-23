@@ -7,7 +7,7 @@ use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
-use crate::python::database::get_repository;
+use crate::db::get_repository;
 
 /// Compute statistics for a set of values.
 /// This is a helper function that calculates mean, median, std dev, min, max, and sum.

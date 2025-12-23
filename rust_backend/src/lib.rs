@@ -19,13 +19,11 @@
 //!
 //! The crate is organized into several logical modules:
 //!
-//! - [`core`]: Domain models for scheduling blocks and time periods
-//! - [`parsing`]: JSON parsers and visibility period handling
-//! - [`preprocessing`]: Data validation, enrichment, and pipeline orchestration
 //! - [`algorithms`]: Analytics, conflict detection, and optimization routines
+//! - [`api`]: PyO3 bindings exposing Rust functionality to Python (DTOs, conversions, exports)
+//! - [`db`]: Database operations, repository pattern, and persistence layer
+//! - [`services`]: High-level business logic and visualization services
 //! - [`transformations`]: Data transformation utilities
-//! - [`io`]: High-level loaders combining parsing and domain logic
-//! - [`python`]: PyO3 bindings exposing Rust functionality to Python
 //!
 //! ## Python API Example
 //!
@@ -65,7 +63,6 @@ use pyo3::prelude::*;
 pub mod algorithms;
 pub mod api;
 pub mod db;
-pub mod python;  // Re-enabled - contains internal functions used by API
 pub mod services;
 pub mod transformations;
 

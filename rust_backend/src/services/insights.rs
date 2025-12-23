@@ -10,7 +10,7 @@ use tokio::runtime::Runtime;
 
 // Import the global repository accessor
 use crate::db::repository::AnalyticsRepository;
-use crate::python::database::get_repository;
+use crate::db::get_repository;
 use qtty::time::Hours;
 
 /// Compute analytics metrics from insights blocks.
