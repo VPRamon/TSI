@@ -64,7 +64,6 @@ use pyo3::prelude::*;
 
 pub mod algorithms;
 pub mod db;
-pub mod parsing;
 pub mod python;
 pub mod services;
 pub mod transformations;
