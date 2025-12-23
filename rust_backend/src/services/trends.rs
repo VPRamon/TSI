@@ -419,7 +419,7 @@ pub async fn get_trends_data(
 /// Get complete trends data with computed analytics and metadata.
 ///
 /// **Note**: Impossible blocks are automatically excluded.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_trends_data(
     schedule_id: i64,
     n_bins: usize,

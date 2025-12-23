@@ -4,8 +4,7 @@ use serde_json::Value;
 use crate::transformations::{cleaning, filtering};
 
 /// Remove duplicate rows from records
-#[pyfunction]
-#[pyo3(signature = (records_json, subset=None, keep="first"))]
+// #[pyfunction] - removed, function now internal only
 pub fn py_remove_duplicates(
     records_json: String,
     subset: Option<Vec<String>>,
@@ -24,7 +23,7 @@ pub fn py_remove_duplicates(
 }
 
 /// Remove rows with missing coordinates (RA or Dec)
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_remove_missing_coordinates(records_json: String) -> PyResult<String> {
     let records: Vec<Value> = serde_json::from_str(&records_json).map_err(|e| {
         pyo3::exceptions::PyValueError::new_err(format!("Failed to parse JSON: {}", e))
@@ -39,7 +38,7 @@ pub fn py_remove_missing_coordinates(records_json: String) -> PyResult<String> {
 }
 
 /// Filter records by numeric range
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_filter_by_range(
     records_json: String,
     column: &str,
@@ -59,7 +58,7 @@ pub fn py_filter_by_range(
 }
 
 /// Filter records by scheduled flag
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_filter_by_scheduled(records_json: String, filter_type: &str) -> PyResult<String> {
     let records: Vec<Value> = serde_json::from_str(&records_json).map_err(|e| {
         pyo3::exceptions::PyValueError::new_err(format!("Failed to parse JSON: {}", e))
@@ -74,8 +73,8 @@ pub fn py_filter_by_scheduled(records_json: String, filter_type: &str) -> PyResu
 }
 
 /// Filter records by multiple conditions
-#[pyfunction]
-#[pyo3(signature = (records_json, priority_min, priority_max, scheduled_filter="All", priority_bins=None, block_ids=None))]
+// #[pyfunction] - removed, function now internal only
+// #[pyo3(signature = (records_json, priority_min, priority_max, scheduled_filter="All", priority_bins=None, block_ids=None))] - commented out, function now internal only
 pub fn py_filter_dataframe(
     records_json: String,
     priority_min: f64,
@@ -104,7 +103,7 @@ pub fn py_filter_dataframe(
 }
 
 /// Validate records structure and data quality
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_validate_dataframe(records_json: String) -> PyResult<(bool, Vec<String>)> {
     let records: Vec<Value> = serde_json::from_str(&records_json).map_err(|e| {
         pyo3::exceptions::PyValueError::new_err(format!("Failed to parse JSON: {}", e))
@@ -113,12 +112,12 @@ pub fn py_validate_dataframe(records_json: String) -> PyResult<(bool, Vec<String
     Ok(filtering::validate_dataframe(&records))
 }
 
-pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(py_remove_duplicates, m)?)?;
-    m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
-    m.add_function(wrap_pyfunction!(py_filter_by_range, m)?)?;
-    m.add_function(wrap_pyfunction!(py_filter_by_scheduled, m)?)?;
-    m.add_function(wrap_pyfunction!(py_filter_dataframe, m)?)?;
-    m.add_function(wrap_pyfunction!(py_validate_dataframe, m)?)?;
-    Ok(())
-}
+// pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
+//     m.add_function(wrap_pyfunction!(py_remove_duplicates, m)?)?;
+//     m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
+//     m.add_function(wrap_pyfunction!(py_filter_by_range, m)?)?;
+//     m.add_function(wrap_pyfunction!(py_filter_by_scheduled, m)?)?;
+//     m.add_function(wrap_pyfunction!(py_filter_dataframe, m)?)?;
+//     m.add_function(wrap_pyfunction!(py_validate_dataframe, m)?)?;
+//     Ok(())
+// } // commented out - functions now internal only, use new API instead

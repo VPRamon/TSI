@@ -35,7 +35,7 @@ pub(crate) fn get_repository() -> PyResult<&'static std::sync::Arc<LocalReposito
 ///
 /// This function is idempotent - calling it multiple times is safe and will
 /// simply return success if already initialized.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_init_database() -> PyResult<()> {
     // Check if already initialized
     if REPOSITORY.get().is_some() {
@@ -120,7 +120,7 @@ fn store_schedule_in_db(
 // =============================================================================
 
 /// Check database connection health.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_db_health_check() -> PyResult<bool> {
     let repo = get_repository()?;
 
@@ -137,7 +137,7 @@ pub fn py_db_health_check() -> PyResult<bool> {
 }
 
 /// Store a preprocessed schedule in the database.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_store_schedule(
     schedule_name: &str,
     schedule_json: &str,
@@ -162,8 +162,8 @@ pub fn py_store_schedule(
 ///     - Full analytics (populate_analytics=True, skip_time_bins=False): ~2-5 minutes for 1500 blocks
 ///     - Fast mode (populate_analytics=True, skip_time_bins=True): ~10-30 seconds for 1500 blocks
 ///     - Fastest mode (populate_analytics=False, skip_time_bins=True): ~5-15 seconds for 1500 blocks
-#[pyfunction]
-#[pyo3(signature = (schedule_name, schedule_json, visibility_json=None, populate_analytics=true, skip_time_bins=true))]
+// #[pyfunction] - removed, function now internal only
+// #[pyo3(signature = (schedule_name, schedule_json, visibility_json=None, populate_analytics=true, skip_time_bins=true))] - commented out, function now internal only
 #[allow(deprecated)]
 pub fn py_store_schedule_with_options(
     schedule_name: &str,
@@ -193,7 +193,7 @@ pub fn py_store_schedule_with_options(
 }
 
 /// Fetch a schedule (metadata + blocks) from the database.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_schedule(schedule_id: i64) -> PyResult<Schedule> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
@@ -210,7 +210,7 @@ pub fn py_get_schedule(schedule_id: i64) -> PyResult<Schedule> {
 }
 
 /// Fetch all scheduling blocks for a schedule ID.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_schedule_blocks(schedule_id: i64) -> PyResult<Vec<SchedulingBlock>> {
     let repo = get_repository()?;
 
@@ -230,7 +230,7 @@ pub fn py_get_schedule_blocks(schedule_id: i64) -> PyResult<Vec<SchedulingBlock>
 }
 
 /// List all available schedules in the database.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 #[allow(deprecated)]
 pub fn py_list_schedules() -> PyResult<Py<PyAny>> {
     let repo = get_repository()?;
@@ -267,7 +267,7 @@ pub fn py_list_schedules() -> PyResult<Py<PyAny>> {
 }
 
 /// Fetch dark periods for a schedule.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 #[allow(deprecated)]
 pub fn py_fetch_dark_periods(schedule_id: i64) -> PyResult<Py<PyAny>> {
     let repo = get_repository()?;
@@ -293,7 +293,7 @@ pub fn py_fetch_dark_periods(schedule_id: i64) -> PyResult<Py<PyAny>> {
 }
 
 /// Fetch possible (visibility) periods for a schedule.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 #[allow(deprecated)]
 pub fn py_fetch_possible_periods(schedule_id: i64) -> PyResult<Py<PyAny>> {
     let repo = get_repository()?;
@@ -319,7 +319,7 @@ pub fn py_fetch_possible_periods(schedule_id: i64) -> PyResult<Py<PyAny>> {
 }
 
 /// Fetch compare blocks for a schedule (minimal data for comparison).
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_fetch_compare_blocks(schedule_id: i64) -> PyResult<Vec<crate::db::models::CompareBlock>> {
     let repo = get_repository()?;
 
@@ -377,8 +377,8 @@ pub fn py_fetch_compare_blocks(schedule_id: i64) -> PyResult<Vec<crate::db::mode
 /// for bin in bins:
 ///     print(f"Time: {bin['bin_start_unix']}, Visible: {bin['count']}")
 /// ```
-#[pyfunction]
-#[pyo3(signature = (schedule_id, start_unix, end_unix, bin_duration_minutes, priority_min=None, priority_max=None, block_ids=None))]
+// #[pyfunction] - removed, function now internal only
+// #[pyo3(signature = (schedule_id, start_unix, end_unix, bin_duration_minutes, priority_min=None, priority_max=None, block_ids=None))] - commented out, function now internal only
 #[allow(clippy::too_many_arguments)]
 #[allow(deprecated)]
 pub fn py_get_visibility_histogram(
@@ -484,7 +484,7 @@ pub fn py_get_visibility_histogram(
 /// else:
 ///     print("No visibility periods found")
 /// ```
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64)>> {
     let repo = get_repository()?;
 
@@ -516,7 +516,7 @@ pub fn py_get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64
 
 /// Fetch visibility map data (priority range, block metadata) in one backend call.
 /// Uses the analytics table for optimal performance when available.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_visibility_map_data(
     schedule_id: i64,
 ) -> PyResult<crate::db::models::VisibilityMapData> {
@@ -560,7 +560,7 @@ pub fn py_get_visibility_map_data(
 /// rows = tsi_rust.py_populate_analytics(schedule_id=42)
 /// print(f"Created {rows} analytics rows")
 /// ```
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_populate_analytics(schedule_id: i64) -> PyResult<usize> {
     let repo = get_repository()?;
 
@@ -583,7 +583,7 @@ pub fn py_populate_analytics(schedule_id: i64) -> PyResult<usize> {
 ///
 /// Returns:
 ///     True if analytics data exists, False otherwise
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_has_analytics_data(schedule_id: i64) -> PyResult<bool> {
     let repo = get_repository()?;
 
@@ -606,7 +606,7 @@ pub fn py_has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 ///
 /// Returns:
 ///     Number of analytics rows deleted
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_delete_analytics(schedule_id: i64) -> PyResult<usize> {
     let repo = get_repository()?;
 
@@ -640,8 +640,8 @@ pub fn py_delete_analytics(schedule_id: i64) -> PyResult<usize> {
 /// # Manually refresh summary analytics for a schedule
 /// tsi_rust.py_populate_summary_analytics(schedule_id=42)
 /// ```
-#[pyfunction]
-#[pyo3(signature = (schedule_id, n_bins=10))]
+// #[pyfunction] - removed, function now internal only
+// #[pyo3(signature = (schedule_id, n_bins=10))] - commented out, function now internal only
 pub fn py_populate_summary_analytics(schedule_id: i64, n_bins: usize) -> PyResult<()> {
     let repo = get_repository()?;
 
@@ -664,7 +664,7 @@ pub fn py_populate_summary_analytics(schedule_id: i64, n_bins: usize) -> PyResul
 ///
 /// Returns:
 ///     True if summary analytics data exists, False otherwise
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_has_summary_analytics(schedule_id: i64) -> PyResult<bool> {
     let repo = get_repository()?;
 
@@ -687,7 +687,7 @@ pub fn py_has_summary_analytics(schedule_id: i64) -> PyResult<bool> {
 ///
 /// Returns:
 ///     Number of rows deleted (summary + priority rates)
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_delete_summary_analytics(schedule_id: i64) -> PyResult<usize> {
     let repo = get_repository()?;
 
@@ -710,7 +710,7 @@ pub fn py_delete_summary_analytics(schedule_id: i64) -> PyResult<usize> {
 ///
 /// Returns:
 ///     ScheduleSummary object if data exists, None otherwise
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_schedule_summary(
     schedule_id: i64,
 ) -> PyResult<Option<crate::db::analytics::ScheduleSummary>> {
@@ -735,7 +735,7 @@ pub fn py_get_schedule_summary(
 ///
 /// Returns:
 ///     List of PriorityRate objects
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_priority_rates(
     schedule_id: i64,
 ) -> PyResult<Vec<crate::db::analytics::PriorityRate>> {
@@ -760,7 +760,7 @@ pub fn py_get_priority_rates(
 ///
 /// Returns:
 ///     List of VisibilityBin objects
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_visibility_bins(
     schedule_id: i64,
 ) -> PyResult<Vec<crate::db::analytics::VisibilityBin>> {
@@ -785,7 +785,7 @@ pub fn py_get_visibility_bins(
 ///
 /// Returns:
 ///     List of HeatmapBinData objects
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_heatmap_bins(
     schedule_id: i64,
 ) -> PyResult<Vec<crate::db::analytics::HeatmapBinData>> {
@@ -828,8 +828,8 @@ pub fn py_get_heatmap_bins(
 /// # Use custom bin duration (30 minutes)
 /// meta, bins = tsi_rust.py_populate_visibility_time_bins(schedule_id=42, bin_duration_seconds=1800)
 /// ```
-#[pyfunction]
-#[pyo3(signature = (schedule_id, bin_duration_seconds=None))]
+// #[pyfunction] - removed, function now internal only
+// #[pyo3(signature = (schedule_id, bin_duration_seconds=None))] - commented out, function now internal only
 pub fn py_populate_visibility_time_bins(
     schedule_id: i64,
     bin_duration_seconds: Option<i64>,
@@ -855,7 +855,7 @@ pub fn py_populate_visibility_time_bins(
 ///
 /// Returns:
 ///     True if visibility time bins exist, False otherwise
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_has_visibility_time_bins(schedule_id: i64) -> PyResult<bool> {
     let repo = get_repository()?;
 
@@ -878,7 +878,7 @@ pub fn py_has_visibility_time_bins(schedule_id: i64) -> PyResult<bool> {
 ///
 /// Returns:
 ///     Number of rows deleted
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_delete_visibility_time_bins(schedule_id: i64) -> PyResult<usize> {
     let repo = get_repository()?;
 
@@ -901,7 +901,7 @@ pub fn py_delete_visibility_time_bins(schedule_id: i64) -> PyResult<usize> {
 ///
 /// Returns:
 ///     VisibilityTimeMetadata object if data exists, None otherwise
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_visibility_metadata(
     schedule_id: i64,
 ) -> PyResult<Option<crate::db::analytics::VisibilityTimeMetadata>> {
@@ -953,7 +953,7 @@ pub fn py_get_visibility_metadata(
 /// for bin in bins:
 ///     print(f"Time: {bin['bin_start_unix']}, Visible: {bin['count']}")
 /// ```
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 #[allow(deprecated)]
 pub fn py_get_visibility_histogram_analytics(
     py: Python,

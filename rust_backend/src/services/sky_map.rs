@@ -152,7 +152,7 @@ pub async fn get_sky_map_data(schedule_id: i64) -> Result<SkyMapData, String> {
 
 /// Get complete sky map data with computed bins and metadata.
 /// This is the main Python-callable function for the sky map feature.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_sky_map_data(schedule_id: i64) -> PyResult<SkyMapData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
@@ -167,7 +167,7 @@ pub fn py_get_sky_map_data(schedule_id: i64) -> PyResult<SkyMapData> {
 }
 
 /// Alias for compatibility - uses analytics path.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_sky_map_data_analytics(schedule_id: i64) -> PyResult<SkyMapData> {
     py_get_sky_map_data(schedule_id)
 }

@@ -7,7 +7,6 @@
 //! - Constraints: Observing constraints (altitude, azimuth, fixed time)
 //! - ID types: Strongly-typed identifiers for database records
 
-use pyo3::{exceptions::PyValueError, prelude::*};
 use siderust::{
     astro::ModifiedJulianDate,
     coordinates::spherical::direction::ICRS
@@ -15,60 +14,49 @@ use siderust::{
 
 use qtty::*;
 
-macro_rules! py_id_type {
+macro_rules! id_type {
     ($(#[$meta:meta])* $name:ident, $desc:literal) => {
         $(#[$meta])*
-        #[pyclass(module = "tsi_rust")]
         #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
         pub struct $name(pub i64);
 
-        #[pymethods]
         impl $name {
-            #[new]
             pub fn new(value: i64) -> Self {
                 Self(value)
             }
 
-            #[getter]
             pub fn value(&self) -> i64 {
                 self.0
-            }
-
-            fn __repr__(&self) -> String {
-                format!("{}({})", $desc, self.0)
             }
         }
     };
 }
 
-py_id_type!(
+id_type!(
     /// Strongly-typed identifier for a schedule record (maps to BIGINT).
     ScheduleId,
     "ScheduleId"
 );
-py_id_type!(
+id_type!(
     /// Strongly-typed identifier for a target record.
     TargetId,
     "TargetId"
 );
-py_id_type!(
+id_type!(
     /// Strongly-typed identifier for a constraints record.
     ConstraintsId,
     "ConstraintsId"
 );
-py_id_type!(
+id_type!(
     /// Strongly-typed identifier for a scheduling block.
     SchedulingBlockId,
     "SchedulingBlockId"
 );
 
 /// Simple representation of a time window in Modified Julian Date.
-#[pyclass(module = "tsi_rust")]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Period {
-    #[pyo3(get)]
     pub start: ModifiedJulianDate,
-    #[pyo3(get)]
     pub stop: ModifiedJulianDate,
 }
 
@@ -97,49 +85,11 @@ impl Period {
     }
 }
 
-#[pymethods]
-impl Period {
-    #[new]
-    pub fn py_new(start_mjd: f64, stop_mjd: f64) -> PyResult<Self> {
-        Period::new(
-            ModifiedJulianDate::new(start_mjd),
-            ModifiedJulianDate::new(stop_mjd),
-        )
-        .ok_or_else(|| PyValueError::new_err("start must be before stop"))
-    }
-
-    #[getter]
-    pub fn duration_days(&self) -> f64 {
-        self.duration().value()
-    }
-
-    pub fn contains_mjd(&self, mjd: f64) -> bool {
-        self.contains(ModifiedJulianDate::new(mjd))
-    }
-
-    pub fn overlaps_period(&self, other: &Period) -> bool {
-        self.overlaps(other)
-    }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "Period(start={:.5}, stop={:.5})",
-            self.start.value(),
-            self.stop.value()
-        )
-    }
-}
-
-#[pyclass(module = "tsi_rust", get_all)]
 #[derive(Debug, Clone)]
 pub struct Constraints {
-    #[pyo3(name = "min_alt_deg")]
     pub min_alt: f64,
-    #[pyo3(name = "max_alt_deg")]
     pub max_alt: f64,
-    #[pyo3(name = "min_az_deg")]
     pub min_az: f64,
-    #[pyo3(name = "max_az_deg")]
     pub max_az: f64,
     pub fixed_time: Option<Period>,
 }
@@ -162,56 +112,17 @@ impl Constraints {
     }
 }
 
-#[pymethods]
-impl Constraints {
-    #[new]
-    #[pyo3(signature = (min_alt_deg, max_alt_deg, min_az_deg, max_az_deg, fixed_time=None))]
-    pub fn py_new(
-        min_alt_deg: f64,
-        max_alt_deg: f64,
-        min_az_deg: f64,
-        max_az_deg: f64,
-        fixed_time: Option<Period>,
-    ) -> Self {
-        Self {
-            min_alt: min_alt_deg,
-            max_alt: max_alt_deg,
-            min_az: min_az_deg,
-            max_az: max_az_deg,
-            fixed_time,
-        }
-    }
-
-    fn __repr__(&self) -> String {
-        let fixed = self
-            .fixed_time
-            .map(|p| format!("[{:.3}, {:.3}]", p.start.value(), p.stop.value()));
-        format!(
-            "Constraints(alt=({:.1}, {:.1}), az=({:.1}, {:.1}), fixed_time={:?})",
-            self.min_alt,
-            self.max_alt,
-            self.min_az,
-            self.max_az,
-            fixed
-        )
-    }
-}
 
 /// Atomic observing request (mirrors scheduling_blocks).
-#[pyclass(module = "tsi_rust", get_all)]
 #[derive(Debug, Clone)]
 pub struct SchedulingBlock {
     pub id: SchedulingBlockId,
     pub original_block_id: Option<String>,
-    #[pyo3(name = "target_ra_deg")]
     pub target_ra: f64,
-    #[pyo3(name = "target_dec_deg")]
     pub target_dec: f64,
     pub constraints: Constraints,
     pub priority: f64,
-    #[pyo3(name = "min_observation_seconds")]
     pub min_observation: f64,
-    #[pyo3(name = "requested_duration_seconds")]
     pub requested_duration: f64,
     pub visibility_periods: Vec<Period>,
     pub scheduled_period: Option<Period>,
@@ -231,100 +142,27 @@ impl SchedulingBlock {
     }
 }
 
-#[pymethods]
-impl SchedulingBlock {
-    #[new]
-    #[pyo3(signature = (id, ra_deg, dec_deg, constraints, priority, min_observation_seconds, requested_duration_seconds, visibility_periods, scheduled_period=None))]
-    #[allow(clippy::too_many_arguments)]
-    pub fn py_new(
-        id: SchedulingBlockId,
-        ra_deg: f64,
-        dec_deg: f64,
-        constraints: Constraints,
-        priority: f64,
-        min_observation_seconds: f64,
-        requested_duration_seconds: f64,
-        visibility_periods: Vec<Period>,
-        scheduled_period: Option<Period>,
-    ) -> Self {
-        Self {
-            id,
-            original_block_id: None,
-            target_ra: ra_deg,
-            target_dec: dec_deg,
-            constraints,
-            priority,
-            min_observation: min_observation_seconds,
-            requested_duration: requested_duration_seconds,
-            visibility_periods,
-            scheduled_period,
-        }
-    }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "SchedulingBlock(id={}, priority={:.1}, target=({:.3}, {:.3}))",
-            self.id.0,
-            self.priority,
-            self.target_ra,
-            self.target_dec
-        )
-    }
-}
 
 /// Core "Schedule" concept:
 /// - Metadata (name, checksum, etc.)
 /// - Dark periods
 /// - Assigned scheduling blocks with optional execution windows
-#[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone)]
 pub struct Schedule {
-    #[pyo3(get)]
     pub id: Option<ScheduleId>,
-    #[pyo3(get)]
     pub name: String,
-    #[pyo3(get)]
     pub checksum: String,
-    #[pyo3(get)]
     pub dark_periods: Vec<Period>,
-    #[pyo3(get)]
     pub blocks: Vec<SchedulingBlock>,
 }
 
-#[pymethods]
 impl Schedule {
-    #[new]
-    pub fn py_new(
-        id: Option<ScheduleId>,
-        name: String,
-        checksum: String,
-        dark_periods: Vec<Period>,
-        blocks: Vec<SchedulingBlock>,
-    ) -> Self {
-        Self {
-            id,
-            name,
-            checksum,
-            dark_periods,
-            blocks,
-        }
-    }
-
     pub fn block_count(&self) -> usize {
         self.blocks.len()
     }
 
     pub fn dark_period_count(&self) -> usize {
         self.dark_periods.len()
-    }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "Schedule(name={}, blocks={}, dark_periods={})",
-            self.name,
-            self.blocks.len(),
-            self.dark_periods.len()
-        )
     }
 }
 
@@ -991,17 +829,17 @@ mod tests {
         let block_2662 = schedule.blocks.iter().find(|block| block.id.0 == 1000002662)
             .expect("Scheduling block 1000002662 should exist");
         assert_eq!(block_2662.visibility_periods.len(), 3, "Expected three possible periods");
-        assert_close(block_2662.constraints.min_alt.value(), 45.0, "minimum altitude");
-        assert_close(block_2662.constraints.max_alt.value(), 90.0, "maximum altitude");
-        assert_close(block_2662.constraints.min_az.value(), 0.0, "minimum azimuth");
-        assert_close(block_2662.constraints.max_az.value(), 360.0, "maximum azimuth");
+        assert_close(block_2662.constraints.min_alt, 45.0, "minimum altitude");
+        assert_close(block_2662.constraints.max_alt, 90.0, "maximum altitude");
+        assert_close(block_2662.constraints.min_az, 0.0, "minimum azimuth");
+        assert_close(block_2662.constraints.max_az, 360.0, "maximum azimuth");
 
         let fixed_window = block_2662.constraints.fixed_time
             .expect("Block 1000002662 should have a fixed time window");
         assert_close(fixed_window.start.value(), 61771.0, "fixed window start");
         assert_close(fixed_window.stop.value(), 61778.0, "fixed window stop");
 
-        assert_close(block_2662.min_observation.value(), 1800.0, "min observation seconds");
-        assert_close(block_2662.requested_duration.value(), 1800.0, "requested duration seconds");
+        assert_close(block_2662.min_observation, 1800.0, "min observation seconds");
+        assert_close(block_2662.requested_duration, 1800.0, "requested duration seconds");
     }
 }

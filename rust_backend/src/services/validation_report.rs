@@ -157,7 +157,7 @@ impl From<ValidationReportData> for PyValidationReportData {
 /// for issue in report.impossible_blocks:
 ///     print(f"Block {issue.block_id}: {issue.description}")
 /// ```
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_validation_report(schedule_id: i64) -> PyResult<PyValidationReportData> {
     // Get the initialized repository
     let repo = get_repository()?;

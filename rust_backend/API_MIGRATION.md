@@ -10,12 +10,14 @@ Created a new `api/` module to isolate PyO3 from internal Rust models, allowing 
 - **api/types.rs** (682 lines): 40+ Python-facing DTOs using only primitives (f64, String, Vec, HashMap)
 - **api/conversions.rs** (514 lines): Type conversion layer (From/TryFrom implementations)
 - **api/streamlit.rs** (382 lines): PyO3 function wrappers exposing services to Python
+- **db/models/**: Removed all PyO3 derives (#[pyclass], #[pymethods]) - now pure Rust types
 
 ### Key Features
-1. **Type Isolation**: All PyO3 derives (#[pyclass], #[pyfunction]) moved to api/ module
+1. **Type Isolation**: All PyO3 derives (#[pyclass], #[pyfunction]) confined to api/ module only
 2. **Primitive Types**: API DTOs use f64 instead of qtty types (MJD, Degrees, Seconds)
 3. **Conversion Layer**: Automatic conversion between internal models and API DTOs
-4. **Clean Compilation**: Code compiles without errors or warnings
+4. **Clean Compilation**: New API module (tsi_rust_api) compiles without errors or warnings
+5. **Internal Models Clean**: db/models/ no longer have any PyO3 dependencies
 
 ### API Functions Exposed
 - Time conversion: `mjd_to_datetime`, `datetime_to_mjd`
@@ -33,6 +35,24 @@ Created a new `api/` module to isolate PyO3 from internal Rust models, allowing 
 - **IDs**: BlockId/ScheduleId → i64, string IDs preserved
 
 ## ⚠️ Known Limitations
+
+### Old tsi_rust Module
+The original `tsi_rust` Python module is now **deprecated** due to internal models no longer having PyO3 derives. Users must migrate to the new `tsi_rust_api` module.
+
+**Migration:**
+```python
+# Old (deprecated)
+# from tsi_rust import ...
+
+# New (recommended)
+from tsi_rust_api import (
+    init_database,
+    store_schedule, 
+    get_sky_map_data,
+    get_trends_data,
+    # ... etc
+)
+```
 
 ### Placeholder Implementations
 Two functions return placeholder data due to internal functions returning `Py<PyAny>`:
