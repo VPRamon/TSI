@@ -11,6 +11,7 @@ use tokio::runtime::Runtime;
 // Import the global repository accessor
 use crate::db::repository::AnalyticsRepository;
 use crate::python::database::get_repository;
+use qtty::time::Hours;
 
 /// Compute analytics metrics from insights blocks.
 fn compute_metrics(blocks: &[InsightsBlock]) -> AnalyticsMetrics {
@@ -70,11 +71,14 @@ fn compute_metrics(blocks: &[InsightsBlock]) -> AnalyticsMetrics {
         0.0
     };
 
-    // Total visibility and requested hours
-    let total_visibility_hours = blocks.iter().map(|b| b.total_visibility_hours).sum();
-    let requested_hours: Vec<f64> = blocks.iter().map(|b| b.requested_hours).collect();
-    let mean_requested_hours = if !requested_hours.is_empty() {
-        requested_hours.iter().sum::<f64>() / requested_hours.len() as f64
+    // Total visibility and requested hours (work with raw f64 values, then wrap as Hours)
+    let total_visibility_hours_f64: f64 = blocks
+        .iter()
+        .map(|b| b.total_visibility_hours.value())
+        .sum();
+    let requested_hours_vec: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
+    let mean_requested_hours_f64 = if !requested_hours_vec.is_empty() {
+        requested_hours_vec.iter().sum::<f64>() / requested_hours_vec.len() as f64
     } else {
         0.0
     };
@@ -88,8 +92,8 @@ fn compute_metrics(blocks: &[InsightsBlock]) -> AnalyticsMetrics {
         median_priority,
         mean_priority_scheduled,
         mean_priority_unscheduled,
-        total_visibility_hours,
-        mean_requested_hours,
+        total_visibility_hours: qtty::time::Hours::new(total_visibility_hours_f64),
+        mean_requested_hours: qtty::time::Hours::new(mean_requested_hours_f64),
     }
 }
 
@@ -148,11 +152,11 @@ fn compute_correlations(blocks: &[InsightsBlock]) -> Vec<CorrelationEntry> {
         return vec![];
     }
 
-    // Extract variables
+    // Extract variables (use primitive values for statistical routines)
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
-    let visibility: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours).collect();
-    let requested: Vec<f64> = blocks.iter().map(|b| b.requested_hours).collect();
-    let elevation: Vec<f64> = blocks.iter().map(|b| b.elevation_range_deg).collect();
+    let visibility: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours.value()).collect();
+    let requested: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
+    let elevation: Vec<f64> = blocks.iter().map(|b| b.elevation_range_deg.value()).collect();
 
     let variables = vec![
         ("priority", &priorities[..]),
@@ -196,7 +200,8 @@ fn get_top_observations(blocks: &[InsightsBlock], by: &str, n: usize) -> Vec<Top
         "total_visibility_hours" => {
             sorted_blocks.sort_by(|a, b| {
                 b.total_visibility_hours
-                    .partial_cmp(&a.total_visibility_hours)
+                    .value()
+                    .partial_cmp(&a.total_visibility_hours.value())
                     .unwrap_or(std::cmp::Ordering::Equal)
             });
         }
@@ -240,13 +245,18 @@ fn find_conflicts(blocks: &[InsightsBlock]) -> Vec<ConflictRecord> {
             let start2 = block2.scheduled_start_mjd.unwrap();
             let stop2 = block2.scheduled_stop_mjd.unwrap();
 
-            // Check for overlap
-            let overlap_start = start1.max(start2);
-            let overlap_stop = stop1.min(stop2);
+            // Use primitive mjd values for numeric overlap calculations
+            let s1 = start1.value();
+            let e1 = stop1.value();
+            let s2 = start2.value();
+            let e2 = stop2.value();
+
+            let overlap_start = s1.max(s2);
+            let overlap_stop = e1.min(e2);
 
             if overlap_start < overlap_stop {
                 let overlap_days = overlap_stop - overlap_start;
-                let overlap_hours = overlap_days * 24.0;
+                let overlap_hours_f64 = overlap_days * 24.0;
 
                 conflicts.push(ConflictRecord {
                     block_id_1: block1.original_block_id.clone(),
@@ -255,7 +265,7 @@ fn find_conflicts(blocks: &[InsightsBlock]) -> Vec<ConflictRecord> {
                     stop_time_1: stop1,
                     start_time_2: start2,
                     stop_time_2: stop2,
-                    overlap_hours,
+                    overlap_hours: Hours::new(overlap_hours_f64),
                 });
             }
         }
@@ -270,7 +280,7 @@ pub fn compute_insights_data(blocks: Vec<InsightsBlock>) -> Result<InsightsData,
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
     let impossible_count = blocks
         .iter()
-        .filter(|b| b.total_visibility_hours == 0.0)
+        .filter(|b| b.total_visibility_hours.value() == 0.0)
         .count();
 
     // Compute all analytics
@@ -321,19 +331,19 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
         .enumerate()
         .map(|(idx, b)| {
             let (scheduled_start_mjd, scheduled_stop_mjd, scheduled) = match &b.scheduled_period {
-                Some(period) => (Some(period.start.value()), Some(period.stop.value()), true),
+                Some(period) => (Some(period.start), Some(period.stop), true),
                 None => (None, None, false),
             };
 
             // Calculate elevation range as a proxy (using duration as a heuristic)
-            let elevation_range_deg = (b.requested_duration_seconds / 3600.0) * 10.0;
+            let elevation_range_deg = qtty::angular::Degrees::new((b.requested_duration_seconds / 3600.0) * 10.0);
 
             InsightsBlock {
                 scheduling_block_id: idx as i64 + 1, // Sequential index for internal tracking
                 original_block_id: b.original_block_id,
                 priority: b.priority,
-                total_visibility_hours: b.requested_duration_seconds / 3600.0, // Use requested as proxy
-                requested_hours: b.requested_duration_seconds / 3600.0,
+                total_visibility_hours: qtty::time::Hours::new(b.requested_duration_seconds / 3600.0), // Use requested as proxy
+                requested_hours: qtty::time::Hours::new(b.requested_duration_seconds / 3600.0),
                 elevation_range_deg,
                 scheduled,
                 scheduled_start_mjd,
@@ -344,7 +354,7 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
 
     // Filter out impossible blocks (zero visibility)
     // These are tracked in the validation results table
-    blocks.retain(|b| b.total_visibility_hours > 0.0);
+    blocks.retain(|b| b.total_visibility_hours.value() > 0.0);
 
     compute_insights_data(blocks)
 }
@@ -372,33 +382,35 @@ pub fn py_get_insights_data(schedule_id: i64) -> PyResult<InsightsData> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use qtty::angular::Degrees;
+    use siderust::astro::ModifiedJulianDate;
 
     #[test]
     fn test_compute_metrics() {
         let blocks = vec![
-            InsightsBlock {
-                scheduling_block_id: 1,
-                original_block_id: "SB001".to_string(),
-                priority: 5.0,
-                total_visibility_hours: 10.0,
-                requested_hours: 2.0,
-                elevation_range_deg: 45.0,
-                scheduled: true,
-                scheduled_start_mjd: Some(60000.0),
-                scheduled_stop_mjd: Some(60001.0),
-            },
-            InsightsBlock {
-                scheduling_block_id: 2,
-                original_block_id: "SB002".to_string(),
-                priority: 3.0,
-                total_visibility_hours: 0.0,
-                requested_hours: 1.0,
-                elevation_range_deg: 30.0,
-                scheduled: false,
-                scheduled_start_mjd: None,
-                scheduled_stop_mjd: None,
-            },
-        ];
+                InsightsBlock {
+                    scheduling_block_id: 1,
+                    original_block_id: "SB001".to_string(),
+                    priority: 5.0,
+                    total_visibility_hours: Hours::new(10.0),
+                    requested_hours: Hours::new(2.0),
+                    elevation_range_deg: Degrees::new(45.0),
+                    scheduled: true,
+                    scheduled_start_mjd: Some(ModifiedJulianDate::new(60000.0)),
+                    scheduled_stop_mjd: Some(ModifiedJulianDate::new(60001.0)),
+                },
+                InsightsBlock {
+                    scheduling_block_id: 2,
+                    original_block_id: "SB002".to_string(),
+                    priority: 3.0,
+                    total_visibility_hours: Hours::new(0.0),
+                    requested_hours: Hours::new(1.0),
+                    elevation_range_deg: Degrees::new(30.0),
+                    scheduled: false,
+                    scheduled_start_mjd: None,
+                    scheduled_stop_mjd: None,
+                },
+            ];
 
         let metrics = compute_metrics(&blocks);
         assert_eq!(metrics.total_observations, 2);
@@ -423,9 +435,9 @@ mod tests {
                 scheduling_block_id: 1,
                 original_block_id: "SB001".to_string(),
                 priority: 5.0,
-                total_visibility_hours: 10.0,
-                requested_hours: 2.0,
-                elevation_range_deg: 45.0,
+                total_visibility_hours: Hours::new(10.0),
+                requested_hours: Hours::new(2.0),
+                elevation_range_deg: Degrees::new(45.0),
                 scheduled: true,
                 scheduled_start_mjd: None,
                 scheduled_stop_mjd: None,
@@ -434,9 +446,9 @@ mod tests {
                 scheduling_block_id: 2,
                 original_block_id: "SB002".to_string(),
                 priority: 8.0,
-                total_visibility_hours: 5.0,
-                requested_hours: 1.0,
-                elevation_range_deg: 30.0,
+                total_visibility_hours: Hours::new(5.0),
+                requested_hours: Hours::new(1.0),
+                elevation_range_deg: Degrees::new(30.0),
                 scheduled: false,
                 scheduled_start_mjd: None,
                 scheduled_stop_mjd: None,

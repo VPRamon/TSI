@@ -24,10 +24,7 @@ pub fn compute_schedule_timeline_data(
             total_count: 0,
             scheduled_count: 0,
             unique_months: vec![],
-            dark_periods: dark_periods
-                .into_iter()
-                .map(|p| (p.start.value(), p.stop.value()))
-                .collect(),
+            dark_periods: dark_periods,
         });
     }
 
@@ -40,13 +37,12 @@ pub fn compute_schedule_timeline_data(
         priority_min = priority_min.min(block.priority);
         priority_max = priority_max.max(block.priority);
 
-        // Convert MJD to year-month string
+        // Convert MJD to year-month string using primitive mjd value
         // MJD 0 = November 17, 1858
         // Unix epoch (Jan 1, 1970) = MJD 40587
-        let unix_timestamp = (block.scheduled_start_mjd - 40587.0) * 86400.0;
-        let datetime = chrono::DateTime::from_timestamp(unix_timestamp as i64, 0);
-
-        if let Some(dt) = datetime {
+        let unix_timestamp = (block.scheduled_start_mjd.value() - 40587.0) * 86400.0;
+        if let Some(naive) = chrono::NaiveDateTime::from_timestamp_opt(unix_timestamp as i64, 0) {
+            let dt = chrono::DateTime::<chrono::Utc>::from_utc(naive, chrono::Utc);
             let month_label = dt.format("%Y-%m").to_string();
             unique_months.insert(month_label);
         }
@@ -74,10 +70,7 @@ pub fn compute_schedule_timeline_data(
         total_count: blocks.len(),
         scheduled_count: blocks.len(),
         unique_months: sorted_months,
-        dark_periods: dark_periods
-            .into_iter()
-            .map(|p| (p.start.value(), p.stop.value()))
-            .collect(),
+        dark_periods: dark_periods,
     })
 }
 
@@ -139,24 +132,24 @@ mod tests {
                 scheduling_block_id: 1,
                 original_block_id: "SB001".to_string(),
                 priority: 5.0,
-                scheduled_start_mjd: 59000.0, // 2020-05-10
-                scheduled_stop_mjd: 59001.0,
-                ra_deg: 180.0,
-                dec_deg: 45.0,
-                requested_hours: 1.0,
-                total_visibility_hours: 5.0,
+                scheduled_start_mjd: siderust::astro::ModifiedJulianDate::new(59000.0), // 2020-05-10
+                scheduled_stop_mjd: siderust::astro::ModifiedJulianDate::new(59001.0),
+                ra_deg: qtty::angular::Degrees::new(180.0),
+                dec_deg: qtty::angular::Degrees::new(45.0),
+                requested_hours: qtty::time::Hours::new(1.0),
+                total_visibility_hours: qtty::time::Hours::new(5.0),
                 num_visibility_periods: 3,
             },
             ScheduleTimelineBlock {
                 scheduling_block_id: 2,
                 original_block_id: "SB002".to_string(),
                 priority: 8.0,
-                scheduled_start_mjd: 59030.0, // 2020-06-09
-                scheduled_stop_mjd: 59031.0,
-                ra_deg: 200.0,
-                dec_deg: -30.0,
-                requested_hours: 2.0,
-                total_visibility_hours: 8.0,
+                scheduled_start_mjd: siderust::astro::ModifiedJulianDate::new(59030.0), // 2020-06-09
+                scheduled_stop_mjd: siderust::astro::ModifiedJulianDate::new(59031.0),
+                ra_deg: qtty::angular::Degrees::new(200.0),
+                dec_deg: qtty::angular::Degrees::new(-30.0),
+                requested_hours: qtty::time::Hours::new(2.0),
+                total_visibility_hours: qtty::time::Hours::new(8.0),
                 num_visibility_periods: 4,
             },
         ];

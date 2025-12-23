@@ -6,10 +6,8 @@
 //! 3. Validation integrates correctly with analytics pipeline
 //! 4. All validation rules work as expected
 
-use siderust::{
-    astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS, units::angular::Degrees,
-    units::time::Seconds,
-};
+use siderust::astro::ModifiedJulianDate;
+use qtty::{angular::Degrees, time::Seconds};
 use tsi_rust::db::{
     models::{Constraints, Period, Schedule, SchedulingBlock, SchedulingBlockId},
     repositories::LocalRepository,
@@ -34,7 +32,8 @@ fn create_test_block(
     SchedulingBlock {
         id: SchedulingBlockId(id),
         original_block_id: Some(format!("TEST_{}", id)),
-        target: ICRS::new(Degrees::new(ra_deg), Degrees::new(dec_deg)),
+        target_ra: Degrees::new(ra_deg),
+        target_dec: Degrees::new(dec_deg),
         constraints: Constraints {
             min_alt: Degrees::new(30.0),
             max_alt: Degrees::new(80.0),
@@ -78,14 +77,14 @@ fn create_validation_input(block: &SchedulingBlock) -> BlockForValidation {
         scheduled_start_mjd: None,
         scheduled_stop_mjd: None,
         target_ra_deg: block
-            .target
+            .target()
             .ra()
-            .to::<siderust::units::angular::Degree>()
+            .to::<qtty::angular::Degree>()
             .value(),
         target_dec_deg: block
-            .target
+            .target()
             .dec()
-            .to::<siderust::units::angular::Degree>()
+            .to::<qtty::angular::Degree>()
             .value(),
     }
 }

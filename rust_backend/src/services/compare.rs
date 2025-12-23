@@ -21,7 +21,7 @@ fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
             total_priority: 0.0,
             mean_priority: 0.0,
             median_priority: 0.0,
-            total_hours: 0.0,
+            total_hours: qtty::time::Hours::new(0.0),
         };
     }
 
@@ -37,7 +37,7 @@ fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
         sorted_priorities[scheduled_count / 2]
     };
 
-    let total_hours: f64 = scheduled_blocks.iter().map(|b| b.requested_hours).sum();
+    let total_hours_f64: f64 = scheduled_blocks.iter().map(|b| b.requested_hours.value()).sum();
 
     CompareStats {
         scheduled_count,
@@ -45,7 +45,7 @@ fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
         total_priority,
         mean_priority,
         median_priority,
-        total_hours,
+        total_hours: qtty::time::Hours::new(total_hours_f64),
     }
 }
 

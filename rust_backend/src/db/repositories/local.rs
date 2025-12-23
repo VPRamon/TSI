@@ -445,21 +445,21 @@ impl AnalyticsRepository for LocalRepository {
             .blocks
             .iter()
             .map(|b| {
-                let total_visibility_hours = b
+                let total_visibility_hours_f64: f64 = b
                     .visibility_periods
                     .iter()
                     .map(|p| p.duration().value() * 24.0)
                     .sum();
 
-                let requested_hours = b.requested_duration.value() / 3600.0;
+                let requested_hours_f64 = b.requested_duration.value() / 3600.0;
 
                 let elevation_range_deg =
                     b.constraints.max_alt.value() - b.constraints.min_alt.value();
 
                 DistributionBlock {
                     priority: b.priority,
-                    total_visibility_hours,
-                    requested_hours,
+                    total_visibility_hours: total_visibility_hours_f64,
+                    requested_hours: requested_hours_f64,
                     elevation_range_deg,
                     scheduled: b.scheduled_period.is_some(),
                 }
@@ -910,12 +910,12 @@ impl VisualizationRepository for LocalRepository {
                     scheduling_block_id: idx as i64 + 1,
                     original_block_id,
                     priority: b.priority,
-                    scheduled_start_mjd: scheduled_period.start.value(),
-                    scheduled_stop_mjd: scheduled_period.stop.value(),
-                    ra_deg: b.target_ra.value(),
-                    dec_deg: b.target_dec.value(),
-                    requested_hours,
-                    total_visibility_hours,
+                    scheduled_start_mjd: scheduled_period.start,
+                    scheduled_stop_mjd: scheduled_period.stop,
+                    ra_deg: b.target_ra,
+                    dec_deg: b.target_dec,
+                    requested_hours: qtty::time::Hours::new(requested_hours),
+                    total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
                     num_visibility_periods: b.visibility_periods.len(),
                 })
             })
@@ -938,13 +938,13 @@ impl VisualizationRepository for LocalRepository {
             .iter()
             .enumerate()
             .map(|(idx, b)| {
-                let requested_hours = b.requested_duration.value() / 3600.0;
+                let requested_hours_f64 = b.requested_duration.value() / 3600.0;
 
                 CompareBlock {
                     scheduling_block_id: format!("{}", idx + 1),
                     priority: b.priority,
                     scheduled: b.scheduled_period.is_some(),
-                    requested_hours,
+                    requested_hours: qtty::time::Hours::new(requested_hours_f64),
                 }
             })
             .collect();
