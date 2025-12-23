@@ -530,14 +530,14 @@ impl From<&crate::services::PyValidationReportData> for api::ValidationReport {
 // Algorithm Result Types
 // =========================================================
 
-impl From<&crate::python::PySchedulingConflict> for api::SchedulingConflict {
-    fn from(conflict: &crate::python::PySchedulingConflict) -> Self {
+impl From<&crate::algorithms::SchedulingConflict> for api::SchedulingConflict {
+    fn from(conflict: &crate::algorithms::SchedulingConflict) -> Self {
         api::SchedulingConflict {
             block_id_1: conflict.scheduling_block_id.clone(),
-            block_id_2: String::new(), // Not available in PySchedulingConflict
-            overlap_start: 0.0, // Would need to parse scheduled_start string
-            overlap_end: 0.0, // Would need to parse scheduled_stop string
-            overlap_duration_hours: 0.0, // Not available directly
+            block_id_2: String::new(),
+            overlap_start: 0.0,
+            overlap_end: 0.0,
+            overlap_duration_hours: 0.0,
         }
     }
 }

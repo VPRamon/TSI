@@ -13,7 +13,13 @@
 //! 5. Return to Python with proper error handling
 
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
+use serde_json::Value;
+use tokio::runtime::Runtime;
+
 use crate::api::types as api;
+use crate::algorithms;
+use crate::db::services as db_services;
 
 /// Register all API functions with the Python module.
 ///
@@ -112,7 +118,13 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 ///     Python datetime object (UTC timezone)
 #[pyfunction]
 fn mjd_to_datetime(py: Python<'_>, mjd: f64) -> PyResult<Py<PyAny>> {
-    crate::python::mjd_to_datetime(py, mjd)
+    // Convert MJD -> seconds since UNIX epoch then use Python's datetime
+    let secs = (mjd - 40587.0) * 86400.0;
+    let dt = py
+        .import("datetime")?
+        .getattr("datetime")?
+        .call1((secs,))?;
+    Ok(dt.into())
 }
 
 /// Convert Python datetime to Modified Julian Date.
@@ -124,8 +136,24 @@ fn mjd_to_datetime(py: Python<'_>, mjd: f64) -> PyResult<Py<PyAny>> {
 ///     Modified Julian Date as float
 #[pyfunction]
 fn datetime_to_mjd(dt: Py<PyAny>) -> PyResult<f64> {
-    Python::attach(|py| {
-        crate::python::datetime_to_mjd(dt.bind(py))
+    Python::with_gil(|py| {
+        let dt_obj = dt.as_ref();
+        let datetime_mod = py.import("datetime")?;
+        let timezone = datetime_mod.getattr("timezone")?.getattr("utc")?;
+
+        let tzinfo = dt_obj.getattr(py, "tzinfo")?;
+
+        let timestamp = if tzinfo.is_none(py) {
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("tzinfo", timezone)?;
+            let aware = dt_obj.call_method(py, "replace", (), Some(&kwargs))?;
+            aware.call_method0(py, "timestamp")?.extract::<f64>(py)?
+        } else {
+            dt_obj.call_method0(py, "timestamp")?.extract::<f64>(py)?
+        };
+
+        let mjd = timestamp / 86400.0 + 40587.0;
+        Ok(mjd)
     })
 }
 
@@ -151,7 +179,16 @@ fn init_database() -> PyResult<()> {
 ///     Health status message
 #[pyfunction]
 fn db_health_check() -> PyResult<bool> {
-    crate::python::py_db_health_check()
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+    let repo = crate::python::get_repository()?;
+    runtime
+        .block_on(db_services::health_check(repo.as_ref()))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
 }
 
 /// Store a schedule in the database with optional analytics population.
@@ -176,7 +213,8 @@ fn store_schedule(
     // py_store_schedule returns Py<PyAny> (a Python dict), not a Rust struct
     // We return the schedule name as confirmation
     let visibility_ref = visibility_json.as_deref();
-    crate::python::py_store_schedule(&schedule_name, &schedule_json, visibility_ref)?;
+    let schedule = crate::python::parse_schedule_from_json(&schedule_name, &schedule_json, visibility_ref)?;
+    let _metadata = crate::python::store_schedule_in_db(&schedule, true, false)?;
     Ok(schedule_name)
 }
 
@@ -186,11 +224,14 @@ fn store_schedule(
 ///     List of ScheduleInfo objects with metadata and counts
 #[pyfunction]
 fn list_schedules() -> PyResult<Vec<api::ScheduleInfo>> {
-    // Call the internal function and convert the returned Vec to Vec<ScheduleInfo>
-    let _schedules_result = crate::python::py_list_schedules()?;
-    // The internal function returns Py<PyAny> (Python list), so we can't iterate directly
-    // For now, return empty vec - would need proper deserialization
-    Ok(Vec::new())
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
+    })?;
+    let repo = crate::python::get_repository()?;
+    let schedules = runtime
+        .block_on(db_services::list_schedules(repo.as_ref()))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+    Ok(schedules.iter().map(|s| api::ScheduleInfo::from(s)).collect())
 }
 
 /// Get a specific schedule by ID.
@@ -202,14 +243,14 @@ fn list_schedules() -> PyResult<Vec<api::ScheduleInfo>> {
 ///     Schedule object with all blocks and periods
 #[pyfunction]
 fn get_schedule(_schedule_id: i64) -> PyResult<api::Schedule> {
-    // Internal function returns Py<PyAny>, would need deserialization
-    // For now, return minimal schedule
-    Ok(api::Schedule {
-        name: String::new(),
-        blocks: Vec::new(),
-        dark_periods: Vec::new(),
-        possible_periods: Vec::new(),
-    })
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
+    })?;
+    let repo = crate::python::get_repository()?;
+    let schedule = runtime
+        .block_on(db_services::get_schedule(repo.as_ref(), _schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+    Ok((&schedule).into())
 }
 
 // =========================================================
@@ -225,7 +266,14 @@ fn get_schedule(_schedule_id: i64) -> PyResult<api::Schedule> {
 ///     Number of blocks processed
 #[pyfunction]
 fn populate_analytics(schedule_id: i64) -> PyResult<usize> {
-    crate::python::py_populate_analytics(schedule_id)
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
+    })?;
+    let repo = crate::python::get_repository()?;
+    runtime
+        .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+    Ok(0)
 }
 
 /// Check if Phase 1 analytics exist for a schedule.
@@ -237,7 +285,13 @@ fn populate_analytics(schedule_id: i64) -> PyResult<usize> {
 ///     True if analytics data exists
 #[pyfunction]
 fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
-    crate::python::py_has_analytics_data(schedule_id)
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
+    })?;
+    let repo = crate::python::get_repository()?;
+    runtime
+        .block_on(db_services::has_analytics_data(repo.as_ref(), schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
 }
 
 // =========================================================
@@ -343,8 +397,13 @@ fn get_compare_data(schedule_id_a: i64, schedule_id_b: i64) -> PyResult<api::Com
 ///     List of SchedulingConflict objects
 #[pyfunction]
 fn find_conflicts(schedule_json: String) -> PyResult<Vec<api::SchedulingConflict>> {
-    let conflicts = crate::python::py_find_conflicts(schedule_json)?;
-    Ok(conflicts.iter().map(|c| c.into()).collect())
+    let records: Vec<Value> = serde_json::from_str(&schedule_json).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
+    })?;
+    let conflicts = algorithms::find_conflicts(&records).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Conflict detection failed: {}", e))
+    })?;
+    Ok(conflicts.iter().map(|c| api::SchedulingConflict::from(c)).collect())
 }
 
 /// Get top N observations by a specific criterion.
@@ -359,8 +418,13 @@ fn find_conflicts(schedule_json: String) -> PyResult<Vec<api::SchedulingConflict
 #[pyfunction]
 #[pyo3(signature = (schedule_json, by, n=10))]
 fn get_top_observations(schedule_json: String, by: String, n: usize) -> PyResult<String> {
-    // py_get_top_observations returns a JSON string, not a typed Vec
-    crate::python::py_get_top_observations(schedule_json, &by, n)
+    let records: Vec<Value> = serde_json::from_str(&schedule_json).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
+    })?;
+    let top = algorithms::get_top_observations(&records, &by, n).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Top observations failed: {}", e))
+    })?;
+    serde_json::to_string(&top).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e)))
 }
 
 // =========================================================
