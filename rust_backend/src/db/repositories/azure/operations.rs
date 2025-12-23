@@ -2133,10 +2133,24 @@ pub async fn fetch_blocks_for_histogram(
 
         let visibility_periods_json: Option<&str> = row.get(2);
 
+        // Parse JSON into Vec<Period> at repository boundary using serde
+        let visibility_periods = visibility_periods_json.and_then(|json_str| {
+            serde_json::from_str::<Vec<Period>>(json_str)
+                .map_err(|e| {
+                    log::warn!(
+                        "Failed to deserialize visibility periods JSON for block {}: {}",
+                        scheduling_block_id,
+                        e
+                    );
+                    e
+                })
+                .ok()
+        });
+
         blocks.push(crate::db::models::BlockHistogramData {
             scheduling_block_id,
             priority,
-            visibility_periods_json: visibility_periods_json.map(|s| s.to_string()),
+            visibility_periods,
         });
     }
 

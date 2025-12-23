@@ -74,8 +74,8 @@ pub struct BlockHistogramData {
     pub scheduling_block_id: i64,
     /// Priority of the block
     pub priority: i32,
-    /// JSON string containing visibility periods: [{"start": mjd, "stop": mjd}, ...]
-    pub visibility_periods_json: Option<String>,
+    /// Visibility periods for this block
+    pub visibility_periods: Option<Vec<Period>>,
 }
 
 // =========================================================
