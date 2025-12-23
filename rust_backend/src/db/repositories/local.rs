@@ -326,15 +326,15 @@ impl AnalyticsRepository for LocalRepository {
                     schedule_id,
                     scheduling_block_id: b.id.0, // Use actual block ID
                     priority: b.priority,
-                    requested_duration_sec: b.requested_duration as i32,
-                    min_observation_sec: b.min_observation as i32,
+                    requested_duration_sec: b.requested_duration.value() as i32,
+                    min_observation_sec: b.min_observation.value() as i32,
                     total_visibility_hours: b
                         .visibility_periods
                         .iter()
                         .map(|p| p.duration().value() * 24.0)
                         .sum(),
-                    min_alt_deg: Some(b.constraints.min_alt),
-                    max_alt_deg: Some(b.constraints.max_alt),
+                    min_alt_deg: Some(b.constraints.min_alt.value()),
+                    max_alt_deg: Some(b.constraints.max_alt.value()),
                     constraint_start_mjd: b
                         .constraints
                         .fixed_time
@@ -343,8 +343,8 @@ impl AnalyticsRepository for LocalRepository {
                     constraint_stop_mjd: b.constraints.fixed_time.as_ref().map(|p| p.stop.value()),
                     scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start.value()),
                     scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop.value()),
-                    target_ra_deg: b.target_ra,
-                    target_dec_deg: b.target_dec,
+                    target_ra_deg: b.target_ra.value(),
+                    target_dec_deg: b.target_dec.value(),
                 }
             })
             .collect();
@@ -421,9 +421,9 @@ impl AnalyticsRepository for LocalRepository {
                     original_block_id,
                     priority: b.priority,
                     priority_bin: "".to_string(), // Will be computed by sky_map service
-                    requested_duration_seconds: b.requested_duration,
-                    target_ra_deg: b.target_ra,
-                    target_dec_deg: b.target_dec,
+                    requested_duration_seconds: b.requested_duration.value(),
+                    target_ra_deg: b.target_ra.value(),
+                    target_dec_deg: b.target_dec.value(),
                     scheduled_period: b.scheduled_period,
                 }
             })
@@ -451,10 +451,10 @@ impl AnalyticsRepository for LocalRepository {
                     .map(|p| p.duration().value() * 24.0)
                     .sum();
 
-                let requested_hours = b.requested_duration / 3600.0;
+                let requested_hours = b.requested_duration.value() / 3600.0;
 
                 let elevation_range_deg =
-                    b.constraints.max_alt - b.constraints.min_alt;
+                    b.constraints.max_alt.value() - b.constraints.min_alt.value();
 
                 DistributionBlock {
                     priority: b.priority,
@@ -898,7 +898,7 @@ impl VisualizationRepository for LocalRepository {
                     .map(|p| p.duration().value() * 24.0)
                     .sum();
 
-                let requested_hours = b.requested_duration / 3600.0;
+                let requested_hours = b.requested_duration.value() / 3600.0;
 
                 // Use original_block_id if available, otherwise fallback to internal ID
                 let original_block_id = b
@@ -912,8 +912,8 @@ impl VisualizationRepository for LocalRepository {
                     priority: b.priority,
                     scheduled_start_mjd: scheduled_period.start.value(),
                     scheduled_stop_mjd: scheduled_period.stop.value(),
-                    ra_deg: b.target_ra,
-                    dec_deg: b.target_dec,
+                    ra_deg: b.target_ra.value(),
+                    dec_deg: b.target_dec.value(),
                     requested_hours,
                     total_visibility_hours,
                     num_visibility_periods: b.visibility_periods.len(),
@@ -938,7 +938,7 @@ impl VisualizationRepository for LocalRepository {
             .iter()
             .enumerate()
             .map(|(idx, b)| {
-                let requested_hours = b.requested_duration / 3600.0;
+                let requested_hours = b.requested_duration.value() / 3600.0;
 
                 CompareBlock {
                     scheduling_block_id: format!("{}", idx + 1),

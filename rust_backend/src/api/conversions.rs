@@ -57,10 +57,10 @@ impl TryFrom<&api::Period> for models::Period {
 impl From<&models::Constraints> for api::Constraints {
     fn from(constraints: &models::Constraints) -> Self {
         api::Constraints {
-            min_altitude: Some(constraints.min_alt),
-            max_altitude: Some(constraints.max_alt),
-            min_azimuth: Some(constraints.min_az),
-            max_azimuth: Some(constraints.max_az),
+            min_altitude: Some(constraints.min_alt.value()),
+            max_altitude: Some(constraints.max_alt.value()),
+            min_azimuth: Some(constraints.min_az.value()),
+            max_azimuth: Some(constraints.max_az.value()),
             fixed_time: None, // Period type doesn't match - would need conversion
         }
     }
@@ -70,8 +70,8 @@ impl From<&models::SchedulingBlock> for api::SchedulingBlock {
     fn from(block: &models::SchedulingBlock) -> Self {
         api::SchedulingBlock {
             id: block.original_block_id.clone().unwrap_or_else(|| block.id.0.to_string()),
-            ra: block.target_ra,
-            dec: block.target_dec,
+            ra: block.target_ra.value(),
+            dec: block.target_dec.value(),
             priority: block.priority,
             scheduled: block.scheduled_period.is_some(),
             scheduled_start: block.scheduled_period.as_ref().map(|p| p.start.value()),
