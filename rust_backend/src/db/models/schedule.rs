@@ -10,10 +10,10 @@
 use pyo3::{exceptions::PyValueError, prelude::*};
 use siderust::{
     astro::ModifiedJulianDate,
-    coordinates::spherical::direction::ICRS,
-    units::angular::Degrees,
-    units::time::{Days, Seconds},
+    coordinates::spherical::direction::ICRS
 };
+
+use qtty::*;
 
 macro_rules! py_id_type {
     ($(#[$meta:meta])* $name:ident, $desc:literal) => {

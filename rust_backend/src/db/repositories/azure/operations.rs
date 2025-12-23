@@ -6,9 +6,10 @@
 use chrono::{DateTime, Utc};
 use log::{debug, info};
 use siderust::{
-    astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS, units::angular::Degrees,
+    astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS,
 };
 use std::collections::HashMap;
+use qtty::*;
 use tiberius::{numeric::Numeric, Query, Row};
 
 use super::pool;

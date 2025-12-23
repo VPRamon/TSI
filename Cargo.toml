@@ -2,6 +2,11 @@
 members = ["rust_backend"]
 resolver = "2"
 
+[patch.crates-io]
+# Use local qtty crates to avoid duplicate versions from crates.io
+qtty-core = { path = "rust_backend/qtty/qtty-core" }
+qtty = { path = "rust_backend/qtty/qtty" }
+
 [workspace.package]
 version = "0.2.1"
 edition = "2021"
