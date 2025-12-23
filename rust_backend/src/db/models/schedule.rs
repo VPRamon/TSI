@@ -66,7 +66,9 @@ py_id_type!(
 #[pyclass(module = "tsi_rust")]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Period {
+    #[pyo3(get)]
     pub start: ModifiedJulianDate,
+    #[pyo3(get)]
     pub stop: ModifiedJulianDate,
 }
 
@@ -79,7 +81,7 @@ impl Period {
         }
     }
 
-    /// Length of the interval in seconds (like your computed column).
+    /// Length of the interval in days.
     pub fn duration(&self) -> Days {
         Days::new(self.stop.value() - self.start.value())
     }
@@ -107,17 +109,8 @@ impl Period {
     }
 
     #[getter]
-    pub fn start_mjd(&self) -> f64 {
-        self.start.value()
-    }
-
-    #[getter]
-    pub fn stop_mjd(&self) -> f64 {
-        self.stop.value()
-    }
-
     pub fn duration_days(&self) -> f64 {
-        self.stop.value() - self.start.value()
+        self.duration().value()
     }
 
     pub fn contains_mjd(&self, mjd: f64) -> bool {
@@ -137,15 +130,36 @@ impl Period {
     }
 }
 
-#[pyclass(module = "tsi_rust")]
+#[pyclass(module = "tsi_rust", get_all)]
 #[derive(Debug, Clone)]
 pub struct Constraints {
-    pub min_alt: Degrees,
-    pub max_alt: Degrees,
-    pub min_az: Degrees,
-    pub max_az: Degrees,
-    #[pyo3(get)]
+    #[pyo3(name = "min_alt_deg")]
+    pub min_alt: f64,
+    #[pyo3(name = "max_alt_deg")]
+    pub max_alt: f64,
+    #[pyo3(name = "min_az_deg")]
+    pub min_az: f64,
+    #[pyo3(name = "max_az_deg")]
+    pub max_az: f64,
     pub fixed_time: Option<Period>,
+}
+
+impl Constraints {
+    pub fn min_alt(&self) -> Degrees {
+        Degrees::new(self.min_alt)
+    }
+    
+    pub fn max_alt(&self) -> Degrees {
+        Degrees::new(self.max_alt)
+    }
+    
+    pub fn min_az(&self) -> Degrees {
+        Degrees::new(self.min_az)
+    }
+    
+    pub fn max_az(&self) -> Degrees {
+        Degrees::new(self.max_az)
+    }
 }
 
 #[pymethods]
@@ -160,32 +174,12 @@ impl Constraints {
         fixed_time: Option<Period>,
     ) -> Self {
         Self {
-            min_alt: Degrees::new(min_alt_deg),
-            max_alt: Degrees::new(max_alt_deg),
-            min_az: Degrees::new(min_az_deg),
-            max_az: Degrees::new(max_az_deg),
+            min_alt: min_alt_deg,
+            max_alt: max_alt_deg,
+            min_az: min_az_deg,
+            max_az: max_az_deg,
             fixed_time,
         }
-    }
-
-    #[getter]
-    pub fn min_alt_deg(&self) -> f64 {
-        self.min_alt.value()
-    }
-
-    #[getter]
-    pub fn max_alt_deg(&self) -> f64 {
-        self.max_alt.value()
-    }
-
-    #[getter]
-    pub fn min_az_deg(&self) -> f64 {
-        self.min_az.value()
-    }
-
-    #[getter]
-    pub fn max_az_deg(&self) -> f64 {
-        self.max_az.value()
     }
 
     fn __repr__(&self) -> String {
@@ -194,33 +188,47 @@ impl Constraints {
             .map(|p| format!("[{:.3}, {:.3}]", p.start.value(), p.stop.value()));
         format!(
             "Constraints(alt=({:.1}, {:.1}), az=({:.1}, {:.1}), fixed_time={:?})",
-            self.min_alt.value(),
-            self.max_alt.value(),
-            self.min_az.value(),
-            self.max_az.value(),
+            self.min_alt,
+            self.max_alt,
+            self.min_az,
+            self.max_az,
             fixed
         )
     }
 }
 
 /// Atomic observing request (mirrors scheduling_blocks).
-#[pyclass(module = "tsi_rust")]
+#[pyclass(module = "tsi_rust", get_all)]
 #[derive(Debug, Clone)]
 pub struct SchedulingBlock {
-    #[pyo3(get)]
     pub id: SchedulingBlockId,
-    pub original_block_id: Option<String>, // Original schedulingBlockId from JSON
-    pub target: ICRS,
-    #[pyo3(get)]
+    pub original_block_id: Option<String>,
+    #[pyo3(name = "target_ra_deg")]
+    pub target_ra: f64,
+    #[pyo3(name = "target_dec_deg")]
+    pub target_dec: f64,
     pub constraints: Constraints,
-    #[pyo3(get)]
     pub priority: f64,
-    pub min_observation: Seconds,
-    pub requested_duration: Seconds,
-    #[pyo3(get)]
+    #[pyo3(name = "min_observation_seconds")]
+    pub min_observation: f64,
+    #[pyo3(name = "requested_duration_seconds")]
+    pub requested_duration: f64,
     pub visibility_periods: Vec<Period>,
-    #[pyo3(get)]
     pub scheduled_period: Option<Period>,
+}
+
+impl SchedulingBlock {
+    pub fn target(&self) -> ICRS {
+        ICRS::new(Degrees::new(self.target_ra), Degrees::new(self.target_dec))
+    }
+    
+    pub fn min_observation_time(&self) -> Seconds {
+        Seconds::new(self.min_observation)
+    }
+    
+    pub fn requested_duration_time(&self) -> Seconds {
+        Seconds::new(self.requested_duration)
+    }
 }
 
 #[pymethods]
@@ -241,39 +249,16 @@ impl SchedulingBlock {
     ) -> Self {
         Self {
             id,
-            original_block_id: None, // Not used from Python
-            target: ICRS::new(Degrees::new(ra_deg), Degrees::new(dec_deg)),
+            original_block_id: None,
+            target_ra: ra_deg,
+            target_dec: dec_deg,
             constraints,
             priority,
-            min_observation: Seconds::new(min_observation_seconds),
-            requested_duration: Seconds::new(requested_duration_seconds),
+            min_observation: min_observation_seconds,
+            requested_duration: requested_duration_seconds,
             visibility_periods,
             scheduled_period,
         }
-    }
-
-    #[getter]
-    pub fn target_ra_deg(&self) -> f64 {
-        self.target.ra().value()
-    }
-
-    #[getter]
-    pub fn target_dec_deg(&self) -> f64 {
-        self.target.dec().value()
-    }
-
-    #[getter]
-    pub fn min_observation_seconds(&self) -> f64 {
-        self.min_observation.value()
-    }
-
-    #[getter]
-    pub fn requested_duration_seconds(&self) -> f64 {
-        self.requested_duration.value()
-    }
-
-    pub fn target_coordinates(&self) -> (f64, f64) {
-        (self.target.ra().value(), self.target.dec().value())
     }
 
     fn __repr__(&self) -> String {
@@ -281,8 +266,8 @@ impl SchedulingBlock {
             "SchedulingBlock(id={}, priority={:.1}, target=({:.3}, {:.3}))",
             self.id.0,
             self.priority,
-            self.target.ra().value(),
-            self.target.dec().value()
+            self.target_ra,
+            self.target_dec
         )
     }
 }
@@ -541,12 +526,6 @@ impl SchedulingBlockJson {
     ) -> Result<SchedulingBlock> {
         let (block_id, ref original_block_id) = self.scheduling_block_id;
 
-        // Parse target coordinates
-        let target = ICRS::new(
-            Degrees::new(self.target.position.coord.celestial.ra_in_deg),
-            Degrees::new(self.target.position.coord.celestial.dec_in_deg),
-        );
-
         // Parse fixed time constraint
         let fixed_time = if !self.configuration.constraints.time_constraint.fixed_start_time.is_empty()
             && !self.configuration.constraints.time_constraint.fixed_stop_time.is_empty()
@@ -566,18 +545,10 @@ impl SchedulingBlockJson {
         };
 
         let constraints = Constraints {
-            min_alt: Degrees::new(
-                self.configuration.constraints.elevation_constraint.min_elevation_angle_in_deg,
-            ),
-            max_alt: Degrees::new(
-                self.configuration.constraints.elevation_constraint.max_elevation_angle_in_deg,
-            ),
-            min_az: Degrees::new(
-                self.configuration.constraints.azimuth_constraint.min_azimuth_angle_in_deg,
-            ),
-            max_az: Degrees::new(
-                self.configuration.constraints.azimuth_constraint.max_azimuth_angle_in_deg,
-            ),
+            min_alt: self.configuration.constraints.elevation_constraint.min_elevation_angle_in_deg,
+            max_alt: self.configuration.constraints.elevation_constraint.max_elevation_angle_in_deg,
+            min_az: self.configuration.constraints.azimuth_constraint.min_azimuth_angle_in_deg,
+            max_az: self.configuration.constraints.azimuth_constraint.max_azimuth_angle_in_deg,
             fixed_time,
         };
 
@@ -593,15 +564,12 @@ impl SchedulingBlockJson {
         Ok(SchedulingBlock {
             id: SchedulingBlockId(block_id),
             original_block_id: original_block_id.clone(),
-            target,
+            target_ra: self.target.position.coord.celestial.ra_in_deg,
+            target_dec: self.target.position.coord.celestial.dec_in_deg,
             constraints,
             priority: self.priority,
-            min_observation: Seconds::new(
-                self.configuration.constraints.time_constraint.min_observation_time_in_sec,
-            ),
-            requested_duration: Seconds::new(
-                self.configuration.constraints.time_constraint.requested_duration_sec,
-            ),
+            min_observation: self.configuration.constraints.time_constraint.min_observation_time_in_sec,
+            requested_duration: self.configuration.constraints.time_constraint.requested_duration_sec,
             visibility_periods,
             scheduled_period,
         })

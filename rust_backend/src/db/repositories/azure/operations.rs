@@ -7,7 +7,6 @@ use chrono::{DateTime, Utc};
 use log::{debug, info};
 use siderust::{
     astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS, units::angular::Degrees,
-    units::time::Seconds,
 };
 use std::collections::HashMap;
 use tiberius::{numeric::Numeric, Query, Row};
@@ -40,6 +39,13 @@ impl TargetKey {
         Self {
             ra: FloatKey::new(target.ra().value()),
             dec: FloatKey::new(target.dec().value()),
+        }
+    }
+
+    fn from_coords(ra: f64, dec: f64) -> Self {
+        Self {
+            ra: FloatKey::new(ra),
+            dec: FloatKey::new(dec),
         }
     }
 }
@@ -96,8 +102,8 @@ impl ConstraintsKey {
         Self {
             start,
             stop,
-            altitude: AltitudeKey::new(constraints.min_alt.value(), constraints.max_alt.value()),
-            azimuth: AzimuthKey::new(constraints.min_az.value(), constraints.max_az.value()),
+            altitude: AltitudeKey::new(constraints.min_alt, constraints.max_alt),
+            azimuth: AzimuthKey::new(constraints.min_az, constraints.max_az),
         }
     }
 }
@@ -221,8 +227,8 @@ impl<'a> ScheduleInserter<'a> {
         let mut unique_targets: Vec<(String, f64, f64)> = Vec::new();
         for block in blocks {
             let target_name = format!("SB_{}", block.id.0);
-            let ra = block.target.ra().value();
-            let dec = block.target.dec().value();
+            let ra = block.target_ra;
+            let dec = block.target_dec;
             unique_targets.push((target_name, ra, dec));
         }
         self.batch_create_targets(&unique_targets).await?;
@@ -272,7 +278,7 @@ impl<'a> ScheduleInserter<'a> {
             let mut json_strings: Vec<Option<String>> = Vec::new();
 
             for (i, block) in chunk.iter().enumerate() {
-                let target_key = TargetKey::from_icrs(&block.target);
+                let target_key = TargetKey::from_coords(block.target_ra, block.target_dec);
                 let _target_id = *self
                     .target_cache
                     .get(&target_key)
@@ -331,7 +337,7 @@ impl<'a> ScheduleInserter<'a> {
 
             let mut insert = Query::new(sql);
             for (i, block) in chunk.iter().enumerate() {
-                let target_key = TargetKey::from_icrs(&block.target);
+                let target_key = TargetKey::from_coords(block.target_ra, block.target_dec);
                 let target_id = *self.target_cache.get(&target_key).unwrap();
 
                 let constraints_key = ConstraintsKey::new(&block.constraints);
@@ -340,8 +346,8 @@ impl<'a> ScheduleInserter<'a> {
                 insert.bind(target_id);
                 insert.bind(constraints_id);
                 insert.bind(Numeric::new_with_scale((block.priority * 10.0) as i128, 1));
-                insert.bind(block.min_observation.value() as i32);
-                insert.bind(block.requested_duration.value() as i32);
+                insert.bind(block.min_observation as i32);
+                insert.bind(block.requested_duration as i32);
                 insert.bind(json_strings[i].as_deref());
                 insert.bind(block.original_block_id.as_deref());
             }
@@ -455,8 +461,8 @@ impl<'a> ScheduleInserter<'a> {
 
         for constraints in constraints_list {
             let alt_key =
-                AltitudeKey::new(constraints.min_alt.value(), constraints.max_alt.value());
-            let az_key = AzimuthKey::new(constraints.min_az.value(), constraints.max_az.value());
+                AltitudeKey::new(constraints.min_alt, constraints.max_alt);
+            let az_key = AzimuthKey::new(constraints.min_az, constraints.max_az);
             unique_altitudes.insert(alt_key);
             unique_azimuths.insert(az_key);
         }
@@ -648,14 +654,14 @@ impl<'a> ScheduleInserter<'a> {
 
         let altitude_id = self
             .get_or_create_altitude_constraints(
-                constraints.min_alt.value(),
-                constraints.max_alt.value(),
+                constraints.min_alt,
+                constraints.max_alt,
             )
             .await?;
         let azimuth_id = self
             .get_or_create_azimuth_constraints(
-                constraints.min_az.value(),
-                constraints.max_az.value(),
+                constraints.min_az,
+                constraints.max_az,
             )
             .await?;
 
@@ -1113,15 +1119,12 @@ async fn fetch_scheduling_blocks(
         };
 
         let constraints = Constraints {
-            min_alt: Degrees::new(min_alt),
-            max_alt: Degrees::new(max_alt),
-            min_az: Degrees::new(min_az),
-            max_az: Degrees::new(max_az),
+            min_alt,
+            max_alt,
+            min_az,
+            max_az,
             fixed_time,
         };
-
-        // Build target (ICRS)
-        let target = ICRS::new(Degrees::new(ra), Degrees::new(dec));
 
         // Build scheduled period
         let scheduled_period = if let (Some(s), Some(e)) = (scheduled_start, scheduled_stop) {
@@ -1136,11 +1139,12 @@ async fn fetch_scheduling_blocks(
         blocks.push(SchedulingBlock {
             id: SchedulingBlockId(sb_id),
             original_block_id: original_block_id.map(|s| s.to_string()),
-            target,
+            target_ra: ra,
+            target_dec: dec,
             constraints,
             priority,
-            min_observation: Seconds::new(min_obs as f64),
-            requested_duration: Seconds::new(req_dur as f64),
+            min_observation: min_obs as f64,
+            requested_duration: req_dur as f64,
             visibility_periods,
             scheduled_period,
         });
@@ -1354,24 +1358,24 @@ pub async fn get_scheduling_block(sb_id: i64) -> Result<SchedulingBlock, String>
     };
 
     let constraints = Constraints {
-        min_alt: Degrees::new(min_alt),
-        max_alt: Degrees::new(max_alt),
-        min_az: Degrees::new(min_az),
-        max_az: Degrees::new(max_az),
+        min_alt,
+        max_alt,
+        min_az,
+        max_az,
         fixed_time,
     };
 
-    let target = ICRS::new(Degrees::new(ra), Degrees::new(dec));
     let visibility_periods = fetch_visibility_periods_for_block(&mut *conn, sb_id).await?;
 
     Ok(SchedulingBlock {
         id: SchedulingBlockId(sb_id),
         original_block_id: original_block_id.map(|s| s.to_string()),
-        target,
+        target_ra: ra,
+        target_dec: dec,
         constraints,
         priority,
-        min_observation: Seconds::new(min_obs as f64),
-        requested_duration: Seconds::new(req_dur as f64),
+        min_observation: min_obs as f64,
+        requested_duration: req_dur as f64,
         visibility_periods,
         scheduled_period: None, // Not stored in scheduling_blocks table, only in junction
     })
