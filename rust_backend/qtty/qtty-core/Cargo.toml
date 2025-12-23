@@ -1,0 +1,27 @@
+[package]
+name = "qtty-core"
+description = "Core types for zero-cost strongly-typed physical quantities."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/qtty-core"
+
+[features]
+default = ["std"]
+std = []
+serde = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
+libm = "0.2"
+qtty-derive = "0.1.0"
+
+[dev-dependencies]
+approx = "0.5"
+proptest = "1.4"
+serde_json = "1.0"
