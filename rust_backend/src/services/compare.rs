@@ -152,7 +152,7 @@ pub async fn get_compare_data(
 
 /// Python binding for get_compare_data.
 /// Fetches and compares two schedules from the database.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_compare_data(
     current_schedule_id: i64,
     comparison_schedule_id: i64,

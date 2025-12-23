@@ -106,7 +106,7 @@ pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<ScheduleTime
 /// Get complete schedule timeline data with computed statistics and metadata.
 /// This is the main function for the schedule timeline feature, computing all statistics
 /// on the Rust side for maximum performance.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_schedule_timeline_data(schedule_id: i64) -> PyResult<ScheduleTimelineData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(

@@ -355,7 +355,7 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
 ///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 /// To see validation issues, use py_get_validation_report.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_insights_data(schedule_id: i64) -> PyResult<InsightsData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(

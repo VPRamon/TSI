@@ -131,7 +131,7 @@ pub async fn get_distribution_data(schedule_id: i64) -> Result<DistributionData,
 /// This is the main Python-callable function for the distributions feature.
 ///
 /// **Note**: Impossible blocks are automatically excluded.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_distribution_data(schedule_id: i64) -> PyResult<DistributionData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
@@ -146,7 +146,7 @@ pub fn py_get_distribution_data(schedule_id: i64) -> PyResult<DistributionData> 
 }
 
 /// Alias for compatibility - uses analytics path.
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_get_distribution_data_analytics(schedule_id: i64) -> PyResult<DistributionData> {
     py_get_distribution_data(schedule_id)
 }

@@ -65,7 +65,7 @@ use pyo3::prelude::*;
 pub mod algorithms;
 pub mod api;
 pub mod db;
-pub mod python;
+pub mod python;  // Re-enabled - contains internal functions used by API
 pub mod services;
 pub mod transformations;
 
@@ -111,6 +111,11 @@ pub mod transformations;
 /// # The module is automatically initialized when imported
 /// df = tsi_rust.load_schedule("schedule.json")
 /// ```
+///
+/// **DEPRECATED**: This module is deprecated. Use `tsi_rust_api` instead.
+/// Internal models no longer have PyO3 derives, so this module cannot be compiled.
+/// All functionality is available in the new `tsi_rust_api` module.
+/* DEPRECATED - commented out due to removal of PyO3 from internal models
 #[pymodule]
 fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Note: Time conversion, data loading, and preprocessing functions are now
@@ -197,58 +202,14 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Register classes (PyO3 data structures exposed to Python)
     m.add_class::<python::PySchedulingConflict>()?;
     m.add_class::<db::models::Schedule>()?;
-    m.add_class::<db::models::SchedulingBlock>()?;
-    m.add_class::<db::models::Constraints>()?;
-    m.add_class::<db::models::Period>()?;
-    m.add_class::<db::models::ScheduleMetadata>()?;
-    m.add_class::<db::models::ScheduleInfo>()?;
-    m.add_class::<db::models::ScheduleId>()?;
-    m.add_class::<db::models::TargetId>()?;
-    m.add_class::<db::models::ConstraintsId>()?;
-    m.add_class::<db::models::SchedulingBlockId>()?;
-    m.add_class::<db::models::LightweightBlock>()?;
-    m.add_class::<db::models::PriorityBinInfo>()?;
-    m.add_class::<db::models::SkyMapData>()?;
-    m.add_class::<db::models::DistributionBlock>()?;
-    m.add_class::<db::models::DistributionStats>()?;
-    m.add_class::<db::models::DistributionData>()?;
-    m.add_class::<db::models::VisibilityBlockSummary>()?;
-    m.add_class::<db::models::VisibilityMapData>()?;
-    m.add_class::<db::models::ScheduleTimelineBlock>()?;
-    m.add_class::<db::models::ScheduleTimelineData>()?;
-    m.add_class::<db::models::InsightsBlock>()?;
-    m.add_class::<db::models::AnalyticsMetrics>()?;
-    m.add_class::<db::models::CorrelationEntry>()?;
-    m.add_class::<db::models::ConflictRecord>()?;
-    m.add_class::<db::models::TopObservation>()?;
-    m.add_class::<db::models::InsightsData>()?;
-    m.add_class::<db::models::TrendsBlock>()?;
-    m.add_class::<db::models::EmpiricalRatePoint>()?;
-    m.add_class::<db::models::SmoothedPoint>()?;
-    m.add_class::<db::models::HeatmapBin>()?;
-    m.add_class::<db::models::TrendsMetrics>()?;
-    m.add_class::<db::models::TrendsData>()?;
-    m.add_class::<db::models::CompareBlock>()?;
-    m.add_class::<db::models::CompareStats>()?;
-    m.add_class::<db::models::SchedulingChange>()?;
-    m.add_class::<db::models::CompareData>()?;
-
-    // Phase 2: Summary analytics classes
-    m.add_class::<db::ScheduleSummary>()?;
-    m.add_class::<db::PriorityRate>()?;
-    m.add_class::<db::VisibilityBin>()?;
-    m.add_class::<db::HeatmapBinData>()?;
-
-    // Phase 3: Visibility time bins classes
-    m.add_class::<db::VisibilityTimeMetadata>()?;
-    m.add_class::<db::VisibilityTimeBin>()?;
-
-    // Validation report classes
-    m.add_class::<services::PyValidationIssue>()?;
-    m.add_class::<services::PyValidationReportData>()?;
-
+    // Note: Classes are now registered via the tsi_rust_api module
+    // The old tsi_rust module only exposes functions, not classes
+    // This keeps backward compatibility for function calls while
+    // the new API provides proper type isolation
+    
     Ok(())
 }
+*/
 
 /// Python module entry point for the new TSI Rust API.
 ///

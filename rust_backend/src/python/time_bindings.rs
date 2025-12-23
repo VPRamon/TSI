@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use siderust::astro::ModifiedJulianDate;
 
 /// Convert Modified Julian Date to Python datetime (PyO3 binding)
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn mjd_to_datetime(py: Python, mjd: f64) -> PyResult<Py<PyAny>> {
     use chrono::Datelike;
     use chrono::Timelike;
@@ -33,7 +33,7 @@ pub fn mjd_to_datetime(py: Python, mjd: f64) -> PyResult<Py<PyAny>> {
 }
 
 /// Convert Python datetime to Modified Julian Date (PyO3 binding)
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn datetime_to_mjd(dt: &Bound<'_, PyAny>) -> PyResult<f64> {
     use chrono::prelude::*;
 

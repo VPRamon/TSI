@@ -17,8 +17,8 @@ use crate::algorithms::{analysis, conflicts, SchedulingConflict};
 ///     >>> import json
 ///     >>> result_json = tsi_rust.py_get_top_observations(json.dumps(records), "priority", 5)
 ///     >>> top = json.loads(result_json)
-#[pyfunction]
-#[pyo3(signature = (records_json, by, n=10))]
+// #[pyfunction] - removed, function now internal only
+// #[pyo3(signature = (records_json, by, n=10))] - commented out, function now internal only
 pub fn py_get_top_observations(records_json: String, by: &str, n: usize) -> PyResult<String> {
     let records: Vec<Value> = serde_json::from_str(&records_json).map_err(|e| {
         pyo3::exceptions::PyValueError::new_err(format!("Failed to parse JSON: {}", e))
@@ -84,7 +84,7 @@ impl From<SchedulingConflict> for PySchedulingConflict {
 ///     >>> conflicts = tsi_rust.py_find_conflicts(json.dumps(records))
 ///     >>> for c in conflicts:
 ///     ...     print(f"{c.scheduling_block_id}: {c.conflict_reasons}")
-#[pyfunction]
+// #[pyfunction] - removed, function now internal only
 pub fn py_find_conflicts(records_json: String) -> PyResult<Vec<PySchedulingConflict>> {
     let records: Vec<Value> = serde_json::from_str(&records_json).map_err(|e| {
         pyo3::exceptions::PyValueError::new_err(format!("Failed to parse JSON: {}", e))
