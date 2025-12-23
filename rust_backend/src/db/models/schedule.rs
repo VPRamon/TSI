@@ -64,31 +64,8 @@ id_type!(
 /// Simple representation of a time window in Modified Julian Date.
 #[derive(Debug, Copy, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Period {
-    #[serde(with = "mjd_serde")]
     pub start: ModifiedJulianDate,
-    #[serde(with = "mjd_serde")]
     pub stop: ModifiedJulianDate,
-}
-
-// Serde helper for ModifiedJulianDate (serialize/deserialize as f64)
-mod mjd_serde {
-    use serde::{Deserialize, Deserializer, Serializer};
-    use siderust::astro::ModifiedJulianDate;
-
-    pub fn serialize<S>(mjd: &ModifiedJulianDate, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_f64(mjd.value())
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<ModifiedJulianDate, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value = f64::deserialize(deserializer)?;
-        Ok(ModifiedJulianDate::new(value))
-    }
 }
 
 impl Period {
