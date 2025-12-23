@@ -1,6 +1,6 @@
-[submodule "rust_backend/siderust"]
+[submodule "rust_backend/qtty"]
 	path = rust_backend/qtty
-	url = git@github.com:Siderust/siderust.git
+	url = git@github.com:Siderust/qtty.git
 [submodule "qtty-py"]
 	path = qtty-py
 	url = git@github.com:VPRamon/qtty-py.git
