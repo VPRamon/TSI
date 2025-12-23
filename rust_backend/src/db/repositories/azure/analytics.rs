@@ -713,12 +713,12 @@ pub async fn fetch_analytics_blocks_for_timeline(
             scheduling_block_id,
             original_block_id,
             priority,
-            scheduled_start_mjd,
-            scheduled_stop_mjd,
-            ra_deg,
-            dec_deg,
-            requested_hours,
-            total_visibility_hours,
+            scheduled_start_mjd: siderust::astro::ModifiedJulianDate::new(scheduled_start_mjd),
+            scheduled_stop_mjd: siderust::astro::ModifiedJulianDate::new(scheduled_stop_mjd),
+            ra_deg: qtty::angular::Degrees::new(ra_deg),
+            dec_deg: qtty::angular::Degrees::new(dec_deg),
+            requested_hours: qtty::time::Hours::new(requested_hours),
+            total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
             num_visibility_periods: visibility_period_count as usize,
         });
     }
@@ -900,12 +900,12 @@ pub async fn fetch_analytics_blocks_for_insights(
             scheduling_block_id,
             original_block_id,
             priority,
-            total_visibility_hours,
-            requested_hours,
-            elevation_range_deg,
+            total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
+            requested_hours: qtty::time::Hours::new(requested_hours),
+            elevation_range_deg: qtty::angular::Degrees::new(elevation_range_deg),
             scheduled,
-            scheduled_start_mjd,
-            scheduled_stop_mjd,
+            scheduled_start_mjd: scheduled_start_mjd.map(siderust::astro::ModifiedJulianDate::new),
+            scheduled_stop_mjd: scheduled_stop_mjd.map(siderust::astro::ModifiedJulianDate::new),
         });
     }
 
@@ -980,8 +980,8 @@ pub async fn fetch_analytics_blocks_for_trends(
             scheduling_block_id,
             original_block_id,
             priority,
-            total_visibility_hours,
-            requested_hours,
+            total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
+            requested_hours: qtty::time::Hours::new(requested_hours),
             scheduled,
         });
     }

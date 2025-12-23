@@ -8,6 +8,10 @@
 //! - Comparison types (CompareBlock, CompareData)
 
 
+use siderust::astro::ModifiedJulianDate;
+use qtty::*;
+use super::Period;
+
 // =========================================================
 // Visibility Histogram Types
 // =========================================================
@@ -85,12 +89,12 @@ pub struct ScheduleTimelineBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
-    pub scheduled_start_mjd: f64,
-    pub scheduled_stop_mjd: f64,
-    pub ra_deg: f64,
-    pub dec_deg: f64,
-    pub requested_hours: f64,
-    pub total_visibility_hours: f64,
+    pub scheduled_start_mjd: ModifiedJulianDate,
+    pub scheduled_stop_mjd: ModifiedJulianDate,
+    pub ra_deg: Degrees,
+    pub dec_deg: Degrees,
+    pub requested_hours: Hours,
+    pub total_visibility_hours: Hours,
     pub num_visibility_periods: usize,
 }
 
@@ -105,7 +109,7 @@ pub struct ScheduleTimelineData {
     pub total_count: usize,
     pub scheduled_count: usize,
     pub unique_months: Vec<String>,
-    pub dark_periods: Vec<(f64, f64)>,
+    pub dark_periods: Vec<Period>,
 }
 
 
@@ -120,12 +124,12 @@ pub struct InsightsBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
-    pub total_visibility_hours: f64,
-    pub requested_hours: f64,
-    pub elevation_range_deg: f64,
+    pub total_visibility_hours: Hours,
+    pub requested_hours: Hours,
+    pub elevation_range_deg: Degrees,
     pub scheduled: bool,
-    pub scheduled_start_mjd: Option<f64>,
-    pub scheduled_stop_mjd: Option<f64>,
+    pub scheduled_start_mjd: Option<ModifiedJulianDate>,
+    pub scheduled_stop_mjd: Option<ModifiedJulianDate>,
 }
 
 
@@ -140,8 +144,8 @@ pub struct AnalyticsMetrics {
     pub median_priority: f64,
     pub mean_priority_scheduled: f64,
     pub mean_priority_unscheduled: f64,
-    pub total_visibility_hours: f64,
-    pub mean_requested_hours: f64,
+    pub total_visibility_hours: Hours,
+    pub mean_requested_hours: Hours,
 }
 
 
@@ -159,11 +163,11 @@ pub struct CorrelationEntry {
 pub struct ConflictRecord {
     pub block_id_1: String, // Original ID from JSON
     pub block_id_2: String, // Original ID from JSON
-    pub start_time_1: f64,
-    pub stop_time_1: f64,
-    pub start_time_2: f64,
-    pub stop_time_2: f64,
-    pub overlap_hours: f64,
+    pub start_time_1: ModifiedJulianDate,
+    pub stop_time_1: ModifiedJulianDate,
+    pub start_time_2: ModifiedJulianDate,
+    pub stop_time_2: ModifiedJulianDate,
+    pub overlap_hours: Hours,
 }
 
 
@@ -173,8 +177,8 @@ pub struct TopObservation {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
-    pub total_visibility_hours: f64,
-    pub requested_hours: f64,
+    pub total_visibility_hours: Hours,
+    pub requested_hours: Hours,
     pub scheduled: bool,
 }
 
@@ -205,8 +209,8 @@ pub struct TrendsBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
-    pub total_visibility_hours: f64,
-    pub requested_hours: f64,
+    pub total_visibility_hours: Hours,
+    pub requested_hours: Hours,
     pub scheduled: bool,
 }
 
@@ -233,8 +237,8 @@ pub struct SmoothedPoint {
 /// Heatmap bin for 2D probability visualization.
 #[derive(Debug, Clone)]
 pub struct HeatmapBin {
-    pub visibility_mid: f64,
-    pub time_mid: f64,
+    pub visibility_mid: Hours,
+    pub time_mid: Hours,
     pub scheduled_rate: f64,
     pub count: usize,
 }
@@ -250,12 +254,12 @@ pub struct TrendsMetrics {
     pub priority_min: f64,
     pub priority_max: f64,
     pub priority_mean: f64,
-    pub visibility_min: f64,
-    pub visibility_max: f64,
-    pub visibility_mean: f64,
-    pub time_min: f64,
-    pub time_max: f64,
-    pub time_mean: f64,
+    pub visibility_min: Hours,
+    pub visibility_max: Hours,
+    pub visibility_mean: Hours,
+    pub time_min: Hours,
+    pub time_max: Hours,
+    pub time_mean: Hours,
 }
 
 
@@ -285,7 +289,7 @@ pub struct CompareBlock {
     pub scheduling_block_id: String,
     pub priority: f64,
     pub scheduled: bool,
-    pub requested_hours: f64,
+    pub requested_hours: Hours,
 }
 
 
@@ -297,7 +301,7 @@ pub struct CompareStats {
     pub total_priority: f64,
     pub mean_priority: f64,
     pub median_priority: f64,
-    pub total_hours: f64,
+    pub total_hours: Hours,
 }
 
 

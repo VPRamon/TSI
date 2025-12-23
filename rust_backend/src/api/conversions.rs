@@ -61,7 +61,7 @@ impl From<&models::Constraints> for api::Constraints {
             max_altitude: Some(constraints.max_alt.value()),
             min_azimuth: Some(constraints.min_az.value()),
             max_azimuth: Some(constraints.max_az.value()),
-            fixed_time: None, // Period type doesn't match - would need conversion
+            fixed_time: constraints.fixed_time.as_ref().map(|p| p.start.value()),
         }
     }
 }
@@ -189,10 +189,10 @@ impl From<&models::ScheduleTimelineBlock> for api::ScheduleTimelineBlock {
         api::ScheduleTimelineBlock {
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,
-            scheduled_start: block.scheduled_start_mjd,
-            scheduled_end: block.scheduled_stop_mjd,
-            ra: block.ra_deg,
-            dec: block.dec_deg,
+            scheduled_start: block.scheduled_start_mjd.value(),
+            scheduled_end: block.scheduled_stop_mjd.value(),
+            ra: block.ra_deg.value(),
+            dec: block.dec_deg.value(),
         }
     }
 }
@@ -211,7 +211,7 @@ impl From<&models::InsightsBlock> for api::InsightsBlock {
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,
             scheduled: block.scheduled,
-            visibility_hours: block.total_visibility_hours,
+            visibility_hours: block.total_visibility_hours.value(),
             ra: 0.0, // Not available in InsightsBlock
             dec: 0.0, // Not available in InsightsBlock
         }
@@ -244,8 +244,8 @@ impl From<&models::ConflictRecord> for api::ConflictRecord {
         api::ConflictRecord {
             block_id_1: record.block_id_1.clone(),
             block_id_2: record.block_id_2.clone(),
-            overlap_start: record.start_time_1,
-            overlap_end: record.stop_time_1,
+            overlap_start: record.start_time_1.value(),
+            overlap_end: record.stop_time_1.value(),
         }
     }
 }
@@ -254,7 +254,7 @@ impl From<&models::TopObservation> for api::TopObservation {
     fn from(obs: &models::TopObservation) -> Self {
         api::TopObservation {
             original_block_id: obs.original_block_id.clone(),
-            metric_value: obs.total_visibility_hours,
+            metric_value: obs.total_visibility_hours.value(),
             priority: obs.priority,
             scheduled: obs.scheduled,
         }
@@ -280,7 +280,7 @@ impl From<&models::TrendsBlock> for api::TrendsBlock {
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,
             scheduled: block.scheduled,
-            visibility_hours: block.total_visibility_hours,
+            visibility_hours: block.total_visibility_hours.value(),
         }
     }
 }
@@ -308,7 +308,7 @@ impl From<&models::HeatmapBin> for api::HeatmapBin {
     fn from(bin: &models::HeatmapBin) -> Self {
         api::HeatmapBin {
             priority_bin: 0.0, // Not available - using time_mid as substitute
-            visibility_bin: bin.visibility_mid,
+            visibility_bin: bin.visibility_mid.value(),
             count: 0, // Not directly available
             scheduled_count: 0, // Not directly available
         }
