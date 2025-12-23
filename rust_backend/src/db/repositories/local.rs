@@ -847,19 +847,9 @@ impl VisualizationRepository for LocalRepository {
                     }
                 }
 
-                // Convert visibility periods to JSON string
-                let visibility_periods_json = if !b.visibility_periods.is_empty() {
-                    let periods: Vec<serde_json::Value> = b
-                        .visibility_periods
-                        .iter()
-                        .map(|p| {
-                            serde_json::json!({
-                                "start": p.start.value(),
-                                "stop": p.stop.value()
-                            })
-                        })
-                        .collect();
-                    Some(serde_json::to_string(&periods).unwrap_or_default())
+                // Return visibility periods directly as Vec<Period>
+                let visibility_periods = if !b.visibility_periods.is_empty() {
+                    Some(b.visibility_periods.clone())
                 } else {
                     None
                 };
@@ -867,7 +857,7 @@ impl VisualizationRepository for LocalRepository {
                 Some(BlockHistogramData {
                     scheduling_block_id: block_id,
                     priority,
-                    visibility_periods_json,
+                    visibility_periods,
                 })
             })
             .collect();
