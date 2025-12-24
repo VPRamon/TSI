@@ -31,7 +31,7 @@ def render() -> None:
         st.error(f"Failed to load sky map data from the backend: {exc}")
         return
 
-    if sky_map_data.total_count == 0:
+    if len(sky_map_data.blocks) == 0:
         st.warning("No scheduling blocks were returned for this schedule.")
         return
 

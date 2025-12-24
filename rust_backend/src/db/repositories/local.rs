@@ -423,7 +423,7 @@ impl AnalyticsRepository for LocalRepository {
                     requested_duration_seconds: b.requested_duration.value(),
                     target_ra_deg: b.target_ra.value(),
                     target_dec_deg: b.target_dec.value(),
-                    scheduled_period: b.scheduled_period,
+                    scheduled_period: b.scheduled_period.clone(),
                 }
             })
             .collect();

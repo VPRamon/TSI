@@ -14,8 +14,7 @@ pub mod visualization;
 
 // Re-export all public types for convenience
 pub use analytics::{
-    DistributionBlock, DistributionData, DistributionStats, LightweightBlock, PriorityBinInfo,
-    SkyMapData,
+    DistributionBlock, DistributionData, DistributionStats, LightweightBlock, SkyMapData,
 };
 pub use metadata::{ScheduleInfo, ScheduleMetadata};
 pub use visualization::{
