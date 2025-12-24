@@ -469,7 +469,7 @@ mod tests {
         assert_eq!(block_4990.priority, 8.5);
         assert_eq!(block_4990.visibility_periods.len(), 120);
 
-        let scheduled_period = block_4990.scheduled_period
+        let scheduled_period = block_4990.scheduled_period.clone()
             .expect("Scheduling block 1000004990 should be scheduled");
         assert_close(scheduled_period.start.value(), 61894.19429606479, "scheduled period start");
         assert_close(scheduled_period.stop.value(), 61894.20818495378, "scheduled period stop");
