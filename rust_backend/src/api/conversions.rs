@@ -494,37 +494,6 @@ impl From<&models::VisibilityMapData> for api::VisibilityMapData {
     }
 }
 
-// =========================================================
-// Validation Types
-// =========================================================
-
-impl From<&crate::services::PyValidationIssue> for api::ValidationIssue {
-    fn from(issue: &crate::services::PyValidationIssue) -> Self {
-        api::ValidationIssue {
-            severity: issue.criticality.clone(),
-            message: issue.description.clone(),
-            block_id: issue.original_block_id.clone(),
-        }
-    }
-}
-
-impl From<&crate::services::PyValidationReportData> for api::ValidationReport {
-    fn from(report: &crate::services::PyValidationReportData) -> Self {
-        let all_issues: Vec<api::ValidationIssue> = report.impossible_blocks.iter()
-            .chain(report.validation_errors.iter())
-            .chain(report.validation_warnings.iter())
-            .map(|i| i.into())
-            .collect();
-        
-        api::ValidationReport {
-            schedule_id: report.schedule_id,
-            issues: all_issues.clone(),
-            error_count: report.validation_errors.len(),
-            warning_count: report.validation_warnings.len(),
-            passed: report.validation_errors.is_empty() && report.impossible_blocks.is_empty(),
-        }
-    }
-}
 
 // =========================================================
 // Algorithm Result Types

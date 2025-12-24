@@ -67,7 +67,7 @@ from tsi.exceptions import (
 )
 
 if TYPE_CHECKING:
-    from tsi_rust import SkyMapData, VisibilityMapData
+    from tsi_rust import SkyMapData, VisibilityMapData, ValidationReport
 
 logger = logging.getLogger(__name__)
 
@@ -653,7 +653,7 @@ def get_schedule_time_range(schedule_id: int) -> tuple[pd.Timestamp, pd.Timestam
     return start_time, end_time
 
 
-def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
+def get_validation_report_data(schedule_id: int) -> ValidationReport:
     """
     Get validation report data for a schedule.
 
@@ -682,75 +682,9 @@ def get_validation_report_data(schedule_id: int) -> dict[str, Any]:
         Impossible blocks are automatically filtered from analytics queries.
     """
     # Get validation data from Rust backend
-    report = _rust_call("py_get_validation_report", schedule_id)
-
-    # Convert Rust objects to Python dictionaries for backward compatibility
-    impossible_blocks = []
-    for issue in report.impossible_blocks:
-        impossible_blocks.append(
-            {
-                "block_id": issue.block_id,
-                "original_block_id": issue.original_block_id,
-                "issue_type": issue.issue_type,
-                "category": issue.category,
-                "criticality": issue.criticality,
-                "field_name": issue.field_name,
-                "current_value": issue.current_value,
-                "expected_value": issue.expected_value,
-                "description": issue.description,
-                # Legacy fields for compatibility
-                "priority": 0.0,  # Not stored in validation results
-                "reason": issue.issue_type,
-                "requested_duration_hours": 0.0,  # Not stored
-                "total_visibility_hours": 0.0,  # Not stored
-                "min_duration_hours": 0.0,  # Not stored
-                "details": issue.description,
-            }
-        )
-
-    validation_errors = []
-    for issue in report.validation_errors:
-        validation_errors.append(
-            {
-                "block_id": issue.block_id,
-                "original_block_id": issue.original_block_id,
-                "error_type": issue.issue_type,
-                "field": issue.field_name or "",
-                "value": issue.current_value or "",
-                "expected_range": issue.expected_value or "",
-                "issue": issue.description,
-                "description": issue.description,
-                "criticality": issue.criticality,
-            }
-        )
-
-    validation_warnings = []
-    for issue in report.validation_warnings:
-        validation_warnings.append(
-            {
-                "block_id": issue.block_id,
-                "original_block_id": issue.original_block_id,
-                "warning_type": issue.issue_type,
-                "field": issue.field_name or "",
-                "value": issue.current_value or "",
-                "note": issue.description,
-                "description": issue.description,
-                "criticality": issue.criticality,
-            }
-        )
-
-    return {
-        "metrics": {
-            "total_blocks": report.total_blocks,
-            "valid_blocks": report.valid_blocks,
-            "impossible_count": report.impossible_count,
-            "errors_count": report.errors_count,
-            "warnings_count": report.warnings_count,
-        },
-        "impossible_blocks": impossible_blocks,
-        "validation_errors": validation_errors,
-        "validation_warnings": validation_warnings,
-    }
+    report = _rust_call("get_validation_report", schedule_id)
+    # TODO: Assert fields exist on report object
+    return report
 
 
 def _compute_validation_report_fallback(schedule_id: int) -> dict[str, Any]:

@@ -292,7 +292,7 @@ impl ValidationRepository for AzureRepository {
     async fn fetch_validation_results(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<validation::ValidationReportData> {
+    ) -> RepositoryResult<crate::api::ValidationReport> {
         validation::fetch_validation_results(schedule_id)
             .await
             .map_err(RepositoryError::from)

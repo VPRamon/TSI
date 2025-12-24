@@ -105,7 +105,7 @@ pub use repository::{
 // Re-export Azure module functions and types for backward compatibility
 pub use repositories::azure::{
     analytics, operations, pool, validation, HeatmapBinData, PriorityRate, ScheduleSummary,
-    ValidationReportData, VisibilityBin, VisibilityTimeBin, VisibilityTimeMetadata,
+    VisibilityBin, VisibilityTimeBin, VisibilityTimeMetadata,
 };
 
 // Phase 1: Block-level analytics (backward compatibility)
@@ -135,7 +135,7 @@ pub use repositories::azure::analytics::{
 // Validation
 pub use repositories::azure::validation::{
     delete_validation_results, fetch_validation_results, has_validation_results,
-    insert_validation_results, ValidationIssue,
+    insert_validation_results,
 };
 
 // Database pool type

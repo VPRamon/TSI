@@ -455,7 +455,7 @@ fn get_top_observations(schedule_json: String, by: String, n: usize) -> PyResult
 #[pyfunction]
 fn get_validation_report(schedule_id: i64) -> PyResult<api::ValidationReport> {
     let report = crate::services::py_get_validation_report(schedule_id)?;
-    Ok((&report).into())
+    Ok(report)
 }
 // =========================================================
 // Transformation Functions (Legacy API)

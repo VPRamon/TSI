@@ -39,9 +39,9 @@ def render() -> None:
 
     # If everything is valid, show success message
     total_issues = (
-        len(validation_data.get("impossible_blocks", []))
-        + len(validation_data.get("validation_errors", []))
-        + len(validation_data.get("validation_warnings", []))
+        len(validation_data.impossible_blocks)
+        + len(validation_data.validation_errors)
+        + len(validation_data.validation_warnings)
     )
 
     if total_issues == 0:
@@ -53,7 +53,7 @@ def render() -> None:
         return
 
     # Show info about filtering
-    impossible_count = len(validation_data.get("impossible_blocks", []))
+    impossible_count = len(validation_data.impossible_blocks)
     if impossible_count > 0:
         st.warning(
             f"⚠️ **{impossible_count} impossible block(s) found** and automatically excluded from analytics pages. "
