@@ -240,6 +240,38 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 /// sky_map = tsi_rust_api.get_sky_map_data(metadata.schedule_id)
 /// ```
 #[pymodule]
+fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    // Re-export all functions from the API module
+    api::register_api_functions(m)?;
+    
+    // Add transformation functions that Python code expects
+    api::register_transformation_functions(m)?;
+    
+    Ok(())
+}
+
+/// Python module: tsi_rust_api
+///
+/// **NEW API** - This is the new high-level API module.
+/// The `tsi_rust` module above is for backwards compatibility.
+///
+/// Example usage:
+/// ```python
+/// from tsi_rust_api import TSIBackend
+///
+/// # Initialize backend
+/// backend = TSIBackend()
+///
+/// # Store schedule with ETL
+/// metadata = backend.store_schedule(
+///     schedule_json, possible_periods_json, dark_periods_json,
+///     "My Schedule", populate_analytics=True
+/// )
+///
+/// # Get visualization data
+/// sky_map = tsi_rust_api.get_sky_map_data(metadata.schedule_id)
+/// ```
+#[pymodule]
 fn tsi_rust_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
     api::register_api_functions(m)
 }

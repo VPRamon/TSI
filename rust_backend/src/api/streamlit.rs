@@ -457,3 +457,278 @@ fn get_validation_report(schedule_id: i64) -> PyResult<api::ValidationReport> {
     let report = crate::services::py_get_validation_report(schedule_id)?;
     Ok((&report).into())
 }
+// =========================================================
+// Transformation Functions (Legacy API)
+// =========================================================
+
+/// Register transformation functions for backwards compatibility with tsi_rust module.
+pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(py_filter_by_range, m)?)?;
+    m.add_function(wrap_pyfunction!(py_filter_by_scheduled, m)?)?;
+    m.add_function(wrap_pyfunction!(py_filter_dataframe, m)?)?;
+    m.add_function(wrap_pyfunction!(py_remove_duplicates, m)?)?;
+    m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
+    m.add_function(wrap_pyfunction!(py_validate_dataframe, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_visibility_periods, m)?)?;
+    Ok(())
+}
+
+/// Filter DataFrame by numeric range on a column.
+#[pyfunction]
+#[pyo3(signature = (json_str, column, min_val, max_val))]
+fn py_filter_by_range(
+    json_str: String,
+    column: String,
+    min_val: f64,
+    max_val: f64,
+) -> PyResult<String> {
+    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
+    })?;
+    
+    let filtered: Vec<Value> = records
+        .into_iter()
+        .filter(|record| {
+            if let Some(val) = record.get(&column).and_then(|v| v.as_f64()) {
+                val >= min_val && val <= max_val
+            } else {
+                false
+            }
+        })
+        .collect();
+    
+    serde_json::to_string(&filtered).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
+    })
+}
+
+/// Filter DataFrame by scheduled status.
+#[pyfunction]
+#[pyo3(signature = (json_str, filter_type))]
+fn py_filter_by_scheduled(json_str: String, filter_type: String) -> PyResult<String> {
+    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
+    })?;
+    
+    let filtered: Vec<Value> = match filter_type.as_str() {
+        "All" => records,
+        "Scheduled" => records.into_iter().filter(|r| {
+            r.get("wasScheduled").and_then(|v| v.as_bool()).unwrap_or(false)
+        }).collect(),
+        "Unscheduled" => records.into_iter().filter(|r| {
+            !r.get("wasScheduled").and_then(|v| v.as_bool()).unwrap_or(false)
+        }).collect(),
+        _ => records,
+    };
+    
+    serde_json::to_string(&filtered).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
+    })
+}
+
+/// Filter DataFrame with multiple filter criteria.
+#[pyfunction]
+#[pyo3(signature = (json_str, priority_min, priority_max, scheduled_filter, priority_bins=None, block_ids=None))]
+fn py_filter_dataframe(
+    json_str: String,
+    priority_min: f64,
+    priority_max: f64,
+    scheduled_filter: String,
+    priority_bins: Option<Vec<String>>,
+    block_ids: Option<Vec<String>>,
+) -> PyResult<String> {
+    let mut records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
+    })?;
+    
+    // Filter by priority range
+    records.retain(|record| {
+        if let Some(priority) = record.get("priority").and_then(|v| v.as_f64()) {
+            priority >= priority_min && priority <= priority_max
+        } else {
+            false
+        }
+    });
+    
+    // Filter by scheduled status
+    records = match scheduled_filter.as_str() {
+        "Scheduled" => records.into_iter().filter(|r| {
+            r.get("wasScheduled").and_then(|v| v.as_bool()).unwrap_or(false)
+        }).collect(),
+        "Unscheduled" => records.into_iter().filter(|r| {
+            !r.get("wasScheduled").and_then(|v| v.as_bool()).unwrap_or(false)
+        }).collect(),
+        _ => records,
+    };
+    
+    // Filter by priority bins
+    if let Some(bins) = priority_bins {
+        if !bins.is_empty() {
+            records.retain(|record| {
+                if let Some(bin) = record.get("priorityBin").and_then(|v| v.as_str()) {
+                    bins.contains(&bin.to_string())
+                } else {
+                    false
+                }
+            });
+        }
+    }
+    
+    // Filter by block IDs
+    if let Some(ids) = block_ids {
+        if !ids.is_empty() {
+            records.retain(|record| {
+                if let Some(id) = record.get("schedulingBlockId").and_then(|v| v.as_str()) {
+                    ids.contains(&id.to_string())
+                } else {
+                    false
+                }
+            });
+        }
+    }
+    
+    serde_json::to_string(&records).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
+    })
+}
+
+/// Remove duplicate rows from DataFrame.
+#[pyfunction]
+#[pyo3(signature = (json_str, subset=None, keep=None))]
+fn py_remove_duplicates(
+    json_str: String,
+    subset: Option<Vec<String>>,
+    keep: Option<String>,
+) -> PyResult<String> {
+    let keep = keep.unwrap_or_else(|| "first".to_string());
+    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
+    })?;
+    
+    let mut unique_records = Vec::new();
+    let mut seen_keys = std::collections::HashSet::new();
+    
+    for record in records.iter() {
+        // Generate key from subset columns or entire record
+        let key = if let Some(ref cols) = subset {
+            let mut key_parts = Vec::new();
+            for col in cols {
+                if let Some(val) = record.get(col) {
+                    key_parts.push(val.to_string());
+                }
+            }
+            key_parts.join("|")
+        } else {
+            record.to_string()
+        };
+        
+        match keep.as_str() {
+            "first" => {
+                if !seen_keys.contains(&key) {
+                    seen_keys.insert(key);
+                    unique_records.push(record.clone());
+                }
+            }
+            "last" => {
+                seen_keys.insert(key.clone());
+                unique_records.retain(|r| {
+                    let r_key = if let Some(ref cols) = subset {
+                        let mut key_parts = Vec::new();
+                        for col in cols {
+                            if let Some(val) = r.get(col) {
+                                key_parts.push(val.to_string());
+                            }
+                        }
+                        key_parts.join("|")
+                    } else {
+                        r.to_string()
+                    };
+                    r_key != key
+                });
+                unique_records.push(record.clone());
+            }
+            "none" => {
+                if !seen_keys.contains(&key) {
+                    seen_keys.insert(key);
+                    unique_records.push(record.clone());
+                }
+            }
+            _ => {
+                if !seen_keys.contains(&key) {
+                    seen_keys.insert(key);
+                    unique_records.push(record.clone());
+                }
+            }
+        }
+    }
+    
+    serde_json::to_string(&unique_records).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
+    })
+}
+
+/// Remove observations with missing RA or Dec coordinates.
+#[pyfunction]
+fn py_remove_missing_coordinates(json_str: String) -> PyResult<String> {
+    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
+    })?;
+    
+    let filtered: Vec<Value> = records
+        .into_iter()
+        .filter(|record| {
+            let has_ra = record.get("raDeg").and_then(|v| v.as_f64()).is_some();
+            let has_dec = record.get("decDeg").and_then(|v| v.as_f64()).is_some();
+            has_ra && has_dec
+        })
+        .collect();
+    
+    serde_json::to_string(&filtered).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
+    })
+}
+
+/// Validate DataFrame data quality.
+#[pyfunction]
+fn py_validate_dataframe(json_str: String) -> PyResult<(bool, Vec<String>)> {
+    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
+    })?;
+    
+    let mut issues = Vec::new();
+    
+    // Check for missing coordinates
+    let missing_coords = records.iter().filter(|r| {
+        let has_ra = r.get("raDeg").and_then(|v| v.as_f64()).is_some();
+        let has_dec = r.get("decDeg").and_then(|v| v.as_f64()).is_some();
+        !has_ra || !has_dec
+    }).count();
+    
+    if missing_coords > 0 {
+        issues.push(format!("{} observations with missing coordinates", missing_coords));
+    }
+    
+    // Check for invalid priorities
+    let invalid_priorities = records.iter().filter(|r| {
+        if let Some(p) = r.get("priority").and_then(|v| v.as_f64()) {
+            p < 0.0 || p > 100.0
+        } else {
+            true
+        }
+    }).count();
+    
+    if invalid_priorities > 0 {
+        issues.push(format!("{} observations with invalid priorities", invalid_priorities));
+    }
+    
+    let is_valid = issues.is_empty();
+    Ok((is_valid, issues))
+}
+
+/// Parse visibility periods from list of dicts to datetime tuples.
+#[pyfunction]
+fn parse_visibility_periods(periods: Vec<(String, String)>) -> PyResult<Vec<(String, String)>> {
+    // Simply return as-is since Python will handle datetime parsing
+    // This is a no-op shim for backwards compatibility
+    Ok(periods)
+}
