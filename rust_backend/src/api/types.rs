@@ -15,6 +15,7 @@
 
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+use siderust::astro::ModifiedJulianDate;
 
 // =========================================================
 // Core Schedule Types
@@ -47,21 +48,9 @@ impl ScheduleId {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Period {
     /// Start time in MJD
-    pub start: f64,
+    pub start: ModifiedJulianDate,
     /// End time in MJD
-    pub stop: f64,
-}
-
-#[pymethods]
-impl Period {
-    #[new]
-    pub fn new(start: f64, stop: f64) -> Self {
-        Self { start, stop }
-    }
-
-    fn __repr__(&self) -> String {
-        format!("Period(start={:.5}, stop={:.5})", self.start, self.stop)
-    }
+    pub stop: ModifiedJulianDate,
 }
 
 /// Observing constraints for a scheduling block.
@@ -269,21 +258,13 @@ impl ScheduleInfo {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LightweightBlock {
-    pub original_block_id: String,
-    pub ra: f64,
-    pub dec: f64,
+    pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
-    pub scheduled: bool,
-}
-
-#[pymethods]
-impl LightweightBlock {
-    fn __repr__(&self) -> String {
-        format!(
-            "LightweightBlock(id='{}', ra={:.2}, dec={:.2}, priority={:.1})",
-            self.original_block_id, self.ra, self.dec, self.priority
-        )
-    }
+    pub priority_bin: String,
+    pub requested_duration_seconds: f64,
+    pub target_ra_deg: f64,
+    pub target_dec_deg: f64,
+    pub scheduled_period: Option<Period>,
 }
 
 // =========================================================
@@ -294,9 +275,10 @@ impl LightweightBlock {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PriorityBinInfo {
-    pub priority: f64,
-    pub count: usize,
-    pub scheduled_count: usize,
+    pub label: String,
+    pub min_priority: f64,
+    pub max_priority: f64,
+    pub color: String,
 }
 
 /// Sky map visualization data.
@@ -305,6 +287,16 @@ pub struct PriorityBinInfo {
 pub struct SkyMapData {
     pub blocks: Vec<LightweightBlock>,
     pub priority_bins: Vec<PriorityBinInfo>,
+    pub priority_min: f64,
+    pub priority_max: f64,
+    pub ra_min: f64,
+    pub ra_max: f64,
+    pub dec_min: f64,
+    pub dec_max: f64,
+    pub total_count: usize,
+    pub scheduled_count: usize,
+    pub scheduled_time_min: Option<f64>,
+    pub scheduled_time_max: Option<f64>,
 }
 
 // =========================================================

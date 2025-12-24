@@ -120,10 +120,11 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 fn mjd_to_datetime(py: Python<'_>, mjd: f64) -> PyResult<Py<PyAny>> {
     // Convert MJD -> seconds since UNIX epoch then use Python's datetime
     let secs = (mjd - 40587.0) * 86400.0;
-    let dt = py
-        .import("datetime")?
-        .getattr("datetime")?
-        .call1((secs,))?;
+    // Construct a timezone-aware UTC datetime using datetime.fromtimestamp
+    let datetime_mod = py.import("datetime")?;
+    let datetime_cls = datetime_mod.getattr("datetime")?;
+    let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
+    let dt = datetime_cls.call_method1("fromtimestamp", (secs, timezone_utc))?;
     Ok(dt.into())
 }
 

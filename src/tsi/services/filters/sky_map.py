@@ -34,9 +34,9 @@ def filter_blocks(
     filtered = []
 
     for block in blocks:
-        priority = float(block.priority)
+        priority = block.priority
         is_scheduled = block.scheduled_period is not None
-        priority_bin = str(getattr(block, "priority_bin", ""))
+        priority_bin = block.priority_bin
 
         # Priority range filter
         if not (priority_range[0] <= priority <= priority_range[1]):
@@ -54,7 +54,7 @@ def filter_blocks(
 
         # Time window filter
         if schedule_window and is_scheduled and block.scheduled_period:
-            start_mjd = ModifiedJulianDate(block.scheduled_period.start_mjd)
+            start_mjd = ModifiedJulianDate(block.scheduled_period.start)
             if not schedule_window.contains_mjd(float(start_mjd)):
                 continue
 

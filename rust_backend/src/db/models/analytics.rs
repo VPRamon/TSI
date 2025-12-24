@@ -23,13 +23,7 @@ pub struct LightweightBlock {
 }
 
 /// Computed priority bin with range information.
-#[derive(Debug, Clone)]
-pub struct PriorityBinInfo {
-    pub label: String,
-    pub min_priority: f64,
-    pub max_priority: f64,
-    pub color: String,
-}
+type PriorityBinInfo = crate::api::PriorityBinInfo;
 
 /// Complete sky map data with blocks and computed metadata.
 /// This structure contains everything the frontend needs to render the sky map.

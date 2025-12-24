@@ -111,18 +111,7 @@ def get_sky_map_data(schedule_id: int) -> SkyMapData:
         ServerError: If analytics data is not available
     """
     logger.debug(f"Fetching sky map data (ETL) for schedule_id={schedule_id}")
-    try:
-        return cast("SkyMapData", _rust_call("py_get_sky_map_data_analytics", schedule_id))
-    except ServerError as e:
-        # Provide helpful error message if analytics missing
-        if "No analytics data available" in str(e):
-            raise ServerError(
-                f"No analytics data available for schedule {schedule_id}. "
-                "Analytics tables may need to be populated. "
-                "Run populate_schedule_analytics() or check ETL process.",
-                details={"schedule_id": schedule_id},
-            ) from e
-        raise
+    return cast("SkyMapData", _rust_call("get_sky_map_data", schedule_id))
 
 
 # =============================================================================

@@ -105,17 +105,15 @@ def _render_color_selector() -> str:
 def _render_schedule_window_control(blocks: list[LightweightBlock]) -> Period | None:
     """Render slider to filter by scheduled start datetime."""
 
-    scheduled_periods = [
-        block.scheduled_period for block in blocks if getattr(block, "scheduled_period", None)
-    ]
+    scheduled_periods = [period for block in blocks if (period := block.scheduled_period) is not None]
 
     if not scheduled_periods:
         st.caption("No observations include a scheduled date.")
         state.set_schedule_window(None)
         return None
 
-    start_datetimes = [_mjd_to_datetime(period.start_mjd) for period in scheduled_periods]
-    stop_datetimes = [_mjd_to_datetime(period.stop_mjd) for period in scheduled_periods]
+    start_datetimes = [_mjd_to_datetime(period.start) for period in scheduled_periods]
+    stop_datetimes = [_mjd_to_datetime(period.stop) for period in scheduled_periods]
 
     min_dt = min(start_datetimes)
     max_dt = max(stop_datetimes)

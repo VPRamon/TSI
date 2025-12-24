@@ -14,8 +14,6 @@
 
 use crate::api::types as api;
 use crate::db::models;
-use anyhow::{Context, Result};
-use siderust::astro::ModifiedJulianDate;
 
 // =========================================================
 // Core Schedule Types - Internal to API
@@ -30,27 +28,6 @@ impl From<models::ScheduleId> for api::ScheduleId {
 impl From<api::ScheduleId> for models::ScheduleId {
     fn from(id: api::ScheduleId) -> Self {
         models::ScheduleId(id.0)
-    }
-}
-
-impl From<&models::Period> for api::Period {
-    fn from(period: &models::Period) -> Self {
-        api::Period {
-            start: period.start.value(),
-            stop: period.stop.value(),
-        }
-    }
-}
-
-impl TryFrom<&api::Period> for models::Period {
-    type Error = anyhow::Error;
-    
-    fn try_from(period: &api::Period) -> Result<Self> {
-        models::Period::new(
-            ModifiedJulianDate::new(period.start),
-            ModifiedJulianDate::new(period.stop),
-        )
-        .context("Invalid period: start must be before stop")
     }
 }
 
@@ -86,7 +63,7 @@ impl From<&models::Schedule> for api::Schedule {
         api::Schedule {
             name: schedule.name.clone(),
             blocks: schedule.blocks.iter().map(|b| b.into()).collect(),
-            dark_periods: schedule.dark_periods.iter().map(|p| p.into()).collect(),
+            dark_periods: schedule.dark_periods.clone(),
             possible_periods: vec![], // Not stored in this model
         }
     }
@@ -123,20 +100,12 @@ impl From<&models::LightweightBlock> for api::LightweightBlock {
     fn from(block: &models::LightweightBlock) -> Self {
         api::LightweightBlock {
             original_block_id: block.original_block_id.clone(),
-            ra: block.target_ra_deg,
-            dec: block.target_dec_deg,
             priority: block.priority,
-            scheduled: block.scheduled_period.is_some(),
-        }
-    }
-}
-
-impl From<&models::PriorityBinInfo> for api::PriorityBinInfo {
-    fn from(bin: &models::PriorityBinInfo) -> Self {
-        api::PriorityBinInfo {
-            priority: (bin.min_priority + bin.max_priority) / 2.0,
-            count: 0, // Not available in internal model
-            scheduled_count: 0, // Not available in internal model
+            priority_bin: block.priority_bin.clone(),
+            requested_duration_seconds: block.requested_duration_seconds,
+            target_ra_deg: block.target_ra_deg,
+            target_dec_deg: block.target_dec_deg,
+            scheduled_period: block.scheduled_period.clone()
         }
     }
 }
@@ -145,7 +114,17 @@ impl From<&models::SkyMapData> for api::SkyMapData {
     fn from(data: &models::SkyMapData) -> Self {
         api::SkyMapData {
             blocks: data.blocks.iter().map(|b| b.into()).collect(),
-            priority_bins: data.priority_bins.iter().map(|b| b.into()).collect(),
+            priority_bins: data.priority_bins.clone(),
+            priority_min: data.priority_min,
+            priority_max: data.priority_max,
+            ra_min: data.ra_min,
+            ra_max: data.ra_max,
+            dec_min: data.dec_min,
+            dec_max: data.dec_max,
+            total_count: data.total_count,
+            scheduled_count: data.scheduled_count,
+            scheduled_time_min: data.scheduled_time_min,
+            scheduled_time_max: data.scheduled_time_max,
         }
     }
 }
