@@ -39,7 +39,7 @@ def _initialize_database() -> None:
         import tsi_rust
 
         # This will initialize with local in-memory storage (no database config needed)
-        tsi_rust.py_init_database()
+        tsi_rust.init_database()
 
         st.session_state[KEY_DB_INITIALIZED] = True
         logger.info("Database initialized successfully with local storage")

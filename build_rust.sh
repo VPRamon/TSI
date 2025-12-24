@@ -34,8 +34,8 @@ if [ ! -f "Cargo.toml" ] && [ ! -f "rust_backend/Cargo.toml" ]; then
     exit 1
 fi
 
-# Move to project root if in rust_backend
-if [ -f "rust_backend/Cargo.toml" ]; then
+# Move to project root if in rust_backend directory
+if [ -f "Cargo.toml" ] && [ -f "../pyproject.toml" ]; then
     cd ..
 fi
 
@@ -137,9 +137,9 @@ print_info "Building Rust backend in $MODE mode..."
 echo ""
 
 if [ "$MODE" = "release" ]; then
-    maturin develop --release
+    maturin develop --release --manifest-path rust_backend/Cargo.toml
 else
-    maturin develop
+    maturin develop --manifest-path rust_backend/Cargo.toml
 fi
 
 BUILD_EXIT_CODE=$?

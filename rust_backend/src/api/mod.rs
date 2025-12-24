@@ -28,4 +28,5 @@ pub mod types;
 
 // Re-export for convenience
 pub use streamlit::register_api_functions;
+pub use streamlit::register_transformation_functions;
 pub use types::*;
