@@ -217,15 +217,15 @@ fn store_schedule(
     schedule_name: String,
     schedule_json: String,
     visibility_json: Option<String>,
-) -> PyResult<String> {
+) -> PyResult<i64> {
     // py_store_schedule returns Py<PyAny> (a Python dict), not a Rust struct
     // We return the schedule name as confirmation
     let visibility_ref = visibility_json.as_deref();
     let schedule = db_services::parse_schedule_from_json(&schedule_name, &schedule_json, visibility_ref)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    let _metadata = db_services::store_schedule_sync(&schedule, true, false)
+    let metadata = db_services::store_schedule_sync(&schedule, true, false)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    Ok(schedule_name)
+    Ok(metadata.schedule_id.unwrap())
 }
 
 /// List all schedules in the database.

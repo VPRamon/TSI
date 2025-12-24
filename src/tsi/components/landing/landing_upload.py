@@ -78,16 +78,16 @@ def upload_schedule(
                     visibility_content = visibility_content.decode("utf-8")
 
             # Store in database (preprocesses automatically)
-            metadata = db.store_schedule_db(
+            schedule_id = db.store_schedule_db(
                 schedule_name=schedule_name,
                 schedule_json=schedule_content,
                 visibility_json=visibility_content,
             )
 
-            st.success(f"✅ Schedule stored successfully (ID: {metadata['schedule_id']})")
+            st.success(f"✅ Schedule stored successfully (ID: {schedule_id})")
 
             # Now load it
-            load_schedule_from_db(metadata["schedule_id"], schedule_name)
+            load_schedule_from_db(schedule_id, schedule_name)
 
     except Exception as e:
         st.error(f"❌ Error uploading schedule: {str(e)}")
