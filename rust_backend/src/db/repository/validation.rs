@@ -6,7 +6,6 @@
 use async_trait::async_trait;
 
 use super::error::RepositoryResult;
-use crate::db::validation::ValidationReportData;
 use crate::services::validation::ValidationResult;
 
 /// Repository trait for validation operations.
@@ -37,12 +36,12 @@ pub trait ValidationRepository: Send + Sync {
     /// * `schedule_id` - The ID of the schedule
     ///
     /// # Returns
-    /// * `Ok(ValidationReportData)` - Validation report with all issues
+    /// * `Ok(ValidationReport)` - Validation report with all issues
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_validation_results(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<ValidationReportData>;
+    ) -> RepositoryResult<crate::api::ValidationReport>;
 
     /// Check if validation results exist for a schedule.
     ///

@@ -20,6 +20,3 @@ pub use analytics::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeBin,
     VisibilityTimeMetadata,
 };
-
-// Re-export validation types
-pub use validation::ValidationReportData;

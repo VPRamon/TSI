@@ -167,9 +167,9 @@ pub async fn update_validation_impossible_flags(schedule_id: i64) -> Result<usiz
 /// * `schedule_id` - Schedule ID to fetch validation results for
 ///
 /// # Returns
-/// * `Ok(ValidationReportData)` - Validation report data
+/// * `Ok(ValidationReport)` - Validation report data
 /// * `Err(String)` - Error description if the operation fails
-pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationReportData, String> {
+pub async fn fetch_validation_results(schedule_id: i64) -> Result<crate::api::ValidationReport, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -234,7 +234,7 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
 
         match validation_status {
             "impossible" => {
-                impossible_blocks.push(ValidationIssue {
+                impossible_blocks.push(crate::api::ValidationIssue {
                     block_id: scheduling_block_id,
                     original_block_id: original_block_id.map(|s| s.to_string()),
                     issue_type: issue_type.unwrap_or("Unknown").to_string(),
@@ -247,7 +247,7 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
                 });
             }
             "error" => {
-                validation_errors.push(ValidationIssue {
+                validation_errors.push(crate::api::ValidationIssue {
                     block_id: scheduling_block_id,
                     original_block_id: original_block_id.map(|s| s.to_string()),
                     issue_type: issue_type.unwrap_or("Unknown").to_string(),
@@ -260,7 +260,7 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
                 });
             }
             "warning" => {
-                validation_warnings.push(ValidationIssue {
+                validation_warnings.push(crate::api::ValidationIssue {
                     block_id: scheduling_block_id,
                     original_block_id: original_block_id.map(|s| s.to_string()),
                     issue_type: issue_type.unwrap_or("Unknown").to_string(),
@@ -282,7 +282,7 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<ValidationRepo
     let total_blocks =
         valid_count + impossible_blocks.len() + validation_errors.len() + validation_warnings.len();
 
-    Ok(ValidationReportData {
+    Ok(crate::api::ValidationReport {
         schedule_id,
         total_blocks,
         valid_blocks: valid_count,
@@ -348,33 +348,4 @@ pub async fn delete_validation_results(schedule_id: i64) -> Result<u64, String> 
     );
 
     Ok(deleted_count)
-}
-
-// ============================================================================
-// Data structures for validation report
-// ============================================================================
-
-/// A single validation issue (impossible block, error, or warning)
-#[derive(Debug, Clone)]
-pub struct ValidationIssue {
-    pub block_id: i64,
-    pub original_block_id: Option<String>,
-    pub issue_type: String,
-    pub category: String,
-    pub criticality: String,
-    pub field_name: Option<String>,
-    pub current_value: Option<String>,
-    pub expected_value: Option<String>,
-    pub description: String,
-}
-
-/// Validation report data for a schedule
-#[derive(Debug, Clone)]
-pub struct ValidationReportData {
-    pub schedule_id: i64,
-    pub total_blocks: usize,
-    pub valid_blocks: usize,
-    pub impossible_blocks: Vec<ValidationIssue>,
-    pub validation_errors: Vec<ValidationIssue>,
-    pub validation_warnings: Vec<ValidationIssue>,
 }

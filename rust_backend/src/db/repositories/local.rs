@@ -13,7 +13,6 @@ use crate::db::{
     analytics,
     models::{Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock},
     repository::*,
-    validation,
 };
 use crate::services::validation::ValidationResult;
 use siderust::astro::ModifiedJulianDate;
@@ -60,7 +59,7 @@ struct LocalData {
     visibility_metadata: HashMap<i64, analytics::VisibilityTimeMetadata>,
 
     // Validation data
-    validation_results: HashMap<i64, validation::ValidationReportData>,
+    validation_results: HashMap<i64, crate::api::ValidationReport>,
 
     // ID counters
     next_schedule_id: i64,
@@ -355,7 +354,7 @@ impl AnalyticsRepository for LocalRepository {
             let mut data = self.data.write().unwrap();
             data.validation_results.insert(
                 schedule_id,
-                validation::ValidationReportData {
+                crate::api::ValidationReport {
                     schedule_id,
                     total_blocks: 0,
                     valid_blocks: 0,
@@ -631,7 +630,7 @@ impl ValidationRepository for LocalRepository {
                     valid_count += 1;
                 }
                 ValidationStatus::Impossible => {
-                    impossible_blocks.push(validation::ValidationIssue {
+                    impossible_blocks.push(crate::api::ValidationIssue {
                         block_id: r.scheduling_block_id,
                         original_block_id: None,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
@@ -652,7 +651,7 @@ impl ValidationRepository for LocalRepository {
                     });
                 }
                 ValidationStatus::Error => {
-                    validation_errors.push(validation::ValidationIssue {
+                    validation_errors.push(crate::api::ValidationIssue {
                         block_id: r.scheduling_block_id,
                         original_block_id: None,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
@@ -673,7 +672,7 @@ impl ValidationRepository for LocalRepository {
                     });
                 }
                 ValidationStatus::Warning => {
-                    validation_warnings.push(validation::ValidationIssue {
+                    validation_warnings.push(crate::api::ValidationIssue {
                         block_id: r.scheduling_block_id,
                         original_block_id: None,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
@@ -701,7 +700,7 @@ impl ValidationRepository for LocalRepository {
             results.iter().map(|r| r.scheduling_block_id).collect();
         let total_blocks = unique_blocks.len();
 
-        let report = validation::ValidationReportData {
+        let report = crate::api::ValidationReport {
             schedule_id,
             total_blocks,
             valid_blocks: valid_count,
@@ -717,7 +716,7 @@ impl ValidationRepository for LocalRepository {
     async fn fetch_validation_results(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<validation::ValidationReportData> {
+    ) -> RepositoryResult<crate::api::ValidationReport> {
         let data = self.data.read().unwrap();
 
         data.validation_results

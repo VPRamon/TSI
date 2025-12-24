@@ -639,20 +639,26 @@ pub struct VisibilityMapData {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationIssue {
-    pub severity: String, // "error", "warning", "info"
-    pub message: String,
-    pub block_id: Option<String>,
+    pub block_id: i64,
+    pub original_block_id: Option<String>,
+    pub issue_type: String,
+    pub category: String,
+    pub criticality: String,
+    pub field_name: Option<String>,
+    pub current_value: Option<String>,
+    pub expected_value: Option<String>,
+    pub description: String,
 }
-
 /// Validation report data.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationReport {
     pub schedule_id: i64,
-    pub issues: Vec<ValidationIssue>,
-    pub error_count: usize,
-    pub warning_count: usize,
-    pub passed: bool,
+    pub total_blocks: usize,
+    pub valid_blocks: usize,
+    pub impossible_blocks: Vec<ValidationIssue>,
+    pub validation_errors: Vec<ValidationIssue>,
+    pub validation_warnings: Vec<ValidationIssue>,
 }
 
 // =========================================================

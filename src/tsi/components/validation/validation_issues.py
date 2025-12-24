@@ -7,6 +7,10 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tsi_rust import ValidationReport
 
 def _get_criticality_emoji(criticality: str) -> str:
     """Get emoji for criticality level."""
@@ -28,7 +32,7 @@ def _get_criticality_color(criticality: str) -> str:
     }.get(criticality, "#999999")
 
 
-def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
+def render_unified_validation_table(validation_data: ValidationReport) -> None:
     """
     Render all validation issues in a unified table with criticality column.
 
@@ -51,69 +55,29 @@ def render_unified_validation_table(validation_data: dict[str, Any]) -> None:
     )
 
     # Collect all issues into a unified list
-    all_issues = []
-
-    # Process impossible blocks (always Critical)
-    for block in validation_data.get("impossible_blocks", []):
-        # Use original_block_id if available, otherwise fall back to block_id
-        block_display_id = block.get("original_block_id") or str(block.get("block_id", "N/A"))
-        all_issues.append(
-            {
-                "Criticality": "Critical",
-                "Block ID": block_display_id,
-                "Issue Type": block.get("reason", "Unknown"),
-                "Field": "Scheduling Constraint",
-                "Current Value": f"{block.get('total_visibility_hours', 0):.2f}h available",
-                "Expected/Issue": f"Needs {block.get('requested_duration_hours', 0):.2f}h",
-                "Description": block.get("details", ""),
-            }
-        )
-
-    # Process validation errors
-    for error in validation_data.get("validation_errors", []):
-        # Use original_block_id if available, otherwise fall back to block_id
-        block_display_id = error.get("original_block_id") or str(error.get("block_id", "N/A"))
-
-        # Use criticality from backend (don't recalculate based on keywords)
-        criticality = error.get("criticality", "Medium")
-
-        expected = error.get("expected_range", error.get("issue", ""))
-
-        all_issues.append(
-            {
-                "Criticality": criticality,
-                "Block ID": block_display_id,
-                "Issue Type": error.get("error_type", "Validation Error"),
-                "Field": error.get("field", "N/A"),
-                "Current Value": error.get("value", "N/A"),
-                "Expected/Issue": expected,
-                "Description": error.get("description", ""),
-            }
-        )
-
-    # Process validation warnings
-    for warning in validation_data.get("validation_warnings", []):
-        # Use original_block_id if available, otherwise fall back to block_id
-        block_display_id = warning.get("original_block_id") or str(warning.get("block_id", "N/A"))
-
-        # Use criticality from backend (don't recalculate based on keywords)
-        criticality = warning.get("criticality", "Low")
-
-        all_issues.append(
-            {
-                "Criticality": criticality,
-                "Block ID": block_display_id,
-                "Issue Type": warning.get("warning_type", "Warning"),
-                "Field": warning.get("field", "N/A"),
-                "Current Value": warning.get("value", "N/A"),
-                "Expected/Issue": warning.get("note", ""),
-                "Description": warning.get("description", ""),
-            }
-        )
+    all_issues = [issue for issue in validation_data.impossible_blocks]
+    all_issues.extend(validation_data.validation_errors)
+    all_issues.extend(validation_data.validation_warnings)
 
     if not all_issues:
         st.success("✅ No validation issues found")
         return
+
+    # TO DISCUSS: should we get rid of DF?
+    # Convert ValidationIssue objects to dicts for DataFrame
+    issue_dicts = []
+    for issue in all_issues:
+        issue_dicts.append({
+            "Block ID": issue.original_block_id if issue.original_block_id is not None else str(issue.block_id),
+            "Issue Type": issue.issue_type,
+            "Category": issue.category,
+            "Criticality": issue.criticality,
+            "Field": issue.field_name if issue.field_name is not None else "",
+            "Current Value": issue.current_value if issue.current_value is not None else "",
+            "Expected/Issue": issue.expected_value if issue.expected_value is not None else "",
+            "Description": issue.description,
+        })
+    all_issues = issue_dicts
 
     # Create DataFrame
     df = pd.DataFrame(all_issues)
