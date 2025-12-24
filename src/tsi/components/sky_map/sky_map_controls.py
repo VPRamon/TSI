@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 import streamlit as st
+import tsi_rust
 from tsi_rust import Period
 
 from tsi import state
@@ -112,8 +113,9 @@ def _render_schedule_window_control(blocks: list[LightweightBlock]) -> Period | 
         state.set_schedule_window(None)
         return None
 
-    start_datetimes = [_mjd_to_datetime(period.start) for period in scheduled_periods]
-    stop_datetimes = [_mjd_to_datetime(period.stop) for period in scheduled_periods]
+    start_datetimes, stop_datetimes = zip(
+        *(period.to_datetime() for period in scheduled_periods)
+    )
 
     min_dt = min(start_datetimes)
     max_dt = max(stop_datetimes)
@@ -133,10 +135,7 @@ def _render_schedule_window_control(blocks: list[LightweightBlock]) -> Period | 
         help="Show only scheduled targets whose start time falls within this window.",
     )
 
-    selected_window = Period(
-        float(ModifiedJulianDate.from_datetime(selected_start)),
-        float(ModifiedJulianDate.from_datetime(selected_stop)),
-    )
+    selected_window = Period.from_datetime(selected_start, selected_stop)
     state.set_schedule_window(selected_window)
     return selected_window
 
