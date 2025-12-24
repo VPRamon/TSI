@@ -57,6 +57,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
+from numpy import int64
 import pandas as pd
 
 from app_config import get_settings
@@ -159,9 +160,7 @@ def store_schedule_db(
     schedule_name: str,
     schedule_json: str,
     visibility_json: str | None = None,
-    populate_analytics: bool = True,
-    skip_time_bins: bool = True,
-) -> dict[str, Any]:
+) -> int64:
     """
     Store a preprocessed schedule in the database.
 
@@ -186,16 +185,10 @@ def store_schedule_db(
     """
     try:
         result = _rust_call(
-            "py_store_schedule_with_options",
+            "store_schedule",
             schedule_name,
             schedule_json,
             visibility_json,
-            populate_analytics,
-            skip_time_bins,
-        )
-        logger.info(
-            f"Successfully stored schedule '{schedule_name}' "
-            f"(analytics={populate_analytics}, skip_bins={skip_time_bins})"
         )
         return result  # type: ignore[no-any-return]
     except Exception as e:
@@ -217,7 +210,7 @@ def list_schedules_db() -> list[dict[str, Any]]:
         ServerError: If query fails
     """
     try:
-        result = _rust_call("py_list_schedules")
+        result = _rust_call("list_schedules")
         logger.debug(f"Retrieved {len(result)} schedules from database")
         return result  # type: ignore[no-any-return]
     except Exception as e:
