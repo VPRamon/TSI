@@ -15,8 +15,8 @@ pub use repository::AzureRepository;
 // Re-export pool functions for backward compatibility
 pub use pool::{build_tiberius_config, get_pool, init_pool};
 
-// Re-export analytics types
-pub use analytics::{
+// Re-export analytics types from api module (now centralized there)
+pub use crate::api::types::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeBin,
     VisibilityTimeMetadata,
 };

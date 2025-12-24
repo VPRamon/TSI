@@ -9,8 +9,11 @@ use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+use crate::api::types::{
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeBin,
+    VisibilityTimeMetadata,
+};
 use crate::db::{
-    analytics,
     models::{Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock},
     repository::*,
 };
@@ -51,12 +54,12 @@ struct LocalData {
 
     // Analytics data
     analytics_exists: HashMap<i64, bool>,
-    summary_analytics: HashMap<i64, analytics::ScheduleSummary>,
-    priority_rates: HashMap<i64, Vec<analytics::PriorityRate>>,
-    visibility_bins: HashMap<i64, Vec<analytics::VisibilityBin>>,
-    heatmap_bins: HashMap<i64, Vec<analytics::HeatmapBinData>>,
-    visibility_time_bins: HashMap<i64, Vec<analytics::VisibilityTimeBin>>,
-    visibility_metadata: HashMap<i64, analytics::VisibilityTimeMetadata>,
+    summary_analytics: HashMap<i64, ScheduleSummary>,
+    priority_rates: HashMap<i64, Vec<PriorityRate>>,
+    visibility_bins: HashMap<i64, Vec<VisibilityBin>>,
+    heatmap_bins: HashMap<i64, Vec<HeatmapBinData>>,
+    visibility_time_bins: HashMap<i64, Vec<VisibilityTimeBin>>,
+    visibility_metadata: HashMap<i64, VisibilityTimeMetadata>,
 
     // Validation data
     validation_results: HashMap<i64, crate::api::ValidationReport>,
@@ -478,7 +481,7 @@ impl AnalyticsRepository for LocalRepository {
         let mut data = self.data.write().unwrap();
 
         // Create dummy summary
-        let summary = analytics::ScheduleSummary {
+        let summary = ScheduleSummary {
             schedule_id,
             total_blocks: 100,
             scheduled_blocks: 95,
@@ -509,7 +512,7 @@ impl AnalyticsRepository for LocalRepository {
     async fn fetch_schedule_summary(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Option<analytics::ScheduleSummary>> {
+    ) -> RepositoryResult<Option<ScheduleSummary>> {
         let data = self.data.read().unwrap();
         Ok(data.summary_analytics.get(&schedule_id).cloned())
     }
@@ -517,7 +520,7 @@ impl AnalyticsRepository for LocalRepository {
     async fn fetch_priority_rates(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<analytics::PriorityRate>> {
+    ) -> RepositoryResult<Vec<PriorityRate>> {
         let data = self.data.read().unwrap();
         Ok(data
             .priority_rates
@@ -529,7 +532,7 @@ impl AnalyticsRepository for LocalRepository {
     async fn fetch_visibility_bins(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<analytics::VisibilityBin>> {
+    ) -> RepositoryResult<Vec<VisibilityBin>> {
         let data = self.data.read().unwrap();
         Ok(data
             .visibility_bins
@@ -541,7 +544,7 @@ impl AnalyticsRepository for LocalRepository {
     async fn fetch_heatmap_bins(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<analytics::HeatmapBinData>> {
+    ) -> RepositoryResult<Vec<HeatmapBinData>> {
         let data = self.data.read().unwrap();
         Ok(data
             .heatmap_bins
@@ -586,7 +589,7 @@ impl AnalyticsRepository for LocalRepository {
     async fn fetch_visibility_metadata(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Option<analytics::VisibilityTimeMetadata>> {
+    ) -> RepositoryResult<Option<VisibilityTimeMetadata>> {
         let data = self.data.read().unwrap();
         Ok(data.visibility_metadata.get(&schedule_id).cloned())
     }

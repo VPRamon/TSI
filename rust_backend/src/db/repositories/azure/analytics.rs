@@ -17,6 +17,9 @@ use log::{debug, info, warn};
 use tiberius::Query;
 
 use super::pool;
+use crate::api::types::{
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeMetadata,
+};
 
 /// Populate the analytics table for a schedule.
 ///
@@ -1034,71 +1037,6 @@ pub async fn has_analytics_data(schedule_id: i64) -> Result<bool, String> {
 // Phase 2: Summary Analytics Tables
 // =============================================================================
 
-use pyo3::prelude::*;
-
-/// Summary metrics for a schedule (matches schedule_summary_analytics table).
-#[derive(Debug, Clone)]
-#[pyclass(get_all)]
-pub struct ScheduleSummary {
-    pub schedule_id: i64,
-    pub total_blocks: i32,
-    pub scheduled_blocks: i32,
-    pub unscheduled_blocks: i32,
-    pub impossible_blocks: i32,
-    pub scheduling_rate: f64,
-    pub priority_min: Option<f64>,
-    pub priority_max: Option<f64>,
-    pub priority_mean: Option<f64>,
-    pub priority_median: Option<f64>,
-    pub priority_scheduled_mean: Option<f64>,
-    pub priority_unscheduled_mean: Option<f64>,
-    pub visibility_total_hours: f64,
-    pub visibility_mean_hours: Option<f64>,
-    pub requested_total_hours: f64,
-    pub requested_mean_hours: Option<f64>,
-    pub scheduled_total_hours: f64,
-    pub corr_priority_visibility: Option<f64>,
-    pub corr_priority_requested: Option<f64>,
-    pub corr_visibility_requested: Option<f64>,
-    pub conflict_count: i32,
-}
-
-/// Priority-level rate data (matches schedule_priority_rates table).
-#[derive(Debug, Clone)]
-#[pyclass(get_all)]
-pub struct PriorityRate {
-    pub priority_value: i32,
-    pub total_count: i32,
-    pub scheduled_count: i32,
-    pub scheduling_rate: f64,
-    pub visibility_mean_hours: Option<f64>,
-    pub requested_mean_hours: Option<f64>,
-}
-
-/// Visibility bin data (matches schedule_visibility_bins table).
-#[derive(Debug, Clone)]
-#[pyclass(get_all)]
-pub struct VisibilityBin {
-    pub bin_index: i32,
-    pub bin_min_hours: f64,
-    pub bin_max_hours: f64,
-    pub bin_mid_hours: f64,
-    pub total_count: i32,
-    pub scheduled_count: i32,
-    pub scheduling_rate: f64,
-}
-
-/// Heatmap bin data (matches schedule_heatmap_bins table).
-#[derive(Debug, Clone)]
-#[pyclass(get_all)]
-pub struct HeatmapBinData {
-    pub visibility_mid_hours: f64,
-    pub time_mid_hours: f64,
-    pub total_count: i32,
-    pub scheduled_count: i32,
-    pub scheduling_rate: f64,
-}
-
 /// Populate summary analytics tables for a schedule.
 ///
 /// This function populates:
@@ -1838,39 +1776,6 @@ const MJD_EPOCH_UNIX: i64 = -3506716800;
 #[inline]
 fn mjd_to_unix(mjd: f64) -> i64 {
     MJD_EPOCH_UNIX + (mjd * 86400.0) as i64
-}
-
-/// Visibility metadata for a schedule
-#[derive(Debug, Clone)]
-#[pyclass(get_all)]
-pub struct VisibilityTimeMetadata {
-    pub schedule_id: i64,
-    pub time_range_start_unix: i64,
-    pub time_range_end_unix: i64,
-    pub bin_duration_seconds: i32,
-    pub total_bins: i32,
-    pub total_blocks: i32,
-    pub blocks_with_visibility: i32,
-    pub priority_min: Option<f64>,
-    pub priority_max: Option<f64>,
-    pub max_visible_in_bin: i32,
-    pub mean_visible_per_bin: Option<f64>,
-}
-
-/// Pre-computed visibility time bin data
-#[derive(Debug, Clone)]
-#[pyclass(get_all)]
-pub struct VisibilityTimeBin {
-    pub bin_start_unix: i64,
-    pub bin_end_unix: i64,
-    pub bin_index: i32,
-    pub total_visible_count: i32,
-    pub priority_q1_count: i32,
-    pub priority_q2_count: i32,
-    pub priority_q3_count: i32,
-    pub priority_q4_count: i32,
-    pub scheduled_visible_count: i32,
-    pub unscheduled_visible_count: i32,
 }
 
 /// Parsed visibility period from JSON

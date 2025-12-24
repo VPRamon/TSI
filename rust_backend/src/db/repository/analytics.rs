@@ -7,7 +7,7 @@
 use async_trait::async_trait;
 
 use super::error::RepositoryResult;
-use crate::db::analytics::{
+use crate::api::types::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeMetadata,
 };
 use crate::db::models::{DistributionBlock, LightweightBlock};

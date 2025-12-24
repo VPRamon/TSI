@@ -362,89 +362,12 @@ impl From<&models::CompareData> for api::CompareData {
 }
 
 // =========================================================
-// Phase 2 Analytics Types
 // =========================================================
-
-impl From<&crate::db::ScheduleSummary> for api::ScheduleSummary {
-    fn from(summary: &crate::db::ScheduleSummary) -> Self {
-        api::ScheduleSummary {
-            schedule_id: summary.schedule_id,
-            total_blocks: summary.total_blocks,
-            scheduled_blocks: summary.scheduled_blocks,
-            scheduling_rate: summary.scheduling_rate,
-            mean_priority: summary.priority_mean.unwrap_or(0.0),
-            mean_visibility_hours: summary.visibility_mean_hours.unwrap_or(0.0),
-            total_visibility_hours: summary.visibility_total_hours,
-        }
-    }
-}
-
-impl From<&crate::db::PriorityRate> for api::PriorityRate {
-    fn from(rate: &crate::db::PriorityRate) -> Self {
-        api::PriorityRate {
-            priority_bin: rate.priority_value as f64,
-            total_count: rate.total_count,
-            scheduled_count: rate.scheduled_count,
-            rate: rate.scheduling_rate,
-        }
-    }
-}
-
-impl From<&crate::db::VisibilityBin> for api::VisibilityBin {
-    fn from(bin: &crate::db::VisibilityBin) -> Self {
-        api::VisibilityBin {
-            visibility_bin: bin.bin_mid_hours,
-            count: bin.total_count,
-        }
-    }
-}
-
-impl From<&crate::db::HeatmapBinData> for api::HeatmapBinData {
-    fn from(bin: &crate::db::HeatmapBinData) -> Self {
-        api::HeatmapBinData {
-            priority_bin: 0.0, // Not directly available in HeatmapBinData
-            visibility_bin: bin.visibility_mid_hours,
-            count: bin.total_count,
-        }
-    }
-}
-
+// Phase 2 Analytics Types (Now directly in api::types)
 // =========================================================
-// Phase 3 Analytics Types
-// =========================================================
-
-impl From<&crate::db::VisibilityTimeMetadata> for api::VisibilityTimeMetadata {
-    fn from(meta: &crate::db::VisibilityTimeMetadata) -> Self {
-        // Convert Unix timestamps to MJD
-        let mjd_offset = 40587.0; // MJD for Unix epoch (1970-01-01)
-        let min_mjd = (meta.time_range_start_unix as f64 / 86400.0) + mjd_offset;
-        let max_mjd = (meta.time_range_end_unix as f64 / 86400.0) + mjd_offset;
-        let bin_size_days = meta.bin_duration_seconds as f64 / 86400.0;
-        
-        api::VisibilityTimeMetadata {
-            schedule_id: meta.schedule_id,
-            min_mjd,
-            max_mjd,
-            bin_size_days,
-            total_bins: meta.total_bins,
-        }
-    }
-}
-
-impl From<&crate::db::VisibilityTimeBin> for api::VisibilityTimeBin {
-    fn from(bin: &crate::db::VisibilityTimeBin) -> Self {
-        // Convert Unix timestamps to MJD
-        let mjd_offset = 40587.0; // MJD for Unix epoch (1970-01-01)
-        let bin_start_mjd = (bin.bin_start_unix as f64 / 86400.0) + mjd_offset;
-        let bin_end_mjd = (bin.bin_end_unix as f64 / 86400.0) + mjd_offset;
-        
-        api::VisibilityTimeBin {
-            bin_start_mjd,
-            bin_end_mjd,
-            visibility_count: bin.total_visible_count,
-        }
-    }
-}
+// Note: ScheduleSummary, PriorityRate, VisibilityBin, HeatmapBinData, 
+// VisibilityTimeMetadata, and VisibilityTimeBin are now defined directly
+// in api::types and do not need conversions as they are the source of truth.
 
 // =========================================================
 // Visibility Map Types

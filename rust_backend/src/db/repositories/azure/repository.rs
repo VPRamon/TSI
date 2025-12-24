@@ -7,6 +7,9 @@
 use async_trait::async_trait;
 
 use super::{analytics, operations, validation};
+use crate::api::types::{
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeMetadata,
+};
 use crate::db::{
     models::{Period, Schedule, ScheduleInfo, ScheduleMetadata},
     repository::*,
@@ -182,7 +185,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_schedule_summary(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Option<analytics::ScheduleSummary>> {
+    ) -> RepositoryResult<Option<ScheduleSummary>> {
         analytics::fetch_schedule_summary(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -191,7 +194,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_priority_rates(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<analytics::PriorityRate>> {
+    ) -> RepositoryResult<Vec<PriorityRate>> {
         analytics::fetch_priority_rates(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -200,7 +203,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_visibility_bins(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<analytics::VisibilityBin>> {
+    ) -> RepositoryResult<Vec<VisibilityBin>> {
         analytics::fetch_visibility_bins(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -209,7 +212,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_heatmap_bins(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<analytics::HeatmapBinData>> {
+    ) -> RepositoryResult<Vec<HeatmapBinData>> {
         analytics::fetch_heatmap_bins(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -257,7 +260,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_visibility_metadata(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Option<analytics::VisibilityTimeMetadata>> {
+    ) -> RepositoryResult<Option<VisibilityTimeMetadata>> {
         analytics::fetch_visibility_metadata(schedule_id)
             .await
             .map_err(RepositoryError::from)

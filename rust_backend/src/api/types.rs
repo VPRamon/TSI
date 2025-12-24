@@ -534,68 +534,104 @@ pub struct CompareData {
 // Phase 2 Analytics (Pre-computed Summary)
 // =========================================================
 
-/// Pre-computed schedule summary from ETL tables.
+/// Pre-computed schedule summary from ETL tables (from schedule_summary_analytics).
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleSummary {
     pub schedule_id: i64,
     pub total_blocks: i32,
     pub scheduled_blocks: i32,
+    pub unscheduled_blocks: i32,
+    pub impossible_blocks: i32,
     pub scheduling_rate: f64,
-    pub mean_priority: f64,
-    pub mean_visibility_hours: f64,
-    pub total_visibility_hours: f64,
+    pub priority_min: Option<f64>,
+    pub priority_max: Option<f64>,
+    pub priority_mean: Option<f64>,
+    pub priority_median: Option<f64>,
+    pub priority_scheduled_mean: Option<f64>,
+    pub priority_unscheduled_mean: Option<f64>,
+    pub visibility_total_hours: f64,
+    pub visibility_mean_hours: Option<f64>,
+    pub requested_total_hours: f64,
+    pub requested_mean_hours: Option<f64>,
+    pub scheduled_total_hours: f64,
+    pub corr_priority_visibility: Option<f64>,
+    pub corr_priority_requested: Option<f64>,
+    pub corr_visibility_requested: Option<f64>,
+    pub conflict_count: i32,
 }
 
-/// Priority-based scheduling rate.
+/// Priority-level rate data (from schedule_priority_rates table).
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PriorityRate {
-    pub priority_bin: f64,
+    pub priority_value: i32,
     pub total_count: i32,
     pub scheduled_count: i32,
-    pub rate: f64,
+    pub scheduling_rate: f64,
+    pub visibility_mean_hours: Option<f64>,
+    pub requested_mean_hours: Option<f64>,
 }
 
-/// Visibility histogram bin.
+/// Visibility bin data (from schedule_visibility_bins table).
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisibilityBin {
-    pub visibility_bin: f64,
-    pub count: i32,
+    pub bin_index: i32,
+    pub bin_min_hours: f64,
+    pub bin_max_hours: f64,
+    pub bin_mid_hours: f64,
+    pub total_count: i32,
+    pub scheduled_count: i32,
+    pub scheduling_rate: f64,
 }
 
-/// Heatmap bin data (pre-computed).
+/// Heatmap bin data (from schedule_heatmap_bins table).
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeatmapBinData {
-    pub priority_bin: f64,
-    pub visibility_bin: f64,
-    pub count: i32,
+    pub visibility_mid_hours: f64,
+    pub time_mid_hours: f64,
+    pub total_count: i32,
+    pub scheduled_count: i32,
+    pub scheduling_rate: f64,
 }
 
 // =========================================================
 // Phase 3 Analytics (Visibility Time Bins)
 // =========================================================
 
-/// Visibility time metadata.
+/// Visibility time series metadata (from schedule_visibility_time_metadata table).
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisibilityTimeMetadata {
     pub schedule_id: i64,
-    pub min_mjd: f64,
-    pub max_mjd: f64,
-    pub bin_size_days: f64,
+    pub time_range_start_unix: i64,
+    pub time_range_end_unix: i64,
+    pub bin_duration_seconds: i32,
     pub total_bins: i32,
+    pub total_blocks: i32,
+    pub blocks_with_visibility: i32,
+    pub priority_min: Option<f64>,
+    pub priority_max: Option<f64>,
+    pub max_visible_in_bin: i32,
+    pub mean_visible_per_bin: Option<f64>,
 }
 
-/// Pre-computed visibility time bin.
+/// Pre-computed visibility time bin data (from schedule_visibility_time_bins table).
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisibilityTimeBin {
-    pub bin_start_mjd: f64,
-    pub bin_end_mjd: f64,
-    pub visibility_count: i32,
+    pub bin_start_unix: i64,
+    pub bin_end_unix: i64,
+    pub bin_index: i32,
+    pub total_visible_count: i32,
+    pub priority_q1_count: i32,
+    pub priority_q2_count: i32,
+    pub priority_q3_count: i32,
+    pub priority_q4_count: i32,
+    pub scheduled_visible_count: i32,
+    pub unscheduled_visible_count: i32,
 }
 
 // =========================================================
