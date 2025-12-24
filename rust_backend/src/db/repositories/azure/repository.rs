@@ -157,7 +157,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_analytics_blocks_for_sky_map(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::LightweightBlock>> {
+    ) -> RepositoryResult<Vec<crate::api::LightweightBlock>> {
         analytics::fetch_analytics_blocks_for_sky_map(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -166,7 +166,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_analytics_blocks_for_distribution(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::DistributionBlock>> {
+    ) -> RepositoryResult<Vec<crate::api::DistributionBlock>> {
         analytics::fetch_analytics_blocks_for_distribution(schedule_id)
             .await
             .map_err(RepositoryError::from)

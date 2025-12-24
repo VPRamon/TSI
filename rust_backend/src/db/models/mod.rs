@@ -7,15 +7,11 @@
 //! - [`analytics`]: Analytics and visualization types (LightweightBlock, DistributionData, SkyMapData)
 //! - [`visualization`]: Visualization domain models (visibility, timeline, insights, trends, comparison)
 
-pub mod analytics;
 pub mod metadata;
 pub mod schedule;
 pub mod visualization;
 
 // Re-export all public types for convenience
-pub use analytics::{
-    DistributionBlock, DistributionData, DistributionStats, LightweightBlock, SkyMapData,
-};
 pub use metadata::{ScheduleInfo, ScheduleMetadata};
 pub use visualization::{
     AnalyticsMetrics, BlockHistogramData, CompareBlock, CompareData, CompareStats, ConflictRecord,

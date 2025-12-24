@@ -261,7 +261,7 @@ fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 #[pyfunction]
 fn get_sky_map_data(schedule_id: i64) -> PyResult<api::SkyMapData> {
     let data = crate::services::py_get_sky_map_data_analytics(schedule_id)?;
-    Ok((&data).into())
+    Ok(data)
 }
 
 /// Get distribution visualization data (ETL-based).
@@ -274,7 +274,7 @@ fn get_sky_map_data(schedule_id: i64) -> PyResult<api::SkyMapData> {
 #[pyfunction]
 fn get_distribution_data(schedule_id: i64) -> PyResult<api::DistributionData> {
     let data = crate::services::py_get_distribution_data_analytics(schedule_id)?;
-    Ok((&data).into())
+    Ok(data)
 }
 
 /// Get timeline visualization data.

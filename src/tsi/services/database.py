@@ -68,6 +68,7 @@ from tsi.exceptions import (
 
 if TYPE_CHECKING:
     from tsi_rust import SkyMapData, VisibilityMapData, ValidationReport
+import tsi_rust as api
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +268,7 @@ def get_visibility_map_data(
 def get_distribution_data(
     *,
     schedule_id: int,
-) -> Any:
+) -> api.DistributionData:
     """
     Get complete distribution data with computed statistics.
 

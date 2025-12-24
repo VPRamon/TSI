@@ -388,23 +388,24 @@ pub struct SkyMapData {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionBlock {
-    pub original_block_id: String,
     pub priority: f64,
+    pub total_visibility_hours: f64,
+    pub requested_hours: f64,
+    pub elevation_range_deg: f64,
     pub scheduled: bool,
-    pub visibility_hours: f64,
-    pub ra: f64,
-    pub dec: f64,
 }
 
 /// Distribution statistics.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionStats {
-    pub mean_visibility: f64,
-    pub median_visibility: f64,
-    pub std_visibility: f64,
-    pub total_blocks: usize,
-    pub scheduled_blocks: usize,
+    pub count: usize,
+    pub mean: f64,
+    pub median: f64,
+    pub std_dev: f64,
+    pub min: f64,
+    pub max: f64,
+    pub sum: f64,
 }
 
 /// Complete distribution dataset.
@@ -412,7 +413,13 @@ pub struct DistributionStats {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionData {
     pub blocks: Vec<DistributionBlock>,
-    pub stats: DistributionStats,
+    pub priority_stats: DistributionStats,
+    pub visibility_stats: DistributionStats,
+    pub requested_hours_stats: DistributionStats,
+    pub total_count: usize,
+    pub scheduled_count: usize,
+    pub unscheduled_count: usize,
+    pub impossible_count: usize,
 }
 
 // =========================================================

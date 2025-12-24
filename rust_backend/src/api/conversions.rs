@@ -96,8 +96,8 @@ impl From<&models::ScheduleInfo> for api::ScheduleInfo {
 // Analytics Types - Internal to API
 // =========================================================
 
-impl From<&models::LightweightBlock> for api::LightweightBlock {
-    fn from(block: &models::LightweightBlock) -> Self {
+impl From<&crate::api::LightweightBlock> for api::LightweightBlock {
+    fn from(block: &crate::api::LightweightBlock) -> Self {
         api::LightweightBlock {
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,
@@ -106,59 +106,6 @@ impl From<&models::LightweightBlock> for api::LightweightBlock {
             target_ra_deg: block.target_ra_deg,
             target_dec_deg: block.target_dec_deg,
             scheduled_period: block.scheduled_period.clone()
-        }
-    }
-}
-
-impl From<&models::SkyMapData> for api::SkyMapData {
-    fn from(data: &models::SkyMapData) -> Self {
-        api::SkyMapData {
-            blocks: data.blocks.iter().map(|b| b.into()).collect(),
-            priority_bins: data.priority_bins.clone(),
-            priority_min: data.priority_min,
-            priority_max: data.priority_max,
-            ra_min: data.ra_min,
-            ra_max: data.ra_max,
-            dec_min: data.dec_min,
-            dec_max: data.dec_max,
-            total_count: data.total_count,
-            scheduled_count: data.scheduled_count,
-            scheduled_time_min: data.scheduled_time_min,
-            scheduled_time_max: data.scheduled_time_max,
-        }
-    }
-}
-
-impl From<&models::DistributionBlock> for api::DistributionBlock {
-    fn from(block: &models::DistributionBlock) -> Self {
-        api::DistributionBlock {
-            original_block_id: String::new(), // Not available in analytics DistributionBlock
-            priority: block.priority,
-            scheduled: block.scheduled,
-            visibility_hours: block.total_visibility_hours,
-            ra: 0.0, // Not available in analytics DistributionBlock
-            dec: 0.0, // Not available in analytics DistributionBlock
-        }
-    }
-}
-
-impl From<&models::DistributionStats> for api::DistributionStats {
-    fn from(stats: &models::DistributionStats) -> Self {
-        api::DistributionStats {
-            mean_visibility: stats.mean,
-            median_visibility: stats.median,
-            std_visibility: stats.std_dev,
-            total_blocks: stats.count,
-            scheduled_blocks: 0, // Not available in DistributionStats
-        }
-    }
-}
-
-impl From<&models::DistributionData> for api::DistributionData {
-    fn from(data: &models::DistributionData) -> Self {
-        api::DistributionData {
-            blocks: data.blocks.iter().map(|b| b.into()).collect(),
-            stats: (&data.visibility_stats).into(),
         }
     }
 }

@@ -2,7 +2,7 @@
 #![allow(clippy::redundant_closure)]
 #![allow(clippy::useless_vec)]
 
-use crate::db::models::{LightweightBlock, SkyMapData};
+use crate::api::{LightweightBlock, SkyMapData};
 use crate::db::repository::AnalyticsRepository;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;

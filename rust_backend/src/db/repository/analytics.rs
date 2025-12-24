@@ -10,7 +10,7 @@ use super::error::RepositoryResult;
 use crate::api::types::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeMetadata,
 };
-use crate::db::models::{DistributionBlock, LightweightBlock};
+use crate::api::{DistributionBlock, LightweightBlock};
 
 /// Repository trait for analytics operations.
 ///
