@@ -35,10 +35,6 @@ def render() -> None:
         display_backend_error(exc)
         return
 
-    if distribution_data.total_count == 0:
-        st.warning("⚠️ No observations available with the selected filter.")
-        return
-
     # Build all distribution figures
     priority_bins = 20  # Default bins value
     with st.spinner("Generating plots..."):

@@ -1509,8 +1509,8 @@ pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<Period>, Str
 /// avoiding the overhead of loading full scheduling blocks with visibility periods.
 pub async fn fetch_lightweight_blocks(
     schedule_id: i64,
-) -> Result<Vec<crate::db::models::LightweightBlock>, String> {
-    use crate::db::models::LightweightBlock;
+) -> Result<Vec<crate::api::LightweightBlock>, String> {
+    use crate::api::LightweightBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -1603,8 +1603,8 @@ pub async fn fetch_lightweight_blocks(
 /// This is optimized for the distributions page, loading only the fields needed for histograms.
 pub async fn fetch_distribution_blocks(
     schedule_id: i64,
-) -> Result<Vec<crate::db::models::DistributionBlock>, String> {
-    use crate::db::models::DistributionBlock;
+) -> Result<Vec<crate::api::DistributionBlock>, String> {
+    use crate::api::DistributionBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
