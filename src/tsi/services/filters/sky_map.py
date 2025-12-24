@@ -5,8 +5,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
-from tsi.services.utils.time import ModifiedJulianDate
-
 if TYPE_CHECKING:
     from tsi_rust import LightweightBlock, Period
 
@@ -54,8 +52,7 @@ def filter_blocks(
 
         # Time window filter
         if schedule_window and is_scheduled and block.scheduled_period:
-            start_mjd = ModifiedJulianDate(block.scheduled_period.start)
-            if not schedule_window.contains_mjd(float(start_mjd)):
+            if not schedule_window.contains_mjd(block.scheduled_period.start_mjd):
                 continue
 
         filtered.append(block)

@@ -145,7 +145,7 @@ def get_distribution_data(
     logger.debug(f"Fetching distribution data (ETL) for schedule_id={schedule_id}")
     try:
         return cast(
-            "DistributionData", _rust_call("py_get_distribution_data_analytics", schedule_id)
+            "DistributionData", _rust_call("get_distribution_data", schedule_id)
         )
     except ServerError as e:
         if "No analytics data available" in str(e):

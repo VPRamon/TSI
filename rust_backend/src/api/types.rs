@@ -67,7 +67,7 @@ impl Period {
 
     #[staticmethod]
     pub fn from_datetime(start: Py<PyAny>, stop: Py<PyAny>) -> PyResult<Self> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             let datetime_mod = py.import("datetime")?;
             let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
 
@@ -99,6 +99,22 @@ impl Period {
                 stop: ModifiedJulianDate::new(stop_mjd),
             })
         })
+    }
+
+    #[getter]
+    pub fn start_mjd(&self) -> f64 {
+        self.start.value()
+    }
+
+    #[getter]
+    pub fn stop_mjd(&self) -> f64 {
+        self.stop.value()
+    }
+
+    pub fn contains_mjd(&self, mjd: f64) -> bool {
+        let min_mjd = self.start.value().min(self.stop.value());
+        let max_mjd = self.start.value().max(self.stop.value());
+        mjd >= min_mjd && mjd <= max_mjd
     }
 
     pub fn to_datetime<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {

@@ -408,6 +408,8 @@ pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()
     m.add_function(wrap_pyfunction!(py_remove_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
     m.add_function(wrap_pyfunction!(py_validate_dataframe, m)?)?;
+    m.add_function(wrap_pyfunction!(mjd_to_datetime, m)?)?;
+    m.add_function(wrap_pyfunction!(datetime_to_mjd, m)?)?;
     m.add_function(wrap_pyfunction!(parse_visibility_periods, m)?)?;
     Ok(())
 }
@@ -462,6 +464,41 @@ fn py_filter_by_scheduled(json_str: String, filter_type: String) -> PyResult<Str
     
     serde_json::to_string(&filtered).map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
+    })
+}
+
+/// Convert Modified Julian Date to Python datetime (UTC).
+#[pyfunction]
+fn mjd_to_datetime(mjd: f64) -> PyResult<Py<PyAny>> {
+    Python::attach(|py| {
+        let secs = (mjd - 40587.0) * 86400.0;
+        let datetime_mod = py.import("datetime")?;
+        let datetime_cls = datetime_mod.getattr("datetime")?;
+        let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
+        let dt = datetime_cls.call_method1("fromtimestamp", (secs, timezone_utc))?;
+        Ok(dt.into())
+    })
+}
+
+/// Convert Python datetime to Modified Julian Date (assumes UTC for naive datetimes).
+#[pyfunction]
+fn datetime_to_mjd(dt: Py<PyAny>) -> PyResult<f64> {
+    Python::attach(|py| {
+        let datetime_mod = py.import("datetime")?;
+        let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
+        let dt_obj = dt.bind(py);
+        let tzinfo = dt_obj.getattr("tzinfo")?;
+
+        let timestamp = if tzinfo.is_none() {
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("tzinfo", &timezone_utc)?;
+            let aware = dt_obj.call_method("replace", (), Some(&kwargs))?;
+            aware.call_method0("timestamp")?.extract::<f64>()?
+        } else {
+            dt_obj.call_method0("timestamp")?.extract::<f64>()?
+        };
+
+        Ok(timestamp / 86400.0 + 40587.0)
     })
 }
 
