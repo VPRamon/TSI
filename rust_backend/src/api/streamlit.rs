@@ -26,10 +26,6 @@ use crate::db::services as db_services;
 /// This function is called from lib.rs to populate the tsi_rust_api module
 /// with all exported functions and classes.
 pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Time conversion functions
-    m.add_function(wrap_pyfunction!(mjd_to_datetime, m)?)?;
-    m.add_function(wrap_pyfunction!(datetime_to_mjd, m)?)?;
-
     // Database initialization
     m.add_function(wrap_pyfunction!(init_database, m)?)?;
     m.add_function(wrap_pyfunction!(db_health_check, m)?)?;
@@ -105,64 +101,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-// =========================================================
-// Time Conversion Functions
-// =========================================================
-
-/// Convert Modified Julian Date to Python datetime.
-///
-/// Args:
-///     mjd: Modified Julian Date value
-///
-/// Returns:
-///     Python datetime object (UTC timezone)
-#[pyfunction]
-fn mjd_to_datetime(py: Python<'_>, mjd: f64) -> PyResult<Py<PyAny>> {
-    // Convert MJD -> seconds since UNIX epoch then use Python's datetime
-    let secs = (mjd - 40587.0) * 86400.0;
-    // Construct a timezone-aware UTC datetime using datetime.fromtimestamp
-    let datetime_mod = py.import("datetime")?;
-    let datetime_cls = datetime_mod.getattr("datetime")?;
-    let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
-    let dt = datetime_cls.call_method1("fromtimestamp", (secs, timezone_utc))?;
-    Ok(dt.into())
-}
-
-/// Convert Python datetime to Modified Julian Date.
-///
-/// Args:
-///     dt: Python datetime object
-///
-/// Returns:
-///     Modified Julian Date as float
-#[pyfunction]
-fn datetime_to_mjd(dt: Py<PyAny>) -> PyResult<f64> {
-    // Use `try_attach` to obtain a Python token without the deprecated API.
-    match pyo3::Python::try_attach(|py| {
-        let dt_obj = dt.as_ref();
-        let datetime_mod = py.import("datetime")?;
-        let timezone = datetime_mod.getattr("timezone")?.getattr("utc")?;
-
-        let tzinfo = dt_obj.getattr(py, "tzinfo")?;
-
-        let timestamp = if tzinfo.is_none(py) {
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("tzinfo", timezone)?;
-            let aware = dt_obj.call_method(py, "replace", (), Some(&kwargs))?;
-            aware.call_method0(py, "timestamp")?.extract::<f64>(py)?
-        } else {
-            dt_obj.call_method0(py, "timestamp")?.extract::<f64>(py)?
-        };
-
-        let mjd = timestamp / 86400.0 + 40587.0;
-        Ok(mjd)
-    }) {
-        Some(res) => res,
-        None => Err(PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(
-            "Failed to attach to Python GIL",
-        )),
-    }
-}
 
 // =========================================================
 // Database Operations

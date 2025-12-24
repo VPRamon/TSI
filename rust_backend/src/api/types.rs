@@ -14,6 +14,8 @@
 //! 5. **Documented**: Each field should be clear to Python users
 
 use pyo3::prelude::*;
+use pyo3::types::PyTuple;
+
 use serde::{Deserialize, Serialize};
 use siderust::astro::ModifiedJulianDate;
 
@@ -52,6 +54,69 @@ pub struct Period {
     /// End time in MJD
     pub stop: ModifiedJulianDate,
 }
+
+#[pymethods]
+impl Period {
+    #[new]
+    pub fn py_new(start: f64, stop: f64) -> Self {
+        Self {
+            start: ModifiedJulianDate::new(start),
+            stop: ModifiedJulianDate::new(stop),
+        }
+    }
+
+    #[staticmethod]
+    pub fn from_datetime(start: Py<PyAny>, stop: Py<PyAny>) -> PyResult<Self> {
+        Python::with_gil(|py| {
+            let datetime_mod = py.import("datetime")?;
+            let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
+
+            // Helper to convert a datetime object to MJD
+            let to_mjd = |dt: &Py<PyAny>| -> PyResult<f64> {
+                let dt_obj = dt.as_ref();
+                let tzinfo = dt_obj.getattr(py, "tzinfo")?;
+
+                let timestamp = if tzinfo.is_none(py) {
+                    // Naive datetime - assume UTC
+                    let kwargs = pyo3::types::PyDict::new(py);
+                    kwargs.set_item("tzinfo", &timezone_utc)?;
+                    let aware = dt_obj.call_method(py, "replace", (), Some(&kwargs))?;
+                    aware.call_method0(py, "timestamp")?.extract::<f64>(py)?
+                } else {
+                    dt_obj.call_method0(py, "timestamp")?.extract::<f64>(py)?
+                };
+
+                // Convert Unix timestamp to MJD (MJD 0 = 1858-11-17 00:00:00 UTC)
+                let mjd = timestamp / 86400.0 + 40587.0;
+                Ok(mjd)
+            };
+
+            let start_mjd = to_mjd(&start)?;
+            let stop_mjd = to_mjd(&stop)?;
+
+            Ok(Self {
+                start: ModifiedJulianDate::new(start_mjd),
+                stop: ModifiedJulianDate::new(stop_mjd),
+            })
+        })
+    }
+
+    pub fn to_datetime<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        // Convert MJD -> seconds since UNIX epoch then use Python's datetime
+        let s_secs = (self.start.value() - 40587.0) * 86400.0;
+        let e_secs = (self.stop.value() - 40587.0) * 86400.0;
+
+        let datetime_mod = py.import("datetime")?;
+        let datetime_cls = datetime_mod.getattr("datetime")?;
+        let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
+
+        let s_dt = datetime_cls.call_method1("fromtimestamp", (s_secs, timezone_utc.clone()))?;
+        let e_dt = datetime_cls.call_method1("fromtimestamp", (e_secs, timezone_utc))?;
+
+        PyTuple::new(py, [s_dt, e_dt])
+    }
+}
+
 
 /// Observing constraints for a scheduling block.
 #[pyclass(module = "tsi_rust_api", get_all)]
