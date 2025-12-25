@@ -349,9 +349,8 @@ def get_insights_data(
     Returns:
         InsightsData object with all required data and pre-computed analytics
     """
-    from tsi.services.data_access import get_insights_data as get_data
-
-    return get_data(schedule_id)
+    # Use Rust backend route for insights data
+    return _rust_call(api.GET_INSIGHTS_DATA, schedule_id)
 
 
 def get_trends_data(

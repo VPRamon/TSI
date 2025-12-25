@@ -40,6 +40,9 @@ pub use crate::routes::distribution::GET_DISTRIBUTION_DATA;
 // Re-export timeline route and constant
 pub use crate::routes::timeline::{get_schedule_timeline_data};
 pub use crate::routes::timeline::GET_SCHEDULE_TIMELINE_DATA;
+// Re-export insights route and constant
+pub use crate::routes::insights::{get_insights_data};
+pub use crate::routes::insights::GET_INSIGHTS_DATA;
 
 /// Register all API functions with the Python module.
 ///
@@ -136,6 +139,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("GET_SKY_MAP_DATA", crate::routes::skymap::GET_SKY_MAP_DATA)?;
     m.add("GET_DISTRIBUTION_DATA", crate::routes::distribution::GET_DISTRIBUTION_DATA)?;
     m.add("GET_SCHEDULE_TIMELINE_DATA", crate::routes::timeline::GET_SCHEDULE_TIMELINE_DATA)?;
+    m.add("GET_INSIGHTS_DATA", crate::routes::insights::GET_INSIGHTS_DATA)?;
     m.add("GET_VISIBILITY_MAP_DATA", crate::routes::visibility::GET_VISIBILITY_MAP_DATA)?;
 
     Ok(())
@@ -261,18 +265,7 @@ fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 ///     ScheduleTimelineData with scheduled blocks
 /// Get timeline visualization data (provided by `routes::timeline`).
 
-/// Get insights analysis data.
-///
-/// Args:
-///     schedule_id: Database ID of the schedule
-///
-/// Returns:
-///     InsightsData with blocks, metrics, correlations, and conflicts
-#[pyfunction]
-fn get_insights_data(schedule_id: i64) -> PyResult<api::InsightsData> {
-    let data = crate::services::py_get_insights_data(schedule_id)?;
-    Ok((&data).into())
-}
+/// Get insights analysis data (provided by `routes::insights`).
 
 /// Get trends analysis data.
 ///
