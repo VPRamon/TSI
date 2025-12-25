@@ -18,29 +18,6 @@ use pyo3::types::PyTuple;
 
 use serde::{Deserialize, Serialize};
 
-
-/// Strongly-typed identifier for a target record.
-#[pyclass(module = "tsi_rust_api")]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct TargetId(pub i64);
-
-#[pymethods]
-impl TargetId {
-    #[new]
-    pub fn new(value: i64) -> Self {
-        Self(value)
-    }
-
-    #[getter]
-    pub fn value(&self) -> i64 {
-        self.0
-    }
-
-    fn __repr__(&self) -> String {
-        format!("TargetId({})", self.0)
-    }
-}
-
 /// Strongly-typed identifier for a constraints record.
 #[pyclass(module = "tsi_rust_api")]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
