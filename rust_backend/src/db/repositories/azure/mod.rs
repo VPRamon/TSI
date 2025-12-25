@@ -18,5 +18,4 @@ pub use pool::{build_tiberius_config, get_pool, init_pool};
 // Re-export analytics types from api module (now centralized there)
 pub use crate::api::types::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData,
-    VisibilityTimeMetadata,
 };

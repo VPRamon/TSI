@@ -19,7 +19,7 @@ use tokio::runtime::Runtime;
 
 use crate::api::types as api;
 use crate::algorithms;
-use crate::db::repository::{analytics::AnalyticsRepository, visualization::VisualizationRepository};
+use crate::db::repository::visualization::VisualizationRepository;
 use crate::db::services as db_services;
 // Re-export landing route functions so they can be registered with the Python module
 pub use crate::routes::landing::{list_schedules, store_schedule};
@@ -72,7 +72,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Legacy visibility histogram functions (expected by Python services)
     m.add_function(wrap_pyfunction!(py_get_schedule_time_range, m)?)?;
     m.add_function(wrap_pyfunction!(py_get_visibility_histogram, m)?)?;
-    m.add_function(wrap_pyfunction!(py_get_visibility_histogram_analytics, m)?)?;
 
     // Algorithm operations
     m.add_function(wrap_pyfunction!(get_top_observations, m)?)?;
@@ -93,7 +92,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<api::VisibilityBinData>()?;
     m.add_class::<api::BlockHistogramData>()?;
     m.add_class::<api::HeatmapBinData>()?;
-    m.add_class::<api::VisibilityTimeMetadata>()?;
 
     Ok(())
 }
@@ -326,58 +324,6 @@ fn py_get_visibility_histogram(
     Ok(list.into())
 }
 
-#[pyfunction]
-fn py_get_visibility_histogram_analytics(
-    py: Python,
-    schedule_id: i64,
-    start_unix: i64,
-    end_unix: i64,
-    bin_duration_minutes: i64,
-) -> PyResult<Py<PyAny>> {
-    if start_unix >= end_unix {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "start_unix must be less than end_unix",
-        ));
-    }
-    if bin_duration_minutes <= 0 {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "bin_duration_minutes must be positive",
-        ));
-    }
-
-    let bin_duration_seconds = bin_duration_minutes * 60;
-
-    let bins = py.detach(|| -> PyResult<_> {
-        let repo = crate::db::get_repository()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        let runtime = Runtime::new().map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Failed to create async runtime: {}",
-                e
-            ))
-        })?;
-
-        runtime
-            .block_on(repo.fetch_visibility_histogram_from_analytics(
-                schedule_id,
-                start_unix,
-                end_unix,
-                bin_duration_seconds,
-            ))
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
-    })?;
-
-    let list = PyList::empty(py);
-    for bin in bins {
-        let dict = PyDict::new(py);
-        dict.set_item("bin_start_unix", bin.bin_start_unix)?;
-        dict.set_item("bin_end_unix", bin.bin_end_unix)?;
-        dict.set_item("count", bin.visible_count)?;
-        list.append(dict)?;
-    }
-
-    Ok(list.into())
-}
 
 // =========================================================
 // Algorithm Operations

@@ -105,7 +105,7 @@ pub use repository::{
 // Re-export Azure module functions and types for backward compatibility
 pub use repositories::azure::{
     analytics, operations, pool, validation, HeatmapBinData, PriorityRate, ScheduleSummary,
-    VisibilityBinData, VisibilityTimeMetadata,
+    VisibilityBinData,
 };
 
 // Phase 1: Block-level analytics (backward compatibility)
@@ -127,7 +127,6 @@ pub use repositories::azure::analytics::{
 // Phase 3: Visibility time bins (backward compatibility)
 pub use repositories::azure::analytics::{
     delete_visibility_time_bins as delete_visibility_time_bins_legacy,
-    fetch_visibility_histogram_from_analytics, fetch_visibility_metadata,
     has_visibility_time_bins as has_visibility_time_bins_legacy,
     populate_visibility_time_bins as populate_visibility_time_bins_legacy,
 };

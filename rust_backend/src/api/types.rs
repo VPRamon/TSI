@@ -414,24 +414,3 @@ pub struct HeatmapBinData {
     pub scheduled_count: i32,
     pub scheduling_rate: f64,
 }
-
-// =========================================================
-// Phase 3 Analytics (Visibility Time Bins)
-// =========================================================
-
-/// Visibility time series metadata (from schedule_visibility_time_metadata table).
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VisibilityTimeMetadata {
-    pub schedule_id: i64,
-    pub time_range_start_unix: i64,
-    pub time_range_end_unix: i64,
-    pub bin_duration_seconds: i32,
-    pub total_bins: i32,
-    pub total_blocks: i32,
-    pub blocks_with_visibility: i32,
-    pub priority_min: Option<f64>,
-    pub priority_max: Option<f64>,
-    pub max_visible_in_bin: i32,
-    pub mean_visible_per_bin: Option<f64>,
-}

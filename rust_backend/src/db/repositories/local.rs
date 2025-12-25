@@ -11,7 +11,6 @@ use std::sync::{Arc, RwLock};
 
 use crate::api::types::{
     HeatmapBinData, PriorityRate, ScheduleSummary,
-    VisibilityTimeMetadata,
 };
 use crate::db::{
     models::{InsightsBlock, Period, Schedule, ScheduleMetadata, SchedulingBlock},
@@ -57,7 +56,6 @@ struct LocalData {
     summary_analytics: HashMap<i64, ScheduleSummary>,
     priority_rates: HashMap<i64, Vec<PriorityRate>>,
     heatmap_bins: HashMap<i64, Vec<HeatmapBinData>>,
-    visibility_metadata: HashMap<i64, VisibilityTimeMetadata>,
 
     // Validation data
     validation_results: HashMap<i64, crate::api_tmp::ValidationReport>,
@@ -577,25 +575,6 @@ impl AnalyticsRepository for LocalRepository {
     async fn delete_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
         Ok(self.delete_from_map(|d| &mut d.summary_analytics, schedule_id))
     }
-
-    async fn fetch_visibility_histogram_from_analytics(
-        &self,
-        _schedule_id: i64,
-        _start_unix: i64,
-        _end_unix: i64,
-        _target_bin_duration_seconds: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::VisibilityBin>> {
-        Ok(vec![])
-    }
-
-    async fn fetch_visibility_metadata(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Option<VisibilityTimeMetadata>> {
-        let data = self.data.read().unwrap();
-        Ok(data.visibility_metadata.get(&schedule_id).cloned())
-    }
-
 }
 
 // ==================== Validation Repository ====================
