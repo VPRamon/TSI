@@ -56,7 +56,7 @@ rust_backend/
 │   │   ├── models/              # Domain models (modularized)
 │   │   │   ├── mod.rs          # Module declaration and re-exports
 │   │   │   ├── schedule.rs     # Schedule, SchedulingBlock, Period, Constraints
-│   │   │   ├── metadata.rs     # ScheduleInfo, ScheduleMetadata
+│   │   │   ├── metadata.rs     # crate::api_tmp::ScheduleInfo, ScheduleMetadata
 │   │   │   ├── analytics.rs    # LightweightBlock, DistributionBlock, stats
 │   │   │   └── python.rs       # PyO3 wrappers (visibility, timeline, insights, trends)
 │   │   ├── repository.rs        # Repository trait definition
@@ -241,7 +241,7 @@ rust_backend/
 db/models/
 ├── mod.rs              # Module declaration and re-exports
 ├── schedule.rs         # Schedule, SchedulingBlock, Period, Constraints, ID types
-├── metadata.rs         # ScheduleInfo, ScheduleMetadata
+├── metadata.rs         # crate::api_tmp::ScheduleInfo, ScheduleMetadata
 ├── analytics.rs        # LightweightBlock, DistributionBlock, SkyMapData, stats
 └── python.rs           # PyO3 wrappers (visibility, timeline, insights, trends, compare)
 ```
@@ -257,7 +257,7 @@ db/models/
 
 **metadata.rs** (Schedule information):
 - `ScheduleMetadata` - Lightweight metadata for schedule listings
-- `ScheduleInfo` - Extended schedule info with block statistics
+- `crate::api_tmp::ScheduleInfo` - Extended schedule info with block statistics
 
 **analytics.rs** (Visualization and statistics):
 - `LightweightBlock` - Simplified block for sky map visualization

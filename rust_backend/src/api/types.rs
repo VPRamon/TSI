@@ -388,14 +388,6 @@ impl ScheduleMetadata {
     }
 }
 
-/// Schedule information with block counts.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ScheduleInfo {
-    pub schedule_id: i64,
-    pub schedule_name: String,
-}
-
 // =========================================================
 // Analytics Types - Lightweight Block
 // =========================================================

@@ -7,7 +7,6 @@ use async_trait::async_trait;
 
 use super::error::RepositoryResult;
 use crate::db::models::{Period, Schedule, ScheduleMetadata, SchedulingBlock};
-use crate::api::*;
 /// Repository trait for core schedule database operations.
 ///
 /// This trait handles the basic CRUD (Create, Read, Update, Delete) operations
@@ -54,9 +53,9 @@ pub trait ScheduleRepository: Send + Sync {
     /// List all schedules with basic metadata.
     ///
     /// # Returns
-    /// * `Ok(Vec<ScheduleInfo>)` - List of schedule metadata (id, name, timestamp, etc.)
+    /// * `Ok(Vec<crate::api_tmp::ScheduleInfo>)` - List of schedule metadata (id, name, timestamp, etc.)
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn list_schedules(&self) -> RepositoryResult<Vec<ScheduleInfo>>;
+    async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api_tmp::ScheduleInfo>>;
 
     /// Get the time range covered by a schedule.
     ///

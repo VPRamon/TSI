@@ -67,6 +67,17 @@ pub mod db;
 pub mod services;
 pub mod transformations;
 
+pub mod api_tmp {
+    pub use crate::routes::landing::*;
+    //routes::skymap::api::*;
+    //routes::distributions::api::*;
+    //routes::timeline::api::*;
+    //routes::insights::api::*;
+    //routes::trends::api::*;
+    //routes::compare::api::*;
+    //routes::validation::api::*;
+}
+
 /// Python module entry point for the new TSI Rust API.
 ///
 /// This is the new stable API module that isolates Python bindings from internal implementations.

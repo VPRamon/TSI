@@ -15,7 +15,6 @@ use crate::db::{
     repository::*,
 };
 use crate::services::validation::ValidationResult;
-use crate::api::*;
 
 /// Azure SQL Server repository implementation.
 ///
@@ -84,7 +83,7 @@ impl ScheduleRepository for AzureRepository {
             })
     }
 
-    async fn list_schedules(&self) -> RepositoryResult<Vec<ScheduleInfo>> {
+    async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api_tmp::ScheduleInfo>> {
         operations::list_schedules()
             .await
             .map_err(RepositoryError::from)
