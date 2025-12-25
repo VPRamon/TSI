@@ -37,6 +37,9 @@ pub use crate::routes::visibility::GET_VISIBILITY_MAP_DATA;
 // Re-export distribution route and constant
 pub use crate::routes::distribution::{get_distribution_data};
 pub use crate::routes::distribution::GET_DISTRIBUTION_DATA;
+// Re-export timeline route and constant
+pub use crate::routes::timeline::{get_schedule_timeline_data};
+pub use crate::routes::timeline::GET_SCHEDULE_TIMELINE_DATA;
 
 /// Register all API functions with the Python module.
 ///
@@ -59,7 +62,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Visualization data queries
     m.add_function(wrap_pyfunction!(get_sky_map_data, m)?)?;
     m.add_function(wrap_pyfunction!(get_distribution_data, m)?)?;
-    m.add_function(wrap_pyfunction!(get_timeline_data, m)?)?;
+    m.add_function(wrap_pyfunction!(get_schedule_timeline_data, m)?)?;
     m.add_function(wrap_pyfunction!(get_insights_data, m)?)?;
     m.add_function(wrap_pyfunction!(get_trends_data, m)?)?;
     m.add_function(wrap_pyfunction!(get_compare_data, m)?)?;
@@ -132,6 +135,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("GET_VALIDATION_REPORT", crate::routes::validation::GET_VALIDATION_REPORT)?;
     m.add("GET_SKY_MAP_DATA", crate::routes::skymap::GET_SKY_MAP_DATA)?;
     m.add("GET_DISTRIBUTION_DATA", crate::routes::distribution::GET_DISTRIBUTION_DATA)?;
+    m.add("GET_SCHEDULE_TIMELINE_DATA", crate::routes::timeline::GET_SCHEDULE_TIMELINE_DATA)?;
     m.add("GET_VISIBILITY_MAP_DATA", crate::routes::visibility::GET_VISIBILITY_MAP_DATA)?;
 
     Ok(())
@@ -255,11 +259,7 @@ fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 ///
 /// Returns:
 ///     ScheduleTimelineData with scheduled blocks
-#[pyfunction]
-fn get_timeline_data(schedule_id: i64) -> PyResult<api::ScheduleTimelineData> {
-    let data = crate::services::py_get_schedule_timeline_data(schedule_id)?;
-    Ok(data)
-}
+/// Get timeline visualization data (provided by `routes::timeline`).
 
 /// Get insights analysis data.
 ///
