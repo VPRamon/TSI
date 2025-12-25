@@ -19,7 +19,6 @@ use crate::db::{
 };
 use crate::services::validation::ValidationResult;
 use siderust::astro::ModifiedJulianDate;
-use crate::api::*;
 
 /// In-memory local repository.
 ///
@@ -218,14 +217,14 @@ impl ScheduleRepository for LocalRepository {
         self.get_schedule_impl(schedule_id)
     }
 
-    async fn list_schedules(&self) -> RepositoryResult<Vec<ScheduleInfo>> {
+    async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api_tmp::ScheduleInfo>> {
         let data = self.data.read().unwrap();
 
-        let mut schedules: Vec<ScheduleInfo> = data
+        let mut schedules: Vec<crate::api_tmp::ScheduleInfo> = data
             .schedule_metadata
             .iter()
             .map(|(id, meta)| {
-                ScheduleInfo {
+                crate::api_tmp::ScheduleInfo {
                     schedule_id: id.clone(),
                     schedule_name: meta.schedule_name.clone(),
                 }

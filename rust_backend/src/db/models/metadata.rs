@@ -2,7 +2,7 @@
 //!
 //! This module contains types for schedule metadata and summary information:
 //! - ScheduleMetadata: Lightweight metadata for schedule listings
-//! - ScheduleInfo: Extended schedule information with block statistics
+//! - crate::api_tmp::ScheduleInfo: Extended schedule information with block statistics
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};

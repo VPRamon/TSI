@@ -17,7 +17,6 @@ use crate::db::models::{
     Constraints, Period, Schedule, ScheduleId, ScheduleMetadata, SchedulingBlock,
     SchedulingBlockId,
 };
-use crate::api::*;
 type DbClient = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
@@ -1211,7 +1210,7 @@ async fn fetch_visibility_periods_for_block(
 }
 
 /// List all available schedules with metadata.
-pub async fn list_schedules() -> Result<Vec<ScheduleInfo>, String> {
+pub async fn list_schedules() -> Result<Vec<crate::api_tmp::ScheduleInfo>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -1251,7 +1250,7 @@ pub async fn list_schedules() -> Result<Vec<ScheduleInfo>, String> {
             .ok_or_else(|| "schedule_id is NULL".to_string())?;
         let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
 
-        schedules.push(ScheduleInfo {
+        schedules.push(crate::api_tmp::ScheduleInfo {
             schedule_id,
             schedule_name
         });
