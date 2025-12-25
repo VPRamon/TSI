@@ -463,53 +463,10 @@ pub use crate::routes::trends::{
 // =========================================================
 // Comparison Types
 // =========================================================
-
-/// Comparison block data.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompareBlock {
-    pub scheduling_block_id: String,
-    pub priority: f64,
-    pub scheduled: bool,
-    pub requested_hours: f64,
-}
-
-/// Comparison statistics.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompareStats {
-    pub scheduled_count: usize,
-    pub unscheduled_count: usize,
-    pub total_priority: f64,
-    pub mean_priority: f64,
-    pub median_priority: f64,
-    pub total_hours: f64,
-}
-
-/// Scheduling change record.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SchedulingChange {
-    pub scheduling_block_id: String,
-    pub priority: f64,
-    pub change_type: String, // "newly_scheduled" or "newly_unscheduled"
-}
-
-/// Complete comparison dataset.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompareData {
-    pub current_blocks: Vec<CompareBlock>,
-    pub comparison_blocks: Vec<CompareBlock>,
-    pub current_stats: CompareStats,
-    pub comparison_stats: CompareStats,
-    pub common_ids: Vec<String>,
-    pub only_in_current: Vec<String>,
-    pub only_in_comparison: Vec<String>,
-    pub scheduling_changes: Vec<SchedulingChange>,
-    pub current_name: String,
-    pub comparison_name: String,
-}
+// Comparison types moved to routes/compare.rs for route ownership
+pub use crate::routes::compare::{
+    CompareBlock, CompareStats, SchedulingChange, CompareData,
+};
 
 // =========================================================
 // Phase 2 Analytics (Pre-computed Summary)
