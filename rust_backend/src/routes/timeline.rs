@@ -43,3 +43,12 @@ pub fn get_schedule_timeline_data(schedule_id: i64) -> PyResult<ScheduleTimeline
     let data = crate::services::py_get_schedule_timeline_data(schedule_id)?;
     Ok(data)
 }
+
+/// Register timeline route functions, classes, and constants.
+pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(get_schedule_timeline_data, m)?)?;
+    m.add_class::<ScheduleTimelineBlock>()?;
+    m.add_class::<ScheduleTimelineData>()?;
+    m.add("GET_SCHEDULE_TIMELINE_DATA", GET_SCHEDULE_TIMELINE_DATA)?;
+    Ok(())
+}

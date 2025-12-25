@@ -96,3 +96,16 @@ pub fn get_insights_data(schedule_id: i64) -> PyResult<api::InsightsData> {
     let data = crate::services::py_get_insights_data(schedule_id)?;
     Ok((&data).into())
 }
+
+/// Register insights functions, classes and constants.
+pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(get_insights_data, m)?)?;
+    m.add_class::<InsightsBlock>()?;
+    m.add_class::<AnalyticsMetrics>()?;
+    m.add_class::<CorrelationEntry>()?;
+    m.add_class::<ConflictRecord>()?;
+    m.add_class::<TopObservation>()?;
+    m.add_class::<InsightsData>()?;
+    m.add("GET_INSIGHTS_DATA", GET_INSIGHTS_DATA)?;
+    Ok(())
+}

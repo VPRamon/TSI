@@ -54,3 +54,13 @@ pub fn get_distribution_data(schedule_id: i64) -> PyResult<api::DistributionData
     let data = crate::services::py_get_distribution_data_analytics(schedule_id)?;
     Ok(data)
 }
+
+/// Register distribution functions, classes and constants with the Python module.
+pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(get_distribution_data, m)?)?;
+    m.add_class::<DistributionBlock>()?;
+    m.add_class::<DistributionStats>()?;
+    m.add_class::<DistributionData>()?;
+    m.add("GET_DISTRIBUTION_DATA", GET_DISTRIBUTION_DATA)?;
+    Ok(())
+}

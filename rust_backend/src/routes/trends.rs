@@ -102,3 +102,16 @@ pub fn get_trends_data(
     let data = crate::services::py_get_trends_data(schedule_id, n_bins, bandwidth, n_smooth_points)?;
     Ok((&data).into())
 }
+
+/// Register trends-related functions, classes, and constants.
+pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(get_trends_data, m)?)?;
+    m.add_class::<TrendsBlock>()?;
+    m.add_class::<EmpiricalRatePoint>()?;
+    m.add_class::<SmoothedPoint>()?;
+    m.add_class::<HeatmapBin>()?;
+    m.add_class::<TrendsMetrics>()?;
+    m.add_class::<TrendsData>()?;
+    m.add("GET_TRENDS_DATA", GET_TRENDS_DATA)?;
+    Ok(())
+}

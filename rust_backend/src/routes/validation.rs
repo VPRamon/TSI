@@ -38,3 +38,12 @@ pub fn get_validation_report(schedule_id: i64) -> PyResult<ValidationReport> {
 		.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 	Ok(report)
 }
+
+/// Register validation route types and function with the Python module.
+pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
+	m.add_function(wrap_pyfunction!(get_validation_report, m)?)?;
+	m.add_class::<ValidationIssue>()?;
+	m.add_class::<ValidationReport>()?;
+	m.add("GET_VALIDATION_REPORT", GET_VALIDATION_REPORT)?;
+	Ok(())
+}
