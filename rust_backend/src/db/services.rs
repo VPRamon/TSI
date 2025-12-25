@@ -96,7 +96,7 @@ pub async fn store_schedule<R: FullRepository>(
     repo: &R,
     schedule: &Schedule,
 ) -> RepositoryResult<ScheduleMetadata> {
-    store_schedule_with_options(repo, schedule, true, false).await
+    store_schedule_with_options(repo, schedule, true).await
 }
 
 /// Store a new schedule with optional analytics population.
@@ -122,15 +122,13 @@ pub async fn store_schedule_with_options<R: FullRepository>(
     repo: &R,
     schedule: &Schedule,
     populate_analytics: bool,
-    skip_time_bins: bool,
 ) -> RepositoryResult<ScheduleMetadata> {
     info!(
-        "Service layer: storing schedule '{}' (checksum {}, {} blocks, analytics={}, skip_bins={})",
+        "Service layer: storing schedule '{}' (checksum {}, {} blocks, analytics={})",
         schedule.name,
         schedule.checksum,
         schedule.blocks.len(),
         populate_analytics,
-        skip_time_bins
     );
 
     // Try to store the schedule
@@ -177,33 +175,6 @@ pub async fn store_schedule_with_options<R: FullRepository>(
                         schedule_id, e
                     );
                 }
-            }
-
-            // Phase 3: Visibility time bins (SLOW - optional, can be computed later)
-            if !skip_time_bins {
-                let start = std::time::Instant::now();
-                info!("Service layer: Phase 3/3: Computing visibility time bins (this may take several minutes for large schedules)...");
-                match repo
-                    .populate_visibility_time_bins(schedule_id, Some(900))
-                    .await
-                {
-                    Ok((metadata_count, bins_count)) => {
-                        info!(
-                            "Service layer: ✓ Phase 3/3: Populated {} visibility metadata and {} time bins in {:.2}s",
-                            metadata_count, bins_count, start.elapsed().as_secs_f64()
-                        );
-                    }
-                    Err(e) => {
-                        warn!(
-                            "Service layer: failed to populate visibility time bins for schedule_id={}: {}",
-                            schedule_id, e
-                        );
-                    }
-                }
-            } else {
-                info!(
-                    "Service layer: Phase 3/3: Skipped visibility time bins (skip_time_bins=true)"
-                );
             }
         }
     } else {
@@ -354,8 +325,6 @@ pub async fn ensure_analytics<R: FullRepository>(
         );
         repo.populate_schedule_analytics(schedule_id).await?;
         repo.populate_summary_analytics(schedule_id, 10).await?;
-        repo.populate_visibility_time_bins(schedule_id, Some(900))
-            .await?;
     }
     Ok(())
 }
@@ -390,22 +359,6 @@ pub async fn has_summary_analytics<R: FullRepository>(
     schedule_id: i64,
 ) -> RepositoryResult<bool> {
     repo.has_summary_analytics(schedule_id).await
-}
-
-/// Check if visibility time bins exist for a schedule.
-///
-/// # Arguments
-/// * `repo` - Repository implementation
-/// * `schedule_id` - The ID of the schedule
-///
-/// # Returns
-/// * `Ok(bool)` - True if visibility time bins exist
-/// * `Err` if query fails
-pub async fn has_visibility_time_bins<R: FullRepository>(
-    repo: &R,
-    schedule_id: i64,
-) -> RepositoryResult<bool> {
-    repo.has_visibility_time_bins(schedule_id).await
 }
 
 // =============================================================================
@@ -477,7 +430,6 @@ pub fn parse_schedule_from_json(
 pub fn store_schedule_sync(
     schedule: &crate::db::models::Schedule,
     populate_analytics: bool,
-    skip_time_bins: bool,
 ) -> anyhow::Result<crate::db::models::ScheduleMetadata> {
     use anyhow::Context;
     use tokio::runtime::Runtime;
@@ -489,6 +441,5 @@ pub fn store_schedule_sync(
         repo.as_ref(),
         schedule,
         populate_analytics,
-        skip_time_bins,
     ))?)
 }

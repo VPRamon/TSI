@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeBin,
+    HeatmapBinData, PriorityRate, ScheduleSummary,
     VisibilityTimeMetadata,
 };
 use crate::db::{
@@ -56,9 +56,7 @@ struct LocalData {
     analytics_exists: HashMap<i64, bool>,
     summary_analytics: HashMap<i64, ScheduleSummary>,
     priority_rates: HashMap<i64, Vec<PriorityRate>>,
-    visibility_bins: HashMap<i64, Vec<VisibilityBinData>>,
     heatmap_bins: HashMap<i64, Vec<HeatmapBinData>>,
-    visibility_time_bins: HashMap<i64, Vec<VisibilityTimeBin>>,
     visibility_metadata: HashMap<i64, VisibilityTimeMetadata>,
 
     // Validation data
@@ -559,18 +557,6 @@ impl AnalyticsRepository for LocalRepository {
             .unwrap_or_default())
     }
 
-    async fn fetch_visibility_bins(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<VisibilityBinData>> {
-        let data = self.data.read().unwrap();
-        Ok(data
-            .visibility_bins
-            .get(&schedule_id)
-            .cloned()
-            .unwrap_or_default())
-    }
-
     async fn fetch_heatmap_bins(
         &self,
         schedule_id: i64,
@@ -592,20 +578,6 @@ impl AnalyticsRepository for LocalRepository {
         Ok(self.delete_from_map(|d| &mut d.summary_analytics, schedule_id))
     }
 
-    async fn populate_visibility_time_bins(
-        &self,
-        schedule_id: i64,
-        _bin_duration_seconds: Option<i64>,
-    ) -> RepositoryResult<(usize, usize)> {
-        self.get_schedule_impl(schedule_id)?;
-
-        let mut data = self.data.write().unwrap();
-
-        // Create dummy bins
-        data.visibility_time_bins.insert(schedule_id, vec![]);
-        Ok((1, 0)) // metadata rows, bin rows
-    }
-
     async fn fetch_visibility_histogram_from_analytics(
         &self,
         _schedule_id: i64,
@@ -624,14 +596,6 @@ impl AnalyticsRepository for LocalRepository {
         Ok(data.visibility_metadata.get(&schedule_id).cloned())
     }
 
-    async fn has_visibility_time_bins(&self, schedule_id: i64) -> RepositoryResult<bool> {
-        let data = self.data.read().unwrap();
-        Ok(data.visibility_time_bins.contains_key(&schedule_id))
-    }
-
-    async fn delete_visibility_time_bins(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        Ok(self.delete_from_map(|d| &mut d.visibility_time_bins, schedule_id))
-    }
 }
 
 // ==================== Validation Repository ====================
