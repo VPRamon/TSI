@@ -4,6 +4,7 @@ use tokio::runtime::Runtime;
 
 use crate::api::types as api;
 use crate::db::repository::visualization::VisualizationRepository;
+use crate::db::models;
 
 // =========================================================
 // Visibility Map types + route
@@ -61,4 +62,51 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<VisibilityMapData>()?;
     m.add("GET_VISIBILITY_MAP_DATA", GET_VISIBILITY_MAP_DATA)?;
     Ok(())
+}
+
+impl From<&models::VisibilityBlockSummary> for api::VisibilityBlockSummary {
+    fn from(block: &models::VisibilityBlockSummary) -> Self {
+        api::VisibilityBlockSummary {
+            scheduling_block_id: block.scheduling_block_id,
+            original_block_id: block.original_block_id.clone(),
+            priority: block.priority,
+            num_visibility_periods: block.num_visibility_periods,
+            scheduled: block.scheduled,
+        }
+    }
+}
+
+impl From<&models::VisibilityMapData> for api::VisibilityMapData {
+    fn from(data: &models::VisibilityMapData) -> Self {
+        api::VisibilityMapData {
+            blocks: data.blocks.iter().map(|b| b.into()).collect(),
+            priority_min: data.priority_min,
+            priority_max: data.priority_max,
+            total_count: data.total_count,
+            scheduled_count: data.scheduled_count,
+        }
+    }
+}
+
+impl From<&models::VisibilityBin> for api::VisibilityBin {
+    fn from(bin: &models::VisibilityBin) -> Self {
+        api::VisibilityBin {
+            bin_start_unix: bin.bin_start_unix,
+            bin_end_unix: bin.bin_end_unix,
+            visible_count: bin.visible_count,
+        }
+    }
+}
+
+impl From<&models::BlockHistogramData> for api::BlockHistogramData {
+    fn from(row: &models::BlockHistogramData) -> Self {
+        api::BlockHistogramData {
+            scheduling_block_id: row.scheduling_block_id,
+            priority: row.priority,
+            visibility_periods: row
+                .visibility_periods
+                .as_ref()
+                .map(|periods| periods.iter().map(|p| p.into()).collect()),
+        }
+    }
 }
