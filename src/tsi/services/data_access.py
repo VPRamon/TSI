@@ -243,16 +243,29 @@ def get_trends_data(
         TrendsData with empirical rates and smoothed curves
     """
     logger.debug(f"Fetching trends data for schedule_id={schedule_id}")
-    return cast(
-        "TrendsData",
-        _rust_call(
-            "py_get_trends_data",
-            schedule_id,
-            n_bins,
-            bandwidth,
-            n_smooth_points,
-        ),
-    )
+    try:
+        return cast(
+            "TrendsData",
+            _rust_call(
+                "get_trends_data",
+                schedule_id,
+            ),
+        )
+    except ServerError as e:
+        if "No analytics data available" in str(e):
+            logger.info(
+                "Analytics missing for schedule_id=%s; populating analytics and retrying.",
+                schedule_id,
+            )
+            _rust_call("populate_analytics", schedule_id)
+            return cast(
+                "TrendsData",
+                _rust_call(
+                    "get_trends_data",
+                    schedule_id,
+                ),
+            )
+        raise
 
 
 # =============================================================================

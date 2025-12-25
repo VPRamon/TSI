@@ -1,7 +1,8 @@
 #![allow(clippy::redundant_closure)]
 
 use crate::db::models::{
-    EmpiricalRatePoint, HeatmapBin, SmoothedPoint, TrendsBlock, TrendsData, TrendsMetrics,
+    EmpiricalRatePoint, HeatmapBin, InsightsBlock, SmoothedPoint, TrendsBlock, TrendsData,
+    TrendsMetrics,
 };
 use pyo3::prelude::*;
 use std::collections::HashMap;
@@ -383,28 +384,38 @@ pub async fn get_trends_data(
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
-    // Fetch lightweight blocks and convert to TrendsBlock
-    let lightweight_blocks = repo
-        .fetch_analytics_blocks_for_sky_map(schedule_id)
+    // Fetch analytics-ready blocks with visibility and requested hours.
+    let insight_blocks = repo
+        .fetch_analytics_blocks_for_insights(schedule_id)
         .await
         .map_err(|e| format!("Failed to fetch analytics blocks: {}", e))?;
 
-    // Convert LightweightBlock to TrendsBlock
-    // Note: total_visibility_hours is approximated using requested_duration
-    let blocks: Vec<TrendsBlock> = lightweight_blocks
+    // Convert InsightsBlock to TrendsBlock.
+    let blocks: Vec<TrendsBlock> = insight_blocks
         .into_iter()
-        .enumerate()
-        .map(|(idx, b)| {
-            let total_visibility_hours = b.requested_duration_seconds / 3600.0;
-            let requested_hours = b.requested_duration_seconds / 3600.0;
+        .map(|block| {
+            let InsightsBlock {
+                scheduling_block_id,
+                original_block_id,
+                priority,
+                total_visibility_hours,
+                requested_hours,
+                scheduled,
+                ..
+            } = block;
+
+            let mut total_visibility_hours = total_visibility_hours;
+            if total_visibility_hours.value() == 0.0 && requested_hours.value() > 0.0 {
+                total_visibility_hours = requested_hours;
+            }
 
             TrendsBlock {
-                scheduling_block_id: idx as i64 + 1, // Sequential index for internal tracking
-                original_block_id: b.original_block_id,
-                priority: b.priority,
-                total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
-                requested_hours: qtty::time::Hours::new(requested_hours),
-                scheduled: b.scheduled_period.is_some(),
+                scheduling_block_id,
+                original_block_id,
+                priority,
+                total_visibility_hours,
+                requested_hours,
+                scheduled,
             }
         })
         .filter(|b| b.total_visibility_hours.value() > 0.0) // Filter out zero visibility
