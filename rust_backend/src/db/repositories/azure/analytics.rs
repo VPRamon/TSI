@@ -18,7 +18,7 @@ use tiberius::Query;
 
 use super::pool;
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData,
+    PriorityRate, ScheduleSummary,
 };
 
 /// Populate the analytics table for a schedule.
@@ -1590,104 +1590,6 @@ pub async fn fetch_priority_rates(schedule_id: i64) -> Result<Vec<PriorityRate>,
         .collect();
 
     Ok(rates)
-}
-
-/// Fetch visibility bins from analytics table.
-pub async fn fetch_visibility_bins(schedule_id: i64) -> Result<Vec<VisibilityBinData>, String> {
-    let pool = pool::get_pool()?;
-    let mut conn = pool
-        .get()
-        .await
-        .map_err(|e| format!("Failed to get connection: {e}"))?;
-
-    let sql = r#"
-        SELECT
-            bin_index,
-            bin_min_hours,
-            bin_max_hours,
-            bin_mid_hours,
-            total_count,
-            scheduled_count,
-            scheduling_rate
-        FROM analytics.schedule_visibility_bins
-        WHERE schedule_id = @P1
-        ORDER BY bin_index
-    "#;
-
-    let mut query = Query::new(sql);
-    query.bind(schedule_id);
-
-    let stream = query
-        .query(&mut *conn)
-        .await
-        .map_err(|e| format!("Failed to fetch visibility bins: {e}"))?;
-
-    let rows = stream
-        .into_first_result()
-        .await
-        .map_err(|e| format!("Failed to read visibility bins: {e}"))?;
-
-    let bins = rows
-        .iter()
-        .map(|r| VisibilityBinData {
-            bin_index: r.get::<i32, _>(0).unwrap_or(0),
-            bin_min_hours: r.get::<f64, _>(1).unwrap_or(0.0),
-            bin_max_hours: r.get::<f64, _>(2).unwrap_or(0.0),
-            bin_mid_hours: r.get::<f64, _>(3).unwrap_or(0.0),
-            total_count: r.get::<i32, _>(4).unwrap_or(0),
-            scheduled_count: r.get::<i32, _>(5).unwrap_or(0),
-            scheduling_rate: r.get::<f64, _>(6).unwrap_or(0.0),
-        })
-        .collect();
-
-    Ok(bins)
-}
-
-/// Fetch heatmap bins from analytics table.
-pub async fn fetch_heatmap_bins(schedule_id: i64) -> Result<Vec<HeatmapBinData>, String> {
-    let pool = pool::get_pool()?;
-    let mut conn = pool
-        .get()
-        .await
-        .map_err(|e| format!("Failed to get connection: {e}"))?;
-
-    let sql = r#"
-        SELECT
-            visibility_mid_hours,
-            time_mid_hours,
-            total_count,
-            scheduled_count,
-            scheduling_rate
-        FROM analytics.schedule_heatmap_bins
-        WHERE schedule_id = @P1
-        ORDER BY visibility_bin_index, time_bin_index
-    "#;
-
-    let mut query = Query::new(sql);
-    query.bind(schedule_id);
-
-    let stream = query
-        .query(&mut *conn)
-        .await
-        .map_err(|e| format!("Failed to fetch heatmap bins: {e}"))?;
-
-    let rows = stream
-        .into_first_result()
-        .await
-        .map_err(|e| format!("Failed to read heatmap bins: {e}"))?;
-
-    let bins = rows
-        .iter()
-        .map(|r| HeatmapBinData {
-            visibility_mid_hours: r.get::<f64, _>(0).unwrap_or(0.0),
-            time_mid_hours: r.get::<f64, _>(1).unwrap_or(0.0),
-            total_count: r.get::<i32, _>(2).unwrap_or(0),
-            scheduled_count: r.get::<i32, _>(3).unwrap_or(0),
-            scheduling_rate: r.get::<f64, _>(4).unwrap_or(0.0),
-        })
-        .collect();
-
-    Ok(bins)
 }
 
 /// Check if summary analytics data exists for a schedule.

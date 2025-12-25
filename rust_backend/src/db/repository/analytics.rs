@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use super::error::RepositoryResult;
 use crate::db::models::InsightsBlock;
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary,
+    PriorityRate,
 };
 use crate::api::{DistributionBlock, LightweightBlock};
 
@@ -115,20 +115,6 @@ pub trait AnalyticsRepository: Send + Sync {
         n_bins: usize,
     ) -> RepositoryResult<()>;
 
-    /// Fetch schedule summary statistics.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(Some(ScheduleSummary))` - Summary statistics if available
-    /// * `Ok(None)` - If no summary exists
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_schedule_summary(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Option<ScheduleSummary>>;
-
     /// Fetch priority rate distribution.
     ///
     /// # Arguments
@@ -138,17 +124,6 @@ pub trait AnalyticsRepository: Send + Sync {
     /// * `Ok(Vec<PriorityRate>)` - Priority distribution data
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_priority_rates(&self, schedule_id: i64) -> RepositoryResult<Vec<PriorityRate>>;
-
-
-    /// Fetch heatmap bin data.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(Vec<HeatmapBinData>)` - Heatmap data
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_heatmap_bins(&self, schedule_id: i64) -> RepositoryResult<Vec<HeatmapBinData>>;
 
     /// Check if summary analytics exist for a schedule.
     ///

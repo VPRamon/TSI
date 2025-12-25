@@ -1,10 +1,7 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 use tokio::runtime::Runtime;
-
-use crate::api::types as api;
 use crate::db::repository::visualization::VisualizationRepository;
-use crate::db::models;
 
 // =========================================================
 // Visibility Map types + route
@@ -62,28 +59,4 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<VisibilityMapData>()?;
     m.add("GET_VISIBILITY_MAP_DATA", GET_VISIBILITY_MAP_DATA)?;
     Ok(())
-}
-
-
-impl From<&models::VisibilityBin> for api::VisibilityBin {
-    fn from(bin: &models::VisibilityBin) -> Self {
-        api::VisibilityBin {
-            bin_start_unix: bin.bin_start_unix,
-            bin_end_unix: bin.bin_end_unix,
-            visible_count: bin.visible_count,
-        }
-    }
-}
-
-impl From<&models::BlockHistogramData> for api::BlockHistogramData {
-    fn from(row: &models::BlockHistogramData) -> Self {
-        api::BlockHistogramData {
-            scheduling_block_id: row.scheduling_block_id,
-            priority: row.priority,
-            visibility_periods: row
-                .visibility_periods
-                .as_ref()
-                .map(|periods| periods.iter().map(|p| p.into()).collect()),
-        }
-    }
 }

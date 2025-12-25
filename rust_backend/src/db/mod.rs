@@ -104,8 +104,7 @@ pub use repository::{
 
 // Re-export Azure module functions and types for backward compatibility
 pub use repositories::azure::{
-    analytics, operations, pool, validation, HeatmapBinData, PriorityRate, ScheduleSummary,
-    VisibilityBinData,
+    analytics, operations, pool, validation, PriorityRate, ScheduleSummary,
 };
 
 // Phase 1: Block-level analytics (backward compatibility)
@@ -118,8 +117,8 @@ pub use repositories::azure::analytics::{
 
 // Phase 2: Summary analytics (backward compatibility)
 pub use repositories::azure::analytics::{
-    delete_summary_analytics as delete_summary_analytics_legacy, fetch_heatmap_bins,
-    fetch_priority_rates, fetch_schedule_summary, fetch_visibility_bins,
+    delete_summary_analytics as delete_summary_analytics_legacy,
+    fetch_priority_rates, fetch_schedule_summary,
     has_summary_analytics as has_summary_analytics_legacy,
     populate_summary_analytics as populate_summary_analytics_legacy,
 };
