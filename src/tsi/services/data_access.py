@@ -208,7 +208,7 @@ def get_insights_data(
         InsightsData with summary statistics and correlations
     """
     logger.debug(f"Fetching insights data for schedule_id={schedule_id}")
-    return cast("InsightsData", _rust_call("py_get_insights_data", schedule_id))
+    return cast("InsightsData", _rust_call("get_insights_data", schedule_id))
 
 
 # =============================================================================
