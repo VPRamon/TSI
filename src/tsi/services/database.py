@@ -288,9 +288,8 @@ def get_distribution_data(
     Returns:
         DistributionData object with all required data and pre-computed statistics
     """
-    from tsi.services.data_access import get_distribution_data as get_data
-
-    return get_data(schedule_id)
+    # Use Rust backend route for distribution data (ETL analytics path)
+    return _rust_call(api.GET_DISTRIBUTION_DATA, schedule_id)
 
 
 def get_schedule_timeline_data(
@@ -317,9 +316,8 @@ def get_schedule_timeline_data(
     Returns:
         ScheduleTimelineData object with all required data and pre-computed metadata
     """
-    from tsi.services.data_access import get_schedule_timeline_data as get_data
-
-    return get_data(schedule_id)
+    # Use Rust backend route for schedule timeline data
+    return _rust_call(api.GET_SCHEDULE_TIMELINE_DATA, schedule_id)
 
 
 def get_insights_data(
