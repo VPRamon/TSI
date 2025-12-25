@@ -93,6 +93,10 @@ pub mod api_tmp {
     pub use crate::routes::compare::CompareData;
     pub use crate::routes::validation::ValidationIssue;
     pub use crate::routes::validation::ValidationReport;
+
+    #[pyo3::pyclass(module = "tsi_rust_api")]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    pub struct ScheduleId(pub i64);
 }
 
 /// Python module entry point for the new TSI Rust API.
@@ -130,10 +134,12 @@ pub mod api_tmp {
 fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Re-export all functions from the API module
     api::register_api_functions(m)?;
-    
+
     // Add transformation functions that Python code expects
     api::register_transformation_functions(m)?;
-    
+
+    m.add_class::<api_tmp::ScheduleId>()?;
+
     Ok(())
 }
 

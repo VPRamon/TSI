@@ -18,31 +18,6 @@ use pyo3::types::PyTuple;
 
 use serde::{Deserialize, Serialize};
 
-// =========================================================
-// Core Schedule Types
-// =========================================================
-
-/// Strongly-typed identifier for a schedule record.
-#[pyclass(module = "tsi_rust_api")]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ScheduleId(pub i64);
-
-#[pymethods]
-impl ScheduleId {
-    #[new]
-    pub fn new(value: i64) -> Self {
-        Self(value)
-    }
-
-    #[getter]
-    pub fn value(&self) -> i64 {
-        self.0
-    }
-
-    fn __repr__(&self) -> String {
-        format!("ScheduleId({})", self.0)
-    }
-}
 
 /// Strongly-typed identifier for a target record.
 #[pyclass(module = "tsi_rust_api")]
