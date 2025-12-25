@@ -76,19 +76,6 @@ impl From<&crate::api::LightweightBlock> for api::LightweightBlock {
     }
 }
 
-// Algorithm result conversion (shared)
-impl From<&crate::algorithms::SchedulingConflict> for api::SchedulingConflict {
-    fn from(conflict: &crate::algorithms::SchedulingConflict) -> Self {
-        api::SchedulingConflict {
-            block_id_1: conflict.scheduling_block_id.clone(),
-            block_id_2: String::new(),
-            overlap_start: 0.0,
-            overlap_end: 0.0,
-            overlap_duration_hours: 0.0,
-        }
-    }
-}
-
 // Helper functions for collections
 pub fn convert_vec<T, U>(items: &[T]) -> Vec<U>
 where

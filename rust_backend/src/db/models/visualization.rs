@@ -12,33 +12,6 @@ use siderust::astro::ModifiedJulianDate;
 use qtty::*;
 use super::Period;
 
-// =========================================================
-// Visibility Histogram Types
-// =========================================================
-
-/// Lightweight block summary for the visibility map.
-/// Provides just enough information for filtering and statistics.
-#[derive(Debug, Clone)]
-pub struct VisibilityBlockSummary {
-    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
-    pub original_block_id: String, // Original ID from JSON (shown to user)
-    pub priority: f64,
-    pub num_visibility_periods: usize,
-    pub scheduled: bool,
-}
-
-
-/// Data bundle for the visibility map UI.
-#[derive(Debug, Clone)]
-pub struct VisibilityMapData {
-    pub blocks: Vec<VisibilityBlockSummary>,
-    pub priority_min: f64,
-    pub priority_max: f64,
-    pub total_count: usize,
-    pub scheduled_count: usize,
-}
-
-
 /// Represents a single time bin in a visibility histogram.
 /// Used internally in Rust for efficient computation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

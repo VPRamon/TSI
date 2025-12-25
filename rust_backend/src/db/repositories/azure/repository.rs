@@ -274,7 +274,7 @@ impl ValidationRepository for AzureRepository {
     async fn fetch_validation_results(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<crate::api::ValidationReport> {
+    ) -> RepositoryResult<crate::api_tmp::ValidationReport> {
         validation::fetch_validation_results(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -300,7 +300,7 @@ impl VisualizationRepository for AzureRepository {
     async fn fetch_visibility_map_data(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<crate::db::models::VisibilityMapData> {
+    ) -> RepositoryResult<crate::api_tmp::VisibilityMapData> {
         operations::fetch_visibility_map_data(schedule_id)
             .await
             .map_err(RepositoryError::from)

@@ -1896,8 +1896,8 @@ pub async fn fetch_trends_blocks(
 /// This returns only the fields needed for filtering and statistics.
 pub async fn fetch_visibility_map_data(
     schedule_id: i64,
-) -> Result<crate::db::models::VisibilityMapData, String> {
-    use crate::db::models::{VisibilityBlockSummary, VisibilityMapData};
+) -> Result<crate::api_tmp::VisibilityMapData, String> {
+    use crate::api_tmp::{VisibilityBlockSummary, VisibilityMapData};
 
     let pool = pool::get_pool()?;
     let mut conn = pool
