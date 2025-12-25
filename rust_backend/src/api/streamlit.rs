@@ -295,7 +295,7 @@ fn get_distribution_data(schedule_id: i64) -> PyResult<api::DistributionData> {
 #[pyfunction]
 fn get_timeline_data(schedule_id: i64) -> PyResult<api::ScheduleTimelineData> {
     let data = crate::services::py_get_schedule_timeline_data(schedule_id)?;
-    Ok((&data).into())
+    Ok(data)
 }
 
 /// Get insights analysis data.
@@ -420,7 +420,7 @@ fn py_get_visibility_histogram(
 
     let bin_duration_seconds = bin_duration_minutes * 60;
 
-    let bins = py.allow_threads(|| -> PyResult<_> {
+    let bins = py.detach(|| -> PyResult<_> {
         let repo = crate::db::get_repository()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         let runtime = Runtime::new().map_err(|e| {
@@ -493,7 +493,7 @@ fn py_get_visibility_histogram_analytics(
 
     let bin_duration_seconds = bin_duration_minutes * 60;
 
-    let bins = py.allow_threads(|| -> PyResult<_> {
+    let bins = py.detach(|| -> PyResult<_> {
         let repo = crate::db::get_repository()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
         let runtime = Runtime::new().map_err(|e| {
