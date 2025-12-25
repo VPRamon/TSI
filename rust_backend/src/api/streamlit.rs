@@ -13,12 +13,13 @@
 //! 5. Return to Python with proper error handling
 
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
+use pyo3::types::{PyDict, PyList};
 use serde_json::Value;
 use tokio::runtime::Runtime;
 
 use crate::api::types as api;
 use crate::algorithms;
+use crate::db::repository::{analytics::AnalyticsRepository, visualization::VisualizationRepository};
 use crate::db::services as db_services;
 
 /// Register all API functions with the Python module.
@@ -46,6 +47,13 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_insights_data, m)?)?;
     m.add_function(wrap_pyfunction!(get_trends_data, m)?)?;
     m.add_function(wrap_pyfunction!(get_compare_data, m)?)?;
+    m.add_function(wrap_pyfunction!(get_visibility_map_data, m)?)?;
+
+    // Legacy visibility histogram functions (expected by Python services)
+    m.add_function(wrap_pyfunction!(py_get_visibility_map_data, m)?)?;
+    m.add_function(wrap_pyfunction!(py_get_schedule_time_range, m)?)?;
+    m.add_function(wrap_pyfunction!(py_get_visibility_histogram, m)?)?;
+    m.add_function(wrap_pyfunction!(py_get_visibility_histogram_analytics, m)?)?;
 
     // Algorithm operations
     m.add_function(wrap_pyfunction!(find_conflicts, m)?)?;
@@ -337,10 +345,184 @@ fn get_compare_data(schedule_id_a: i64, schedule_id_b: i64) -> PyResult<api::Com
     Ok((&data).into())
 }
 
+fn fetch_visibility_map_data_internal(schedule_id: i64) -> PyResult<api::VisibilityMapData> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+    let repo = crate::db::get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+    let data = runtime
+        .block_on(repo.fetch_visibility_map_data(schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+    Ok((&data).into())
+}
+
 #[pyfunction]
 fn get_visibility_map_data(schedule_id: i64) -> PyResult<api::VisibilityMapData> {
-    let data = crate::services::compute_visibility_histogram_rust(schedule_id)?;
-    Ok(data)
+    fetch_visibility_map_data_internal(schedule_id)
+}
+
+#[pyfunction]
+fn py_get_visibility_map_data(schedule_id: i64) -> PyResult<api::VisibilityMapData> {
+    fetch_visibility_map_data_internal(schedule_id)
+}
+
+#[pyfunction]
+fn py_get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64)>> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+    let repo = crate::db::get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+
+    let time_range_period = runtime
+        .block_on(db_services::get_schedule_time_range(repo.as_ref(), schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+
+    if let Some(period) = time_range_period {
+        const MJD_EPOCH_UNIX: i64 = -3506716800;
+        let start_unix = MJD_EPOCH_UNIX + (period.start.value() * 86400.0) as i64;
+        let end_unix = MJD_EPOCH_UNIX + (period.stop.value() * 86400.0) as i64;
+        Ok(Some((start_unix, end_unix)))
+    } else {
+        Ok(None)
+    }
+}
+
+#[pyfunction]
+#[allow(clippy::too_many_arguments)]
+fn py_get_visibility_histogram(
+    py: Python,
+    schedule_id: i64,
+    start_unix: i64,
+    end_unix: i64,
+    bin_duration_minutes: i64,
+    priority_min: Option<i32>,
+    priority_max: Option<i32>,
+    block_ids: Option<Vec<i64>>,
+) -> PyResult<Py<PyAny>> {
+    if start_unix >= end_unix {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "start_unix must be less than end_unix",
+        ));
+    }
+    if bin_duration_minutes <= 0 {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "bin_duration_minutes must be positive",
+        ));
+    }
+
+    let bin_duration_seconds = bin_duration_minutes * 60;
+
+    let bins = py.allow_threads(|| -> PyResult<_> {
+        let repo = crate::db::get_repository()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        let runtime = Runtime::new().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to create async runtime: {}",
+                e
+            ))
+        })?;
+
+        let blocks = runtime
+            .block_on(repo.fetch_blocks_for_histogram(
+                schedule_id,
+                priority_min,
+                priority_max,
+                block_ids,
+            ))
+            .map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                    "Failed to fetch blocks: {}",
+                    e
+                ))
+            })?;
+
+        crate::services::compute_visibility_histogram_rust(
+            blocks.into_iter(),
+            start_unix,
+            end_unix,
+            bin_duration_seconds,
+            priority_min,
+            priority_max,
+        )
+        .map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to compute histogram: {}",
+                e
+            ))
+        })
+    })?;
+
+    let list = PyList::empty(py);
+    for bin in bins {
+        let dict = PyDict::new(py);
+        dict.set_item("bin_start_unix", bin.bin_start_unix)?;
+        dict.set_item("bin_end_unix", bin.bin_end_unix)?;
+        dict.set_item("count", bin.visible_count)?;
+        list.append(dict)?;
+    }
+
+    Ok(list.into())
+}
+
+#[pyfunction]
+fn py_get_visibility_histogram_analytics(
+    py: Python,
+    schedule_id: i64,
+    start_unix: i64,
+    end_unix: i64,
+    bin_duration_minutes: i64,
+) -> PyResult<Py<PyAny>> {
+    if start_unix >= end_unix {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "start_unix must be less than end_unix",
+        ));
+    }
+    if bin_duration_minutes <= 0 {
+        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
+            "bin_duration_minutes must be positive",
+        ));
+    }
+
+    let bin_duration_seconds = bin_duration_minutes * 60;
+
+    let bins = py.allow_threads(|| -> PyResult<_> {
+        let repo = crate::db::get_repository()
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        let runtime = Runtime::new().map_err(|e| {
+            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+                "Failed to create async runtime: {}",
+                e
+            ))
+        })?;
+
+        runtime
+            .block_on(repo.fetch_visibility_histogram_from_analytics(
+                schedule_id,
+                start_unix,
+                end_unix,
+                bin_duration_seconds,
+            ))
+            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
+    })?;
+
+    let list = PyList::empty(py);
+    for bin in bins {
+        let dict = PyDict::new(py);
+        dict.set_item("bin_start_unix", bin.bin_start_unix)?;
+        dict.set_item("bin_end_unix", bin.bin_end_unix)?;
+        dict.set_item("count", bin.visible_count)?;
+        list.append(dict)?;
+    }
+
+    Ok(list.into())
 }
 
 // =========================================================
