@@ -8,9 +8,6 @@ use async_trait::async_trait;
 
 use super::error::RepositoryResult;
 use crate::db::models::InsightsBlock;
-use crate::api::types::{
-    PriorityRate,
-};
 use crate::api::{DistributionBlock, LightweightBlock};
 
 /// Repository trait for analytics operations.
@@ -114,16 +111,6 @@ pub trait AnalyticsRepository: Send + Sync {
         schedule_id: i64,
         n_bins: usize,
     ) -> RepositoryResult<()>;
-
-    /// Fetch priority rate distribution.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(Vec<PriorityRate>)` - Priority distribution data
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_priority_rates(&self, schedule_id: i64) -> RepositoryResult<Vec<PriorityRate>>;
 
     /// Check if summary analytics exist for a schedule.
     ///

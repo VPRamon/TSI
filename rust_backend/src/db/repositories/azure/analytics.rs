@@ -17,9 +17,7 @@ use log::{debug, info, warn};
 use tiberius::Query;
 
 use super::pool;
-use crate::api::types::{
-    PriorityRate, ScheduleSummary,
-};
+use crate::api::types::ScheduleSummary;
 
 /// Populate the analytics table for a schedule.
 ///
@@ -1541,55 +1539,6 @@ pub async fn fetch_schedule_summary(schedule_id: i64) -> Result<Option<ScheduleS
         })),
         None => Ok(None),
     }
-}
-
-/// Fetch priority rates from analytics table.
-pub async fn fetch_priority_rates(schedule_id: i64) -> Result<Vec<PriorityRate>, String> {
-    let pool = pool::get_pool()?;
-    let mut conn = pool
-        .get()
-        .await
-        .map_err(|e| format!("Failed to get connection: {e}"))?;
-
-    let sql = r#"
-        SELECT
-            priority_value,
-            total_count,
-            scheduled_count,
-            scheduling_rate,
-            visibility_mean_hours,
-            requested_mean_hours
-        FROM analytics.schedule_priority_rates
-        WHERE schedule_id = @P1
-        ORDER BY priority_value
-    "#;
-
-    let mut query = Query::new(sql);
-    query.bind(schedule_id);
-
-    let stream = query
-        .query(&mut *conn)
-        .await
-        .map_err(|e| format!("Failed to fetch priority rates: {e}"))?;
-
-    let rows = stream
-        .into_first_result()
-        .await
-        .map_err(|e| format!("Failed to read priority rates: {e}"))?;
-
-    let rates = rows
-        .iter()
-        .map(|r| PriorityRate {
-            priority_value: r.get::<i32, _>(0).unwrap_or(0),
-            total_count: r.get::<i32, _>(1).unwrap_or(0),
-            scheduled_count: r.get::<i32, _>(2).unwrap_or(0),
-            scheduling_rate: r.get::<f64, _>(3).unwrap_or(0.0),
-            visibility_mean_hours: r.get(4),
-            requested_mean_hours: r.get(5),
-        })
-        .collect();
-
-    Ok(rates)
 }
 
 /// Check if summary analytics data exists for a schedule.

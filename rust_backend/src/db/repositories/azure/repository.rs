@@ -7,7 +7,6 @@
 use async_trait::async_trait;
 
 use super::{analytics, operations, validation};
-use crate::api::types::PriorityRate;
 use crate::db::{
     models::{InsightsBlock, Period, Schedule, ScheduleMetadata},
     repository::*,
@@ -185,15 +184,6 @@ impl AnalyticsRepository for AzureRepository {
         n_bins: usize,
     ) -> RepositoryResult<()> {
         analytics::populate_summary_analytics(schedule_id, n_bins)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
-    async fn fetch_priority_rates(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<PriorityRate>> {
-        analytics::fetch_priority_rates(schedule_id)
             .await
             .map_err(RepositoryError::from)
     }

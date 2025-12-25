@@ -87,7 +87,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<api::LightweightBlock>()?;
     m.add_class::<api::PriorityBinInfo>()?;
     m.add_class::<api::ScheduleSummary>()?;
-    m.add_class::<api::PriorityRate>()?;
 
     Ok(())
 }

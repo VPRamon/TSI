@@ -16,6 +16,4 @@ pub use repository::AzureRepository;
 pub use pool::{build_tiberius_config, get_pool, init_pool};
 
 // Re-export analytics types from api module (now centralized there)
-pub use crate::api::types::{
-    PriorityRate, ScheduleSummary,
-};
+pub use crate::api::types::ScheduleSummary;
