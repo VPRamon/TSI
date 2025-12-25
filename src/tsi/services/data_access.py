@@ -313,7 +313,7 @@ def get_visibility_map_data(schedule_id: int) -> VisibilityMapData:
         VisibilityMapData with block summaries
     """
     logger.debug(f"Fetching visibility map data for schedule_id={schedule_id}")
-    return cast("VisibilityMapData", _rust_call("py_get_visibility_map_data", schedule_id))
+    return cast("VisibilityMapData", _rust_call("get_visibility_map_data", schedule_id))
 
 
 __all__ = [

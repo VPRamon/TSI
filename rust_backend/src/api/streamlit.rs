@@ -337,6 +337,12 @@ fn get_compare_data(schedule_id_a: i64, schedule_id_b: i64) -> PyResult<api::Com
     Ok((&data).into())
 }
 
+#[pyfunction]
+fn get_visibility_map_data(schedule_id: i64) -> PyResult<api::VisibilityMapData> {
+    let data = crate::services::compute_visibility_histogram_rust(schedule_id)?;
+    Ok(data)
+}
+
 // =========================================================
 // Algorithm Operations
 // =========================================================
