@@ -104,7 +104,7 @@ pub use repository::{
 
 // Re-export Azure module functions and types for backward compatibility
 pub use repositories::azure::{
-    analytics, operations, pool, validation, PriorityRate, ScheduleSummary,
+    analytics, operations, pool, validation, ScheduleSummary,
 };
 
 // Phase 1: Block-level analytics (backward compatibility)
@@ -118,7 +118,7 @@ pub use repositories::azure::analytics::{
 // Phase 2: Summary analytics (backward compatibility)
 pub use repositories::azure::analytics::{
     delete_summary_analytics as delete_summary_analytics_legacy,
-    fetch_priority_rates, fetch_schedule_summary,
+    fetch_schedule_summary,
     has_summary_analytics as has_summary_analytics_legacy,
     populate_summary_analytics as populate_summary_analytics_legacy,
 };

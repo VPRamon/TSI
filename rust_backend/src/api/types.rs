@@ -360,16 +360,3 @@ pub struct ScheduleSummary {
     pub corr_visibility_requested: Option<f64>,
     pub conflict_count: i32,
 }
-
-/// Priority-level rate data (from schedule_priority_rates table).
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PriorityRate {
-    pub priority_value: i32,
-    pub total_count: i32,
-    pub scheduled_count: i32,
-    pub scheduling_rate: f64,
-    pub visibility_mean_hours: Option<f64>,
-    pub requested_mean_hours: Option<f64>,
-}
-

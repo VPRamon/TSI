@@ -9,9 +9,7 @@ use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use crate::api::types::{
-    PriorityRate, ScheduleSummary,
-};
+use crate::api::types::ScheduleSummary;
 use crate::db::{
     models::{InsightsBlock, Period, Schedule, ScheduleMetadata, SchedulingBlock},
     repository::*,
@@ -54,7 +52,6 @@ struct LocalData {
     // Analytics data
     analytics_exists: HashMap<i64, bool>,
     summary_analytics: HashMap<i64, ScheduleSummary>,
-    priority_rates: HashMap<i64, Vec<PriorityRate>>,
 
     // Validation data
     validation_results: HashMap<i64, crate::api_tmp::ValidationReport>,
@@ -532,18 +529,6 @@ impl AnalyticsRepository for LocalRepository {
 
         data.summary_analytics.insert(schedule_id, summary);
         Ok(())
-    }
-
-    async fn fetch_priority_rates(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<PriorityRate>> {
-        let data = self.data.read().unwrap();
-        Ok(data
-            .priority_rates
-            .get(&schedule_id)
-            .cloned()
-            .unwrap_or_default())
     }
 
     async fn has_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<bool> {
