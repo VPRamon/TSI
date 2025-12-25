@@ -25,6 +25,9 @@ use crate::db::services as db_services;
 pub use crate::routes::landing::{list_schedules, store_schedule};
 // Re-export route name constants so Python can reference them without hard-coded strings
 pub use crate::routes::landing::{LIST_SCHEDULES, POST_SCHEDULE};
+// Re-export validation route so it can be registered from routes module
+pub use crate::routes::validation::{get_validation_report};
+pub use crate::routes::validation::GET_VALIDATION_REPORT;
 
 /// Register all API functions with the Python module.
 ///
@@ -118,6 +121,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Expose route name constants to Python to avoid stringly-typed calls
     m.add("LIST_SCHEDULES", crate::routes::landing::LIST_SCHEDULES)?;
     m.add("POST_SCHEDULE", crate::routes::landing::POST_SCHEDULE)?;
+    m.add("GET_VALIDATION_REPORT", crate::routes::validation::GET_VALIDATION_REPORT)?;
 
     Ok(())
 }
@@ -540,19 +544,7 @@ fn get_top_observations(schedule_json: String, by: String, n: usize) -> PyResult
 // =========================================================
 // Validation Operations
 // =========================================================
-
-/// Get validation report for a schedule.
-///
-/// Args:
-///     schedule_id: Database ID of the schedule
-///
-/// Returns:
-///     ValidationReport with issues and summary
-#[pyfunction]
-fn get_validation_report(schedule_id: i64) -> PyResult<api::ValidationReport> {
-    let report = crate::services::py_get_validation_report(schedule_id)?;
-    Ok(report)
-}
+// Validation operations are provided by `routes::validation`
 // =========================================================
 // Transformation Functions (Legacy API)
 // =========================================================

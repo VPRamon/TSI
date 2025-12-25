@@ -883,34 +883,10 @@ pub struct VisibilityMapData {
 }
 
 // =========================================================
-// Validation Types
+// Validation Types (moved to routes/validation.rs)
 // =========================================================
 
-/// Validation issue.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ValidationIssue {
-    pub block_id: i64,
-    pub original_block_id: Option<String>,
-    pub issue_type: String,
-    pub category: String,
-    pub criticality: String,
-    pub field_name: Option<String>,
-    pub current_value: Option<String>,
-    pub expected_value: Option<String>,
-    pub description: String,
-}
-/// Validation report data.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ValidationReport {
-    pub schedule_id: i64,
-    pub total_blocks: usize,
-    pub valid_blocks: usize,
-    pub impossible_blocks: Vec<ValidationIssue>,
-    pub validation_errors: Vec<ValidationIssue>,
-    pub validation_warnings: Vec<ValidationIssue>,
-}
+pub use crate::routes::validation::{ValidationIssue, ValidationReport};
 
 // =========================================================
 // Algorithm Result Types

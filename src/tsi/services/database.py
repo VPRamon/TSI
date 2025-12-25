@@ -676,8 +676,8 @@ def get_validation_report_data(schedule_id: int) -> ValidationReport:
         Validation is performed automatically during schedule upload as part of the ETL process.
         Impossible blocks are automatically filtered from analytics queries.
     """
-    # Get validation data from Rust backend
-    report = _rust_call("get_validation_report", schedule_id)
+    # Get validation data from Rust backend (use exported constant)
+    report = _rust_call(api.GET_VALIDATION_REPORT, schedule_id)
     # TODO: Assert fields exist on report object
     return report
 
