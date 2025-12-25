@@ -98,10 +98,17 @@ pub mod api_tmp {
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     pub struct ScheduleId(pub i64);
 
-    /// Strongly-typed identifier for a target record.
     #[pyo3::pyclass(module = "tsi_rust_api")]
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     pub struct TargetId(pub i64);
+
+    #[pyo3::pyclass(module = "tsi_rust_api")]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    pub struct ConstraintsId(pub i64);
+
+    #[pyo3::pyclass(module = "tsi_rust_api")]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    pub struct SchedulingBlockId(pub i64);
 
 }
 
@@ -146,6 +153,8 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_class::<api_tmp::ScheduleId>()?;
     m.add_class::<api_tmp::TargetId>()?;
+    m.add_class::<api_tmp::ConstraintsId>()?;
+    m.add_class::<api_tmp::SchedulingBlockId>()?;
 
     Ok(())
 }

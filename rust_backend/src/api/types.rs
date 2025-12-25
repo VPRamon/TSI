@@ -18,50 +18,6 @@ use pyo3::types::PyTuple;
 
 use serde::{Deserialize, Serialize};
 
-/// Strongly-typed identifier for a constraints record.
-#[pyclass(module = "tsi_rust_api")]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct ConstraintsId(pub i64);
-
-#[pymethods]
-impl ConstraintsId {
-    #[new]
-    pub fn new(value: i64) -> Self {
-        Self(value)
-    }
-
-    #[getter]
-    pub fn value(&self) -> i64 {
-        self.0
-    }
-
-    fn __repr__(&self) -> String {
-        format!("ConstraintsId({})", self.0)
-    }
-}
-
-/// Strongly-typed identifier for a scheduling block.
-#[pyclass(module = "tsi_rust_api")]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct SchedulingBlockId(pub i64);
-
-#[pymethods]
-impl SchedulingBlockId {
-    #[new]
-    pub fn new(value: i64) -> Self {
-        Self(value)
-    }
-
-    #[getter]
-    pub fn value(&self) -> i64 {
-        self.0
-    }
-
-    fn __repr__(&self) -> String {
-        format!("SchedulingBlockId({})", self.0)
-    }
-}
-
 /// Time period in Modified Julian Date (MJD) format.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
