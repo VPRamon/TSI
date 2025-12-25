@@ -59,6 +59,14 @@ def _fit_model_cached(
                 f"Insufficient data for model training: {len(filtered_blocks)} blocks (minimum 20 required)",
             )
 
+        class_values = {1 if b.scheduled else 0 for b in filtered_blocks}
+        if len(class_values) < 2:
+            return (
+                None,
+                "Logistic model requires both scheduled and unscheduled observations "
+                "after filtering.",
+            )
+
         # Convert to DataFrame for model training
         import pandas as pd
 
@@ -174,6 +182,15 @@ def render() -> None:
 
     # Logistic model section
     st.header("🎯 Logistic Regression Model")
+
+    scheduled_count = sum(1 for b in filtered_blocks if b.scheduled)
+    unscheduled_count = len(filtered_blocks) - scheduled_count
+    if scheduled_count == 0 or unscheduled_count == 0:
+        st.warning(
+            "⚠️ Logistic model requires both scheduled and unscheduled observations. "
+            "Adjust filters or load a schedule with unscheduled blocks."
+        )
+        return
 
     with st.spinner("Training logistic model..."):
         model_result, error = _fit_model_cached(
