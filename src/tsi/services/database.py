@@ -390,9 +390,8 @@ def get_trends_data(
     Returns:
         TrendsData object with all required data and pre-computed analytics
     """
-    from tsi.services.data_access import get_trends_data as get_data
-
-    return get_data(schedule_id, n_bins, bandwidth, n_smooth_points)
+    # Call Rust backend trends route directly
+    return _rust_call(api.GET_TRENDS_DATA, schedule_id, n_bins, bandwidth, n_smooth_points)
 
 
 def get_compare_data(
