@@ -445,89 +445,11 @@ pub use crate::routes::distribution::{DistributionBlock, DistributionStats, Dist
 // Timeline types moved to routes/timeline.rs for route ownership
 pub use crate::routes::timeline::{ScheduleTimelineBlock, ScheduleTimelineData};
 
-// =========================================================
-// Insights Types
-// =========================================================
-
-/// Block data for insights analysis.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InsightsBlock {
-    pub scheduling_block_id: i64,
-    pub original_block_id: String,
-    pub priority: f64,
-    pub total_visibility_hours: f64,
-    pub requested_hours: f64,
-    pub elevation_range_deg: f64,
-    pub scheduled: bool,
-    pub scheduled_start_mjd: Option<f64>,
-    pub scheduled_stop_mjd: Option<f64>,
-}
-
-/// Analytics metrics.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AnalyticsMetrics {
-    pub total_observations: usize,
-    pub scheduled_count: usize,
-    pub unscheduled_count: usize,
-    pub scheduling_rate: f64,
-    pub mean_priority: f64,
-    pub median_priority: f64,
-    pub mean_priority_scheduled: f64,
-    pub mean_priority_unscheduled: f64,
-    pub total_visibility_hours: f64,
-    pub mean_requested_hours: f64,
-}
-
-/// Correlation entry.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CorrelationEntry {
-    pub variable1: String,
-    pub variable2: String,
-    pub correlation: f64,
-}
-
-/// Conflict record.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ConflictRecord {
-    pub block_id_1: String,
-    pub block_id_2: String,
-    pub start_time_1: f64,
-    pub stop_time_1: f64,
-    pub start_time_2: f64,
-    pub stop_time_2: f64,
-    pub overlap_hours: f64,
-}
-
-/// Top observation entry.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TopObservation {
-    pub scheduling_block_id: i64,
-    pub original_block_id: String,
-    pub priority: f64,
-    pub total_visibility_hours: f64,
-    pub requested_hours: f64,
-    pub scheduled: bool,
-}
-
-/// Complete insights dataset.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct InsightsData {
-    pub blocks: Vec<InsightsBlock>,
-    pub metrics: AnalyticsMetrics,
-    pub correlations: Vec<CorrelationEntry>,
-    pub top_priority: Vec<TopObservation>,
-    pub top_visibility: Vec<TopObservation>,
-    pub conflicts: Vec<ConflictRecord>,
-    pub total_count: usize,
-    pub scheduled_count: usize,
-    pub impossible_count: usize,
-}
+// Insights types moved to routes/insights.rs for route ownership
+pub use crate::routes::insights::{
+    InsightsBlock, InsightsData, AnalyticsMetrics, CorrelationEntry, ConflictRecord,
+    TopObservation,
+};
 
 // =========================================================
 // Trends Types
