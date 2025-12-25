@@ -16,7 +16,7 @@ pub use metadata::{ScheduleInfo, ScheduleMetadata};
 pub use visualization::{
     AnalyticsMetrics, BlockHistogramData, CompareBlock, CompareData, CompareStats, ConflictRecord,
     CorrelationEntry, EmpiricalRatePoint, HeatmapBin, InsightsBlock, InsightsData,
-    ScheduleTimelineBlock, ScheduleTimelineData, SchedulingChange, SmoothedPoint, TopObservation,
+    ScheduleTimelineBlock, SchedulingChange, SmoothedPoint, TopObservation,
     TrendsBlock, TrendsData, TrendsMetrics, VisibilityBin, VisibilityBlockSummary,
     VisibilityMapData,
 };

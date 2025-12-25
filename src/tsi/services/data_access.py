@@ -176,7 +176,7 @@ def get_schedule_timeline_data(schedule_id: int) -> ScheduleTimelineData:
         ScheduleTimelineData with scheduled blocks
     """
     logger.debug(f"Fetching timeline data for schedule_id={schedule_id}")
-    return cast("ScheduleTimelineData", _rust_call("py_get_schedule_timeline_data", schedule_id))
+    return cast("ScheduleTimelineData", _rust_call("get_timeline_data", schedule_id))
 
 
 # =============================================================================

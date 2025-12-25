@@ -99,20 +99,6 @@ pub struct ScheduleTimelineBlock {
 }
 
 
-/// Complete schedule timeline data with blocks and computed metadata.
-/// This structure contains everything the frontend needs to render the scheduled timeline.
-#[derive(Debug, Clone)]
-pub struct ScheduleTimelineData {
-    pub blocks: Vec<ScheduleTimelineBlock>,
-    pub priority_min: f64,
-    pub priority_max: f64,
-    pub total_count: usize,
-    pub scheduled_count: usize,
-    pub unique_months: Vec<String>,
-    pub dark_periods: Vec<Period>,
-}
-
-
 // =========================================================
 // Insights Types
 // =========================================================

@@ -1,7 +1,8 @@
 #![allow(clippy::redundant_closure)]
 #![allow(clippy::len_zero)]
 
-use crate::db::models::{Period, ScheduleTimelineBlock, ScheduleTimelineData};
+use crate::api;
+use crate::db::models::{Period, ScheduleTimelineBlock};
 use pyo3::prelude::*;
 use chrono::TimeZone;
 use std::collections::HashSet;
@@ -16,9 +17,9 @@ use crate::db::get_repository;
 pub fn compute_schedule_timeline_data(
     blocks: Vec<ScheduleTimelineBlock>,
     dark_periods: Vec<Period>,
-) -> Result<ScheduleTimelineData, String> {
+) -> Result<crate::api::ScheduleTimelineData, String> {
     if blocks.is_empty() {
-        return Ok(ScheduleTimelineData {
+        return Ok(crate::api::ScheduleTimelineData {
             blocks: vec![],
             priority_min: 0.0,
             priority_max: 10.0,
@@ -64,8 +65,11 @@ pub fn compute_schedule_timeline_data(
         priority_max = priority_min + 1.0;
     }
 
-    Ok(ScheduleTimelineData {
-        blocks: blocks.clone(),
+    let api_blocks: Vec<api::ScheduleTimelineBlock> =
+        blocks.iter().map(|block| block.into()).collect();
+
+    Ok(crate::api::ScheduleTimelineData {
+        blocks: api_blocks,
         priority_min,
         priority_max,
         total_count: blocks.len(),
@@ -80,7 +84,7 @@ pub fn compute_schedule_timeline_data(
 /// and computing the timeline data.
 ///
 /// Uses the analytics table for optimal performance when available.
-pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<ScheduleTimelineData, String> {
+pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<crate::api::ScheduleTimelineData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
@@ -101,7 +105,7 @@ pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<ScheduleTime
 /// This is the main function for the schedule timeline feature, computing all statistics
 /// on the Rust side for maximum performance.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_schedule_timeline_data(schedule_id: i64) -> PyResult<ScheduleTimelineData> {
+pub fn py_get_schedule_timeline_data(schedule_id: i64) -> PyResult<api::ScheduleTimelineData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
