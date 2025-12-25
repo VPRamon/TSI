@@ -256,7 +256,7 @@ def get_visibility_map_data(
     - total_count: Total blocks in the schedule
     - scheduled_count: Number of scheduled blocks
     """
-    return _rust_call("py_get_visibility_map_data", schedule_id)
+    return _rust_call(api.GET_VISIBILITY_MAP_DATA, schedule_id)
 
 
 def get_distribution_data(

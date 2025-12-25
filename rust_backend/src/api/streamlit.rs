@@ -31,6 +31,9 @@ pub use crate::routes::validation::GET_VALIDATION_REPORT;
 // Re-export visualization route so it can be registered from routes module
 pub use crate::routes::skymap::{get_sky_map_data};
 pub use crate::routes::skymap::GET_SKY_MAP_DATA;
+// Re-export visibility route and constant
+pub use crate::routes::visibility::{get_visibility_map_data};
+pub use crate::routes::visibility::GET_VISIBILITY_MAP_DATA;
 
 /// Register all API functions with the Python module.
 ///
@@ -60,7 +63,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_visibility_map_data, m)?)?;
 
     // Legacy visibility histogram functions (expected by Python services)
-    m.add_function(wrap_pyfunction!(py_get_visibility_map_data, m)?)?;
     m.add_function(wrap_pyfunction!(py_get_schedule_time_range, m)?)?;
     m.add_function(wrap_pyfunction!(py_get_visibility_histogram, m)?)?;
     m.add_function(wrap_pyfunction!(py_get_visibility_histogram_analytics, m)?)?;
@@ -126,6 +128,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("POST_SCHEDULE", crate::routes::landing::POST_SCHEDULE)?;
     m.add("GET_VALIDATION_REPORT", crate::routes::validation::GET_VALIDATION_REPORT)?;
     m.add("GET_SKY_MAP_DATA", crate::routes::skymap::GET_SKY_MAP_DATA)?;
+    m.add("GET_VISIBILITY_MAP_DATA", crate::routes::visibility::GET_VISIBILITY_MAP_DATA)?;
 
     Ok(())
 }
@@ -309,31 +312,6 @@ fn get_compare_data(schedule_id_a: i64, schedule_id_b: i64) -> PyResult<api::Com
         "Schedule B".to_string(),
     )?;
     Ok((&data).into())
-}
-
-fn fetch_visibility_map_data_internal(schedule_id: i64) -> PyResult<api::VisibilityMapData> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
-    })?;
-    let repo = crate::db::get_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    let data = runtime
-        .block_on(repo.fetch_visibility_map_data(schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
-    Ok((&data).into())
-}
-
-#[pyfunction]
-fn get_visibility_map_data(schedule_id: i64) -> PyResult<api::VisibilityMapData> {
-    fetch_visibility_map_data_internal(schedule_id)
-}
-
-#[pyfunction]
-fn py_get_visibility_map_data(schedule_id: i64) -> PyResult<api::VisibilityMapData> {
-    fetch_visibility_map_data_internal(schedule_id)
 }
 
 #[pyfunction]
