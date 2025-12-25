@@ -31,3 +31,11 @@ pub fn get_sky_map_data(schedule_id: i64) -> PyResult<api::SkyMapData> {
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     Ok(data)
 }
+
+/// Register skymap functions, classes and constants with Python module.
+pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(get_sky_map_data, m)?)?;
+    m.add_class::<SkyMapData>()?;
+    m.add("GET_SKY_MAP_DATA", GET_SKY_MAP_DATA)?;
+    Ok(())
+}

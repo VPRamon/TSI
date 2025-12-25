@@ -70,3 +70,14 @@ pub fn get_compare_data(
     )?;
     Ok((&data).into())
 }
+
+/// Register compare route functions, classes and constants.
+pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(get_compare_data, m)?)?;
+    m.add_class::<CompareBlock>()?;
+    m.add_class::<CompareStats>()?;
+    m.add_class::<SchedulingChange>()?;
+    m.add_class::<CompareData>()?;
+    m.add("GET_COMPARE_DATA", GET_COMPARE_DATA)?;
+    Ok(())
+}

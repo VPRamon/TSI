@@ -53,3 +53,12 @@ pub fn get_visibility_map_data(schedule_id: i64) -> PyResult<api::VisibilityMapD
 
     Ok((&data).into())
 }
+
+/// Register visibility-related functions, classes, and constants.
+pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(get_visibility_map_data, m)?)?;
+    m.add_class::<VisibilityBlockSummary>()?;
+    m.add_class::<VisibilityMapData>()?;
+    m.add("GET_VISIBILITY_MAP_DATA", GET_VISIBILITY_MAP_DATA)?;
+    Ok(())
+}

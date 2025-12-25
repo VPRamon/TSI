@@ -38,3 +38,12 @@ pub fn list_schedules() -> PyResult<Vec<api::ScheduleInfo>> {
 
 pub const LIST_SCHEDULES: &str = "list_schedules";
 pub const POST_SCHEDULE: &str = "store_schedule";
+
+/// Register landing route functions and constants with the Python module.
+pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
+	m.add_function(wrap_pyfunction!(store_schedule, m)?)?;
+	m.add_function(wrap_pyfunction!(list_schedules, m)?)?;
+	m.add("LIST_SCHEDULES", LIST_SCHEDULES)?;
+	m.add("POST_SCHEDULE", POST_SCHEDULE)?;
+	Ok(())
+}
