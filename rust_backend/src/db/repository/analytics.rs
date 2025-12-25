@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use super::error::RepositoryResult;
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeMetadata,
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeMetadata,
 };
 use crate::api::{DistributionBlock, LightweightBlock};
 
@@ -131,10 +131,10 @@ pub trait AnalyticsRepository: Send + Sync {
     /// * `schedule_id` - The ID of the schedule
     ///
     /// # Returns
-    /// * `Ok(Vec<VisibilityBin>)` - Visibility histogram data
+    /// * `Ok(Vec<VisibilityBinData>)` - Visibility histogram data
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_visibility_bins(&self, schedule_id: i64)
-        -> RepositoryResult<Vec<VisibilityBin>>;
+        -> RepositoryResult<Vec<VisibilityBinData>>;
 
     /// Fetch heatmap bin data.
     ///

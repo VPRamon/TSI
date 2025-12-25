@@ -62,7 +62,11 @@ id_type!(
 );
 
 /// Simple representation of a time window in Modified Julian Date.
-pub type Period = crate::api::Period;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Period {
+    pub start: ModifiedJulianDate,
+    pub stop: ModifiedJulianDate,
+}
 
 impl Period {
     pub fn new(start: ModifiedJulianDate, stop: ModifiedJulianDate) -> Option<Self> {

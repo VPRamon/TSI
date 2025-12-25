@@ -105,7 +105,7 @@ pub use repository::{
 // Re-export Azure module functions and types for backward compatibility
 pub use repositories::azure::{
     analytics, operations, pool, validation, HeatmapBinData, PriorityRate, ScheduleSummary,
-    VisibilityBin, VisibilityTimeBin, VisibilityTimeMetadata,
+    VisibilityBinData, VisibilityTimeBin, VisibilityTimeMetadata,
 };
 
 // Phase 1: Block-level analytics (backward compatibility)

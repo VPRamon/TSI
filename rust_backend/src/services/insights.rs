@@ -331,7 +331,11 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
         .enumerate()
         .map(|(idx, b)| {
             let (scheduled_start_mjd, scheduled_stop_mjd, scheduled) = match &b.scheduled_period {
-                Some(period) => (Some(period.start), Some(period.stop), true),
+                Some(period) => (
+                    Some(siderust::astro::ModifiedJulianDate::new(period.start)),
+                    Some(siderust::astro::ModifiedJulianDate::new(period.stop)),
+                    true,
+                ),
                 None => (None, None, false),
             };
 

@@ -51,7 +51,7 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
 
         if let Some(period) = &block.scheduled_period {
             scheduled_count += 1;
-            let start_mjd = period.start.value();
+            let start_mjd = period.start;
             scheduled_time_min = Some(scheduled_time_min.map_or(start_mjd, |v| v.min(start_mjd)));
             scheduled_time_max = Some(scheduled_time_max.map_or(start_mjd, |v| v.max(start_mjd)));
         }

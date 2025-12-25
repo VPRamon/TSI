@@ -18,6 +18,8 @@ pub fn compute_schedule_timeline_data(
     blocks: Vec<ScheduleTimelineBlock>,
     dark_periods: Vec<Period>,
 ) -> Result<crate::api::ScheduleTimelineData, String> {
+    let api_dark_periods: Vec<api::Period> = dark_periods.iter().map(|p| p.into()).collect();
+
     if blocks.is_empty() {
         return Ok(crate::api::ScheduleTimelineData {
             blocks: vec![],
@@ -26,7 +28,7 @@ pub fn compute_schedule_timeline_data(
             total_count: 0,
             scheduled_count: 0,
             unique_months: vec![],
-            dark_periods: dark_periods,
+            dark_periods: api_dark_periods,
         });
     }
 
@@ -75,7 +77,7 @@ pub fn compute_schedule_timeline_data(
         total_count: blocks.len(),
         scheduled_count: blocks.len(),
         unique_months: sorted_months,
-        dark_periods: dark_periods,
+        dark_periods: api_dark_periods,
     })
 }
 
