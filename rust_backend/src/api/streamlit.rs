@@ -23,6 +23,8 @@ use crate::db::repository::{analytics::AnalyticsRepository, visualization::Visua
 use crate::db::services as db_services;
 // Re-export landing route functions so they can be registered with the Python module
 pub use crate::routes::landing::{list_schedules, store_schedule};
+// Re-export route name constants so Python can reference them without hard-coded strings
+pub use crate::routes::landing::{LIST_SCHEDULES, POST_SCHEDULE};
 
 /// Register all API functions with the Python module.
 ///
@@ -112,6 +114,10 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<api::ValidationIssue>()?;
     m.add_class::<api::ValidationReport>()?;
     m.add_class::<api::SchedulingConflict>()?;
+
+    // Expose route name constants to Python to avoid stringly-typed calls
+    m.add("LIST_SCHEDULES", crate::routes::landing::LIST_SCHEDULES)?;
+    m.add("POST_SCHEDULE", crate::routes::landing::POST_SCHEDULE)?;
 
     Ok(())
 }

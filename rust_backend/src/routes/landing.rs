@@ -35,3 +35,6 @@ pub fn list_schedules() -> PyResult<Vec<api::ScheduleInfo>> {
 		.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
 	Ok(schedules)
 }
+
+pub const LIST_SCHEDULES: &str = "list_schedules";
+pub const POST_SCHEDULE: &str = "store_schedule";
