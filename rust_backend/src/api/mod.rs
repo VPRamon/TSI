@@ -22,11 +22,10 @@
 //! 3. **Conversion**: All qtty types (MJD, Degrees) → primitives (f64) at boundary
 //! 4. **Simplicity**: DTOs mirror what Streamlit actually needs, not internal complexity
 
-pub mod conversions;
-pub mod streamlit;
+pub mod utils;
 pub mod types;
 
 // Re-export for convenience
-pub use streamlit::register_api_functions;
-pub use streamlit::register_transformation_functions;
+pub use utils::register_api_functions;
+pub use utils::register_transformation_functions;
 pub use types::*;
