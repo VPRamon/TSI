@@ -75,7 +75,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(py_get_visibility_histogram_analytics, m)?)?;
 
     // Algorithm operations
-    m.add_function(wrap_pyfunction!(find_conflicts, m)?)?;
     m.add_function(wrap_pyfunction!(get_top_observations, m)?)?;
 
     // Validation
@@ -95,11 +94,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<api::BlockHistogramData>()?;
     m.add_class::<api::HeatmapBinData>()?;
     m.add_class::<api::VisibilityTimeMetadata>()?;
-    m.add_class::<api::VisibilityBlockSummary>()?;
-    m.add_class::<api::VisibilityMapData>()?;
-    m.add_class::<api::ValidationIssue>()?;
-    m.add_class::<api::ValidationReport>()?;
-    m.add_class::<api::SchedulingConflict>()?;
 
     Ok(())
 }
@@ -389,23 +383,6 @@ fn py_get_visibility_histogram_analytics(
 // Algorithm Operations
 // =========================================================
 
-/// Find scheduling conflicts in a schedule JSON.
-///
-/// Args:
-///     schedule_json: JSON string of schedule data
-///
-/// Returns:
-///     List of SchedulingConflict objects
-#[pyfunction]
-fn find_conflicts(schedule_json: String) -> PyResult<Vec<api::SchedulingConflict>> {
-    let records: Vec<Value> = serde_json::from_str(&schedule_json).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
-    })?;
-    let conflicts = algorithms::find_conflicts(&records).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Conflict detection failed: {}", e))
-    })?;
-    Ok(conflicts.iter().map(|c| api::SchedulingConflict::from(c)).collect())
-}
 
 /// Get top N observations by a specific criterion.
 ///

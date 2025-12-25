@@ -37,7 +37,7 @@ pub const GET_VISIBILITY_MAP_DATA: &str = "get_visibility_map_data";
 
 /// Get visibility map data (wraps repository call)
 #[pyfunction]
-pub fn get_visibility_map_data(schedule_id: i64) -> PyResult<api::VisibilityMapData> {
+pub fn get_visibility_map_data(schedule_id: i64) -> PyResult<VisibilityMapData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -52,7 +52,7 @@ pub fn get_visibility_map_data(schedule_id: i64) -> PyResult<api::VisibilityMapD
         .block_on(repo.fetch_visibility_map_data(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
 
-    Ok((&data).into())
+    Ok(data)
 }
 
 /// Register visibility-related functions, classes, and constants.
@@ -64,29 +64,6 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-impl From<&models::VisibilityBlockSummary> for api::VisibilityBlockSummary {
-    fn from(block: &models::VisibilityBlockSummary) -> Self {
-        api::VisibilityBlockSummary {
-            scheduling_block_id: block.scheduling_block_id,
-            original_block_id: block.original_block_id.clone(),
-            priority: block.priority,
-            num_visibility_periods: block.num_visibility_periods,
-            scheduled: block.scheduled,
-        }
-    }
-}
-
-impl From<&models::VisibilityMapData> for api::VisibilityMapData {
-    fn from(data: &models::VisibilityMapData) -> Self {
-        api::VisibilityMapData {
-            blocks: data.blocks.iter().map(|b| b.into()).collect(),
-            priority_min: data.priority_min,
-            priority_max: data.priority_max,
-            total_count: data.total_count,
-            scheduled_count: data.scheduled_count,
-        }
-    }
-}
 
 impl From<&models::VisibilityBin> for api::VisibilityBin {
     fn from(bin: &models::VisibilityBin) -> Self {

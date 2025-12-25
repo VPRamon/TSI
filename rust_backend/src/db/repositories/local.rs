@@ -60,7 +60,7 @@ struct LocalData {
     visibility_metadata: HashMap<i64, VisibilityTimeMetadata>,
 
     // Validation data
-    validation_results: HashMap<i64, crate::api::ValidationReport>,
+    validation_results: HashMap<i64, crate::api_tmp::ValidationReport>,
 
     // ID counters
     next_schedule_id: i64,
@@ -347,7 +347,7 @@ impl AnalyticsRepository for LocalRepository {
             let mut data = self.data.write().unwrap();
             data.validation_results.insert(
                 schedule_id,
-                crate::api::ValidationReport {
+                crate::api_tmp::ValidationReport {
                     schedule_id,
                     total_blocks: 0,
                     valid_blocks: 0,
@@ -627,7 +627,7 @@ impl ValidationRepository for LocalRepository {
                     valid_count += 1;
                 }
                 ValidationStatus::Impossible => {
-                    impossible_blocks.push(crate::api::ValidationIssue {
+                    impossible_blocks.push(crate::api_tmp::ValidationIssue {
                         block_id: r.scheduling_block_id,
                         original_block_id: None,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
@@ -648,7 +648,7 @@ impl ValidationRepository for LocalRepository {
                     });
                 }
                 ValidationStatus::Error => {
-                    validation_errors.push(crate::api::ValidationIssue {
+                    validation_errors.push(crate::api_tmp::ValidationIssue {
                         block_id: r.scheduling_block_id,
                         original_block_id: None,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
@@ -669,7 +669,7 @@ impl ValidationRepository for LocalRepository {
                     });
                 }
                 ValidationStatus::Warning => {
-                    validation_warnings.push(crate::api::ValidationIssue {
+                    validation_warnings.push(crate::api_tmp::ValidationIssue {
                         block_id: r.scheduling_block_id,
                         original_block_id: None,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
@@ -697,7 +697,7 @@ impl ValidationRepository for LocalRepository {
             results.iter().map(|r| r.scheduling_block_id).collect();
         let total_blocks = unique_blocks.len();
 
-        let report = crate::api::ValidationReport {
+        let report = crate::api_tmp::ValidationReport {
             schedule_id,
             total_blocks,
             valid_blocks: valid_count,
@@ -713,7 +713,7 @@ impl ValidationRepository for LocalRepository {
     async fn fetch_validation_results(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<crate::api::ValidationReport> {
+    ) -> RepositoryResult<crate::api_tmp::ValidationReport> {
         let data = self.data.read().unwrap();
 
         data.validation_results
@@ -744,13 +744,13 @@ impl VisualizationRepository for LocalRepository {
     async fn fetch_visibility_map_data(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<crate::db::models::VisibilityMapData> {
-        use crate::db::models::VisibilityBlockSummary;
+    ) -> RepositoryResult<crate::api_tmp::VisibilityMapData> {
+        use crate::api_tmp::VisibilityBlockSummary;
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         if schedule.blocks.is_empty() {
-            return Ok(crate::db::models::VisibilityMapData {
+            return Ok(crate::api_tmp::VisibilityMapData {
                 blocks: vec![],
                 priority_min: 0.0,
                 priority_max: 1.0,
@@ -795,7 +795,7 @@ impl VisualizationRepository for LocalRepository {
         let total_count = blocks.len();
         let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
 
-        Ok(crate::db::models::VisibilityMapData {
+        Ok(crate::api_tmp::VisibilityMapData {
             blocks,
             priority_min,
             priority_max,

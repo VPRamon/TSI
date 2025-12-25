@@ -7,7 +7,7 @@ use async_trait::async_trait;
 
 use super::error::RepositoryResult;
 use crate::db::models::{
-    BlockHistogramData, CompareBlock, ScheduleTimelineBlock, VisibilityMapData,
+    BlockHistogramData, CompareBlock, ScheduleTimelineBlock,
 };
 
 /// Repository trait for visualization-specific queries.
@@ -31,7 +31,7 @@ pub trait VisualizationRepository: Send + Sync {
     async fn fetch_visibility_map_data(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<VisibilityMapData>;
+    ) -> RepositoryResult<crate::api_tmp::VisibilityMapData>;
 
     /// Fetch blocks for histogram generation.
     ///

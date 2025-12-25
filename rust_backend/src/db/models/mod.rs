@@ -17,8 +17,7 @@ pub use visualization::{
     AnalyticsMetrics, BlockHistogramData, CompareBlock, CompareData, CompareStats, ConflictRecord,
     CorrelationEntry, EmpiricalRatePoint, HeatmapBin, InsightsBlock, InsightsData,
     ScheduleTimelineBlock, SchedulingChange, SmoothedPoint, TopObservation,
-    TrendsBlock, TrendsData, TrendsMetrics, VisibilityBin, VisibilityBlockSummary,
-    VisibilityMapData,
+    TrendsBlock, TrendsData, TrendsMetrics, VisibilityBin,
 };
 pub use schedule::{
     Constraints, ConstraintsId, Period, Schedule, ScheduleId, SchedulingBlock, SchedulingBlockId,
