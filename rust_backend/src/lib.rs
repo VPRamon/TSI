@@ -97,6 +97,12 @@ pub mod api_tmp {
     #[pyo3::pyclass(module = "tsi_rust_api")]
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
     pub struct ScheduleId(pub i64);
+
+    /// Strongly-typed identifier for a target record.
+    #[pyo3::pyclass(module = "tsi_rust_api")]
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+    pub struct TargetId(pub i64);
+
 }
 
 /// Python module entry point for the new TSI Rust API.
@@ -139,6 +145,7 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
     api::register_transformation_functions(m)?;
 
     m.add_class::<api_tmp::ScheduleId>()?;
+    m.add_class::<api_tmp::TargetId>()?;
 
     Ok(())
 }

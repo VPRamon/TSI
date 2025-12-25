@@ -82,7 +82,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_validation_report, m)?)?;
 
     // Register all API classes
-    m.add_class::<api::TargetId>()?;
     m.add_class::<api::ConstraintsId>()?;
     m.add_class::<api::SchedulingBlockId>()?;
     m.add_class::<api::Period>()?;

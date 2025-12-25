@@ -11,11 +11,6 @@ use crate::db::models;
 // =========================================================
 
 
-impl From<models::TargetId> for api::TargetId {
-    fn from(id: models::TargetId) -> Self {
-        api::TargetId(id.0)
-    }
-}
 
 impl From<models::ConstraintsId> for api::ConstraintsId {
     fn from(id: models::ConstraintsId) -> Self {
@@ -26,12 +21,6 @@ impl From<models::ConstraintsId> for api::ConstraintsId {
 impl From<models::SchedulingBlockId> for api::SchedulingBlockId {
     fn from(id: models::SchedulingBlockId) -> Self {
         api::SchedulingBlockId(id.0)
-    }
-}
-
-impl From<api::TargetId> for models::TargetId {
-    fn from(id: api::TargetId) -> Self {
-        models::TargetId(id.0)
     }
 }
 
