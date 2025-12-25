@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use super::error::RepositoryResult;
 use crate::db::models::InsightsBlock;
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeMetadata,
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityTimeMetadata,
 };
 use crate::api::{DistributionBlock, LightweightBlock};
 
@@ -139,16 +139,6 @@ pub trait AnalyticsRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_priority_rates(&self, schedule_id: i64) -> RepositoryResult<Vec<PriorityRate>>;
 
-    /// Fetch visibility bins for histogram.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(Vec<VisibilityBinData>)` - Visibility histogram data
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_visibility_bins(&self, schedule_id: i64)
-        -> RepositoryResult<Vec<VisibilityBinData>>;
 
     /// Fetch heatmap bin data.
     ///
@@ -181,21 +171,6 @@ pub trait AnalyticsRepository: Send + Sync {
     async fn delete_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<usize>;
 
     // ==================== Visibility Time Bins ====================
-
-    /// Populate visibility time bins for histogram analysis.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    /// * `bin_duration_seconds` - Optional bin duration (default: 900 seconds)
-    ///
-    /// # Returns
-    /// * `Ok((usize, usize))` - Tuple of (metadata_rows, bin_rows) inserted
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn populate_visibility_time_bins(
-        &self,
-        schedule_id: i64,
-        bin_duration_seconds: Option<i64>,
-    ) -> RepositoryResult<(usize, usize)>;
 
     /// Fetch visibility histogram data from analytics.
     ///
@@ -230,23 +205,4 @@ pub trait AnalyticsRepository: Send + Sync {
         schedule_id: i64,
     ) -> RepositoryResult<Option<VisibilityTimeMetadata>>;
 
-    /// Check if visibility time bins exist for a schedule.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(bool)` - True if bins exist
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn has_visibility_time_bins(&self, schedule_id: i64) -> RepositoryResult<bool>;
-
-    /// Delete visibility time bins for a schedule.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(usize)` - Number of rows deleted
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn delete_visibility_time_bins(&self, schedule_id: i64) -> RepositoryResult<usize>;
 }

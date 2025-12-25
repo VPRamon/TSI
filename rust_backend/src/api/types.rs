@@ -257,44 +257,6 @@ impl Schedule {
     }
 }
 
-/// Metadata about a stored schedule.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ScheduleMetadata {
-    /// Database ID
-    pub schedule_id: Option<i64>,
-    /// Schedule name
-    pub schedule_name: String,
-    /// Creation timestamp (ISO format)
-    pub upload_timestamp: String,
-    /// SHA256 checksum of schedule data
-    pub checksum: String,
-}
-
-#[pymethods]
-impl ScheduleMetadata {
-    #[new]
-    pub fn new(
-        schedule_id: Option<i64>,
-        schedule_name: String,
-        upload_timestamp: String,
-        checksum: String,
-    ) -> Self {
-        Self {
-            schedule_id,
-            schedule_name,
-            upload_timestamp,
-            checksum,
-        }
-    }
-
-    fn __repr__(&self) -> String {
-        format!(
-            "ScheduleMetadata(id={:?}, name='{}', timestamp='{}')",
-            self.schedule_id, self.schedule_name, self.upload_timestamp
-        )
-    }
-}
 
 // =========================================================
 // Analytics Types - Lightweight Block
@@ -472,22 +434,6 @@ pub struct VisibilityTimeMetadata {
     pub priority_max: Option<f64>,
     pub max_visible_in_bin: i32,
     pub mean_visible_per_bin: Option<f64>,
-}
-
-/// Pre-computed visibility time bin data (from schedule_visibility_time_bins table).
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct VisibilityTimeBin {
-    pub bin_start_unix: i64,
-    pub bin_end_unix: i64,
-    pub bin_index: i32,
-    pub total_visible_count: i32,
-    pub priority_q1_count: i32,
-    pub priority_q2_count: i32,
-    pub priority_q3_count: i32,
-    pub priority_q4_count: i32,
-    pub scheduled_visible_count: i32,
-    pub unscheduled_visible_count: i32,
 }
 
 // =========================================================

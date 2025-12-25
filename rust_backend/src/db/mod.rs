@@ -80,7 +80,7 @@ pub use repository_manager::{get_repository, init_repository};
 pub use services::{
     ensure_analytics, fetch_dark_periods, fetch_possible_periods, get_blocks_for_schedule,
     get_schedule, get_schedule_time_range, get_scheduling_block, has_analytics_data,
-    has_summary_analytics, has_visibility_time_bins, health_check, list_schedules, store_schedule,
+    has_summary_analytics, health_check, list_schedules, store_schedule,
 };
 
 // ==================== Repository Pattern Exports ====================
@@ -105,7 +105,7 @@ pub use repository::{
 // Re-export Azure module functions and types for backward compatibility
 pub use repositories::azure::{
     analytics, operations, pool, validation, HeatmapBinData, PriorityRate, ScheduleSummary,
-    VisibilityBinData, VisibilityTimeBin, VisibilityTimeMetadata,
+    VisibilityBinData, VisibilityTimeMetadata,
 };
 
 // Phase 1: Block-level analytics (backward compatibility)

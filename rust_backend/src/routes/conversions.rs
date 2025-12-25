@@ -61,17 +61,6 @@ impl From<&models::Schedule> for api::Schedule {
     }
 }
 
-impl From<&models::ScheduleMetadata> for api::ScheduleMetadata {
-    fn from(metadata: &models::ScheduleMetadata) -> Self {
-        api::ScheduleMetadata {
-            schedule_id: metadata.schedule_id,
-            schedule_name: metadata.schedule_name.clone(),
-            upload_timestamp: metadata.upload_timestamp.to_rfc3339(),
-            checksum: metadata.checksum.clone(),
-        }
-    }
-}
-
 // LightweightBlock conversion (used by visualization code)
 impl From<&crate::api::LightweightBlock> for api::LightweightBlock {
     fn from(block: &crate::api::LightweightBlock) -> Self {

@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use super::{analytics, operations, validation};
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeMetadata,
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityTimeMetadata,
 };
 use crate::db::{
     models::{InsightsBlock, Period, Schedule, ScheduleMetadata},
@@ -209,15 +209,6 @@ impl AnalyticsRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn fetch_visibility_bins(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<VisibilityBinData>> {
-        analytics::fetch_visibility_bins(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
     async fn fetch_heatmap_bins(
         &self,
         schedule_id: i64,
@@ -235,16 +226,6 @@ impl AnalyticsRepository for AzureRepository {
 
     async fn delete_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
         analytics::delete_summary_analytics(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
-    async fn populate_visibility_time_bins(
-        &self,
-        schedule_id: i64,
-        bin_duration_seconds: Option<i64>,
-    ) -> RepositoryResult<(usize, usize)> {
-        analytics::populate_visibility_time_bins(schedule_id, bin_duration_seconds)
             .await
             .map_err(RepositoryError::from)
     }
@@ -275,17 +256,6 @@ impl AnalyticsRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn has_visibility_time_bins(&self, schedule_id: i64) -> RepositoryResult<bool> {
-        analytics::has_visibility_time_bins(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
-    async fn delete_visibility_time_bins(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        analytics::delete_visibility_time_bins(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
 }
 
 // ==================== Validation Repository ====================

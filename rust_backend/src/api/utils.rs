@@ -86,7 +86,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<api::Constraints>()?;
     m.add_class::<api::SchedulingBlock>()?;
     m.add_class::<api::Schedule>()?;
-    m.add_class::<api::ScheduleMetadata>()?;
     m.add_class::<api::LightweightBlock>()?;
     m.add_class::<api::PriorityBinInfo>()?;
     m.add_class::<api::ScheduleSummary>()?;
@@ -96,7 +95,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<api::BlockHistogramData>()?;
     m.add_class::<api::HeatmapBinData>()?;
     m.add_class::<api::VisibilityTimeMetadata>()?;
-    m.add_class::<api::VisibilityTimeBin>()?;
     m.add_class::<api::VisibilityBlockSummary>()?;
     m.add_class::<api::VisibilityMapData>()?;
     m.add_class::<api::ValidationIssue>()?;

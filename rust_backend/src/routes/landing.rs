@@ -25,7 +25,7 @@ pub fn store_schedule(
 	let visibility_ref = visibility_json.as_deref();
 	let schedule = db_services::parse_schedule_from_json(&schedule_name, &schedule_json, visibility_ref)
 		.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-	let metadata = db_services::store_schedule_sync(&schedule, true, false)
+	let metadata = db_services::store_schedule_sync(&schedule, true)
 		.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 	Ok(metadata.schedule_id.unwrap())
 }
