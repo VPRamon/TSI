@@ -428,22 +428,8 @@ pub struct PriorityBinInfo {
 }
 
 /// Sky map visualization data.
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkyMapData {
-    pub blocks: Vec<LightweightBlock>,
-    pub priority_bins: Vec<PriorityBinInfo>,
-    pub priority_min: f64,
-    pub priority_max: f64,
-    pub ra_min: f64,
-    pub ra_max: f64,
-    pub dec_min: f64,
-    pub dec_max: f64,
-    pub total_count: usize,
-    pub scheduled_count: usize,
-    pub scheduled_time_min: Option<f64>,
-    pub scheduled_time_max: Option<f64>,
-}
+// Sky map moved to routes/visualization.rs for route ownership
+pub use crate::routes::skymap::SkyMapData;
 
 // =========================================================
 // Distribution Types
