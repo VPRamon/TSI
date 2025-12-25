@@ -67,7 +67,7 @@ from tsi.exceptions import (
 )
 
 if TYPE_CHECKING:
-    from tsi_rust import SkyMapData, VisibilityMapData, ValidationReport
+    from tsi_rust import SkyMapData, VisibilityMapData, ValidationReport, ScheduleInfo
 import tsi_rust as api
 
 logger = logging.getLogger(__name__)
@@ -200,7 +200,7 @@ def store_schedule_db(
 
 
 @with_retry(max_attempts=3, backoff_factor=1.5)
-def list_schedules_db() -> list[dict[str, Any]]:
+def list_schedules_db() -> list[ScheduleInfo]:
     """
     List available schedules using the Rust backend.
 
@@ -210,13 +210,7 @@ def list_schedules_db() -> list[dict[str, Any]]:
     Raises:
         ServerError: If query fails
     """
-    try:
-        result = _rust_call("list_schedules")
-        logger.debug(f"Retrieved {len(result)} schedules from database")
-        return result  # type: ignore[no-any-return]
-    except Exception as e:
-        raise ServerError("Failed to list schedules", details={"error": str(e)}) from e
-
+    return _rust_call("list_schedules")
 
 def get_schedule_blocks(schedule_id: int) -> list[Any]:
     """Fetch scheduling block models via PyO3 bindings."""

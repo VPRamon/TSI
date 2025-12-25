@@ -21,7 +21,7 @@ def render_database_section() -> None:
         else:
             # Create options for selectbox
             schedule_options = {
-                f"{s['schedule_name']} (ID: {s['schedule_id']})": s["schedule_id"]
+                f"{s.schedule_name} (ID: {s.schedule_id})": s.schedule_id
                 for s in schedules
             }
 
@@ -34,8 +34,8 @@ def render_database_section() -> None:
             if selected_option and st.button("Load Schedule", type="primary", key="load_db_btn"):
                 schedule_id = schedule_options[selected_option]
                 # Find the schedule info
-                schedule_info = next(s for s in schedules if s["schedule_id"] == schedule_id)
-                load_schedule_from_db(schedule_id, schedule_info["schedule_name"])
+                schedule_info = next(s for s in schedules if s.schedule_id == schedule_id)
+                load_schedule_from_db(schedule_id, schedule_info.schedule_name)
 
     except Exception as e:
         st.error(f"Failed to list schedules: {e}")

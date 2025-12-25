@@ -12,7 +12,7 @@ pub mod schedule;
 pub mod visualization;
 
 // Re-export all public types for convenience
-pub use metadata::{ScheduleInfo, ScheduleMetadata};
+pub use metadata::{ScheduleMetadata};
 pub use visualization::{
     AnalyticsMetrics, BlockHistogramData, CompareBlock, CompareData, CompareStats, ConflictRecord,
     CorrelationEntry, EmpiricalRatePoint, HeatmapBin, InsightsBlock, InsightsData,

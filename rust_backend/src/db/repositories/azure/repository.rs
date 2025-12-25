@@ -11,10 +11,11 @@ use crate::api::types::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeMetadata,
 };
 use crate::db::{
-    models::{InsightsBlock, Period, Schedule, ScheduleInfo, ScheduleMetadata},
+    models::{InsightsBlock, Period, Schedule, ScheduleMetadata},
     repository::*,
 };
 use crate::services::validation::ValidationResult;
+use crate::api::*;
 
 /// Azure SQL Server repository implementation.
 ///

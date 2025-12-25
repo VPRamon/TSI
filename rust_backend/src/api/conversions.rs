@@ -132,17 +132,6 @@ impl From<&models::ScheduleMetadata> for api::ScheduleMetadata {
     }
 }
 
-impl From<&models::ScheduleInfo> for api::ScheduleInfo {
-    fn from(info: &models::ScheduleInfo) -> Self {
-        api::ScheduleInfo {
-            metadata: (&info.metadata).into(),
-            total_blocks: info.total_blocks,
-            scheduled_blocks: info.scheduled_blocks,
-            unscheduled_blocks: info.unscheduled_blocks,
-        }
-    }
-}
-
 // =========================================================
 // Analytics Types - Internal to API
 // =========================================================
