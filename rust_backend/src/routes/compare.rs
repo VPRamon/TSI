@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use crate::api::types as api;
+use crate::db::models;
 
 // =========================================================
 // Compare types + route
@@ -80,4 +81,55 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<CompareData>()?;
     m.add("GET_COMPARE_DATA", GET_COMPARE_DATA)?;
     Ok(())
+}
+
+impl From<&models::CompareBlock> for api::CompareBlock {
+    fn from(block: &models::CompareBlock) -> Self {
+        api::CompareBlock {
+            scheduling_block_id: block.scheduling_block_id.clone(),
+            priority: block.priority,
+            scheduled: block.scheduled,
+            requested_hours: block.requested_hours.value(),
+        }
+    }
+}
+
+impl From<&models::CompareStats> for api::CompareStats {
+    fn from(stats: &models::CompareStats) -> Self {
+        api::CompareStats {
+            scheduled_count: stats.scheduled_count,
+            unscheduled_count: stats.unscheduled_count,
+            total_priority: stats.total_priority,
+            mean_priority: stats.mean_priority,
+            median_priority: stats.median_priority,
+            total_hours: stats.total_hours.value(),
+        }
+    }
+}
+
+impl From<&models::SchedulingChange> for api::SchedulingChange {
+    fn from(change: &models::SchedulingChange) -> Self {
+        api::SchedulingChange {
+            scheduling_block_id: change.scheduling_block_id.clone(),
+            priority: change.priority,
+            change_type: change.change_type.clone(),
+        }
+    }
+}
+
+impl From<&models::CompareData> for api::CompareData {
+    fn from(data: &models::CompareData) -> Self {
+        api::CompareData {
+            current_blocks: data.current_blocks.iter().map(|b| b.into()).collect(),
+            comparison_blocks: data.comparison_blocks.iter().map(|b| b.into()).collect(),
+            current_stats: (&data.current_stats).into(),
+            comparison_stats: (&data.comparison_stats).into(),
+            common_ids: data.common_ids.clone(),
+            only_in_current: data.only_in_current.clone(),
+            only_in_comparison: data.only_in_comparison.clone(),
+            scheduling_changes: data.scheduling_changes.iter().map(|c| c.into()).collect(),
+            current_name: data.current_name.clone(),
+            comparison_name: data.comparison_name.clone(),
+        }
+    }
 }

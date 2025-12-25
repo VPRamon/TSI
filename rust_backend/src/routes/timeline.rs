@@ -1,5 +1,7 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
+use crate::db::models;
+use crate::api::types as api;
 
 // =========================================================
 // Schedule timeline types + route
@@ -51,4 +53,21 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ScheduleTimelineData>()?;
     m.add("GET_SCHEDULE_TIMELINE_DATA", GET_SCHEDULE_TIMELINE_DATA)?;
     Ok(())
+}
+
+impl From<&models::ScheduleTimelineBlock> for api::ScheduleTimelineBlock {
+    fn from(block: &models::ScheduleTimelineBlock) -> Self {
+        api::ScheduleTimelineBlock {
+            scheduling_block_id: block.scheduling_block_id,
+            original_block_id: block.original_block_id.clone(),
+            priority: block.priority,
+            scheduled_start_mjd: block.scheduled_start_mjd.value(),
+            scheduled_stop_mjd: block.scheduled_stop_mjd.value(),
+            ra_deg: block.ra_deg.value(),
+            dec_deg: block.dec_deg.value(),
+            requested_hours: block.requested_hours.value(),
+            total_visibility_hours: block.total_visibility_hours.value(),
+            num_visibility_periods: block.num_visibility_periods,
+        }
+    }
 }
