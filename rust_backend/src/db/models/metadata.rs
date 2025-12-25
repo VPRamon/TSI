@@ -39,12 +39,3 @@ where
         .map(|dt| dt.with_timezone(&Utc))
         .map_err(serde::de::Error::custom)
 }
-
-/// Extended schedule information including stats.
-#[derive(Debug, Clone)]
-pub struct ScheduleInfo {
-    pub metadata: ScheduleMetadata,
-    pub total_blocks: usize,
-    pub scheduled_blocks: usize,
-    pub unscheduled_blocks: usize,
-}

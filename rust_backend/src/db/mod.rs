@@ -87,7 +87,7 @@ pub use services::{
 
 pub use checksum::calculate_checksum;
 pub use config::{DbAuthMethod, DbConfig};
-pub use models::{ScheduleInfo, ScheduleMetadata};
+pub use models::ScheduleMetadata;
 pub use repo_config::RepositoryConfig;
 
 // Repository trait and implementations

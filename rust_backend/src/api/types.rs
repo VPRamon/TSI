@@ -392,23 +392,8 @@ impl ScheduleMetadata {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleInfo {
-    pub metadata: ScheduleMetadata,
-    pub total_blocks: usize,
-    pub scheduled_blocks: usize,
-    pub unscheduled_blocks: usize,
-}
-
-#[pymethods]
-impl ScheduleInfo {
-    fn __repr__(&self) -> String {
-        format!(
-            "ScheduleInfo(id={:?}, name='{}', blocks={}/{})",
-            self.metadata.schedule_id,
-            self.metadata.schedule_name,
-            self.scheduled_blocks,
-            self.total_blocks
-        )
-    }
+    pub schedule_id: i64,
+    pub schedule_name: String,
 }
 
 // =========================================================

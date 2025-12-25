@@ -60,6 +60,7 @@
 
 use pyo3::prelude::*;
 
+pub mod routes;
 pub mod algorithms;
 pub mod api;
 pub mod db;

@@ -21,6 +21,8 @@ use crate::api::types as api;
 use crate::algorithms;
 use crate::db::repository::{analytics::AnalyticsRepository, visualization::VisualizationRepository};
 use crate::db::services as db_services;
+// Re-export landing route functions so they can be registered with the Python module
+pub use crate::routes::landing::{list_schedules, store_schedule};
 
 /// Register all API functions with the Python module.
 ///
@@ -151,51 +153,7 @@ fn db_health_check() -> PyResult<bool> {
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
 }
 
-/// Store a schedule in the database with optional analytics population.
-///
-/// Args:
-///     schedule_json: JSON string of schedule data
-///     possible_periods_json: JSON string of visibility periods
-///     dark_periods_json: JSON string of dark periods
-///     schedule_name: Human-readable name for the schedule
-///     populate_analytics: Whether to run Phase 1 analytics ETL
-///     skip_time_bins: Whether to skip Phase 3 time bin population
-///
-/// Returns:
-///     ScheduleMetadata with database ID and checksum
-#[pyfunction]
-#[pyo3(signature = (schedule_name, schedule_json, visibility_json=None))]
-fn store_schedule(
-    schedule_name: String,
-    schedule_json: String,
-    visibility_json: Option<String>,
-) -> PyResult<i64> {
-    // py_store_schedule returns Py<PyAny> (a Python dict), not a Rust struct
-    // We return the schedule name as confirmation
-    let visibility_ref = visibility_json.as_deref();
-    let schedule = db_services::parse_schedule_from_json(&schedule_name, &schedule_json, visibility_ref)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    let metadata = db_services::store_schedule_sync(&schedule, true, false)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    Ok(metadata.schedule_id.unwrap())
-}
 
-/// List all schedules in the database.
-///
-/// Returns:
-///     List of ScheduleInfo objects with metadata and counts
-#[pyfunction]
-fn list_schedules() -> PyResult<Vec<api::ScheduleInfo>> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
-    })?;
-    let repo = crate::db::get_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    let schedules = runtime
-        .block_on(db_services::list_schedules(repo.as_ref()))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
-    Ok(schedules.iter().map(|s| api::ScheduleInfo::from(s)).collect())
-}
 
 /// Get a specific schedule by ID.
 ///

@@ -14,11 +14,12 @@ use crate::api::types::{
     VisibilityTimeMetadata,
 };
 use crate::db::{
-    models::{InsightsBlock, Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock},
+    models::{InsightsBlock, Period, Schedule, ScheduleMetadata, SchedulingBlock},
     repository::*,
 };
 use crate::services::validation::ValidationResult;
 use siderust::astro::ModifiedJulianDate;
+use crate::api::*;
 
 /// In-memory local repository.
 ///
@@ -224,22 +225,14 @@ impl ScheduleRepository for LocalRepository {
             .schedule_metadata
             .iter()
             .map(|(id, meta)| {
-                let schedule = data.schedules.get(id).unwrap();
                 ScheduleInfo {
-                    metadata: ScheduleMetadata {
-                        schedule_id: Some(*id),
-                        schedule_name: meta.schedule_name.clone(),
-                        upload_timestamp: chrono::Utc::now(),
-                        checksum: meta.checksum.clone(),
-                    },
-                    total_blocks: schedule.blocks.len(),
-                    scheduled_blocks: schedule.blocks.len(),
-                    unscheduled_blocks: 0,
+                    schedule_id: id.clone(),
+                    schedule_name: meta.schedule_name.clone(),
                 }
             })
             .collect();
 
-        schedules.sort_by_key(|s| s.metadata.schedule_id.unwrap_or(0));
+        schedules.sort_by_key(|s| s.schedule_id);
         Ok(schedules)
     }
 

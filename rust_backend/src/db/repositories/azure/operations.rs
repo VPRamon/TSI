@@ -14,10 +14,10 @@ use tiberius::{numeric::Numeric, Query, Row};
 
 use super::pool;
 use crate::db::models::{
-    Constraints, Period, Schedule, ScheduleId, ScheduleInfo, ScheduleMetadata, SchedulingBlock,
+    Constraints, Period, Schedule, ScheduleId, ScheduleMetadata, SchedulingBlock,
     SchedulingBlockId,
 };
-
+use crate::api::*;
 type DbClient = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
@@ -1250,28 +1250,10 @@ pub async fn list_schedules() -> Result<Vec<ScheduleInfo>, String> {
             .get::<i64, _>(0)
             .ok_or_else(|| "schedule_id is NULL".to_string())?;
         let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
-        let upload_timestamp: DateTime<Utc> = row
-            .get::<DateTime<Utc>, _>(2)
-            .ok_or_else(|| "upload_timestamp is NULL".to_string())?;
-        let checksum: String = row.get::<&str, _>(3).unwrap_or_default().to_string();
-        let total_blocks: i32 = row.get::<i32, _>(4).unwrap_or(0);
-        let scheduled_blocks: i32 = row.get::<i32, _>(5).unwrap_or(0);
-
-        let metadata = ScheduleMetadata {
-            schedule_id: Some(schedule_id),
-            schedule_name,
-            upload_timestamp,
-            checksum,
-        };
-
-        let total = total_blocks as usize;
-        let scheduled = scheduled_blocks as usize;
 
         schedules.push(ScheduleInfo {
-            metadata,
-            total_blocks: total,
-            scheduled_blocks: scheduled,
-            unscheduled_blocks: total.saturating_sub(scheduled),
+            schedule_id,
+            schedule_name
         });
     }
 
