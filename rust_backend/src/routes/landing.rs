@@ -53,6 +53,6 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
 	m.add_function(wrap_pyfunction!(list_schedules, m)?)?;
 	m.add("LIST_SCHEDULES", LIST_SCHEDULES)?;
 	m.add("POST_SCHEDULE", POST_SCHEDULE)?;
-    m.add_class::<ScheduleInfo>()?;
+	m.add_class::<ScheduleInfo>()?;
 	Ok(())
 }
