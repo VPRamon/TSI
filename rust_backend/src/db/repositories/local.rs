@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeBin,
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeBin,
     VisibilityTimeMetadata,
 };
 use crate::db::{
@@ -56,7 +56,7 @@ struct LocalData {
     analytics_exists: HashMap<i64, bool>,
     summary_analytics: HashMap<i64, ScheduleSummary>,
     priority_rates: HashMap<i64, Vec<PriorityRate>>,
-    visibility_bins: HashMap<i64, Vec<VisibilityBin>>,
+    visibility_bins: HashMap<i64, Vec<VisibilityBinData>>,
     heatmap_bins: HashMap<i64, Vec<HeatmapBinData>>,
     visibility_time_bins: HashMap<i64, Vec<VisibilityTimeBin>>,
     visibility_metadata: HashMap<i64, VisibilityTimeMetadata>,
@@ -426,7 +426,7 @@ impl AnalyticsRepository for LocalRepository {
                     requested_duration_seconds: b.requested_duration.value(),
                     target_ra_deg: b.target_ra.value(),
                     target_dec_deg: b.target_dec.value(),
-                    scheduled_period: b.scheduled_period.clone(),
+                    scheduled_period: b.scheduled_period.as_ref().map(|p| p.into()),
                 }
             })
             .collect();
@@ -532,7 +532,7 @@ impl AnalyticsRepository for LocalRepository {
     async fn fetch_visibility_bins(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<VisibilityBin>> {
+    ) -> RepositoryResult<Vec<VisibilityBinData>> {
         let data = self.data.read().unwrap();
         Ok(data
             .visibility_bins

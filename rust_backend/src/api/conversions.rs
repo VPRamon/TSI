@@ -25,20 +25,65 @@ impl From<models::ScheduleId> for api::ScheduleId {
     }
 }
 
+impl From<models::TargetId> for api::TargetId {
+    fn from(id: models::TargetId) -> Self {
+        api::TargetId(id.0)
+    }
+}
+
+impl From<models::ConstraintsId> for api::ConstraintsId {
+    fn from(id: models::ConstraintsId) -> Self {
+        api::ConstraintsId(id.0)
+    }
+}
+
+impl From<models::SchedulingBlockId> for api::SchedulingBlockId {
+    fn from(id: models::SchedulingBlockId) -> Self {
+        api::SchedulingBlockId(id.0)
+    }
+}
+
 impl From<api::ScheduleId> for models::ScheduleId {
     fn from(id: api::ScheduleId) -> Self {
         models::ScheduleId(id.0)
     }
 }
 
+impl From<api::TargetId> for models::TargetId {
+    fn from(id: api::TargetId) -> Self {
+        models::TargetId(id.0)
+    }
+}
+
+impl From<api::ConstraintsId> for models::ConstraintsId {
+    fn from(id: api::ConstraintsId) -> Self {
+        models::ConstraintsId(id.0)
+    }
+}
+
+impl From<api::SchedulingBlockId> for models::SchedulingBlockId {
+    fn from(id: api::SchedulingBlockId) -> Self {
+        models::SchedulingBlockId(id.0)
+    }
+}
+
+impl From<&models::Period> for api::Period {
+    fn from(period: &models::Period) -> Self {
+        api::Period {
+            start: period.start.value(),
+            stop: period.stop.value(),
+        }
+    }
+}
+
 impl From<&models::Constraints> for api::Constraints {
     fn from(constraints: &models::Constraints) -> Self {
         api::Constraints {
-            min_altitude: Some(constraints.min_alt.value()),
-            max_altitude: Some(constraints.max_alt.value()),
-            min_azimuth: Some(constraints.min_az.value()),
-            max_azimuth: Some(constraints.max_az.value()),
-            fixed_time: constraints.fixed_time.as_ref().map(|p| p.start.value()),
+            min_alt: constraints.min_alt.value(),
+            max_alt: constraints.max_alt.value(),
+            min_az: constraints.min_az.value(),
+            max_az: constraints.max_az.value(),
+            fixed_time: constraints.fixed_time.as_ref().map(|p| p.into()),
         }
     }
 }
@@ -46,14 +91,16 @@ impl From<&models::Constraints> for api::Constraints {
 impl From<&models::SchedulingBlock> for api::SchedulingBlock {
     fn from(block: &models::SchedulingBlock) -> Self {
         api::SchedulingBlock {
-            id: block.original_block_id.clone().unwrap_or_else(|| block.id.0.to_string()),
-            ra: block.target_ra.value(),
-            dec: block.target_dec.value(),
+            id: block.id.0,
+            original_block_id: block.original_block_id.clone(),
+            target_ra: block.target_ra.value(),
+            target_dec: block.target_dec.value(),
+            constraints: (&block.constraints).into(),
             priority: block.priority,
-            scheduled: block.scheduled_period.is_some(),
-            scheduled_start: block.scheduled_period.as_ref().map(|p| p.start.value()),
-            scheduled_end: block.scheduled_period.as_ref().map(|p| p.stop.value()),
-            constraints: Some((&block.constraints).into()),
+            min_observation: block.min_observation.value(),
+            requested_duration: block.requested_duration.value(),
+            visibility_periods: block.visibility_periods.iter().map(|p| p.into()).collect(),
+            scheduled_period: block.scheduled_period.as_ref().map(|p| p.into()),
         }
     }
 }
@@ -61,10 +108,15 @@ impl From<&models::SchedulingBlock> for api::SchedulingBlock {
 impl From<&models::Schedule> for api::Schedule {
     fn from(schedule: &models::Schedule) -> Self {
         api::Schedule {
+            id: schedule.id.map(|id| id.0),
             name: schedule.name.clone(),
+            checksum: schedule.checksum.clone(),
+            dark_periods: schedule
+                .dark_periods
+                .iter()
+                .map(|p| p.into())
+                .collect(),
             blocks: schedule.blocks.iter().map(|b| b.into()).collect(),
-            dark_periods: schedule.dark_periods.clone(),
-            possible_periods: vec![], // Not stored in this model
         }
     }
 }
@@ -72,9 +124,9 @@ impl From<&models::Schedule> for api::Schedule {
 impl From<&models::ScheduleMetadata> for api::ScheduleMetadata {
     fn from(metadata: &models::ScheduleMetadata) -> Self {
         api::ScheduleMetadata {
-            schedule_id: metadata.schedule_id.unwrap_or(0),
-            name: metadata.schedule_name.clone(),
-            timestamp: metadata.upload_timestamp.to_rfc3339(),
+            schedule_id: metadata.schedule_id,
+            schedule_name: metadata.schedule_name.clone(),
+            upload_timestamp: metadata.upload_timestamp.to_rfc3339(),
             checksum: metadata.checksum.clone(),
         }
     }
@@ -83,11 +135,10 @@ impl From<&models::ScheduleMetadata> for api::ScheduleMetadata {
 impl From<&models::ScheduleInfo> for api::ScheduleInfo {
     fn from(info: &models::ScheduleInfo) -> Self {
         api::ScheduleInfo {
-            schedule_id: info.metadata.schedule_id.unwrap_or(0),
-            name: info.metadata.schedule_name.clone(),
-            timestamp: info.metadata.upload_timestamp.to_rfc3339(),
+            metadata: (&info.metadata).into(),
             total_blocks: info.total_blocks,
             scheduled_blocks: info.scheduled_blocks,
+            unscheduled_blocks: info.unscheduled_blocks,
         }
     }
 }
@@ -130,12 +181,15 @@ impl From<&models::ScheduleTimelineBlock> for api::ScheduleTimelineBlock {
 impl From<&models::InsightsBlock> for api::InsightsBlock {
     fn from(block: &models::InsightsBlock) -> Self {
         api::InsightsBlock {
+            scheduling_block_id: block.scheduling_block_id,
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,
+            total_visibility_hours: block.total_visibility_hours.value(),
+            requested_hours: block.requested_hours.value(),
+            elevation_range_deg: block.elevation_range_deg.value(),
             scheduled: block.scheduled,
-            visibility_hours: block.total_visibility_hours.value(),
-            ra: 0.0, // Not available in InsightsBlock
-            dec: 0.0, // Not available in InsightsBlock
+            scheduled_start_mjd: block.scheduled_start_mjd.map(|v| v.value()),
+            scheduled_stop_mjd: block.scheduled_stop_mjd.map(|v| v.value()),
         }
     }
 }
@@ -143,10 +197,16 @@ impl From<&models::InsightsBlock> for api::InsightsBlock {
 impl From<&models::AnalyticsMetrics> for api::AnalyticsMetrics {
     fn from(metrics: &models::AnalyticsMetrics) -> Self {
         api::AnalyticsMetrics {
-            total_blocks: metrics.total_observations,
+            total_observations: metrics.total_observations,
             scheduled_count: metrics.scheduled_count,
+            unscheduled_count: metrics.unscheduled_count,
+            scheduling_rate: metrics.scheduling_rate,
             mean_priority: metrics.mean_priority,
-            mean_visibility: 0.0, // Not directly available, would need total_visibility_hours
+            median_priority: metrics.median_priority,
+            mean_priority_scheduled: metrics.mean_priority_scheduled,
+            mean_priority_unscheduled: metrics.mean_priority_unscheduled,
+            total_visibility_hours: metrics.total_visibility_hours.value(),
+            mean_requested_hours: metrics.mean_requested_hours.value(),
         }
     }
 }
@@ -154,8 +214,8 @@ impl From<&models::AnalyticsMetrics> for api::AnalyticsMetrics {
 impl From<&models::CorrelationEntry> for api::CorrelationEntry {
     fn from(entry: &models::CorrelationEntry) -> Self {
         api::CorrelationEntry {
-            metric1: entry.variable1.clone(),
-            metric2: entry.variable2.clone(),
+            variable1: entry.variable1.clone(),
+            variable2: entry.variable2.clone(),
             correlation: entry.correlation,
         }
     }
@@ -166,8 +226,11 @@ impl From<&models::ConflictRecord> for api::ConflictRecord {
         api::ConflictRecord {
             block_id_1: record.block_id_1.clone(),
             block_id_2: record.block_id_2.clone(),
-            overlap_start: record.start_time_1.value(),
-            overlap_end: record.stop_time_1.value(),
+            start_time_1: record.start_time_1.value(),
+            stop_time_1: record.stop_time_1.value(),
+            start_time_2: record.start_time_2.value(),
+            stop_time_2: record.stop_time_2.value(),
+            overlap_hours: record.overlap_hours.value(),
         }
     }
 }
@@ -175,9 +238,11 @@ impl From<&models::ConflictRecord> for api::ConflictRecord {
 impl From<&models::TopObservation> for api::TopObservation {
     fn from(obs: &models::TopObservation) -> Self {
         api::TopObservation {
+            scheduling_block_id: obs.scheduling_block_id,
             original_block_id: obs.original_block_id.clone(),
-            metric_value: obs.total_visibility_hours.value(),
             priority: obs.priority,
+            total_visibility_hours: obs.total_visibility_hours.value(),
+            requested_hours: obs.requested_hours.value(),
             scheduled: obs.scheduled,
         }
     }
@@ -189,9 +254,12 @@ impl From<&models::InsightsData> for api::InsightsData {
             blocks: data.blocks.iter().map(|b| b.into()).collect(),
             metrics: (&data.metrics).into(),
             correlations: data.correlations.iter().map(|c| c.into()).collect(),
+            top_priority: data.top_priority.iter().map(|t| t.into()).collect(),
+            top_visibility: data.top_visibility.iter().map(|t| t.into()).collect(),
             conflicts: data.conflicts.iter().map(|c| c.into()).collect(),
-            top_by_priority: data.top_priority.iter().map(|t| t.into()).collect(),
-            top_by_visibility: data.top_visibility.iter().map(|t| t.into()).collect(),
+            total_count: data.total_count,
+            scheduled_count: data.scheduled_count,
+            impossible_count: data.impossible_count,
         }
     }
 }
@@ -199,10 +267,12 @@ impl From<&models::InsightsData> for api::InsightsData {
 impl From<&models::TrendsBlock> for api::TrendsBlock {
     fn from(block: &models::TrendsBlock) -> Self {
         api::TrendsBlock {
+            scheduling_block_id: block.scheduling_block_id,
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,
+            total_visibility_hours: block.total_visibility_hours.value(),
+            requested_hours: block.requested_hours.value(),
             scheduled: block.scheduled,
-            visibility_hours: block.total_visibility_hours.value(),
         }
     }
 }
@@ -210,8 +280,9 @@ impl From<&models::TrendsBlock> for api::TrendsBlock {
 impl From<&models::EmpiricalRatePoint> for api::EmpiricalRatePoint {
     fn from(point: &models::EmpiricalRatePoint) -> Self {
         api::EmpiricalRatePoint {
-            priority: point.mid_value,
-            rate: point.scheduled_rate,
+            bin_label: point.bin_label.clone(),
+            mid_value: point.mid_value,
+            scheduled_rate: point.scheduled_rate,
             count: point.count,
         }
     }
@@ -220,8 +291,9 @@ impl From<&models::EmpiricalRatePoint> for api::EmpiricalRatePoint {
 impl From<&models::SmoothedPoint> for api::SmoothedPoint {
     fn from(point: &models::SmoothedPoint) -> Self {
         api::SmoothedPoint {
-            priority: point.x,
-            rate: point.y_smoothed,
+            x: point.x,
+            y_smoothed: point.y_smoothed,
+            n_samples: point.n_samples,
         }
     }
 }
@@ -229,10 +301,10 @@ impl From<&models::SmoothedPoint> for api::SmoothedPoint {
 impl From<&models::HeatmapBin> for api::HeatmapBin {
     fn from(bin: &models::HeatmapBin) -> Self {
         api::HeatmapBin {
-            priority_bin: 0.0, // Not available - using time_mid as substitute
-            visibility_bin: bin.visibility_mid.value(),
-            count: 0, // Not directly available
-            scheduled_count: 0, // Not directly available
+            visibility_mid: bin.visibility_mid.value(),
+            time_mid: bin.time_mid.value(),
+            scheduled_rate: bin.scheduled_rate,
+            count: bin.count,
         }
     }
 }
@@ -240,9 +312,19 @@ impl From<&models::HeatmapBin> for api::HeatmapBin {
 impl From<&models::TrendsMetrics> for api::TrendsMetrics {
     fn from(metrics: &models::TrendsMetrics) -> Self {
         api::TrendsMetrics {
-            overall_rate: metrics.scheduling_rate,
-            priority_bins: 0, // Not available in internal model
-            visibility_bins: 0, // Not available in internal model
+            total_count: metrics.total_count,
+            scheduled_count: metrics.scheduled_count,
+            scheduling_rate: metrics.scheduling_rate,
+            zero_visibility_count: metrics.zero_visibility_count,
+            priority_min: metrics.priority_min,
+            priority_max: metrics.priority_max,
+            priority_mean: metrics.priority_mean,
+            visibility_min: metrics.visibility_min.value(),
+            visibility_max: metrics.visibility_max.value(),
+            visibility_mean: metrics.visibility_mean.value(),
+            time_min: metrics.time_min.value(),
+            time_max: metrics.time_max.value(),
+            time_mean: metrics.time_mean.value(),
         }
     }
 }
@@ -251,10 +333,14 @@ impl From<&models::TrendsData> for api::TrendsData {
     fn from(data: &models::TrendsData) -> Self {
         api::TrendsData {
             blocks: data.blocks.iter().map(|b| b.into()).collect(),
-            empirical_rates: data.by_priority.iter().map(|r| r.into()).collect(),
-            smoothed_trend: data.smoothed_visibility.iter().map(|s| s.into()).collect(),
-            heatmap: data.heatmap_bins.iter().map(|h| h.into()).collect(),
             metrics: (&data.metrics).into(),
+            by_priority: data.by_priority.iter().map(|r| r.into()).collect(),
+            by_visibility: data.by_visibility.iter().map(|r| r.into()).collect(),
+            by_time: data.by_time.iter().map(|r| r.into()).collect(),
+            smoothed_visibility: data.smoothed_visibility.iter().map(|s| s.into()).collect(),
+            smoothed_time: data.smoothed_time.iter().map(|s| s.into()).collect(),
+            heatmap_bins: data.heatmap_bins.iter().map(|h| h.into()).collect(),
+            priority_values: data.priority_values.clone(),
         }
     }
 }
@@ -262,12 +348,10 @@ impl From<&models::TrendsData> for api::TrendsData {
 impl From<&models::CompareBlock> for api::CompareBlock {
     fn from(block: &models::CompareBlock) -> Self {
         api::CompareBlock {
-            original_block_id: block.scheduling_block_id.clone(),
+            scheduling_block_id: block.scheduling_block_id.clone(),
             priority: block.priority,
-            scheduled_a: block.scheduled,
-            scheduled_b: false, // Single schedule, no B comparison
-            ra: 0.0, // Not available in CompareBlock
-            dec: 0.0, // Not available in CompareBlock
+            scheduled: block.scheduled,
+            requested_hours: block.requested_hours.value(),
         }
     }
 }
@@ -275,11 +359,12 @@ impl From<&models::CompareBlock> for api::CompareBlock {
 impl From<&models::CompareStats> for api::CompareStats {
     fn from(stats: &models::CompareStats) -> Self {
         api::CompareStats {
-            total_blocks: stats.scheduled_count + stats.unscheduled_count,
-            both_scheduled: stats.scheduled_count,
-            only_a: 0, // Not available in single-schedule stats
-            only_b: 0, // Not available in single-schedule stats
-            neither: stats.unscheduled_count,
+            scheduled_count: stats.scheduled_count,
+            unscheduled_count: stats.unscheduled_count,
+            total_priority: stats.total_priority,
+            mean_priority: stats.mean_priority,
+            median_priority: stats.median_priority,
+            total_hours: stats.total_hours.value(),
         }
     }
 }
@@ -287,9 +372,9 @@ impl From<&models::CompareStats> for api::CompareStats {
 impl From<&models::SchedulingChange> for api::SchedulingChange {
     fn from(change: &models::SchedulingChange) -> Self {
         api::SchedulingChange {
-            original_block_id: change.scheduling_block_id.clone(),
-            change_type: change.change_type.clone(),
+            scheduling_block_id: change.scheduling_block_id.clone(),
             priority: change.priority,
+            change_type: change.change_type.clone(),
         }
     }
 }
@@ -297,9 +382,16 @@ impl From<&models::SchedulingChange> for api::SchedulingChange {
 impl From<&models::CompareData> for api::CompareData {
     fn from(data: &models::CompareData) -> Self {
         api::CompareData {
-            blocks: data.current_blocks.iter().map(|b| b.into()).collect(),
-            stats: (&data.current_stats).into(),
-            changes: data.scheduling_changes.iter().map(|c| c.into()).collect(),
+            current_blocks: data.current_blocks.iter().map(|b| b.into()).collect(),
+            comparison_blocks: data.comparison_blocks.iter().map(|b| b.into()).collect(),
+            current_stats: (&data.current_stats).into(),
+            comparison_stats: (&data.comparison_stats).into(),
+            common_ids: data.common_ids.clone(),
+            only_in_current: data.only_in_current.clone(),
+            only_in_comparison: data.only_in_comparison.clone(),
+            scheduling_changes: data.scheduling_changes.iter().map(|c| c.into()).collect(),
+            current_name: data.current_name.clone(),
+            comparison_name: data.comparison_name.clone(),
         }
     }
 }
@@ -308,7 +400,7 @@ impl From<&models::CompareData> for api::CompareData {
 // =========================================================
 // Phase 2 Analytics Types (Now directly in api::types)
 // =========================================================
-// Note: ScheduleSummary, PriorityRate, VisibilityBin, HeatmapBinData, 
+// Note: ScheduleSummary, PriorityRate, VisibilityBinData, HeatmapBinData,
 // VisibilityTimeMetadata, and VisibilityTimeBin are now defined directly
 // in api::types and do not need conversions as they are the source of truth.
 
@@ -319,6 +411,7 @@ impl From<&models::CompareData> for api::CompareData {
 impl From<&models::VisibilityBlockSummary> for api::VisibilityBlockSummary {
     fn from(block: &models::VisibilityBlockSummary) -> Self {
         api::VisibilityBlockSummary {
+            scheduling_block_id: block.scheduling_block_id,
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,
             num_visibility_periods: block.num_visibility_periods,
@@ -335,6 +428,29 @@ impl From<&models::VisibilityMapData> for api::VisibilityMapData {
             priority_max: data.priority_max,
             total_count: data.total_count,
             scheduled_count: data.scheduled_count,
+        }
+    }
+}
+
+impl From<&models::VisibilityBin> for api::VisibilityBin {
+    fn from(bin: &models::VisibilityBin) -> Self {
+        api::VisibilityBin {
+            bin_start_unix: bin.bin_start_unix,
+            bin_end_unix: bin.bin_end_unix,
+            visible_count: bin.visible_count,
+        }
+    }
+}
+
+impl From<&models::BlockHistogramData> for api::BlockHistogramData {
+    fn from(row: &models::BlockHistogramData) -> Self {
+        api::BlockHistogramData {
+            scheduling_block_id: row.scheduling_block_id,
+            priority: row.priority,
+            visibility_periods: row
+                .visibility_periods
+                .as_ref()
+                .map(|periods| periods.iter().map(|p| p.into()).collect()),
         }
     }
 }

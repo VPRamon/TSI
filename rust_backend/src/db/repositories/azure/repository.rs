@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use super::{analytics, operations, validation};
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeMetadata,
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeMetadata,
 };
 use crate::db::{
     models::{Period, Schedule, ScheduleInfo, ScheduleMetadata},
@@ -203,7 +203,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_visibility_bins(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<VisibilityBin>> {
+    ) -> RepositoryResult<Vec<VisibilityBinData>> {
         analytics::fetch_visibility_bins(schedule_id)
             .await
             .map_err(RepositoryError::from)

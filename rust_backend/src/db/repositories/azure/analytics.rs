@@ -18,7 +18,7 @@ use tiberius::Query;
 
 use super::pool;
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBin, VisibilityTimeMetadata,
+    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeMetadata,
 };
 
 /// Populate the analytics table for a schedule.
@@ -494,7 +494,6 @@ pub async fn fetch_analytics_blocks_for_sky_map(
     schedule_id: i64,
 ) -> Result<Vec<crate::api::LightweightBlock>, String> {
     use crate::api::LightweightBlock;
-    use siderust::astro::ModifiedJulianDate;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -557,10 +556,10 @@ pub async fn fetch_analytics_blocks_for_sky_map(
             .ok_or_else(|| "target_dec_deg is NULL".to_string())?;
 
         let scheduled_period = match (row.get::<f64, _>(6), row.get::<f64, _>(7)) {
-            (Some(start_mjd), Some(stop_mjd)) => crate::db::models::Period::new(
-                ModifiedJulianDate::new(start_mjd),
-                ModifiedJulianDate::new(stop_mjd),
-            ),
+            (Some(start_mjd), Some(stop_mjd)) => Some(crate::api::Period {
+                start: start_mjd,
+                stop: stop_mjd,
+            }),
             _ => None,
         };
 
@@ -1594,7 +1593,7 @@ pub async fn fetch_priority_rates(schedule_id: i64) -> Result<Vec<PriorityRate>,
 }
 
 /// Fetch visibility bins from analytics table.
-pub async fn fetch_visibility_bins(schedule_id: i64) -> Result<Vec<VisibilityBin>, String> {
+pub async fn fetch_visibility_bins(schedule_id: i64) -> Result<Vec<VisibilityBinData>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -1630,7 +1629,7 @@ pub async fn fetch_visibility_bins(schedule_id: i64) -> Result<Vec<VisibilityBin
 
     let bins = rows
         .iter()
-        .map(|r| VisibilityBin {
+        .map(|r| VisibilityBinData {
             bin_index: r.get::<i32, _>(0).unwrap_or(0),
             bin_min_hours: r.get::<f64, _>(1).unwrap_or(0.0),
             bin_max_hours: r.get::<f64, _>(2).unwrap_or(0.0),

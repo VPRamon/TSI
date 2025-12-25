@@ -17,7 +17,6 @@ use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
 use serde::{Deserialize, Serialize};
-use siderust::astro::ModifiedJulianDate;
 
 // =========================================================
 // Core Schedule Types
@@ -45,24 +44,87 @@ impl ScheduleId {
     }
 }
 
+/// Strongly-typed identifier for a target record.
+#[pyclass(module = "tsi_rust_api")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct TargetId(pub i64);
+
+#[pymethods]
+impl TargetId {
+    #[new]
+    pub fn new(value: i64) -> Self {
+        Self(value)
+    }
+
+    #[getter]
+    pub fn value(&self) -> i64 {
+        self.0
+    }
+
+    fn __repr__(&self) -> String {
+        format!("TargetId({})", self.0)
+    }
+}
+
+/// Strongly-typed identifier for a constraints record.
+#[pyclass(module = "tsi_rust_api")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ConstraintsId(pub i64);
+
+#[pymethods]
+impl ConstraintsId {
+    #[new]
+    pub fn new(value: i64) -> Self {
+        Self(value)
+    }
+
+    #[getter]
+    pub fn value(&self) -> i64 {
+        self.0
+    }
+
+    fn __repr__(&self) -> String {
+        format!("ConstraintsId({})", self.0)
+    }
+}
+
+/// Strongly-typed identifier for a scheduling block.
+#[pyclass(module = "tsi_rust_api")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct SchedulingBlockId(pub i64);
+
+#[pymethods]
+impl SchedulingBlockId {
+    #[new]
+    pub fn new(value: i64) -> Self {
+        Self(value)
+    }
+
+    #[getter]
+    pub fn value(&self) -> i64 {
+        self.0
+    }
+
+    fn __repr__(&self) -> String {
+        format!("SchedulingBlockId({})", self.0)
+    }
+}
+
 /// Time period in Modified Julian Date (MJD) format.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Period {
     /// Start time in MJD
-    pub start: ModifiedJulianDate,
+    pub start: f64,
     /// End time in MJD
-    pub stop: ModifiedJulianDate,
+    pub stop: f64,
 }
 
 #[pymethods]
 impl Period {
     #[new]
     pub fn py_new(start: f64, stop: f64) -> Self {
-        Self {
-            start: ModifiedJulianDate::new(start),
-            stop: ModifiedJulianDate::new(stop),
-        }
+        Self { start, stop }
     }
 
     #[staticmethod]
@@ -95,32 +157,32 @@ impl Period {
             let stop_mjd = to_mjd(&stop)?;
 
             Ok(Self {
-                start: ModifiedJulianDate::new(start_mjd),
-                stop: ModifiedJulianDate::new(stop_mjd),
+                start: start_mjd,
+                stop: stop_mjd,
             })
         })
     }
 
     #[getter]
     pub fn start_mjd(&self) -> f64 {
-        self.start.value()
+        self.start
     }
 
     #[getter]
     pub fn stop_mjd(&self) -> f64 {
-        self.stop.value()
+        self.stop
     }
 
     pub fn contains_mjd(&self, mjd: f64) -> bool {
-        let min_mjd = self.start.value().min(self.stop.value());
-        let max_mjd = self.start.value().max(self.stop.value());
+        let min_mjd = self.start.min(self.stop);
+        let max_mjd = self.start.max(self.stop);
         mjd >= min_mjd && mjd <= max_mjd
     }
 
     pub fn to_datetime<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
         // Convert MJD -> seconds since UNIX epoch then use Python's datetime
-        let s_secs = (self.start.value() - 40587.0) * 86400.0;
-        let e_secs = (self.stop.value() - 40587.0) * 86400.0;
+        let s_secs = (self.start - 40587.0) * 86400.0;
+        let e_secs = (self.stop - 40587.0) * 86400.0;
 
         let datetime_mod = py.import("datetime")?;
         let datetime_cls = datetime_mod.getattr("datetime")?;
@@ -138,43 +200,43 @@ impl Period {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Constraints {
-    /// Minimum altitude in degrees (optional)
-    pub min_altitude: Option<f64>,
-    /// Maximum altitude in degrees (optional)
-    pub max_altitude: Option<f64>,
-    /// Minimum azimuth in degrees (optional)
-    pub min_azimuth: Option<f64>,
-    /// Maximum azimuth in degrees (optional)
-    pub max_azimuth: Option<f64>,
-    /// Fixed observation time in MJD (optional)
-    pub fixed_time: Option<f64>,
+    /// Minimum altitude in degrees
+    pub min_alt: f64,
+    /// Maximum altitude in degrees
+    pub max_alt: f64,
+    /// Minimum azimuth in degrees
+    pub min_az: f64,
+    /// Maximum azimuth in degrees
+    pub max_az: f64,
+    /// Fixed observation time window in MJD
+    pub fixed_time: Option<Period>,
 }
 
 #[pymethods]
 impl Constraints {
     #[new]
-    #[pyo3(signature = (min_altitude=None, max_altitude=None, min_azimuth=None, max_azimuth=None, fixed_time=None))]
+    #[pyo3(signature = (min_alt, max_alt, min_az, max_az, fixed_time=None))]
     pub fn new(
-        min_altitude: Option<f64>,
-        max_altitude: Option<f64>,
-        min_azimuth: Option<f64>,
-        max_azimuth: Option<f64>,
-        fixed_time: Option<f64>,
+        min_alt: f64,
+        max_alt: f64,
+        min_az: f64,
+        max_az: f64,
+        fixed_time: Option<Period>,
     ) -> Self {
         Self {
-            min_altitude,
-            max_altitude,
-            min_azimuth,
-            max_azimuth,
+            min_alt,
+            max_alt,
+            min_az,
+            max_az,
             fixed_time,
         }
     }
 
     fn __repr__(&self) -> String {
-        format!("Constraints(alt=[{:?}, {:?}], az=[{:?}, {:?}], fixed={:?})",
-            self.min_altitude, self.max_altitude,
-            self.min_azimuth, self.max_azimuth,
-            self.fixed_time)
+        format!(
+            "Constraints(alt=[{:.2}, {:.2}], az=[{:.2}, {:.2}], fixed={:?})",
+            self.min_alt, self.max_alt, self.min_az, self.max_az, self.fixed_time
+        )
     }
 }
 
@@ -182,54 +244,62 @@ impl Constraints {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulingBlock {
-    /// Unique block ID
-    pub id: String,
+    /// Database ID for the block
+    pub id: i64,
+    /// Original ID from JSON (shown to user)
+    pub original_block_id: Option<String>,
     /// Right Ascension in degrees (ICRS)
-    pub ra: f64,
+    pub target_ra: f64,
     /// Declination in degrees (ICRS)
-    pub dec: f64,
-    /// Observation priority (0-5)
-    pub priority: f64,
-    /// Whether block was scheduled
-    pub scheduled: bool,
-    /// Scheduled start time in MJD (if scheduled)
-    pub scheduled_start: Option<f64>,
-    /// Scheduled end time in MJD (if scheduled)
-    pub scheduled_end: Option<f64>,
+    pub target_dec: f64,
     /// Observing constraints
-    pub constraints: Option<Constraints>,
+    pub constraints: Constraints,
+    /// Observation priority
+    pub priority: f64,
+    /// Minimum observation duration in seconds
+    pub min_observation: f64,
+    /// Requested observation duration in seconds
+    pub requested_duration: f64,
+    /// Visibility periods in MJD
+    pub visibility_periods: Vec<Period>,
+    /// Scheduled time window in MJD (if scheduled)
+    pub scheduled_period: Option<Period>,
 }
 
 #[pymethods]
 impl SchedulingBlock {
     #[new]
-    #[pyo3(signature = (id, ra, dec, priority, scheduled=false, scheduled_start=None, scheduled_end=None, constraints=None))]
+    #[pyo3(signature = (id, original_block_id, target_ra, target_dec, constraints, priority, min_observation, requested_duration, visibility_periods=None, scheduled_period=None))]
     pub fn new(
-        id: String,
-        ra: f64,
-        dec: f64,
+        id: i64,
+        original_block_id: Option<String>,
+        target_ra: f64,
+        target_dec: f64,
+        constraints: Constraints,
         priority: f64,
-        scheduled: bool,
-        scheduled_start: Option<f64>,
-        scheduled_end: Option<f64>,
-        constraints: Option<Constraints>,
+        min_observation: f64,
+        requested_duration: f64,
+        visibility_periods: Option<Vec<Period>>,
+        scheduled_period: Option<Period>,
     ) -> Self {
         Self {
             id,
-            ra,
-            dec,
-            priority,
-            scheduled,
-            scheduled_start,
-            scheduled_end,
+            original_block_id,
+            target_ra,
+            target_dec,
             constraints,
+            priority,
+            min_observation,
+            requested_duration,
+            visibility_periods: visibility_periods.unwrap_or_default(),
+            scheduled_period,
         }
     }
 
     fn __repr__(&self) -> String {
         format!(
-            "SchedulingBlock(id='{}', ra={:.2}, dec={:.2}, priority={:.1}, scheduled={})",
-            self.id, self.ra, self.dec, self.priority, self.scheduled
+            "SchedulingBlock(id={}, ra={:.2}, dec={:.2}, priority={:.1})",
+            self.id, self.target_ra, self.target_dec, self.priority
         )
     }
 }
@@ -238,40 +308,43 @@ impl SchedulingBlock {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schedule {
+    /// Database ID
+    pub id: Option<i64>,
     /// Schedule name
     pub name: String,
-    /// List of scheduling blocks
-    pub blocks: Vec<SchedulingBlock>,
+    /// SHA256 checksum of schedule data
+    pub checksum: String,
     /// Dark periods (observing windows)
     pub dark_periods: Vec<Period>,
-    /// Visibility periods (astronomical constraints)
-    pub possible_periods: Vec<Period>,
+    /// List of scheduling blocks
+    pub blocks: Vec<SchedulingBlock>,
 }
 
 #[pymethods]
 impl Schedule {
     #[new]
     pub fn new(
+        id: Option<i64>,
         name: String,
-        blocks: Vec<SchedulingBlock>,
+        checksum: String,
         dark_periods: Vec<Period>,
-        possible_periods: Vec<Period>,
+        blocks: Vec<SchedulingBlock>,
     ) -> Self {
         Self {
+            id,
             name,
-            blocks,
+            checksum,
             dark_periods,
-            possible_periods,
+            blocks,
         }
     }
 
     fn __repr__(&self) -> String {
         format!(
-            "Schedule(name='{}', blocks={}, dark_periods={}, possible_periods={})",
+            "Schedule(name='{}', blocks={}, dark_periods={})",
             self.name,
             self.blocks.len(),
-            self.dark_periods.len(),
-            self.possible_periods.len()
+            self.dark_periods.len()
         )
     }
 }
@@ -281,11 +354,11 @@ impl Schedule {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleMetadata {
     /// Database ID
-    pub schedule_id: i64,
+    pub schedule_id: Option<i64>,
     /// Schedule name
-    pub name: String,
+    pub schedule_name: String,
     /// Creation timestamp (ISO format)
-    pub timestamp: String,
+    pub upload_timestamp: String,
     /// SHA256 checksum of schedule data
     pub checksum: String,
 }
@@ -293,19 +366,24 @@ pub struct ScheduleMetadata {
 #[pymethods]
 impl ScheduleMetadata {
     #[new]
-    pub fn new(schedule_id: i64, name: String, timestamp: String, checksum: String) -> Self {
+    pub fn new(
+        schedule_id: Option<i64>,
+        schedule_name: String,
+        upload_timestamp: String,
+        checksum: String,
+    ) -> Self {
         Self {
             schedule_id,
-            name,
-            timestamp,
+            schedule_name,
+            upload_timestamp,
             checksum,
         }
     }
 
     fn __repr__(&self) -> String {
         format!(
-            "ScheduleMetadata(id={}, name='{}', timestamp='{}')",
-            self.schedule_id, self.name, self.timestamp
+            "ScheduleMetadata(id={:?}, name='{}', timestamp='{}')",
+            self.schedule_id, self.schedule_name, self.upload_timestamp
         )
     }
 }
@@ -314,19 +392,21 @@ impl ScheduleMetadata {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleInfo {
-    pub schedule_id: i64,
-    pub name: String,
-    pub timestamp: String,
+    pub metadata: ScheduleMetadata,
     pub total_blocks: usize,
     pub scheduled_blocks: usize,
+    pub unscheduled_blocks: usize,
 }
 
 #[pymethods]
 impl ScheduleInfo {
     fn __repr__(&self) -> String {
         format!(
-            "ScheduleInfo(id={}, name='{}', blocks={}/{})",
-            self.schedule_id, self.name, self.scheduled_blocks, self.total_blocks
+            "ScheduleInfo(id={:?}, name='{}', blocks={}/{})",
+            self.metadata.schedule_id,
+            self.metadata.schedule_name,
+            self.scheduled_blocks,
+            self.total_blocks
         )
     }
 }
@@ -463,30 +543,39 @@ pub struct ScheduleTimelineData {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InsightsBlock {
+    pub scheduling_block_id: i64,
     pub original_block_id: String,
     pub priority: f64,
+    pub total_visibility_hours: f64,
+    pub requested_hours: f64,
+    pub elevation_range_deg: f64,
     pub scheduled: bool,
-    pub visibility_hours: f64,
-    pub ra: f64,
-    pub dec: f64,
+    pub scheduled_start_mjd: Option<f64>,
+    pub scheduled_stop_mjd: Option<f64>,
 }
 
 /// Analytics metrics.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalyticsMetrics {
-    pub total_blocks: usize,
+    pub total_observations: usize,
     pub scheduled_count: usize,
+    pub unscheduled_count: usize,
+    pub scheduling_rate: f64,
     pub mean_priority: f64,
-    pub mean_visibility: f64,
+    pub median_priority: f64,
+    pub mean_priority_scheduled: f64,
+    pub mean_priority_unscheduled: f64,
+    pub total_visibility_hours: f64,
+    pub mean_requested_hours: f64,
 }
 
 /// Correlation entry.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CorrelationEntry {
-    pub metric1: String,
-    pub metric2: String,
+    pub variable1: String,
+    pub variable2: String,
     pub correlation: f64,
 }
 
@@ -496,17 +585,22 @@ pub struct CorrelationEntry {
 pub struct ConflictRecord {
     pub block_id_1: String,
     pub block_id_2: String,
-    pub overlap_start: f64,
-    pub overlap_end: f64,
+    pub start_time_1: f64,
+    pub stop_time_1: f64,
+    pub start_time_2: f64,
+    pub stop_time_2: f64,
+    pub overlap_hours: f64,
 }
 
 /// Top observation entry.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TopObservation {
+    pub scheduling_block_id: i64,
     pub original_block_id: String,
-    pub metric_value: f64,
     pub priority: f64,
+    pub total_visibility_hours: f64,
+    pub requested_hours: f64,
     pub scheduled: bool,
 }
 
@@ -517,9 +611,12 @@ pub struct InsightsData {
     pub blocks: Vec<InsightsBlock>,
     pub metrics: AnalyticsMetrics,
     pub correlations: Vec<CorrelationEntry>,
+    pub top_priority: Vec<TopObservation>,
+    pub top_visibility: Vec<TopObservation>,
     pub conflicts: Vec<ConflictRecord>,
-    pub top_by_priority: Vec<TopObservation>,
-    pub top_by_visibility: Vec<TopObservation>,
+    pub total_count: usize,
+    pub scheduled_count: usize,
+    pub impossible_count: usize,
 }
 
 // =========================================================
@@ -530,18 +627,21 @@ pub struct InsightsData {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendsBlock {
+    pub scheduling_block_id: i64,
     pub original_block_id: String,
     pub priority: f64,
+    pub total_visibility_hours: f64,
+    pub requested_hours: f64,
     pub scheduled: bool,
-    pub visibility_hours: f64,
 }
 
 /// Empirical scheduling rate point.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmpiricalRatePoint {
-    pub priority: f64,
-    pub rate: f64,
+    pub bin_label: String,
+    pub mid_value: f64,
+    pub scheduled_rate: f64,
     pub count: usize,
 }
 
@@ -549,27 +649,38 @@ pub struct EmpiricalRatePoint {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SmoothedPoint {
-    pub priority: f64,
-    pub rate: f64,
+    pub x: f64,
+    pub y_smoothed: f64,
+    pub n_samples: usize,
 }
 
 /// Heatmap bin data.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeatmapBin {
-    pub priority_bin: f64,
-    pub visibility_bin: f64,
+    pub visibility_mid: f64,
+    pub time_mid: f64,
+    pub scheduled_rate: f64,
     pub count: usize,
-    pub scheduled_count: usize,
 }
 
 /// Trends metrics summary.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendsMetrics {
-    pub overall_rate: f64,
-    pub priority_bins: usize,
-    pub visibility_bins: usize,
+    pub total_count: usize,
+    pub scheduled_count: usize,
+    pub scheduling_rate: f64,
+    pub zero_visibility_count: usize,
+    pub priority_min: f64,
+    pub priority_max: f64,
+    pub priority_mean: f64,
+    pub visibility_min: f64,
+    pub visibility_max: f64,
+    pub visibility_mean: f64,
+    pub time_min: f64,
+    pub time_max: f64,
+    pub time_mean: f64,
 }
 
 /// Complete trends dataset.
@@ -577,10 +688,14 @@ pub struct TrendsMetrics {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendsData {
     pub blocks: Vec<TrendsBlock>,
-    pub empirical_rates: Vec<EmpiricalRatePoint>,
-    pub smoothed_trend: Vec<SmoothedPoint>,
-    pub heatmap: Vec<HeatmapBin>,
     pub metrics: TrendsMetrics,
+    pub by_priority: Vec<EmpiricalRatePoint>,
+    pub by_visibility: Vec<EmpiricalRatePoint>,
+    pub by_time: Vec<EmpiricalRatePoint>,
+    pub smoothed_visibility: Vec<SmoothedPoint>,
+    pub smoothed_time: Vec<SmoothedPoint>,
+    pub heatmap_bins: Vec<HeatmapBin>,
+    pub priority_values: Vec<f64>,
 }
 
 // =========================================================
@@ -591,41 +706,47 @@ pub struct TrendsData {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareBlock {
-    pub original_block_id: String,
+    pub scheduling_block_id: String,
     pub priority: f64,
-    pub scheduled_a: bool,
-    pub scheduled_b: bool,
-    pub ra: f64,
-    pub dec: f64,
+    pub scheduled: bool,
+    pub requested_hours: f64,
 }
 
 /// Comparison statistics.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareStats {
-    pub total_blocks: usize,
-    pub both_scheduled: usize,
-    pub only_a: usize,
-    pub only_b: usize,
-    pub neither: usize,
+    pub scheduled_count: usize,
+    pub unscheduled_count: usize,
+    pub total_priority: f64,
+    pub mean_priority: f64,
+    pub median_priority: f64,
+    pub total_hours: f64,
 }
 
 /// Scheduling change record.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulingChange {
-    pub original_block_id: String,
-    pub change_type: String, // "added", "removed", "unchanged"
+    pub scheduling_block_id: String,
     pub priority: f64,
+    pub change_type: String, // "newly_scheduled" or "newly_unscheduled"
 }
 
 /// Complete comparison dataset.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareData {
-    pub blocks: Vec<CompareBlock>,
-    pub stats: CompareStats,
-    pub changes: Vec<SchedulingChange>,
+    pub current_blocks: Vec<CompareBlock>,
+    pub comparison_blocks: Vec<CompareBlock>,
+    pub current_stats: CompareStats,
+    pub comparison_stats: CompareStats,
+    pub common_ids: Vec<String>,
+    pub only_in_current: Vec<String>,
+    pub only_in_comparison: Vec<String>,
+    pub scheduling_changes: Vec<SchedulingChange>,
+    pub current_name: String,
+    pub comparison_name: String,
 }
 
 // =========================================================
@@ -671,10 +792,19 @@ pub struct PriorityRate {
     pub requested_mean_hours: Option<f64>,
 }
 
-/// Visibility bin data (from schedule_visibility_bins table).
+/// Visibility bin data for visibility histograms.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisibilityBin {
+    pub bin_start_unix: i64,
+    pub bin_end_unix: i64,
+    pub visible_count: u32,
+}
+
+/// Visibility bin data (from schedule_visibility_bins table).
+#[pyclass(module = "tsi_rust_api", get_all)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VisibilityBinData {
     pub bin_index: i32,
     pub bin_min_hours: f64,
     pub bin_max_hours: f64,
@@ -682,6 +812,15 @@ pub struct VisibilityBin {
     pub total_count: i32,
     pub scheduled_count: i32,
     pub scheduling_rate: f64,
+}
+
+/// Row data for visibility histogram computations.
+#[pyclass(module = "tsi_rust_api", get_all)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BlockHistogramData {
+    pub scheduling_block_id: i64,
+    pub priority: i32,
+    pub visibility_periods: Option<Vec<Period>>,
 }
 
 /// Heatmap bin data (from schedule_heatmap_bins table).
@@ -740,6 +879,7 @@ pub struct VisibilityTimeBin {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VisibilityBlockSummary {
+    pub scheduling_block_id: i64,
     pub original_block_id: String,
     pub priority: f64,
     pub num_visibility_periods: usize,

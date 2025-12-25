@@ -1578,10 +1578,10 @@ pub async fn fetch_lightweight_blocks(
 
         // Handle optional scheduled period
         let scheduled_period = match (row.get::<f64, _>(6), row.get::<f64, _>(7)) {
-            (Some(start_mjd), Some(stop_mjd)) => crate::db::models::Period::new(
-                ModifiedJulianDate::new(start_mjd),
-                ModifiedJulianDate::new(stop_mjd),
-            ),
+            (Some(start_mjd), Some(stop_mjd)) => Some(crate::api::Period {
+                start: start_mjd,
+                stop: stop_mjd,
+            }),
             _ => None,
         };
 
