@@ -46,6 +46,9 @@ pub use crate::routes::insights::GET_INSIGHTS_DATA;
 // Re-export trends route and constant
 pub use crate::routes::trends::{get_trends_data};
 pub use crate::routes::trends::GET_TRENDS_DATA;
+// Re-export compare route and constant
+pub use crate::routes::compare::{get_compare_data};
+pub use crate::routes::compare::GET_COMPARE_DATA;
 
 /// Register all API functions with the Python module.
 ///
@@ -144,6 +147,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("GET_SCHEDULE_TIMELINE_DATA", crate::routes::timeline::GET_SCHEDULE_TIMELINE_DATA)?;
     m.add("GET_INSIGHTS_DATA", crate::routes::insights::GET_INSIGHTS_DATA)?;
     m.add("GET_TRENDS_DATA", crate::routes::trends::GET_TRENDS_DATA)?;
+    m.add("GET_COMPARE_DATA", crate::routes::compare::GET_COMPARE_DATA)?;
     m.add("GET_VISIBILITY_MAP_DATA", crate::routes::visibility::GET_VISIBILITY_MAP_DATA)?;
 
     Ok(())
@@ -273,25 +277,7 @@ fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 
 // Trends route is provided by routes::trends
 
-/// Get schedule comparison data.
-///
-/// Args:
-///     schedule_id_a: Database ID of first schedule
-///     schedule_id_b: Database ID of second schedule
-///
-/// Returns:
-///     CompareData with comparison blocks, stats, and changes
-#[pyfunction]
-fn get_compare_data(schedule_id_a: i64, schedule_id_b: i64) -> PyResult<api::CompareData> {
-    // py_get_compare_data requires: schedule_id_a, schedule_id_b, name_a, name_b
-    let data = crate::services::py_get_compare_data(
-        schedule_id_a,
-        schedule_id_b,
-        "Schedule A".to_string(),
-        "Schedule B".to_string(),
-    )?;
-    Ok((&data).into())
-}
+// Compare route is provided by routes::compare
 
 #[pyfunction]
 fn py_get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64)>> {

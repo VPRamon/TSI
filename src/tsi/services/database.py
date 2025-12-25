@@ -429,9 +429,14 @@ def get_compare_data(
     Returns:
         CompareData object with all required data and pre-computed comparisons
     """
-    from tsi.services.data_access import get_compare_data as get_data
-
-    return get_data(current_schedule_id, comparison_schedule_id, current_name, comparison_name)
+    # Call Rust backend compare route directly
+    return _rust_call(
+        api.GET_COMPARE_DATA,
+        current_schedule_id,
+        comparison_schedule_id,
+        current_name,
+        comparison_name,
+    )
 
 
 def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:

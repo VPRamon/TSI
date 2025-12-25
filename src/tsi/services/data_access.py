@@ -300,7 +300,7 @@ def get_compare_data(
     return cast(
         "CompareData",
         _rust_call(
-            "py_get_compare_data",
+            api.GET_COMPARE_DATA,
             current_schedule_id,
             comparison_schedule_id,
             current_name,

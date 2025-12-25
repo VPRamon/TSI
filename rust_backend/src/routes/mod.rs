@@ -6,4 +6,5 @@ pub mod distribution;
 pub mod timeline;
 pub mod insights;
 pub mod trends;
+pub mod compare;
 
