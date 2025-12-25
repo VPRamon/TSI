@@ -7,6 +7,7 @@
 use async_trait::async_trait;
 
 use super::error::RepositoryResult;
+use crate::db::models::InsightsBlock;
 use crate::api::types::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeMetadata,
 };
@@ -83,6 +84,19 @@ pub trait AnalyticsRepository: Send + Sync {
         &self,
         schedule_id: i64,
     ) -> RepositoryResult<Vec<DistributionBlock>>;
+
+    /// Fetch analytics blocks for insights computations.
+    ///
+    /// # Arguments
+    /// * `schedule_id` - The ID of the schedule
+    ///
+    /// # Returns
+    /// * `Ok(Vec<InsightsBlock>)` - Blocks for insights
+    /// * `Err(RepositoryError)` - If the operation fails
+    async fn fetch_analytics_blocks_for_insights(
+        &self,
+        schedule_id: i64,
+    ) -> RepositoryResult<Vec<InsightsBlock>>;
 
     // ==================== Summary Analytics ====================
 
