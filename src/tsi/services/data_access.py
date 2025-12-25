@@ -41,6 +41,7 @@ import logging
 from typing import TYPE_CHECKING, Any, cast
 
 from tsi.exceptions import ServerError
+import tsi_rust as api
 
 if TYPE_CHECKING:
     from tsi_rust import (
@@ -111,7 +112,7 @@ def get_sky_map_data(schedule_id: int) -> SkyMapData:
         ServerError: If analytics data is not available
     """
     logger.debug(f"Fetching sky map data (ETL) for schedule_id={schedule_id}")
-    return cast("SkyMapData", _rust_call("get_sky_map_data", schedule_id))
+    return cast("SkyMapData", _rust_call(api.GET_SKY_MAP_DATA, schedule_id))
 
 
 # =============================================================================

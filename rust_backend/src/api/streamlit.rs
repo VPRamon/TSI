@@ -28,6 +28,9 @@ pub use crate::routes::landing::{LIST_SCHEDULES, POST_SCHEDULE};
 // Re-export validation route so it can be registered from routes module
 pub use crate::routes::validation::{get_validation_report};
 pub use crate::routes::validation::GET_VALIDATION_REPORT;
+// Re-export visualization route so it can be registered from routes module
+pub use crate::routes::skymap::{get_sky_map_data};
+pub use crate::routes::skymap::GET_SKY_MAP_DATA;
 
 /// Register all API functions with the Python module.
 ///
@@ -122,6 +125,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("LIST_SCHEDULES", crate::routes::landing::LIST_SCHEDULES)?;
     m.add("POST_SCHEDULE", crate::routes::landing::POST_SCHEDULE)?;
     m.add("GET_VALIDATION_REPORT", crate::routes::validation::GET_VALIDATION_REPORT)?;
+    m.add("GET_SKY_MAP_DATA", crate::routes::skymap::GET_SKY_MAP_DATA)?;
 
     Ok(())
 }
@@ -232,18 +236,7 @@ fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 // Visualization Data Queries
 // =========================================================
 
-/// Get sky map visualization data (ETL-based).
-///
-/// Args:
-///     schedule_id: Database ID of the schedule
-///
-/// Returns:
-///     SkyMapData with blocks and priority bins
-#[pyfunction]
-fn get_sky_map_data(schedule_id: i64) -> PyResult<api::SkyMapData> {
-    let data = crate::services::py_get_sky_map_data_analytics(schedule_id)?;
-    Ok(data)
-}
+// Sky map visualization provided by `routes::visualization`
 
 /// Get distribution visualization data (ETL-based).
 ///
