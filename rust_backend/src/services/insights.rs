@@ -312,49 +312,18 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
-    // Fetch lightweight blocks (has all needed fields) and convert to InsightsBlock
-    let lightweight_blocks = repo
-        .fetch_analytics_blocks_for_sky_map(schedule_id)
+    // Fetch insights-ready analytics blocks
+    let mut blocks = repo
+        .fetch_analytics_blocks_for_insights(schedule_id)
         .await
-        .map_err(|e| format!("Failed to fetch analytics blocks: {}", e))?;
+        .map_err(|e| format!("Failed to fetch insights blocks: {}", e))?;
 
-    if lightweight_blocks.is_empty() {
+    if blocks.is_empty() {
         return Err(format!(
             "No analytics data available for schedule_id={}. Run populate_schedule_analytics() first.",
             schedule_id
         ));
     }
-
-    // Convert LightweightBlock to InsightsBlock
-    let mut blocks: Vec<InsightsBlock> = lightweight_blocks
-        .into_iter()
-        .enumerate()
-        .map(|(idx, b)| {
-            let (scheduled_start_mjd, scheduled_stop_mjd, scheduled) = match &b.scheduled_period {
-                Some(period) => (
-                    Some(siderust::astro::ModifiedJulianDate::new(period.start)),
-                    Some(siderust::astro::ModifiedJulianDate::new(period.stop)),
-                    true,
-                ),
-                None => (None, None, false),
-            };
-
-            // Calculate elevation range as a proxy (using duration as a heuristic)
-            let elevation_range_deg = qtty::angular::Degrees::new((b.requested_duration_seconds / 3600.0) * 10.0);
-
-            InsightsBlock {
-                scheduling_block_id: idx as i64 + 1, // Sequential index for internal tracking
-                original_block_id: b.original_block_id,
-                priority: b.priority,
-                total_visibility_hours: qtty::time::Hours::new(b.requested_duration_seconds / 3600.0), // Use requested as proxy
-                requested_hours: qtty::time::Hours::new(b.requested_duration_seconds / 3600.0),
-                elevation_range_deg,
-                scheduled,
-                scheduled_start_mjd,
-                scheduled_stop_mjd,
-            }
-        })
-        .collect();
 
     // Filter out impossible blocks (zero visibility)
     // These are tracked in the validation results table

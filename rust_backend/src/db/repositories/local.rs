@@ -14,7 +14,7 @@ use crate::api::types::{
     VisibilityTimeMetadata,
 };
 use crate::db::{
-    models::{Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock},
+    models::{InsightsBlock, Period, Schedule, ScheduleInfo, ScheduleMetadata, SchedulingBlock},
     repository::*,
 };
 use crate::services::validation::ValidationResult;
@@ -464,6 +464,44 @@ impl AnalyticsRepository for LocalRepository {
                     requested_hours: requested_hours_f64,
                     elevation_range_deg,
                     scheduled: b.scheduled_period.is_some(),
+                }
+            })
+            .collect();
+
+        Ok(blocks)
+    }
+
+    async fn fetch_analytics_blocks_for_insights(
+        &self,
+        schedule_id: i64,
+    ) -> RepositoryResult<Vec<InsightsBlock>> {
+        let schedule = self.get_schedule_impl(schedule_id)?;
+
+        let blocks = schedule
+            .blocks
+            .iter()
+            .map(|b| {
+                let total_visibility_hours: f64 = b
+                    .visibility_periods
+                    .iter()
+                    .map(|p| p.duration().value() * 24.0)
+                    .sum();
+
+                InsightsBlock {
+                    scheduling_block_id: b.id.0,
+                    original_block_id: b
+                        .original_block_id
+                        .clone()
+                        .unwrap_or_else(|| b.id.0.to_string()),
+                    priority: b.priority,
+                    total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
+                    requested_hours: qtty::time::Hours::new(b.requested_duration.value() / 3600.0),
+                    elevation_range_deg: qtty::angular::Degrees::new(
+                        b.constraints.max_alt.value() - b.constraints.min_alt.value(),
+                    ),
+                    scheduled: b.scheduled_period.is_some(),
+                    scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start),
+                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop),
                 }
             })
             .collect();

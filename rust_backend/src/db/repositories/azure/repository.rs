@@ -11,7 +11,7 @@ use crate::api::types::{
     HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityBinData, VisibilityTimeMetadata,
 };
 use crate::db::{
-    models::{Period, Schedule, ScheduleInfo, ScheduleMetadata},
+    models::{InsightsBlock, Period, Schedule, ScheduleInfo, ScheduleMetadata},
     repository::*,
 };
 use crate::services::validation::ValidationResult;
@@ -168,6 +168,15 @@ impl AnalyticsRepository for AzureRepository {
         schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::api::DistributionBlock>> {
         analytics::fetch_analytics_blocks_for_distribution(schedule_id)
+            .await
+            .map_err(RepositoryError::from)
+    }
+
+    async fn fetch_analytics_blocks_for_insights(
+        &self,
+        schedule_id: i64,
+    ) -> RepositoryResult<Vec<InsightsBlock>> {
+        analytics::fetch_analytics_blocks_for_insights(schedule_id)
             .await
             .map_err(RepositoryError::from)
     }
