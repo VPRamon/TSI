@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use super::error::RepositoryResult;
 use crate::db::models::InsightsBlock;
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary, VisibilityTimeMetadata,
+    HeatmapBinData, PriorityRate, ScheduleSummary,
 };
 use crate::api::{DistributionBlock, LightweightBlock};
 
@@ -169,40 +169,5 @@ pub trait AnalyticsRepository: Send + Sync {
     /// * `Ok(usize)` - Number of rows deleted
     /// * `Err(RepositoryError)` - If the operation fails
     async fn delete_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<usize>;
-
-    // ==================== Visibility Time Bins ====================
-
-    /// Fetch visibility histogram data from analytics.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    /// * `start_unix` - Start time in Unix seconds
-    /// * `end_unix` - End time in Unix seconds
-    /// * `target_bin_duration_seconds` - Target bin duration
-    ///
-    /// # Returns
-    /// * `Ok(Vec<VisibilityBin>)` - Histogram bins
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_visibility_histogram_from_analytics(
-        &self,
-        schedule_id: i64,
-        start_unix: i64,
-        end_unix: i64,
-        target_bin_duration_seconds: i64,
-    ) -> RepositoryResult<Vec<crate::db::models::VisibilityBin>>;
-
-    /// Fetch visibility metadata (range, bins, etc.).
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(Some(VisibilityTimeMetadata))` - Metadata if available
-    /// * `Ok(None)` - If no metadata exists
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_visibility_metadata(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Option<VisibilityTimeMetadata>>;
 
 }
