@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary,
+    PriorityRate, ScheduleSummary,
 };
 use crate::db::{
     models::{InsightsBlock, Period, Schedule, ScheduleMetadata, SchedulingBlock},
@@ -55,7 +55,6 @@ struct LocalData {
     analytics_exists: HashMap<i64, bool>,
     summary_analytics: HashMap<i64, ScheduleSummary>,
     priority_rates: HashMap<i64, Vec<PriorityRate>>,
-    heatmap_bins: HashMap<i64, Vec<HeatmapBinData>>,
 
     // Validation data
     validation_results: HashMap<i64, crate::api_tmp::ValidationReport>,
@@ -535,14 +534,6 @@ impl AnalyticsRepository for LocalRepository {
         Ok(())
     }
 
-    async fn fetch_schedule_summary(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Option<ScheduleSummary>> {
-        let data = self.data.read().unwrap();
-        Ok(data.summary_analytics.get(&schedule_id).cloned())
-    }
-
     async fn fetch_priority_rates(
         &self,
         schedule_id: i64,
@@ -550,18 +541,6 @@ impl AnalyticsRepository for LocalRepository {
         let data = self.data.read().unwrap();
         Ok(data
             .priority_rates
-            .get(&schedule_id)
-            .cloned()
-            .unwrap_or_default())
-    }
-
-    async fn fetch_heatmap_bins(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<HeatmapBinData>> {
-        let data = self.data.read().unwrap();
-        Ok(data
-            .heatmap_bins
             .get(&schedule_id)
             .cloned()
             .unwrap_or_default())

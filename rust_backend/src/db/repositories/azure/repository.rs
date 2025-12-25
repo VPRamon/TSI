@@ -7,9 +7,7 @@
 use async_trait::async_trait;
 
 use super::{analytics, operations, validation};
-use crate::api::types::{
-    HeatmapBinData, PriorityRate, ScheduleSummary,
-};
+use crate::api::types::PriorityRate;
 use crate::db::{
     models::{InsightsBlock, Period, Schedule, ScheduleMetadata},
     repository::*,
@@ -191,29 +189,11 @@ impl AnalyticsRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn fetch_schedule_summary(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Option<ScheduleSummary>> {
-        analytics::fetch_schedule_summary(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
     async fn fetch_priority_rates(
         &self,
         schedule_id: i64,
     ) -> RepositoryResult<Vec<PriorityRate>> {
         analytics::fetch_priority_rates(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
-    async fn fetch_heatmap_bins(
-        &self,
-        schedule_id: i64,
-    ) -> RepositoryResult<Vec<HeatmapBinData>> {
-        analytics::fetch_heatmap_bins(schedule_id)
             .await
             .map_err(RepositoryError::from)
     }
