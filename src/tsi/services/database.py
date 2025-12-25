@@ -67,7 +67,7 @@ from tsi.exceptions import (
 )
 
 if TYPE_CHECKING:
-    from tsi_rust import SkyMapData, VisibilityMapData, ValidationReport, crate::api_tmp::ScheduleInfo
+    from tsi_rust import SkyMapData, VisibilityMapData, ValidationReport, ScheduleInfo
 import tsi_rust as api
 
 logger = logging.getLogger(__name__)
@@ -200,7 +200,7 @@ def store_schedule_db(
 
 
 @with_retry(max_attempts=3, backoff_factor=1.5)
-def list_schedules_db() -> list[crate::api_tmp::ScheduleInfo]:
+def list_schedules_db() -> list[ScheduleInfo]:
     """
     List available schedules using the Rust backend.
 

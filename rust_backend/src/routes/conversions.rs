@@ -10,11 +10,6 @@ use crate::db::models;
 // Core Schedule Types - Internal to API
 // =========================================================
 
-impl From<models::ScheduleId> for api::ScheduleId {
-    fn from(id: models::ScheduleId) -> Self {
-        api::ScheduleId(id.0)
-    }
-}
 
 impl From<models::TargetId> for api::TargetId {
     fn from(id: models::TargetId) -> Self {
@@ -31,12 +26,6 @@ impl From<models::ConstraintsId> for api::ConstraintsId {
 impl From<models::SchedulingBlockId> for api::SchedulingBlockId {
     fn from(id: models::SchedulingBlockId) -> Self {
         api::SchedulingBlockId(id.0)
-    }
-}
-
-impl From<api::ScheduleId> for models::ScheduleId {
-    fn from(id: api::ScheduleId) -> Self {
-        models::ScheduleId(id.0)
     }
 }
 
