@@ -186,7 +186,7 @@ def store_schedule_db(
     """
     try:
         result = _rust_call(
-            "store_schedule",
+            api.POST_SCHEDULE,
             schedule_name,
             schedule_json,
             visibility_json,
@@ -210,7 +210,7 @@ def list_schedules_db() -> list[ScheduleInfo]:
     Raises:
         ServerError: If query fails
     """
-    return _rust_call("list_schedules")
+    return _rust_call(api.LIST_SCHEDULES)
 
 def get_schedule_blocks(schedule_id: int) -> list[Any]:
     """Fetch scheduling block models via PyO3 bindings."""
