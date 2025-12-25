@@ -34,6 +34,9 @@ pub use crate::routes::skymap::GET_SKY_MAP_DATA;
 // Re-export visibility route and constant
 pub use crate::routes::visibility::{get_visibility_map_data};
 pub use crate::routes::visibility::GET_VISIBILITY_MAP_DATA;
+// Re-export distribution route and constant
+pub use crate::routes::distribution::{get_distribution_data};
+pub use crate::routes::distribution::GET_DISTRIBUTION_DATA;
 
 /// Register all API functions with the Python module.
 ///
@@ -128,6 +131,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("POST_SCHEDULE", crate::routes::landing::POST_SCHEDULE)?;
     m.add("GET_VALIDATION_REPORT", crate::routes::validation::GET_VALIDATION_REPORT)?;
     m.add("GET_SKY_MAP_DATA", crate::routes::skymap::GET_SKY_MAP_DATA)?;
+    m.add("GET_DISTRIBUTION_DATA", crate::routes::distribution::GET_DISTRIBUTION_DATA)?;
     m.add("GET_VISIBILITY_MAP_DATA", crate::routes::visibility::GET_VISIBILITY_MAP_DATA)?;
 
     Ok(())
@@ -242,17 +246,7 @@ fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 // Sky map visualization provided by `routes::visualization`
 
 /// Get distribution visualization data (ETL-based).
-///
-/// Args:
-///     schedule_id: Database ID of the schedule
-///
-/// Returns:
-///     DistributionData with blocks and statistics
-#[pyfunction]
-fn get_distribution_data(schedule_id: i64) -> PyResult<api::DistributionData> {
-    let data = crate::services::py_get_distribution_data_analytics(schedule_id)?;
-    Ok(data)
-}
+/// This is provided by `routes::distribution`.
 
 /// Get timeline visualization data.
 ///

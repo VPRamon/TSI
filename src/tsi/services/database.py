@@ -238,9 +238,8 @@ def get_sky_map_data(
     All processing (querying, bin computation, statistics) is done in Rust
     for maximum performance. The frontend just needs to plot the data.
     """
-    from tsi.services.data_access import get_sky_map_data as get_data
-
-    return get_data(schedule_id)
+    # Use Rust backend route for sky map data (consistent with other routes)
+    return _rust_call(api.GET_SKY_MAP_DATA, schedule_id)
 
 
 def get_visibility_map_data(
