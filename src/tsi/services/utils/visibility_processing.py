@@ -16,7 +16,7 @@ def get_all_block_ids(blocks: Sequence[Any]) -> list[str]:
     Returns:
         Sorted list of block IDs (as strings, which are the original IDs from JSON)
     """
-    return sorted({str(getattr(block, "scheduling_block_id")) for block in blocks})
+    return sorted(block.original_block_id for block in blocks)
 
 
 def compute_effective_priority_range(
@@ -61,8 +61,8 @@ def filter_visibility_blocks(
     allowed_ids = {str(bid) for bid in block_ids} if block_ids else None
 
     def _matches(block: Any) -> bool:
-        priority = float(getattr(block, "priority"))
-        block_id = str(getattr(block, "scheduling_block_id"))
+        priority = block.priority
+        block_id = block.original_block_id
         if priority < min_priority or priority > max_priority:
             return False
         if allowed_ids is not None and block_id not in allowed_ids:

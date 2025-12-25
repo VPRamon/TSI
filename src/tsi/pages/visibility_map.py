@@ -43,7 +43,7 @@ def render() -> None:
 
     # Calculate priority range and get block IDs
     priority_min, priority_max = visibility_data.priority_min, visibility_data.priority_max
-    all_block_ids = get_all_block_ids(visibility_data.blocks)
+    all_block_ids = sorted(block.original_block_id for block in visibility_data.blocks)
 
     # Sidebar controls
     with st.sidebar:
