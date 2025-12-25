@@ -59,23 +59,15 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(init_database, m)?)?;
     m.add_function(wrap_pyfunction!(db_health_check, m)?)?;
 
-    // Core schedule operations
-    m.add_function(wrap_pyfunction!(store_schedule, m)?)?;
-    m.add_function(wrap_pyfunction!(list_schedules, m)?)?;
+    // Core schedule operations (schedule list/store now registered by routes)
     m.add_function(wrap_pyfunction!(get_schedule, m)?)?;
 
     // Analytics ETL operations
     m.add_function(wrap_pyfunction!(populate_analytics, m)?)?;
     m.add_function(wrap_pyfunction!(has_analytics_data, m)?)?;
 
-    // Visualization data queries
-    m.add_function(wrap_pyfunction!(get_sky_map_data, m)?)?;
-    m.add_function(wrap_pyfunction!(get_distribution_data, m)?)?;
-    m.add_function(wrap_pyfunction!(get_schedule_timeline_data, m)?)?;
-    m.add_function(wrap_pyfunction!(get_insights_data, m)?)?;
-    m.add_function(wrap_pyfunction!(get_trends_data, m)?)?;
-    m.add_function(wrap_pyfunction!(get_compare_data, m)?)?;
-    m.add_function(wrap_pyfunction!(get_visibility_map_data, m)?)?;
+    // Route-specific functions, classes and constants are registered centrally by `routes`
+    crate::routes::register_route_functions(m)?;
 
     // Legacy visibility histogram functions (expected by Python services)
     m.add_function(wrap_pyfunction!(py_get_schedule_time_range, m)?)?;
@@ -102,28 +94,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<api::ScheduleInfo>()?;
     m.add_class::<api::LightweightBlock>()?;
     m.add_class::<api::PriorityBinInfo>()?;
-    m.add_class::<api::SkyMapData>()?;
-    m.add_class::<api::DistributionBlock>()?;
-    m.add_class::<api::DistributionStats>()?;
-    m.add_class::<api::DistributionData>()?;
-    m.add_class::<api::ScheduleTimelineBlock>()?;
-    m.add_class::<api::ScheduleTimelineData>()?;
-    m.add_class::<api::InsightsBlock>()?;
-    m.add_class::<api::AnalyticsMetrics>()?;
-    m.add_class::<api::CorrelationEntry>()?;
-    m.add_class::<api::ConflictRecord>()?;
-    m.add_class::<api::TopObservation>()?;
-    m.add_class::<api::InsightsData>()?;
-    m.add_class::<api::TrendsBlock>()?;
-    m.add_class::<api::EmpiricalRatePoint>()?;
-    m.add_class::<api::SmoothedPoint>()?;
-    m.add_class::<api::HeatmapBin>()?;
-    m.add_class::<api::TrendsMetrics>()?;
-    m.add_class::<api::TrendsData>()?;
-    m.add_class::<api::CompareBlock>()?;
-    m.add_class::<api::CompareStats>()?;
-    m.add_class::<api::SchedulingChange>()?;
-    m.add_class::<api::CompareData>()?;
     m.add_class::<api::ScheduleSummary>()?;
     m.add_class::<api::PriorityRate>()?;
     m.add_class::<api::VisibilityBin>()?;
@@ -137,18 +107,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<api::ValidationIssue>()?;
     m.add_class::<api::ValidationReport>()?;
     m.add_class::<api::SchedulingConflict>()?;
-
-    // Expose route name constants to Python to avoid stringly-typed calls
-    m.add("LIST_SCHEDULES", crate::routes::landing::LIST_SCHEDULES)?;
-    m.add("POST_SCHEDULE", crate::routes::landing::POST_SCHEDULE)?;
-    m.add("GET_VALIDATION_REPORT", crate::routes::validation::GET_VALIDATION_REPORT)?;
-    m.add("GET_SKY_MAP_DATA", crate::routes::skymap::GET_SKY_MAP_DATA)?;
-    m.add("GET_DISTRIBUTION_DATA", crate::routes::distribution::GET_DISTRIBUTION_DATA)?;
-    m.add("GET_SCHEDULE_TIMELINE_DATA", crate::routes::timeline::GET_SCHEDULE_TIMELINE_DATA)?;
-    m.add("GET_INSIGHTS_DATA", crate::routes::insights::GET_INSIGHTS_DATA)?;
-    m.add("GET_TRENDS_DATA", crate::routes::trends::GET_TRENDS_DATA)?;
-    m.add("GET_COMPARE_DATA", crate::routes::compare::GET_COMPARE_DATA)?;
-    m.add("GET_VISIBILITY_MAP_DATA", crate::routes::visibility::GET_VISIBILITY_MAP_DATA)?;
 
     Ok(())
 }
