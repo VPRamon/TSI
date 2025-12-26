@@ -98,8 +98,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 /// Register transformation functions for backwards compatibility with tsi_rust module.
 pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(py_filter_dataframe, m)?)?;
-    m.add_function(wrap_pyfunction!(py_filter_dataframe, m)?)?;
+    // `py_filter_dataframe` removed — transformation helpers live in Python now.
     m.add_function(wrap_pyfunction!(py_remove_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
     m.add_function(wrap_pyfunction!(py_validate_dataframe, m)?)?;
@@ -146,71 +145,8 @@ fn datetime_to_mjd(dt: Py<PyAny>) -> PyResult<f64> {
     })
 }
 
-/// Filter DataFrame with multiple filter criteria.
-#[pyfunction]
-#[pyo3(signature = (json_str, priority_min, priority_max, scheduled_filter, priority_bins=None, block_ids=None))]
-fn py_filter_dataframe(
-    json_str: String,
-    priority_min: f64,
-    priority_max: f64,
-    scheduled_filter: String,
-    priority_bins: Option<Vec<String>>,
-    block_ids: Option<Vec<String>>,
-) -> PyResult<String> {
-    let mut records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
-    })?;
-    
-    // Filter by priority range
-    records.retain(|record| {
-        if let Some(priority) = record.get("priority").and_then(|v| v.as_f64()) {
-            priority >= priority_min && priority <= priority_max
-        } else {
-            false
-        }
-    });
-    
-    // Filter by scheduled status
-    records = match scheduled_filter.as_str() {
-        "Scheduled" => records.into_iter().filter(|r| {
-            r.get("wasScheduled").and_then(|v| v.as_bool()).unwrap_or(false)
-        }).collect(),
-        "Unscheduled" => records.into_iter().filter(|r| {
-            !r.get("wasScheduled").and_then(|v| v.as_bool()).unwrap_or(false)
-        }).collect(),
-        _ => records,
-    };
-    
-    // Filter by priority bins
-    if let Some(bins) = priority_bins {
-        if !bins.is_empty() {
-            records.retain(|record| {
-                if let Some(bin) = record.get("priorityBin").and_then(|v| v.as_str()) {
-                    bins.contains(&bin.to_string())
-                } else {
-                    false
-                }
-            });
-        }
-    }
-    
-    // Filter by block IDs
-    if let Some(ids) = block_ids {
-        if !ids.is_empty() {
-            records.retain(|record| {
-                if let Some(id) = record.get("schedulingBlockId").and_then(|v| v.as_str()) {
-                    ids.contains(&id.to_string())
-                } else {
-                    false
-                }
-            });
-        }
-    }
-    
-    serde_json::to_string(&records).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
-    })
-}
+// `py_filter_dataframe` intentionally removed: filtering helpers are now
+// implemented in the Python layer (`src/tsi/backend/utils.py`).
 
 /// Remove duplicate rows from DataFrame.
 #[pyfunction]
