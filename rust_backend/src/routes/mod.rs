@@ -27,4 +27,3 @@ pub fn register_route_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 	Ok(())
 }
-
