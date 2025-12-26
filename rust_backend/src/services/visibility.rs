@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn test_compute_histogram_single_block() {
-        use crate::db::models::Period;
+        use crate::api::Period;
         use siderust::astro::ModifiedJulianDate;
 
         let block = BlockHistogramData {
@@ -205,7 +205,7 @@ mod tests {
 
     #[test]
     fn test_compute_histogram_priority_filter() {
-        use crate::db::models::Period;
+        use crate::api::Period;
         use siderust::astro::ModifiedJulianDate;
 
         let blocks = vec![
@@ -239,7 +239,7 @@ mod tests {
 
     #[test]
     fn test_compute_histogram_overlapping_periods() {
-        use crate::db::models::Period;
+        use crate::api::Period;
         use siderust::astro::ModifiedJulianDate;
 
         // Same block with multiple overlapping periods in same bin

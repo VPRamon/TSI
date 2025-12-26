@@ -62,16 +62,16 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Period {
     /// Start time in MJD
-    pub start: f64,
+    pub start: siderust::astro::ModifiedJulianDate,
     /// End time in MJD
-    pub stop: f64,
+    pub stop: siderust::astro::ModifiedJulianDate,
 }
 
 #[pymethods]
 impl Period {
     #[new]
     pub fn py_new(start: f64, stop: f64) -> Self {
-        Self { start, stop }
+        Self { start: siderust::astro::ModifiedJulianDate::new(start), stop: siderust::astro::ModifiedJulianDate::new(stop) }
     }
 
     #[staticmethod]
@@ -104,32 +104,32 @@ impl Period {
             let stop_mjd = to_mjd(&stop)?;
 
             Ok(Self {
-                start: start_mjd,
-                stop: stop_mjd,
+                start: siderust::astro::ModifiedJulianDate::new(start_mjd),
+                stop: siderust::astro::ModifiedJulianDate::new(stop_mjd),
             })
         })
     }
 
     #[getter]
     pub fn start_mjd(&self) -> f64 {
-        self.start
+        self.start.value()
     }
 
     #[getter]
     pub fn stop_mjd(&self) -> f64 {
-        self.stop
+        self.stop.value()
     }
 
     pub fn contains_mjd(&self, mjd: f64) -> bool {
-        let min_mjd = self.start.min(self.stop);
-        let max_mjd = self.start.max(self.stop);
+        let min_mjd = self.start.value().min(self.stop.value());
+        let max_mjd = self.start.value().max(self.stop.value());
         mjd >= min_mjd && mjd <= max_mjd
     }
 
     pub fn to_datetime<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
         // Convert MJD -> seconds since UNIX epoch then use Python's datetime
-        let s_secs = (self.start - 40587.0) * 86400.0;
-        let e_secs = (self.stop - 40587.0) * 86400.0;
+        let s_secs = (self.start.value() - 40587.0) * 86400.0;
+        let e_secs = (self.stop.value() - 40587.0) * 86400.0;
 
         let datetime_mod = py.import("datetime")?;
         let datetime_cls = datetime_mod.getattr("datetime")?;
@@ -142,6 +142,31 @@ impl Period {
     }
 }
 
+
+impl Period {
+    pub fn new(start: siderust::astro::ModifiedJulianDate, stop: siderust::astro::ModifiedJulianDate) -> Option<Self> {
+        if start.value() < stop.value() {
+            Some(Self { start, stop })
+        } else {
+            None
+        }
+    }
+
+    /// Length of the interval in days.
+    pub fn duration(&self) -> qtty::Days {
+        qtty::Days::new(self.stop.value() - self.start.value())
+    }
+
+    /// Check if a given MJD instant lies inside this interval (inclusive start, exclusive end).
+    pub fn contains(&self, t_mjd: siderust::astro::ModifiedJulianDate) -> bool {
+        self.start.value() <= t_mjd.value() && t_mjd.value() < self.stop.value()
+    }
+
+    /// Check if this interval overlaps with another.
+    pub fn overlaps(&self, other: &Self) -> bool {
+        self.start.value() < other.stop.value() && other.start.value() < self.stop.value()
+    }
+}
 
 /// Observing constraints for a scheduling block.
 #[pyclass(module = "tsi_rust_api", get_all)]

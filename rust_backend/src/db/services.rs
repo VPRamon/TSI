@@ -57,8 +57,9 @@
 
 use log::{info, warn};
 
-use super::models::{Period, Schedule, SchedulingBlock};
+use super::models::{Schedule, SchedulingBlock};
 use super::repository::{FullRepository, RepositoryResult};
+use crate::api::Period;
 // ==================== Health & Connection ====================
 
 /// Check if the database connection is healthy.

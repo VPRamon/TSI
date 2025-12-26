@@ -552,8 +552,8 @@ pub async fn fetch_analytics_blocks_for_sky_map(
 
         let scheduled_period = match (row.get::<f64, _>(6), row.get::<f64, _>(7)) {
             (Some(start_mjd), Some(stop_mjd)) => Some(crate::api::Period {
-                start: start_mjd,
-                stop: stop_mjd,
+                start: siderust::astro::ModifiedJulianDate::new(start_mjd),
+                stop: siderust::astro::ModifiedJulianDate::new(stop_mjd),
             }),
             _ => None,
         };

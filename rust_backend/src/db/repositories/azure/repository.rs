@@ -8,9 +8,10 @@ use async_trait::async_trait;
 
 use super::{analytics, operations, validation};
 use crate::db::{
-    models::{InsightsBlock, Period, Schedule},
+    models::{InsightsBlock, Schedule},
     repository::*,
 };
+use crate::api::Period;
 use crate::services::validation::ValidationResult;
 
 /// Azure SQL Server repository implementation.

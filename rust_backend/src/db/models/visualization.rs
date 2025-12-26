@@ -10,7 +10,6 @@
 
 use siderust::astro::ModifiedJulianDate;
 use qtty::*;
-use super::Period;
 
 /// Represents a single time bin in a visibility histogram.
 /// Used internally in Rust for efficient computation.
@@ -48,7 +47,7 @@ pub struct BlockHistogramData {
     /// Priority of the block
     pub priority: i32,
     /// Visibility periods for this block
-    pub visibility_periods: Option<Vec<Period>>,
+    pub visibility_periods: Option<Vec<crate::api::Period>>,
 }
 
 // =========================================================
