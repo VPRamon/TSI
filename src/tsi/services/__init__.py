@@ -51,7 +51,6 @@ from tsi.services.data_access import (
     get_visibility_map_data as get_visibility_map_data_etl,
 )
 from tsi.services.database import (
-    db_health_check,
     fetch_dark_periods_db,
     fetch_possible_periods_db,
     get_distribution_data,
@@ -113,7 +112,6 @@ from tsi_rust_api import load_dark_periods
 __all__ = [
     # Core Backend & Database (connection pooling handled automatically by Rust)
     "BACKEND",
-    "db_health_check",
     "store_schedule_db",
     "list_schedules_db",
     "fetch_dark_periods_db",

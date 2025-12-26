@@ -44,7 +44,6 @@ result = store_schedule_db(name, schedule_json, visibility_json)
 ```
 
 ## API Functions
-- `db_health_check()`: Verify database connectivity
 - `store_schedule_db()`: Store schedule data
 - `list_schedules_db()`: List all schedules
 - `get_sky_map_data()`, `get_distribution_data()`, etc.: Page-specific data aggregation
@@ -133,27 +132,6 @@ def _rust_call(method: str, *args: Any) -> Any:
 
 # Note: Connection pool initialization is handled automatically by the Rust backend
 # on first database operation. No explicit initialization is needed from Python.
-
-
-@with_retry(max_attempts=2, backoff_factor=1.5)
-def db_health_check() -> bool:
-    """
-    Check database connectivity.
-
-    Backend: Rust (tiberius)
-
-    Returns:
-        True if database is reachable, False otherwise
-
-    Raises:
-        ServerError: If health check fails with an error
-    """
-    try:
-        result = _rust_call("py_db_health_check")
-        logger.debug("Database health check passed")
-        return result  # type: ignore[no-any-return]
-    except Exception as e:
-        raise ServerError("Database health check failed", details={"error": str(e)}) from e
 
 
 @with_retry(max_attempts=3, backoff_factor=1.5)
@@ -809,7 +787,6 @@ def _compute_validation_report_fallback(schedule_id: int) -> dict[str, Any]:
 
 
 __all__ = [
-    "db_health_check",
     "store_schedule_db",
     "list_schedules_db",
     "fetch_dark_periods_db",
