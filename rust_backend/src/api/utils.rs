@@ -98,8 +98,8 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 /// Register transformation functions for backwards compatibility with tsi_rust module.
 pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // `py_filter_dataframe` removed — transformation helpers live in Python now.
-    m.add_function(wrap_pyfunction!(py_remove_duplicates, m)?)?;
+    // `py_filter_dataframe` and `py_remove_duplicates` removed — transformation
+    // helpers live in Python now (`src/tsi/backend/utils.py`).
     m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
     m.add_function(wrap_pyfunction!(py_validate_dataframe, m)?)?;
     m.add_function(wrap_pyfunction!(mjd_to_datetime, m)?)?;
@@ -148,80 +148,8 @@ fn datetime_to_mjd(dt: Py<PyAny>) -> PyResult<f64> {
 // `py_filter_dataframe` intentionally removed: filtering helpers are now
 // implemented in the Python layer (`src/tsi/backend/utils.py`).
 
-/// Remove duplicate rows from DataFrame.
-#[pyfunction]
-#[pyo3(signature = (json_str, subset=None, keep=None))]
-fn py_remove_duplicates(
-    json_str: String,
-    subset: Option<Vec<String>>,
-    keep: Option<String>,
-) -> PyResult<String> {
-    let keep = keep.unwrap_or_else(|| "first".to_string());
-    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
-    })?;
-    
-    let mut unique_records = Vec::new();
-    let mut seen_keys = std::collections::HashSet::new();
-    
-    for record in records.iter() {
-        // Generate key from subset columns or entire record
-        let key = if let Some(ref cols) = subset {
-            let mut key_parts = Vec::new();
-            for col in cols {
-                if let Some(val) = record.get(col) {
-                    key_parts.push(val.to_string());
-                }
-            }
-            key_parts.join("|")
-        } else {
-            record.to_string()
-        };
-        
-        match keep.as_str() {
-            "first" => {
-                if !seen_keys.contains(&key) {
-                    seen_keys.insert(key);
-                    unique_records.push(record.clone());
-                }
-            }
-            "last" => {
-                seen_keys.insert(key.clone());
-                unique_records.retain(|r| {
-                    let r_key = if let Some(ref cols) = subset {
-                        let mut key_parts = Vec::new();
-                        for col in cols {
-                            if let Some(val) = r.get(col) {
-                                key_parts.push(val.to_string());
-                            }
-                        }
-                        key_parts.join("|")
-                    } else {
-                        r.to_string()
-                    };
-                    r_key != key
-                });
-                unique_records.push(record.clone());
-            }
-            "none" => {
-                if !seen_keys.contains(&key) {
-                    seen_keys.insert(key);
-                    unique_records.push(record.clone());
-                }
-            }
-            _ => {
-                if !seen_keys.contains(&key) {
-                    seen_keys.insert(key);
-                    unique_records.push(record.clone());
-                }
-            }
-        }
-    }
-    
-    serde_json::to_string(&unique_records).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
-    })
-}
+// `py_remove_duplicates` intentionally removed: deduplication logic is handled
+// in the Python layer (`src/tsi/backend/utils.py`).
 
 /// Remove observations with missing RA or Dec coordinates.
 #[pyfunction]
