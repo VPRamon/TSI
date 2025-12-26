@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import pandas as pd
-import tsi_rust
+from datetime import datetime as _dt
 
 MJD_EPOCH = datetime(1858, 11, 17, tzinfo=timezone.utc)
 SECONDS_PER_DAY = 86400.0
@@ -31,8 +31,9 @@ class ModifiedJulianDate:
     value: float
 
     def to_datetime(self) -> datetime:
-        """Convert to a timezone-aware UTC datetime using Rust backend."""
-        return tsi_rust.mjd_to_datetime(self.value)  # type: ignore[no-any-return]
+        """Convert to a timezone-aware UTC datetime using Python implementation."""
+        secs = (self.value - 40587.0) * SECONDS_PER_DAY
+        return _dt.fromtimestamp(secs, timezone.utc)
 
     def to_timestamp(self) -> pd.Timestamp:
         """Convert to pandas Timestamp."""
@@ -42,7 +43,8 @@ class ModifiedJulianDate:
     def from_datetime(cls, dt: datetime) -> ModifiedJulianDate:
         """Create an MJD from a Python datetime using Rust backend."""
         dt_utc = _ensure_utc(dt)
-        mjd_value = tsi_rust.datetime_to_mjd(dt_utc)
+        timestamp = dt_utc.timestamp()
+        mjd_value = timestamp / SECONDS_PER_DAY + 40587.0
         return cls(mjd_value)
 
     @classmethod
@@ -59,15 +61,16 @@ class ModifiedJulianDate:
 
 
 def mjd_to_datetime(mjd: float) -> pd.Timestamp:
-    """Convert Modified Julian Date to a pandas Timestamp (UTC) using Rust backend."""
-    dt = tsi_rust.mjd_to_datetime(mjd)
-    return pd.Timestamp(dt)
+    """Convert Modified Julian Date to a pandas Timestamp (UTC)."""
+    secs = (mjd - 40587.0) * SECONDS_PER_DAY
+    return pd.Timestamp(_dt.fromtimestamp(secs, timezone.utc))
 
 
 def datetime_to_mjd(dt: datetime) -> float:
-    """Convert a timezone-aware datetime to Modified Julian Date using Rust backend."""
+    """Convert a timezone-aware datetime to Modified Julian Date."""
     dt_utc = _ensure_utc(dt)
-    return tsi_rust.datetime_to_mjd(dt_utc)  # type: ignore[no-any-return]
+    timestamp = dt_utc.timestamp()
+    return timestamp / SECONDS_PER_DAY + 40587.0
 
 
 def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
