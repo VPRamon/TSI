@@ -13,13 +13,13 @@
 //! 5. Return to Python with proper error handling
 
 use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+use pyo3::types::PyDict;
 use serde_json::Value;
 use tokio::runtime::Runtime;
 
 use crate::api::types as api;
 use crate::algorithms;
-use crate::db::repository::visualization::VisualizationRepository;
+// visualization repository types live in routes; not needed here
 use crate::db::services as db_services;
 // Re-export landing route functions so they can be registered with the Python module
 pub use crate::routes::landing::{list_schedules, store_schedule};
@@ -59,9 +59,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(init_database, m)?)?;
     m.add_function(wrap_pyfunction!(db_health_check, m)?)?;
 
-    // Core schedule operations (schedule list/store now registered by routes)
-    m.add_function(wrap_pyfunction!(get_schedule, m)?)?;
-
     // Analytics ETL operations
     m.add_function(wrap_pyfunction!(populate_analytics, m)?)?;
     m.add_function(wrap_pyfunction!(has_analytics_data, m)?)?;
@@ -69,9 +66,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Route-specific functions, classes and constants are registered centrally by `routes`
     crate::routes::register_route_functions(m)?;
 
-    // Legacy visibility histogram functions (expected by Python services)
-    m.add_function(wrap_pyfunction!(py_get_schedule_time_range, m)?)?;
-    m.add_function(wrap_pyfunction!(py_get_visibility_histogram, m)?)?;
+    // Legacy visibility functions are registered by `routes::visibility`
 
     // Algorithm operations
     m.add_function(wrap_pyfunction!(get_top_observations, m)?)?;
@@ -125,27 +120,6 @@ fn db_health_check() -> PyResult<bool> {
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
 }
 
-
-
-/// Get a specific schedule by ID.
-///
-/// Args:
-///     schedule_id: Database ID of the schedule
-///
-/// Returns:
-///     Schedule object with all blocks and periods
-#[pyfunction]
-fn get_schedule(_schedule_id: i64) -> PyResult<api::Schedule> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
-    })?;
-    let repo = crate::db::get_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    let schedule = runtime
-        .block_on(db_services::get_schedule(repo.as_ref(), _schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
-    Ok((&schedule).into())
-}
 
 // =========================================================
 // Analytics ETL Operations
@@ -214,107 +188,7 @@ fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 
 // Compare route is provided by routes::compare
 
-#[pyfunction]
-fn py_get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64)>> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
-    })?;
-    let repo = crate::db::get_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-
-    let time_range_period = runtime
-        .block_on(db_services::get_schedule_time_range(repo.as_ref(), schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
-
-    if let Some(period) = time_range_period {
-        const MJD_EPOCH_UNIX: i64 = -3506716800;
-        let start_unix = MJD_EPOCH_UNIX + (period.start.value() * 86400.0) as i64;
-        let end_unix = MJD_EPOCH_UNIX + (period.stop.value() * 86400.0) as i64;
-        Ok(Some((start_unix, end_unix)))
-    } else {
-        Ok(None)
-    }
-}
-
-#[pyfunction]
-#[allow(clippy::too_many_arguments)]
-fn py_get_visibility_histogram(
-    py: Python,
-    schedule_id: i64,
-    start_unix: i64,
-    end_unix: i64,
-    bin_duration_minutes: i64,
-    priority_min: Option<i32>,
-    priority_max: Option<i32>,
-    block_ids: Option<Vec<i64>>,
-) -> PyResult<Py<PyAny>> {
-    if start_unix >= end_unix {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "start_unix must be less than end_unix",
-        ));
-    }
-    if bin_duration_minutes <= 0 {
-        return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-            "bin_duration_minutes must be positive",
-        ));
-    }
-
-    let bin_duration_seconds = bin_duration_minutes * 60;
-
-    let bins = py.detach(|| -> PyResult<_> {
-        let repo = crate::db::get_repository()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-        let runtime = Runtime::new().map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Failed to create async runtime: {}",
-                e
-            ))
-        })?;
-
-        let blocks = runtime
-            .block_on(repo.fetch_blocks_for_histogram(
-                schedule_id,
-                priority_min,
-                priority_max,
-                block_ids,
-            ))
-            .map_err(|e| {
-                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                    "Failed to fetch blocks: {}",
-                    e
-                ))
-            })?;
-
-        crate::services::compute_visibility_histogram_rust(
-            blocks.into_iter(),
-            start_unix,
-            end_unix,
-            bin_duration_seconds,
-            priority_min,
-            priority_max,
-        )
-        .map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Failed to compute histogram: {}",
-                e
-            ))
-        })
-    })?;
-
-    let list = PyList::empty(py);
-    for bin in bins {
-        let dict = PyDict::new(py);
-        dict.set_item("bin_start_unix", bin.bin_start_unix)?;
-        dict.set_item("bin_end_unix", bin.bin_end_unix)?;
-        dict.set_item("count", bin.visible_count)?;
-        list.append(dict)?;
-    }
-
-    Ok(list.into())
-}
+// Visibility helper functions moved to `routes::visibility`.
 
 
 // =========================================================
