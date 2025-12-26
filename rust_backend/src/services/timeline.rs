@@ -17,11 +17,11 @@ use crate::db::get_repository;
 pub fn compute_schedule_timeline_data(
     blocks: Vec<ScheduleTimelineBlock>,
     dark_periods: Vec<Period>,
-) -> Result<crate::api::ScheduleTimelineData, String> {
+) -> Result<crate::api_tmp::ScheduleTimelineData, String> {
     let api_dark_periods: Vec<api::Period> = dark_periods.iter().map(|p| p.into()).collect();
 
     if blocks.is_empty() {
-        return Ok(crate::api::ScheduleTimelineData {
+        return Ok(crate::api_tmp::ScheduleTimelineData {
             blocks: vec![],
             priority_min: 0.0,
             priority_max: 10.0,
@@ -67,10 +67,10 @@ pub fn compute_schedule_timeline_data(
         priority_max = priority_min + 1.0;
     }
 
-    let api_blocks: Vec<api::ScheduleTimelineBlock> =
+    let api_blocks: Vec<crate::api_tmp::ScheduleTimelineBlock> =
         blocks.iter().map(|block| block.into()).collect();
 
-    Ok(crate::api::ScheduleTimelineData {
+    Ok(crate::api_tmp::ScheduleTimelineData {
         blocks: api_blocks,
         priority_min,
         priority_max,
@@ -86,7 +86,7 @@ pub fn compute_schedule_timeline_data(
 /// and computing the timeline data.
 ///
 /// Uses the analytics table for optimal performance when available.
-pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<crate::api::ScheduleTimelineData, String> {
+pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<crate::api_tmp::ScheduleTimelineData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
@@ -107,7 +107,7 @@ pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<crate::api::
 /// This is the main function for the schedule timeline feature, computing all statistics
 /// on the Rust side for maximum performance.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_schedule_timeline_data(schedule_id: i64) -> PyResult<api::ScheduleTimelineData> {
+pub fn py_get_schedule_timeline_data(schedule_id: i64) -> PyResult<crate::api_tmp::ScheduleTimelineData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",

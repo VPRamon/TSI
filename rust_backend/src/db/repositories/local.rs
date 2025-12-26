@@ -384,8 +384,8 @@ impl AnalyticsRepository for LocalRepository {
     async fn fetch_analytics_blocks_for_sky_map(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::api::LightweightBlock>> {
-        use crate::api::LightweightBlock;
+    ) -> RepositoryResult<Vec<crate::api_tmp::LightweightBlock>> {
+        use crate::api_tmp::LightweightBlock;
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 
@@ -419,8 +419,8 @@ impl AnalyticsRepository for LocalRepository {
     async fn fetch_analytics_blocks_for_distribution(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::api::DistributionBlock>> {
-        use crate::api::DistributionBlock;
+    ) -> RepositoryResult<Vec<crate::api_tmp::DistributionBlock>> {
+        use crate::api_tmp::DistributionBlock;
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 

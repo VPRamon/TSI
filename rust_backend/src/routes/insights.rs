@@ -1,7 +1,5 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-
-use crate::api::types as api;
 use crate::db::models;
 
 // =========================================================
@@ -93,7 +91,7 @@ pub const GET_INSIGHTS_DATA: &str = "get_insights_data";
 
 /// Get insights analysis data (wraps service call)
 #[pyfunction]
-pub fn get_insights_data(schedule_id: i64) -> PyResult<api::InsightsData> {
+pub fn get_insights_data(schedule_id: i64) -> PyResult<crate::api_tmp::InsightsData> {
     let data = crate::services::py_get_insights_data(schedule_id)?;
     Ok((&data).into())
 }
@@ -111,9 +109,9 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-impl From<&models::InsightsBlock> for api::InsightsBlock {
+impl From<&models::InsightsBlock> for crate::api_tmp::InsightsBlock {
     fn from(block: &models::InsightsBlock) -> Self {
-        api::InsightsBlock {
+        crate::api_tmp::InsightsBlock {
             scheduling_block_id: block.scheduling_block_id,
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,
@@ -127,9 +125,9 @@ impl From<&models::InsightsBlock> for api::InsightsBlock {
     }
 }
 
-impl From<&models::AnalyticsMetrics> for api::AnalyticsMetrics {
+impl From<&models::AnalyticsMetrics> for crate::api_tmp::AnalyticsMetrics {
     fn from(metrics: &models::AnalyticsMetrics) -> Self {
-        api::AnalyticsMetrics {
+        crate::api_tmp::AnalyticsMetrics {
             total_observations: metrics.total_observations,
             scheduled_count: metrics.scheduled_count,
             unscheduled_count: metrics.unscheduled_count,
@@ -144,9 +142,9 @@ impl From<&models::AnalyticsMetrics> for api::AnalyticsMetrics {
     }
 }
 
-impl From<&models::CorrelationEntry> for api::CorrelationEntry {
+impl From<&models::CorrelationEntry> for crate::api_tmp::CorrelationEntry {
     fn from(entry: &models::CorrelationEntry) -> Self {
-        api::CorrelationEntry {
+        crate::api_tmp::CorrelationEntry {
             variable1: entry.variable1.clone(),
             variable2: entry.variable2.clone(),
             correlation: entry.correlation,
@@ -154,9 +152,9 @@ impl From<&models::CorrelationEntry> for api::CorrelationEntry {
     }
 }
 
-impl From<&models::ConflictRecord> for api::ConflictRecord {
+impl From<&models::ConflictRecord> for crate::api_tmp::ConflictRecord {
     fn from(record: &models::ConflictRecord) -> Self {
-        api::ConflictRecord {
+        crate::api_tmp::ConflictRecord {
             block_id_1: record.block_id_1.clone(),
             block_id_2: record.block_id_2.clone(),
             start_time_1: record.start_time_1.value(),
@@ -168,9 +166,9 @@ impl From<&models::ConflictRecord> for api::ConflictRecord {
     }
 }
 
-impl From<&models::TopObservation> for api::TopObservation {
+impl From<&models::TopObservation> for crate::api_tmp::TopObservation {
     fn from(obs: &models::TopObservation) -> Self {
-        api::TopObservation {
+        crate::api_tmp::TopObservation {
             scheduling_block_id: obs.scheduling_block_id,
             original_block_id: obs.original_block_id.clone(),
             priority: obs.priority,
@@ -181,9 +179,9 @@ impl From<&models::TopObservation> for api::TopObservation {
     }
 }
 
-impl From<&models::InsightsData> for api::InsightsData {
+impl From<&models::InsightsData> for crate::api_tmp::InsightsData {
     fn from(data: &models::InsightsData) -> Self {
-        api::InsightsData {
+        crate::api_tmp::InsightsData {
             blocks: data.blocks.iter().map(|b| b.into()).collect(),
             metrics: (&data.metrics).into(),
             correlations: data.correlations.iter().map(|c| c.into()).collect(),

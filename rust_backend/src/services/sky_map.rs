@@ -2,7 +2,7 @@
 #![allow(clippy::redundant_closure)]
 #![allow(clippy::useless_vec)]
 
-use crate::api::{LightweightBlock, SkyMapData};
+use crate::api_tmp::{LightweightBlock, SkyMapData};
 use crate::db::repository::AnalyticsRepository;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
@@ -85,7 +85,7 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
 
         let label = format!("Bin {} [{:.1}-{:.1}]", i + 1, bin_min, bin_max);
 
-        priority_bins.push(crate::api::PriorityBinInfo {
+        priority_bins.push(crate::api_tmp::PriorityBinInfo {
             label,
             min_priority: bin_min,
             max_priority: bin_max,

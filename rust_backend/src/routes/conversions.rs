@@ -3,22 +3,18 @@
 //! This module contains conversions that are not owned by a single
 //! route and are therefore placed under `routes::conversions`.
 
-use crate::api::types as api;
-use crate::db::models;
-
-
-impl From<&models::Period> for api::Period {
-    fn from(period: &models::Period) -> Self {
-        api::Period {
+impl From<&crate::db::models::Period> for crate::api::Period {
+    fn from(period: &crate::db::models::Period) -> Self {
+        crate::api::Period {
             start: period.start.value(),
             stop: period.stop.value(),
         }
     }
 }
 
-impl From<&models::Constraints> for api::Constraints {
-    fn from(constraints: &models::Constraints) -> Self {
-        api::Constraints {
+impl From<&crate::db::models::Constraints> for crate::api::Constraints {
+    fn from(constraints: &crate::db::models::Constraints) -> Self {
+        crate::api::Constraints {
             min_alt: constraints.min_alt.value(),
             max_alt: constraints.max_alt.value(),
             min_az: constraints.min_az.value(),
@@ -28,9 +24,9 @@ impl From<&models::Constraints> for api::Constraints {
     }
 }
 
-impl From<&models::SchedulingBlock> for api::SchedulingBlock {
-    fn from(block: &models::SchedulingBlock) -> Self {
-        api::SchedulingBlock {
+impl From<&crate::db::models::SchedulingBlock> for crate::api::SchedulingBlock {
+    fn from(block: &crate::db::models::SchedulingBlock) -> Self {
+        crate::api::SchedulingBlock {
             id: block.id.0,
             original_block_id: block.original_block_id.clone(),
             target_ra: block.target_ra.value(),
@@ -45,9 +41,9 @@ impl From<&models::SchedulingBlock> for api::SchedulingBlock {
     }
 }
 
-impl From<&models::Schedule> for api::Schedule {
-    fn from(schedule: &models::Schedule) -> Self {
-        api::Schedule {
+impl From<&crate::db::models::Schedule> for crate::api::Schedule {
+    fn from(schedule: &crate::db::models::Schedule) -> Self {
+        crate::api::Schedule {
             id: schedule.id.map(|id| id.0),
             name: schedule.name.clone(),
             checksum: schedule.checksum.clone(),
@@ -57,21 +53,6 @@ impl From<&models::Schedule> for api::Schedule {
                 .map(|p| p.into())
                 .collect(),
             blocks: schedule.blocks.iter().map(|b| b.into()).collect(),
-        }
-    }
-}
-
-// LightweightBlock conversion (used by visualization code)
-impl From<&crate::api::LightweightBlock> for api::LightweightBlock {
-    fn from(block: &crate::api::LightweightBlock) -> Self {
-        api::LightweightBlock {
-            original_block_id: block.original_block_id.clone(),
-            priority: block.priority,
-            priority_bin: block.priority_bin.clone(),
-            requested_duration_seconds: block.requested_duration_seconds,
-            target_ra_deg: block.target_ra_deg,
-            target_dec_deg: block.target_dec_deg,
-            scheduled_period: block.scheduled_period.clone(),
         }
     }
 }
