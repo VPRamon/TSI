@@ -9,7 +9,6 @@ use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use crate::api::types::ScheduleSummary;
 use crate::db::{
     models::{InsightsBlock, Period, Schedule, ScheduleMetadata, SchedulingBlock},
     repository::*,
@@ -51,7 +50,6 @@ struct LocalData {
 
     // Analytics data
     analytics_exists: HashMap<i64, bool>,
-    summary_analytics: HashMap<i64, ScheduleSummary>,
 
     // Validation data
     validation_results: HashMap<i64, crate::api_tmp::ValidationReport>,
@@ -493,52 +491,6 @@ impl AnalyticsRepository for LocalRepository {
         Ok(blocks)
     }
 
-    async fn populate_summary_analytics(
-        &self,
-        schedule_id: i64,
-        _n_bins: usize,
-    ) -> RepositoryResult<()> {
-        self.get_schedule_impl(schedule_id)?;
-
-        let mut data = self.data.write().unwrap();
-
-        // Create dummy summary
-        let summary = ScheduleSummary {
-            schedule_id,
-            total_blocks: 100,
-            scheduled_blocks: 95,
-            unscheduled_blocks: 5,
-            impossible_blocks: 5,
-            scheduling_rate: 0.95,
-            priority_min: Some(0.0),
-            priority_max: Some(1.0),
-            priority_mean: Some(0.5),
-            priority_median: Some(0.5),
-            priority_scheduled_mean: Some(0.6),
-            priority_unscheduled_mean: Some(0.3),
-            visibility_total_hours: 500.0,
-            visibility_mean_hours: Some(5.0),
-            requested_total_hours: 250.0,
-            requested_mean_hours: Some(2.5),
-            scheduled_total_hours: 237.5,
-            corr_priority_visibility: Some(0.5),
-            corr_priority_requested: Some(0.3),
-            corr_visibility_requested: Some(0.7),
-            conflict_count: 10,
-        };
-
-        data.summary_analytics.insert(schedule_id, summary);
-        Ok(())
-    }
-
-    async fn has_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<bool> {
-        let data = self.data.read().unwrap();
-        Ok(data.summary_analytics.contains_key(&schedule_id))
-    }
-
-    async fn delete_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        Ok(self.delete_from_map(|d| &mut d.summary_analytics, schedule_id))
-    }
 }
 
 // ==================== Validation Repository ====================

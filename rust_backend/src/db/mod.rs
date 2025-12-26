@@ -80,7 +80,7 @@ pub use repository_manager::{get_repository, init_repository};
 pub use services::{
     ensure_analytics, fetch_dark_periods, fetch_possible_periods, get_blocks_for_schedule,
     get_schedule, get_schedule_time_range, get_scheduling_block, has_analytics_data,
-    has_summary_analytics, health_check, list_schedules, store_schedule,
+    health_check, list_schedules, store_schedule,
 };
 
 // ==================== Repository Pattern Exports ====================
@@ -104,7 +104,7 @@ pub use repository::{
 
 // Re-export Azure module functions and types for backward compatibility
 pub use repositories::azure::{
-    analytics, operations, pool, validation, ScheduleSummary,
+    analytics, operations, pool, validation,
 };
 
 // Phase 1: Block-level analytics (backward compatibility)
@@ -118,7 +118,6 @@ pub use repositories::azure::analytics::{
 // Phase 2: Summary analytics (backward compatibility)
 pub use repositories::azure::analytics::{
     delete_summary_analytics as delete_summary_analytics_legacy,
-    fetch_schedule_summary,
     has_summary_analytics as has_summary_analytics_legacy,
     populate_summary_analytics as populate_summary_analytics_legacy,
 };

@@ -178,28 +178,6 @@ impl AnalyticsRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn populate_summary_analytics(
-        &self,
-        schedule_id: i64,
-        n_bins: usize,
-    ) -> RepositoryResult<()> {
-        analytics::populate_summary_analytics(schedule_id, n_bins)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
-    async fn has_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<bool> {
-        analytics::has_summary_analytics(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
-    async fn delete_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
-        analytics::delete_summary_analytics(schedule_id)
-            .await
-            .map_err(RepositoryError::from)
-    }
-
 }
 
 // ==================== Validation Repository ====================

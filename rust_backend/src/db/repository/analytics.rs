@@ -95,41 +95,4 @@ pub trait AnalyticsRepository: Send + Sync {
         schedule_id: i64,
     ) -> RepositoryResult<Vec<InsightsBlock>>;
 
-    // ==================== Summary Analytics ====================
-
-    /// Populate summary analytics (aggregated statistics) for a schedule.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    /// * `n_bins` - Number of bins for histogram data
-    ///
-    /// # Returns
-    /// * `Ok(())` - If successful
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn populate_summary_analytics(
-        &self,
-        schedule_id: i64,
-        n_bins: usize,
-    ) -> RepositoryResult<()>;
-
-    /// Check if summary analytics exist for a schedule.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(bool)` - True if summary analytics exist
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn has_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<bool>;
-
-    /// Delete summary analytics for a schedule.
-    ///
-    /// # Arguments
-    /// * `schedule_id` - The ID of the schedule
-    ///
-    /// # Returns
-    /// * `Ok(usize)` - Number of rows deleted
-    /// * `Err(RepositoryError)` - If the operation fails
-    async fn delete_summary_analytics(&self, schedule_id: i64) -> RepositoryResult<usize>;
-
 }
