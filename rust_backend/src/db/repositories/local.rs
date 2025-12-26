@@ -5,12 +5,11 @@
 //! structures, providing fast, deterministic, and isolated execution.
 
 use async_trait::async_trait;
-use chrono::Utc;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use crate::db::{
-    models::{InsightsBlock, Period, Schedule, ScheduleMetadata, SchedulingBlock},
+    models::{InsightsBlock, Period, Schedule, SchedulingBlock},
     repository::*,
 };
 use crate::services::validation::ValidationResult;
@@ -44,7 +43,7 @@ pub struct LocalRepository {
 #[derive(Default)]
 struct LocalData {
     schedules: HashMap<i64, Schedule>,
-    schedule_metadata: HashMap<i64, ScheduleMetadata>,
+    schedule_metadata: HashMap<i64, crate::api::ScheduleInfo>,
     blocks: HashMap<i64, SchedulingBlock>,
     possible_periods: HashMap<i64, Vec<Period>>,
 
@@ -97,11 +96,9 @@ impl LocalRepository {
             data.blocks.insert(block_id, block.clone());
         }
 
-        let metadata = ScheduleMetadata {
-            schedule_id: Some(schedule_id),
+        let metadata = crate::api::ScheduleInfo {
+            schedule_id,
             schedule_name: schedule.name.clone(),
-            upload_timestamp: Utc::now(),
-            checksum: schedule.checksum.clone(),
         };
 
         data.schedule_metadata.insert(schedule_id, metadata);
@@ -190,7 +187,7 @@ impl ScheduleRepository for LocalRepository {
         Ok(data.is_healthy)
     }
 
-    async fn store_schedule(&self, schedule: &Schedule) -> RepositoryResult<ScheduleMetadata> {
+    async fn store_schedule(&self, schedule: &Schedule) -> RepositoryResult<crate::api::ScheduleInfo> {
         self.check_health()?;
 
         // Use the helper method to add the schedule
@@ -212,13 +209,8 @@ impl ScheduleRepository for LocalRepository {
 
         let mut schedules: Vec<crate::api::ScheduleInfo> = data
             .schedule_metadata
-            .iter()
-            .map(|(id, meta)| {
-                crate::api::ScheduleInfo {
-                    schedule_id: id.clone(),
-                    schedule_name: meta.schedule_name.clone(),
-                }
-            })
+            .values()
+            .cloned()
             .collect();
 
         schedules.sort_by_key(|s| s.schedule_id);

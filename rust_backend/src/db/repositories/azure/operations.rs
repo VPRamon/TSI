@@ -14,8 +14,7 @@ use tiberius::{numeric::Numeric, Query, Row};
 
 use super::pool;
 use crate::db::models::{
-    Constraints, Period, Schedule, ScheduleId, ScheduleMetadata, SchedulingBlock,
-    SchedulingBlockId,
+    Constraints, Period, Schedule, ScheduleId, SchedulingBlock, SchedulingBlockId,
 };
 type DbClient = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
 
@@ -127,14 +126,14 @@ impl<'a> ScheduleInserter<'a> {
         }
     }
 
-    async fn insert_schedule(&mut self, schedule: &Schedule) -> Result<ScheduleMetadata, String> {
+    async fn insert_schedule(&mut self, schedule: &Schedule) -> Result<crate::api::ScheduleInfo, String> {
         info!(
             "Uploading schedule '{}' ({} blocks, {} dark periods)",
             schedule.name,
             schedule.blocks.len(),
             schedule.dark_periods.len()
         );
-        let (schedule_id, upload_timestamp) = self.insert_schedule_row(schedule).await?;
+        let (schedule_id, _upload_timestamp) = self.insert_schedule_row(schedule).await?;
 
         // Batch process ALL scheduling blocks at once for maximum performance
         if !schedule.blocks.is_empty() {
@@ -146,11 +145,9 @@ impl<'a> ScheduleInserter<'a> {
             "Finished uploading schedule '{}' as id {}",
             schedule.name, schedule_id
         );
-        Ok(ScheduleMetadata {
-            schedule_id: Some(schedule_id),
+        Ok(crate::api::ScheduleInfo {
+            schedule_id,
             schedule_name: schedule.name.clone(),
-            upload_timestamp,
-            checksum: schedule.checksum.clone(),
         })
     }
 
@@ -742,7 +739,7 @@ pub async fn health_check() -> Result<bool, String> {
     Ok(true)
 }
 
-pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, String> {
+pub async fn store_schedule(schedule: &Schedule) -> Result<crate::api::ScheduleInfo, String> {
     info!(
         "Received request to store schedule '{}' (checksum {}, {} blocks)",
         schedule.name,
@@ -785,7 +782,6 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
         let upload_timestamp: DateTime<Utc> = row
             .get::<DateTime<Utc>, _>(2)
             .ok_or_else(|| "Existing upload_timestamp is NULL".to_string())?;
-        let checksum: String = row.get::<&str, _>(3).unwrap_or_default().to_string();
 
         info!(
             "Schedule '{}' already present as id {} (upload timestamp: {})",
@@ -796,13 +792,8 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
         // redundant computation. Analytics can be re-computed if needed using
         // separate API endpoints. This avoids slow duplicate uploads.
 
-        // Return metadata for the existing schedule
-        return Ok(ScheduleMetadata {
-            schedule_id: Some(schedule_id),
-            schedule_name,
-            upload_timestamp,
-            checksum,
-        });
+        // Return lightweight schedule listing for the existing schedule
+        return Ok(crate::api::ScheduleInfo { schedule_id, schedule_name });
     }
 
     //
@@ -820,19 +811,12 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
     // NOTE: Analytics population is now handled by the service layer
     // to allow flexible control over when and if analytics are computed.
     // This dramatically improves upload performance for large schedules.
-    if let Some(schedule_id) = metadata.schedule_id {
-        info!(
-            "✓ Successfully inserted schedule '{}' with id {} ({} blocks)",
-            schedule.name,
-            schedule_id,
-            schedule.blocks.len()
-        );
-    } else {
-        info!(
-            "✓ Successfully inserted schedule '{}' (id pending)",
-            schedule.name
-        );
-    }
+    info!(
+        "✓ Successfully inserted schedule '{}' with id {} ({} blocks)",
+        schedule.name,
+        metadata.schedule_id,
+        schedule.blocks.len()
+    );
     Ok(metadata)
 }
 
@@ -840,7 +824,7 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<ScheduleMetadata, Str
 async fn insert_full_schedule(
     conn: &mut DbClient,
     schedule: &Schedule,
-) -> Result<ScheduleMetadata, String> {
+) -> Result<crate::api::ScheduleInfo, String> {
     let mut inserter = ScheduleInserter::new(conn);
     inserter.insert_schedule(schedule).await
 }
@@ -867,15 +851,13 @@ pub async fn get_schedule(
         .map_err(|e| format!("Failed to get connection: {e}"))?;
 
     // 1. Fetch schedule metadata
-    let metadata = if let Some(id) = schedule_id {
+    let (metadata, checksum) = if let Some(id) = schedule_id {
         fetch_schedule_metadata_by_id(&mut *conn, id).await?
     } else {
         fetch_schedule_metadata_by_name(&mut *conn, schedule_name.unwrap()).await?
     };
 
-    let db_schedule_id = metadata
-        .schedule_id
-        .ok_or_else(|| "Schedule has no ID".to_string())?;
+    let db_schedule_id = metadata.schedule_id;
 
     // 2. Fetch dark periods
     let dark_periods = fetch_dark_periods(&mut *conn, db_schedule_id).await?;
@@ -894,7 +876,7 @@ pub async fn get_schedule(
     Ok(Schedule {
         id: Some(ScheduleId(db_schedule_id)),
         name: metadata.schedule_name,
-        checksum: metadata.checksum,
+        checksum,
         dark_periods,
         blocks,
     })
@@ -904,7 +886,7 @@ pub async fn get_schedule(
 async fn fetch_schedule_metadata_by_id(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
     schedule_id: i64,
-) -> Result<ScheduleMetadata, String> {
+) -> Result<(crate::api::ScheduleInfo, String), String> {
     let mut query = Query::new(
         r#"
         SELECT schedule_id, schedule_name, upload_timestamp, checksum
@@ -932,7 +914,7 @@ async fn fetch_schedule_metadata_by_id(
 async fn fetch_schedule_metadata_by_name(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
     schedule_name: &str,
-) -> Result<ScheduleMetadata, String> {
+) -> Result<(crate::api::ScheduleInfo, String), String> {
     let mut query = Query::new(
         r#"
         SELECT schedule_id, schedule_name, upload_timestamp, checksum
@@ -957,22 +939,14 @@ async fn fetch_schedule_metadata_by_name(
 }
 
 /// Parse a schedule metadata row.
-fn parse_schedule_metadata_row(row: Row) -> Result<ScheduleMetadata, String> {
+fn parse_schedule_metadata_row(row: Row) -> Result<(crate::api::ScheduleInfo, String), String> {
     let schedule_id: i64 = row
         .get::<i64, _>(0)
         .ok_or_else(|| "schedule_id is NULL".to_string())?;
     let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
-    let upload_timestamp: DateTime<Utc> = row
-        .get::<DateTime<Utc>, _>(2)
-        .ok_or_else(|| "upload_timestamp is NULL".to_string())?;
     let checksum: String = row.get::<&str, _>(3).unwrap_or_default().to_string();
 
-    Ok(ScheduleMetadata {
-        schedule_id: Some(schedule_id),
-        schedule_name,
-        upload_timestamp,
-        checksum,
-    })
+    Ok((crate::api::ScheduleInfo { schedule_id, schedule_name }, checksum))
 }
 
 /// Fetch dark periods for a schedule.

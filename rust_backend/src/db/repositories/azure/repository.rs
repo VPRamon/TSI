@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use super::{analytics, operations, validation};
 use crate::db::{
-    models::{InsightsBlock, Period, Schedule, ScheduleMetadata},
+    models::{InsightsBlock, Period, Schedule},
     repository::*,
 };
 use crate::services::validation::ValidationResult;
@@ -62,7 +62,8 @@ impl ScheduleRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn store_schedule(&self, schedule: &Schedule) -> RepositoryResult<ScheduleMetadata> {
+    async fn store_schedule(&self, schedule: &Schedule) -> RepositoryResult<crate::api::ScheduleInfo> {
+        // operations::store_schedule now returns a lightweight listing (ScheduleInfo)
         operations::store_schedule(schedule)
             .await
             .map_err(RepositoryError::from)

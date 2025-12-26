@@ -27,7 +27,7 @@ pub fn store_schedule(
 		.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 	let metadata = db_services::store_schedule_sync(&schedule, true)
 		.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-	Ok(metadata.schedule_id.unwrap())
+	Ok(metadata.schedule_id)
 }
 
 /// List all schedules in the database.

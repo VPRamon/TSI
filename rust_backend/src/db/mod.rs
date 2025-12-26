@@ -87,7 +87,7 @@ pub use services::{
 
 pub use checksum::calculate_checksum;
 pub use config::{DbAuthMethod, DbConfig};
-pub use models::ScheduleMetadata;
+// `ScheduleMetadata` removed; use `crate::api::ScheduleInfo` for lightweight listings.
 pub use repo_config::RepositoryConfig;
 
 // Repository trait and implementations
