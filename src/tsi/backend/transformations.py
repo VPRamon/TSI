@@ -19,6 +19,9 @@ if TYPE_CHECKING:
 # Import Rust module
 import tsi_rust
 
+# Local Python utils replacing small legacy Rust helpers
+from . import utils as _utils
+
 
 def _df_to_json(df: pd.DataFrame) -> str:
     """Convert pandas DataFrame to JSON string for Rust."""
@@ -52,7 +55,7 @@ def filter_by_priority(
         >>> high_priority = filter_by_priority(df, min_priority=15.0)
     """
     json_str = _df_to_json(df)
-    result_json: str = tsi_rust.py_filter_by_range(
+    result_json: str = _utils.py_filter_by_range(
         json_str, "priority", min_priority, max_priority
     )
     return _json_to_df(result_json)
@@ -79,7 +82,7 @@ def filter_by_scheduled(
         >>> print(f"Unscheduled: {len(unscheduled)}")
     """
     json_str = _df_to_json(df)
-    result_json: str = tsi_rust.py_filter_by_scheduled(json_str, filter_type)
+    result_json: str = _utils.py_filter_by_scheduled(json_str, filter_type)
     return _json_to_df(result_json)
 
 

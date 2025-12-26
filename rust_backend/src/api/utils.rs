@@ -68,11 +68,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Legacy visibility functions are registered by `routes::visibility`
 
-    // Algorithm operations
-    m.add_function(wrap_pyfunction!(get_top_observations, m)?)?;
-
-    // Validation
-    m.add_function(wrap_pyfunction!(get_validation_report, m)?)?;
 
     // Register all API classes
     m.add_class::<api::Period>()?;
@@ -165,59 +160,6 @@ fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
 }
 
 // =========================================================
-// Visualization Data Queries
-// =========================================================
-
-// Sky map visualization provided by `routes::visualization`
-
-/// Get distribution visualization data (ETL-based).
-/// This is provided by `routes::distribution`.
-
-/// Get timeline visualization data.
-///
-/// Args:
-///     schedule_id: Database ID of the schedule
-///
-/// Returns:
-///     ScheduleTimelineData with scheduled blocks
-/// Get timeline visualization data (provided by `routes::timeline`).
-
-/// Get insights analysis data (provided by `routes::insights`).
-
-// Trends route is provided by routes::trends
-
-// Compare route is provided by routes::compare
-
-// Visibility helper functions moved to `routes::visibility`.
-
-
-// =========================================================
-// Algorithm Operations
-// =========================================================
-
-
-/// Get top N observations by a specific criterion.
-///
-/// Args:
-///     schedule_json: JSON string of schedule data
-///     by: Criterion to sort by ("priority", "visibility", etc.)
-///     n: Number of top observations to return
-///
-/// Returns:
-///     List of TopObservation objects
-#[pyfunction]
-#[pyo3(signature = (schedule_json, by, n=10))]
-fn get_top_observations(schedule_json: String, by: String, n: usize) -> PyResult<String> {
-    let records: Vec<Value> = serde_json::from_str(&schedule_json).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
-    })?;
-    let top = algorithms::get_top_observations(&records, &by, n).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Top observations failed: {}", e))
-    })?;
-    serde_json::to_string(&top).map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e)))
-}
-
-// =========================================================
 // Validation Operations
 // =========================================================
 // Validation operations are provided by `routes::validation`
@@ -227,8 +169,7 @@ fn get_top_observations(schedule_json: String, by: String, n: usize) -> PyResult
 
 /// Register transformation functions for backwards compatibility with tsi_rust module.
 pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(py_filter_by_range, m)?)?;
-    m.add_function(wrap_pyfunction!(py_filter_by_scheduled, m)?)?;
+    m.add_function(wrap_pyfunction!(py_filter_dataframe, m)?)?;
     m.add_function(wrap_pyfunction!(py_filter_dataframe, m)?)?;
     m.add_function(wrap_pyfunction!(py_remove_duplicates, m)?)?;
     m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
@@ -239,58 +180,7 @@ pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()
     Ok(())
 }
 
-/// Filter DataFrame by numeric range on a column.
-#[pyfunction]
-#[pyo3(signature = (json_str, column, min_val, max_val))]
-fn py_filter_by_range(
-    json_str: String,
-    column: String,
-    min_val: f64,
-    max_val: f64,
-) -> PyResult<String> {
-    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
-    })?;
-    
-    let filtered: Vec<Value> = records
-        .into_iter()
-        .filter(|record| {
-            if let Some(val) = record.get(&column).and_then(|v| v.as_f64()) {
-                val >= min_val && val <= max_val
-            } else {
-                false
-            }
-        })
-        .collect();
-    
-    serde_json::to_string(&filtered).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
-    })
-}
 
-/// Filter DataFrame by scheduled status.
-#[pyfunction]
-#[pyo3(signature = (json_str, filter_type))]
-fn py_filter_by_scheduled(json_str: String, filter_type: String) -> PyResult<String> {
-    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
-    })?;
-    
-    let filtered: Vec<Value> = match filter_type.as_str() {
-        "All" => records,
-        "Scheduled" => records.into_iter().filter(|r| {
-            r.get("wasScheduled").and_then(|v| v.as_bool()).unwrap_or(false)
-        }).collect(),
-        "Unscheduled" => records.into_iter().filter(|r| {
-            !r.get("wasScheduled").and_then(|v| v.as_bool()).unwrap_or(false)
-        }).collect(),
-        _ => records,
-    };
-    
-    serde_json::to_string(&filtered).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
-    })
-}
 
 /// Convert Modified Julian Date to Python datetime (UTC).
 #[pyfunction]
