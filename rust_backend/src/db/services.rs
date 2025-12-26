@@ -159,23 +159,6 @@ pub async fn store_schedule_with_options<R: FullRepository>(
                     );
                 }
             }
-
-            // Phase 2: Summary analytics (FAST - 10 bins for histograms)
-            let start = std::time::Instant::now();
-            match repo.populate_summary_analytics(schedule_id, 10).await {
-                Ok(()) => {
-                    info!(
-                        "Service layer: ✓ Phase 2/3: Populated summary analytics in {:.2}s",
-                        start.elapsed().as_secs_f64()
-                    );
-                }
-                Err(e) => {
-                    warn!(
-                        "Service layer: failed to populate summary analytics for schedule_id={}: {}",
-                        schedule_id, e
-                    );
-                }
-            }
         }
     } else {
         info!("Service layer: Skipped analytics population (populate_analytics=false)");
@@ -324,7 +307,6 @@ pub async fn ensure_analytics<R: FullRepository>(
             schedule_id
         );
         repo.populate_schedule_analytics(schedule_id).await?;
-        repo.populate_summary_analytics(schedule_id, 10).await?;
     }
     Ok(())
 }
@@ -345,21 +327,6 @@ pub async fn has_analytics_data<R: FullRepository>(
     repo.has_analytics_data(schedule_id).await
 }
 
-/// Check if summary analytics exist for a schedule.
-///
-/// # Arguments
-/// * `repo` - Repository implementation
-/// * `schedule_id` - The ID of the schedule
-///
-/// # Returns
-/// * `Ok(bool)` - True if summary analytics exist
-/// * `Err` if query fails
-pub async fn has_summary_analytics<R: FullRepository>(
-    repo: &R,
-    schedule_id: i64,
-) -> RepositoryResult<bool> {
-    repo.has_summary_analytics(schedule_id).await
-}
 
 // =============================================================================
 // Schedule Parsing and Storage Helpers

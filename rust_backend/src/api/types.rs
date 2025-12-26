@@ -329,34 +329,3 @@ pub use crate::routes::trends::{
 pub use crate::routes::compare::{
     CompareBlock, CompareStats, SchedulingChange, CompareData,
 };
-
-// =========================================================
-// Phase 2 Analytics (Pre-computed Summary)
-// =========================================================
-
-/// Pre-computed schedule summary from ETL tables (from schedule_summary_analytics).
-#[pyclass(module = "tsi_rust_api", get_all)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ScheduleSummary {
-    pub schedule_id: i64,
-    pub total_blocks: i32,
-    pub scheduled_blocks: i32,
-    pub unscheduled_blocks: i32,
-    pub impossible_blocks: i32,
-    pub scheduling_rate: f64,
-    pub priority_min: Option<f64>,
-    pub priority_max: Option<f64>,
-    pub priority_mean: Option<f64>,
-    pub priority_median: Option<f64>,
-    pub priority_scheduled_mean: Option<f64>,
-    pub priority_unscheduled_mean: Option<f64>,
-    pub visibility_total_hours: f64,
-    pub visibility_mean_hours: Option<f64>,
-    pub requested_total_hours: f64,
-    pub requested_mean_hours: Option<f64>,
-    pub scheduled_total_hours: f64,
-    pub corr_priority_visibility: Option<f64>,
-    pub corr_priority_requested: Option<f64>,
-    pub corr_visibility_requested: Option<f64>,
-    pub conflict_count: i32,
-}

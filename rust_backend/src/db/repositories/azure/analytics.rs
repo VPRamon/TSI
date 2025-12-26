@@ -17,7 +17,6 @@ use log::{debug, info, warn};
 use tiberius::Query;
 
 use super::pool;
-use crate::api::types::ScheduleSummary;
 
 /// Populate the analytics table for a schedule.
 ///
@@ -1463,82 +1462,6 @@ async fn populate_heatmap_bins(
 
     debug!("Inserted heatmap bins for schedule_id={}", schedule_id);
     Ok(())
-}
-
-/// Fetch schedule summary from analytics table.
-pub async fn fetch_schedule_summary(schedule_id: i64) -> Result<Option<ScheduleSummary>, String> {
-    let pool = pool::get_pool()?;
-    let mut conn = pool
-        .get()
-        .await
-        .map_err(|e| format!("Failed to get connection: {e}"))?;
-
-    let sql = r#"
-        SELECT
-            schedule_id,
-            total_blocks,
-            scheduled_blocks,
-            unscheduled_blocks,
-            impossible_blocks,
-            scheduling_rate,
-            priority_min,
-            priority_max,
-            priority_mean,
-            priority_median,
-            priority_scheduled_mean,
-            priority_unscheduled_mean,
-            visibility_total_hours,
-            visibility_mean_hours,
-            requested_total_hours,
-            requested_mean_hours,
-            scheduled_total_hours,
-            corr_priority_visibility,
-            corr_priority_requested,
-            corr_visibility_requested,
-            conflict_count
-        FROM analytics.schedule_summary_analytics
-        WHERE schedule_id = @P1
-    "#;
-
-    let mut query = Query::new(sql);
-    query.bind(schedule_id);
-
-    let stream = query
-        .query(&mut *conn)
-        .await
-        .map_err(|e| format!("Failed to fetch schedule summary: {e}"))?;
-
-    let row = stream
-        .into_row()
-        .await
-        .map_err(|e| format!("Failed to read schedule summary: {e}"))?;
-
-    match row {
-        Some(r) => Ok(Some(ScheduleSummary {
-            schedule_id: r.get::<i64, _>(0).unwrap_or(0),
-            total_blocks: r.get::<i32, _>(1).unwrap_or(0),
-            scheduled_blocks: r.get::<i32, _>(2).unwrap_or(0),
-            unscheduled_blocks: r.get::<i32, _>(3).unwrap_or(0),
-            impossible_blocks: r.get::<i32, _>(4).unwrap_or(0),
-            scheduling_rate: r.get::<f64, _>(5).unwrap_or(0.0),
-            priority_min: r.get(6),
-            priority_max: r.get(7),
-            priority_mean: r.get(8),
-            priority_median: r.get(9),
-            priority_scheduled_mean: r.get(10),
-            priority_unscheduled_mean: r.get(11),
-            visibility_total_hours: r.get::<f64, _>(12).unwrap_or(0.0),
-            visibility_mean_hours: r.get(13),
-            requested_total_hours: r.get::<f64, _>(14).unwrap_or(0.0),
-            requested_mean_hours: r.get(15),
-            scheduled_total_hours: r.get::<f64, _>(16).unwrap_or(0.0),
-            corr_priority_visibility: r.get(17),
-            corr_priority_requested: r.get(18),
-            corr_visibility_requested: r.get(19),
-            conflict_count: r.get::<i32, _>(20).unwrap_or(0),
-        })),
-        None => Ok(None),
-    }
 }
 
 /// Check if summary analytics data exists for a schedule.
