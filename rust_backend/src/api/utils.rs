@@ -55,8 +55,7 @@ pub use crate::routes::compare::GET_COMPARE_DATA;
 /// This function is called from lib.rs to populate the tsi_rust_api module
 /// with all exported functions and classes.
 pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Database initialization
-    m.add_function(wrap_pyfunction!(init_database, m)?)?;
+    // Database initialization (initialization is now lazy; explicit init function removed)
 
     // Analytics ETL operations
     m.add_function(wrap_pyfunction!(populate_analytics, m)?)?;
@@ -82,20 +81,8 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 // Database Operations
 // =========================================================
 
-/// Initialize the database repository (local or Azure SQL).
-///
-/// This function must be called before any other database operations.
-/// It sets up the global repository singleton based on configuration.
-///
-/// Returns:
-///     Success message string
-#[pyfunction]
-fn init_database() -> PyResult<()> {
-    crate::db::init_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
-}
-
-
+// Repository initialization is handled lazily by `db::get_repository()`;
+// the older explicit `init_database` Python binding has been removed.
 
 
 // =========================================================

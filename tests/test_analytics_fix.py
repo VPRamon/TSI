@@ -14,14 +14,8 @@ import tsi_rust
 def test_analytics_population():
     """Test that analytics are populated after schedule upload."""
 
-    # Initialize database connection
-    print("Initializing database connection...")
-    try:
-        tsi_rust.py_init_database()
-        print("   ✓ Database connection initialized")
-    except Exception as e:
-        print(f"   ❌ Failed to initialize database: {e}")
-        return False
+    # No explicit database init required; Rust backend lazy-initializes repository
+    print("Rust backend module imported; repository will initialize on first use")
 
     # Read a test schedule
     schedule_path = "data/schedule.json"

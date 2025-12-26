@@ -67,6 +67,13 @@ pub fn init_repository() -> Result<()> {
 /// }
 /// ```
 pub fn get_repository() -> Result<&'static Arc<LocalRepository>> {
+    // Ensure repository is initialized lazily.
+    if REPOSITORY.get().is_none() {
+        // Best-effort initialize to local repository if not already done.
+        // This makes repository initialization transparent to callers.
+        let _ = init_repository();
+    }
+
     REPOSITORY
         .get()
         .context("Database not initialized. Call init_repository() first.")

@@ -27,28 +27,6 @@ KEY_COMPARISON_SCHEDULE = "comparison_schedule"
 KEY_DB_INITIALIZED = "db_initialized"
 
 
-def _initialize_database() -> None:
-    """Initialize the database connection (idempotent)."""
-    # Check if already initialized in this session
-    if st.session_state.get(KEY_DB_INITIALIZED, False):
-        return
-
-    try:
-        # Import and initialize the Rust backend database
-        # py_init_database is a module-level function, not a method on BACKEND
-        import tsi_rust
-
-        # This will initialize with local in-memory storage (no database config needed)
-        tsi_rust.init_database()
-
-        st.session_state[KEY_DB_INITIALIZED] = True
-        logger.info("Database initialized successfully with local storage")
-    except Exception as e:
-        # Log but don't fail - database features just won't work
-        logger.warning(f"Failed to initialize database: {e}")
-        st.session_state[KEY_DB_INITIALIZED] = False
-
-
 def initialize_state() -> None:
     """Initialize session state with default values."""
     if KEY_DATA_RAW not in st.session_state:
@@ -99,8 +77,6 @@ def initialize_state() -> None:
     if KEY_COMPARISON_SCHEDULE not in st.session_state:
         st.session_state[KEY_COMPARISON_SCHEDULE] = None
 
-    # Initialize database connection automatically
-    _initialize_database()
 
 
 def has_data() -> bool:
