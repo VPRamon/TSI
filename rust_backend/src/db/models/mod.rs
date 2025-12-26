@@ -20,6 +20,5 @@ pub use visualization::{
     TrendsBlock, TrendsData, TrendsMetrics, VisibilityBin,
 };
 pub use schedule::{
-    Constraints, ConstraintsId, Schedule, ScheduleId, SchedulingBlock, SchedulingBlockId,
-    TargetId,
+    Constraints, Schedule, SchedulingBlock,
 };
