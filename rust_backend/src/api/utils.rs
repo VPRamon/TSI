@@ -57,7 +57,6 @@ pub use crate::routes::compare::GET_COMPARE_DATA;
 pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Database initialization
     m.add_function(wrap_pyfunction!(init_database, m)?)?;
-    m.add_function(wrap_pyfunction!(db_health_check, m)?)?;
 
     // Analytics ETL operations
     m.add_function(wrap_pyfunction!(populate_analytics, m)?)?;
@@ -96,24 +95,7 @@ fn init_database() -> PyResult<()> {
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))
 }
 
-/// Check database health and connectivity.
-///
-/// Returns:
-///     Health status message
-#[pyfunction]
-fn db_health_check() -> PyResult<bool> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
-    })?;
-    let repo = crate::db::get_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    runtime
-        .block_on(db_services::health_check(repo.as_ref()))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
-}
+
 
 
 // =========================================================
