@@ -6,7 +6,8 @@
 use async_trait::async_trait;
 
 use super::error::RepositoryResult;
-use crate::db::models::{Period, Schedule, SchedulingBlock};
+use crate::db::models::{Schedule, SchedulingBlock};
+use crate::api::Period;
 /// Repository trait for core schedule database operations.
 ///
 /// This trait handles the basic CRUD (Create, Read, Update, Delete) operations

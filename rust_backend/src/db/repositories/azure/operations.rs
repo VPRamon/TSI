@@ -14,8 +14,9 @@ use tiberius::{numeric::Numeric, Query, Row};
 
 use super::pool;
 use crate::db::models::{
-    Constraints, Period, Schedule, ScheduleId, SchedulingBlock, SchedulingBlockId,
+    Constraints, Schedule, ScheduleId, SchedulingBlock, SchedulingBlockId,
 };
+use crate::api::Period;
 type DbClient = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
@@ -1534,8 +1535,8 @@ pub async fn fetch_lightweight_blocks(
         // Handle optional scheduled period
         let scheduled_period = match (row.get::<f64, _>(6), row.get::<f64, _>(7)) {
             (Some(start_mjd), Some(stop_mjd)) => Some(crate::api::Period {
-                start: start_mjd,
-                stop: stop_mjd,
+                start: siderust::astro::ModifiedJulianDate::new(start_mjd),
+                stop: siderust::astro::ModifiedJulianDate::new(stop_mjd),
             }),
             _ => None,
         };

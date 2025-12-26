@@ -2,11 +2,12 @@
 #![allow(clippy::len_zero)]
 
 use crate::api;
-use crate::db::models::{Period, ScheduleTimelineBlock};
+use crate::db::models::ScheduleTimelineBlock;
 use pyo3::prelude::*;
 use chrono::TimeZone;
 use std::collections::HashSet;
 use tokio::runtime::Runtime;
+use crate::api::Period;
 
 // Import the global repository accessor
 use crate::db::repository::VisualizationRepository;
@@ -18,7 +19,7 @@ pub fn compute_schedule_timeline_data(
     blocks: Vec<ScheduleTimelineBlock>,
     dark_periods: Vec<Period>,
 ) -> Result<crate::api::ScheduleTimelineData, String> {
-    let api_dark_periods: Vec<api::Period> = dark_periods.iter().map(|p| p.into()).collect();
+    let api_dark_periods: Vec<api::Period> = dark_periods.clone();
 
     if blocks.is_empty() {
         return Ok(crate::api::ScheduleTimelineData {

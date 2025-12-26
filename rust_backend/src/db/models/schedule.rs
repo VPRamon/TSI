@@ -15,7 +15,6 @@
 //! - ID types: Strongly-typed identifiers for database records
 
 use siderust::{
-    astro::ModifiedJulianDate,
     coordinates::spherical::direction::ICRS
 };
 
@@ -61,37 +60,7 @@ id_type!(
     "SchedulingBlockId"
 );
 
-/// Simple representation of a time window in Modified Julian Date.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Period {
-    pub start: ModifiedJulianDate,
-    pub stop: ModifiedJulianDate,
-}
 
-impl Period {
-    pub fn new(start: ModifiedJulianDate, stop: ModifiedJulianDate) -> Option<Self> {
-        if start.value() < stop.value() {
-            Some(Self { start, stop })
-        } else {
-            None
-        }
-    }
-
-    /// Length of the interval in days.
-    pub fn duration(&self) -> Days {
-        Days::new(self.stop.value() - self.start.value())
-    }
-
-    /// Check if a given MJD instant lies inside this interval (inclusive start, exclusive end).
-    pub fn contains(&self, t_mjd: ModifiedJulianDate) -> bool {
-        self.start.value() <= t_mjd.value() && t_mjd.value() < self.stop.value()
-    }
-
-    /// Check if this interval overlaps with another.
-    pub fn overlaps(&self, other: &Self) -> bool {
-        self.start.value() < other.stop.value() && other.start.value() < self.stop.value()
-    }
-}
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Constraints {
@@ -103,7 +72,7 @@ pub struct Constraints {
     pub min_az: Degrees,
     #[serde(with = "qtty::serde_f64")]
     pub max_az: Degrees,
-    pub fixed_time: Option<Period>,
+    pub fixed_time: Option<crate::api::Period>,
 }
 
 /// Atomic observing request (mirrors scheduling_blocks).
@@ -122,8 +91,8 @@ pub struct SchedulingBlock {
     #[serde(with = "qtty::serde_f64")]
     pub requested_duration: Seconds,
     #[serde(default)]
-    pub visibility_periods: Vec<Period>,
-    pub scheduled_period: Option<Period>,
+    pub visibility_periods: Vec<crate::api::Period>,
+    pub scheduled_period: Option<crate::api::Period>,
 }
 
 impl SchedulingBlock {
@@ -146,7 +115,7 @@ pub struct Schedule {
     #[serde(default)]
     pub checksum: String,
     #[serde(default)]
-    pub dark_periods: Vec<Period>,
+    pub dark_periods: Vec<crate::api::Period>,
     pub blocks: Vec<SchedulingBlock>,
 }
 
@@ -192,14 +161,14 @@ pub fn parse_schedule_json_str(
         if !trimmed.is_empty() {
             #[derive(serde::Deserialize)]
             struct BlocksWrapper {
-                blocks: HashMap<String, Vec<Period>>,
+                blocks: HashMap<String, Vec<crate::api::Period>>,
             }
 
             // Try wrapper form first, then try direct map form.
-            let maybe_map: Option<HashMap<String, Vec<Period>>> =
+            let maybe_map: Option<HashMap<String, Vec<crate::api::Period>>> =
                 match serde_json::from_str::<BlocksWrapper>(trimmed) {
                     Ok(wrapper) => Some(wrapper.blocks),
-                    Err(_) => match serde_json::from_str::<HashMap<String, Vec<Period>>>(trimmed) {
+                    Err(_) => match serde_json::from_str::<HashMap<String, Vec<crate::api::Period>>>(trimmed) {
                         Ok(m) => Some(m),
                         Err(_) => None,
                     },
@@ -223,12 +192,12 @@ pub fn parse_schedule_json_str(
 
         #[derive(serde::Deserialize)]
         struct DarkWrapper {
-            dark_periods: Vec<Period>,
+            dark_periods: Vec<crate::api::Period>,
         }
 
         if let Ok(wrapper) = serde_json::from_str::<DarkWrapper>(trimmed) {
             schedule.dark_periods = wrapper.dark_periods;
-        } else if let Ok(vec) = serde_json::from_str::<Vec<Period>>(trimmed) {
+        } else if let Ok(vec) = serde_json::from_str::<Vec<crate::api::Period>>(trimmed) {
             schedule.dark_periods = vec;
         }
     }

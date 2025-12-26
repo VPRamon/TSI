@@ -9,9 +9,10 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use crate::db::{
-    models::{InsightsBlock, Period, Schedule, SchedulingBlock},
+    models::{InsightsBlock, Schedule, SchedulingBlock},
     repository::*,
 };
+use crate::api::Period;
 use crate::services::validation::ValidationResult;
 use siderust::astro::ModifiedJulianDate;
 
@@ -400,7 +401,7 @@ impl AnalyticsRepository for LocalRepository {
                     requested_duration_seconds: b.requested_duration.value(),
                     target_ra_deg: b.target_ra.value(),
                     target_dec_deg: b.target_dec.value(),
-                    scheduled_period: b.scheduled_period.as_ref().map(|p| p.into()),
+                    scheduled_period: b.scheduled_period.as_ref().map(|p| p.clone()),
                 }
             })
             .collect();
