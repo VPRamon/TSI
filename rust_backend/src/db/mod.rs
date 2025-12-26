@@ -98,35 +98,13 @@ pub use repository::{
     ValidationRepository, VisualizationRepository,
 };
 
-// ==================== Backward Compatibility (Legacy) ====================
-// These exports are for backward compatibility with existing code.
-// New code should use the service layer functions above.
+// ==================== Backward Compatibility ====================
+// These exports are kept for existing code paths that still depend on
+// the Azure-specific modules.
 
-// Re-export Azure module functions and types for backward compatibility
+// Re-export Azure module functions and types for compatibility
 pub use repositories::azure::{
     analytics, operations, pool, validation,
-};
-
-// Phase 1: Block-level analytics (backward compatibility)
-pub use repositories::azure::analytics::{
-    delete_schedule_analytics as delete_schedule_analytics_legacy,
-    fetch_analytics_blocks_for_distribution, fetch_analytics_blocks_for_sky_map,
-    has_analytics_data as has_analytics_data_legacy,
-    populate_schedule_analytics as populate_schedule_analytics_legacy,
-};
-
-// Phase 2: Summary analytics (backward compatibility)
-pub use repositories::azure::analytics::{
-    delete_summary_analytics as delete_summary_analytics_legacy,
-    has_summary_analytics as has_summary_analytics_legacy,
-    populate_summary_analytics as populate_summary_analytics_legacy,
-};
-
-// Phase 3: Visibility time bins (backward compatibility)
-pub use repositories::azure::analytics::{
-    delete_visibility_time_bins as delete_visibility_time_bins_legacy,
-    has_visibility_time_bins as has_visibility_time_bins_legacy,
-    populate_visibility_time_bins as populate_visibility_time_bins_legacy,
 };
 
 // Validation
