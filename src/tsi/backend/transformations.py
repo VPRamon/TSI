@@ -122,7 +122,7 @@ def filter_dataframe(
         ... )
     """
     json_str = _df_to_json(df)
-    result_json: str = tsi_rust.py_filter_dataframe(
+    result_json: str = _utils.py_filter_dataframe(
         json_str, priority_min, priority_max, scheduled_filter, priority_bins, block_ids
     )
     return _json_to_df(result_json)
@@ -150,7 +150,7 @@ def remove_duplicates(
         >>> clean_df = remove_duplicates(df, subset=["schedulingBlockId"])
     """
     json_str = _df_to_json(df)
-    result_json: str = tsi_rust.py_remove_duplicates(json_str, subset, keep)
+    result_json: str = _utils.py_remove_duplicates(json_str, subset, keep)
     return _json_to_df(result_json)
 
 
@@ -172,7 +172,7 @@ def remove_missing_coordinates(
         >>> valid_coords = remove_missing_coordinates(df)
     """
     json_str = _df_to_json(df)
-    result_json: str = tsi_rust.py_remove_missing_coordinates(json_str)
+    result_json: str = _utils.py_remove_missing_coordinates(json_str)
     return _json_to_df(result_json)
 
 
@@ -193,7 +193,7 @@ def validate_dataframe(df: pd.DataFrame) -> tuple[bool, list[str]]:
         ...         print(f"Warning: {issue}")
     """
     json_str = _df_to_json(df)
-    return cast(tuple[bool, list[str]], tsi_rust.py_validate_dataframe(json_str))
+    return cast(tuple[bool, list[str]], _utils.py_validate_dataframe(json_str))
 
 
 # ===== Time Conversions =====

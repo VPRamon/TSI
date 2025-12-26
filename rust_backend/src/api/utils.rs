@@ -98,10 +98,8 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 /// Register transformation functions for backwards compatibility with tsi_rust module.
 pub fn register_transformation_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // `py_filter_dataframe` and `py_remove_duplicates` removed — transformation
-    // helpers live in Python now (`src/tsi/backend/utils.py`).
-    m.add_function(wrap_pyfunction!(py_remove_missing_coordinates, m)?)?;
-    m.add_function(wrap_pyfunction!(py_validate_dataframe, m)?)?;
+    // Transformation helpers (filtering, deduplication, validation, coordinate
+    // cleaning) have been moved to the Python layer (`src/tsi/backend/utils.py`).
     m.add_function(wrap_pyfunction!(mjd_to_datetime, m)?)?;
     m.add_function(wrap_pyfunction!(datetime_to_mjd, m)?)?;
     m.add_function(wrap_pyfunction!(parse_visibility_periods, m)?)?;
@@ -151,63 +149,8 @@ fn datetime_to_mjd(dt: Py<PyAny>) -> PyResult<f64> {
 // `py_remove_duplicates` intentionally removed: deduplication logic is handled
 // in the Python layer (`src/tsi/backend/utils.py`).
 
-/// Remove observations with missing RA or Dec coordinates.
-#[pyfunction]
-fn py_remove_missing_coordinates(json_str: String) -> PyResult<String> {
-    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
-    })?;
-    
-    let filtered: Vec<Value> = records
-        .into_iter()
-        .filter(|record| {
-            let has_ra = record.get("raDeg").and_then(|v| v.as_f64()).is_some();
-            let has_dec = record.get("decDeg").and_then(|v| v.as_f64()).is_some();
-            has_ra && has_dec
-        })
-        .collect();
-    
-    serde_json::to_string(&filtered).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Serialization failed: {}", e))
-    })
-}
-
-/// Validate DataFrame data quality.
-#[pyfunction]
-fn py_validate_dataframe(json_str: String) -> PyResult<(bool, Vec<String>)> {
-    let records: Vec<Value> = serde_json::from_str(&json_str).map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyValueError, _>(format!("Failed to parse JSON: {}", e))
-    })?;
-    
-    let mut issues = Vec::new();
-    
-    // Check for missing coordinates
-    let missing_coords = records.iter().filter(|r| {
-        let has_ra = r.get("raDeg").and_then(|v| v.as_f64()).is_some();
-        let has_dec = r.get("decDeg").and_then(|v| v.as_f64()).is_some();
-        !has_ra || !has_dec
-    }).count();
-    
-    if missing_coords > 0 {
-        issues.push(format!("{} observations with missing coordinates", missing_coords));
-    }
-    
-    // Check for invalid priorities
-    let invalid_priorities = records.iter().filter(|r| {
-        if let Some(p) = r.get("priority").and_then(|v| v.as_f64()) {
-            p < 0.0 || p > 100.0
-        } else {
-            true
-        }
-    }).count();
-    
-    if invalid_priorities > 0 {
-        issues.push(format!("{} observations with invalid priorities", invalid_priorities));
-    }
-    
-    let is_valid = issues.is_empty();
-    Ok((is_valid, issues))
-}
+// `py_remove_missing_coordinates` and `py_validate_dataframe` removed — their
+// functionality is provided in Python (`src/tsi/backend/utils.py`).
 
 /// Parse visibility periods from list of dicts to datetime tuples.
 #[pyfunction]
