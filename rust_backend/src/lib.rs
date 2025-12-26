@@ -69,6 +69,8 @@ pub mod transformations;
 
 pub mod api_tmp {
     pub use crate::routes::landing::ScheduleInfo;
+    pub use crate::routes::skymap::PriorityBinInfo;
+    pub use crate::routes::skymap::LightweightBlock;
     pub use crate::routes::skymap::SkyMapData;
     pub use crate::routes::visibility::VisibilityBlockSummary;
     pub use crate::routes::visibility::VisibilityMapData;

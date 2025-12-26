@@ -1,14 +1,36 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::api::types as api;
+
+/// Priority bin information for sky map.
+#[pyclass(module = "tsi_rust_api", get_all)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PriorityBinInfo {
+    pub label: String,
+    pub min_priority: f64,
+    pub max_priority: f64,
+    pub color: String,
+}
+
+/// Minimal block data for visualization queries.
+#[pyclass(module = "tsi_rust_api", get_all)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LightweightBlock {
+    pub original_block_id: String, // Original ID from JSON (shown to user)
+    pub priority: f64,
+    pub priority_bin: String,
+    pub requested_duration_seconds: f64,
+    pub target_ra_deg: f64,
+    pub target_dec_deg: f64,
+    pub scheduled_period: Option<crate::api::Period>,
+}
 
 /// Sky map visualization data.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkyMapData {
-    pub blocks: Vec<crate::api::LightweightBlock>,
-    pub priority_bins: Vec<crate::api::PriorityBinInfo>,
+    pub blocks: Vec<LightweightBlock>,
+    pub priority_bins: Vec<crate::api_tmp::PriorityBinInfo>,
     pub priority_min: f64,
     pub priority_max: f64,
     pub ra_min: f64,
@@ -26,7 +48,7 @@ pub const GET_SKY_MAP_DATA: &str = "get_sky_map_data";
 
 /// Get sky map visualization data (ETL-based).
 #[pyfunction]
-pub fn get_sky_map_data(schedule_id: i64) -> PyResult<api::SkyMapData> {
+pub fn get_sky_map_data(schedule_id: i64) -> PyResult<crate::api_tmp::SkyMapData> {
     let data = crate::services::py_get_sky_map_data_analytics(schedule_id)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     Ok(data)
@@ -35,6 +57,8 @@ pub fn get_sky_map_data(schedule_id: i64) -> PyResult<api::SkyMapData> {
 /// Register skymap functions, classes and constants with Python module.
 pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_sky_map_data, m)?)?;
+    m.add_class::<PriorityBinInfo>()?;
+    m.add_class::<LightweightBlock>()?;
     m.add_class::<SkyMapData>()?;
     m.add("GET_SKY_MAP_DATA", GET_SKY_MAP_DATA)?;
     Ok(())

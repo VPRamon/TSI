@@ -489,9 +489,7 @@ async fn bulk_insert_analytics(
 /// This replaces the join-based fetch_lightweight_blocks function.
 pub async fn fetch_analytics_blocks_for_sky_map(
     schedule_id: i64,
-) -> Result<Vec<crate::api::LightweightBlock>, String> {
-    use crate::api::LightweightBlock;
-
+) -> Result<Vec<crate::api_tmp::LightweightBlock>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -560,7 +558,7 @@ pub async fn fetch_analytics_blocks_for_sky_map(
             _ => None,
         };
 
-        blocks.push(LightweightBlock {
+        blocks.push(crate::api_tmp::LightweightBlock {
             original_block_id,
             priority,
             priority_bin: String::new(), // Will be computed by service layer
@@ -578,8 +576,8 @@ pub async fn fetch_analytics_blocks_for_sky_map(
 /// This replaces the join-based fetch_distribution_blocks function.
 pub async fn fetch_analytics_blocks_for_distribution(
     schedule_id: i64,
-) -> Result<Vec<crate::api::DistributionBlock>, String> {
-    use crate::api::DistributionBlock;
+) -> Result<Vec<crate::api_tmp::DistributionBlock>, String> {
+    use crate::api_tmp::DistributionBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool

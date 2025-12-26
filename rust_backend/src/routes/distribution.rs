@@ -1,8 +1,6 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::api::types as api;
-
 // =========================================================
 // Distribution types + route
 // =========================================================
@@ -50,7 +48,7 @@ pub const GET_DISTRIBUTION_DATA: &str = "get_distribution_data";
 
 /// Get distribution visualization data (wraps service call)
 #[pyfunction]
-pub fn get_distribution_data(schedule_id: i64) -> PyResult<api::DistributionData> {
+pub fn get_distribution_data(schedule_id: i64) -> PyResult<crate::api_tmp::DistributionData> {
     let data = crate::services::py_get_distribution_data_analytics(schedule_id)?;
     Ok(data)
 }

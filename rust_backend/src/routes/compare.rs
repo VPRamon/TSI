@@ -1,8 +1,6 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use crate::api::types as api;
-use crate::db::models;
 
 // =========================================================
 // Compare types + route
@@ -59,7 +57,7 @@ pub fn get_compare_data(
     comparison_schedule_id: i64,
     current_name: Option<String>,
     comparison_name: Option<String>,
-) -> PyResult<api::CompareData> {
+) -> PyResult<crate::api_tmp::CompareData> {
     let current_name = current_name.unwrap_or_else(|| "Schedule A".to_string());
     let comparison_name = comparison_name.unwrap_or_else(|| "Schedule B".to_string());
 
@@ -83,9 +81,9 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-impl From<&models::CompareBlock> for api::CompareBlock {
-    fn from(block: &models::CompareBlock) -> Self {
-        api::CompareBlock {
+impl From<&crate::db::models::CompareBlock> for crate::api_tmp::CompareBlock {
+    fn from(block: &crate::db::models::CompareBlock) -> Self {
+        crate::api_tmp::CompareBlock {
             scheduling_block_id: block.scheduling_block_id.clone(),
             priority: block.priority,
             scheduled: block.scheduled,
@@ -94,9 +92,9 @@ impl From<&models::CompareBlock> for api::CompareBlock {
     }
 }
 
-impl From<&models::CompareStats> for api::CompareStats {
-    fn from(stats: &models::CompareStats) -> Self {
-        api::CompareStats {
+impl From<&crate::db::models::CompareStats> for crate::api_tmp::CompareStats {
+    fn from(stats: &crate::db::models::CompareStats) -> Self {
+        crate::api_tmp::CompareStats {
             scheduled_count: stats.scheduled_count,
             unscheduled_count: stats.unscheduled_count,
             total_priority: stats.total_priority,
@@ -107,9 +105,9 @@ impl From<&models::CompareStats> for api::CompareStats {
     }
 }
 
-impl From<&models::SchedulingChange> for api::SchedulingChange {
-    fn from(change: &models::SchedulingChange) -> Self {
-        api::SchedulingChange {
+impl From<&crate::db::models::SchedulingChange> for crate::api_tmp::SchedulingChange {
+    fn from(change: &crate::db::models::SchedulingChange) -> Self {
+        crate::api_tmp::SchedulingChange {
             scheduling_block_id: change.scheduling_block_id.clone(),
             priority: change.priority,
             change_type: change.change_type.clone(),
@@ -117,9 +115,9 @@ impl From<&models::SchedulingChange> for api::SchedulingChange {
     }
 }
 
-impl From<&models::CompareData> for api::CompareData {
-    fn from(data: &models::CompareData) -> Self {
-        api::CompareData {
+impl From<&crate::db::models::CompareData> for crate::api_tmp::CompareData {
+    fn from(data: &crate::db::models::CompareData) -> Self {
+        crate::api_tmp::CompareData {
             current_blocks: data.current_blocks.iter().map(|b| b.into()).collect(),
             comparison_blocks: data.comparison_blocks.iter().map(|b| b.into()).collect(),
             current_stats: (&data.current_stats).into(),

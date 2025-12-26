@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use super::error::RepositoryResult;
 use crate::db::models::InsightsBlock;
-use crate::api::{DistributionBlock, LightweightBlock};
+use crate::api_tmp::{DistributionBlock, LightweightBlock};
 
 /// Repository trait for analytics operations.
 ///
