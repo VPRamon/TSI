@@ -20,45 +20,8 @@ use siderust::{
 
 use qtty::*;
 
-macro_rules! id_type {
-    ($(#[$meta:meta])* $name:ident, $desc:literal) => {
-        $(#[$meta])*
-        #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-        #[serde(transparent)]
-        pub struct $name(pub i64);
-
-        impl $name {
-            pub fn new(value: i64) -> Self {
-                Self(value)
-            }
-
-            pub fn value(&self) -> i64 {
-                self.0
-            }
-        }
-    };
-}
-
-id_type!(
-    /// Strongly-typed identifier for a schedule record (maps to BIGINT).
-    ScheduleId,
-    "ScheduleId"
-);
-id_type!(
-    /// Strongly-typed identifier for a target record.
-    TargetId,
-    "TargetId"
-);
-id_type!(
-    /// Strongly-typed identifier for a constraints record.
-    ConstraintsId,
-    "ConstraintsId"
-);
-id_type!(
-    /// Strongly-typed identifier for a scheduling block.
-    SchedulingBlockId,
-    "SchedulingBlockId"
-);
+// Use the public API id types instead of redefining local id wrappers.
+use crate::api::{ScheduleId, SchedulingBlockId};
 
 
 
