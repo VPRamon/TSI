@@ -58,7 +58,6 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Database initialization (initialization is now lazy; explicit init function removed)
 
     // Analytics ETL operations
-    m.add_function(wrap_pyfunction!(populate_analytics, m)?)?;
     m.add_function(wrap_pyfunction!(has_analytics_data, m)?)?;
 
     // Route-specific functions, classes and constants are registered centrally by `routes`
@@ -89,26 +88,9 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 // Analytics ETL Operations
 // =========================================================
 
-/// Populate Phase 1 analytics (block-level denormalized data).
-///
-/// Args:
-///     schedule_id: Database ID of the schedule
-///
-/// Returns:
-///     Number of blocks processed
-#[pyfunction]
-fn populate_analytics(schedule_id: i64) -> PyResult<usize> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
-    })?;
-    let repo = crate::db::get_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    runtime
-        .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
-    Ok(0)
-}
-
+// Analytics population is internal to the Rust backend; there is no exported
+// `populate_analytics` Python binding anymore. Rust routes/services will ensure
+// analytics are populated as needed.
 /// Check if Phase 1 analytics exist for a schedule.
 ///
 /// Args:

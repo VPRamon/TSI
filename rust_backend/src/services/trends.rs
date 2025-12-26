@@ -11,6 +11,7 @@ use tokio::runtime::Runtime;
 // Import the global repository accessor
 use crate::db::repository::AnalyticsRepository;
 use crate::db::get_repository;
+use crate::db::services as db_services;
 
 /// Compute overview metrics from trends blocks.
 fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
@@ -447,6 +448,14 @@ pub fn py_get_trends_data(
             e
         ))
     })?;
+
+    // Ensure analytics are populated (if missing) before computing trends.
+    let repo = crate::db::get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+
+    runtime
+        .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
 
     runtime
         .block_on(get_trends_data(

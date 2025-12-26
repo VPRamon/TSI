@@ -219,9 +219,6 @@ def get_insights_data(
 
 def get_trends_data(
     schedule_id: int,
-    n_bins: int = 10,
-    bandwidth: float = 0.3,
-    n_smooth_points: int = 100,
 ) -> TrendsData:
     """
     Get trends data with computed empirical rates and smoothed curves.
@@ -248,24 +245,13 @@ def get_trends_data(
         return cast(
             "TrendsData",
             _rust_call(
-                "get_trends_data",
+                api.GET_TRENDS_DATA,
                 schedule_id,
             ),
         )
     except ServerError as e:
-        if "No analytics data available" in str(e):
-            logger.info(
-                "Analytics missing for schedule_id=%s; populating analytics and retrying.",
-                schedule_id,
-            )
-            _rust_call("populate_analytics", schedule_id)
-            return cast(
-                "TrendsData",
-                _rust_call(
-                    "get_trends_data",
-                    schedule_id,
-                ),
-            )
+        # Let the Rust backend handle analytics population internally; re-raise
+        # the error for other handlers to manage.
         raise
 
 
