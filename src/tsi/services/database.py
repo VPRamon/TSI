@@ -598,7 +598,7 @@ def get_visibility_histogram(
 
     # Fall back to real-time computation (slower but supports filters)
     return _rust_call(  # type: ignore[no-any-return]
-        "py_get_visibility_histogram",
+        api.GET_VISIBILITY_HISTOGRAM,
         schedule_id,
         start_unix,
         end_unix,
@@ -634,7 +634,7 @@ def get_schedule_time_range(schedule_id: int) -> tuple[pd.Timestamp, pd.Timestam
         ... else:
         ...     print("No visibility periods found")
     """
-    result = _rust_call("py_get_schedule_time_range", schedule_id)
+    result = _rust_call(api.GET_SCHEDULE_TIME_RANGE, schedule_id)
 
     if result is None:
         return None
