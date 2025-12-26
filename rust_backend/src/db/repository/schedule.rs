@@ -53,9 +53,9 @@ pub trait ScheduleRepository: Send + Sync {
     /// List all schedules with basic metadata.
     ///
     /// # Returns
-    /// * `Ok(Vec<crate::api_tmp::ScheduleInfo>)` - List of schedule metadata (id, name, timestamp, etc.)
+    /// * `Ok(Vec<crate::api::ScheduleInfo>)` - List of schedule metadata (id, name, timestamp, etc.)
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api_tmp::ScheduleInfo>>;
+    async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>>;
 
     /// Get the time range covered by a schedule.
     ///

@@ -41,7 +41,7 @@ pub trait ValidationRepository: Send + Sync {
     async fn fetch_validation_results(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<crate::api_tmp::ValidationReport>;
+    ) -> RepositoryResult<crate::api::ValidationReport>;
 
     /// Check if validation results exist for a schedule.
     ///

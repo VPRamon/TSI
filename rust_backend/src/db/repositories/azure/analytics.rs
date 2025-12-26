@@ -489,7 +489,7 @@ async fn bulk_insert_analytics(
 /// This replaces the join-based fetch_lightweight_blocks function.
 pub async fn fetch_analytics_blocks_for_sky_map(
     schedule_id: i64,
-) -> Result<Vec<crate::api_tmp::LightweightBlock>, String> {
+) -> Result<Vec<crate::api::LightweightBlock>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -558,7 +558,7 @@ pub async fn fetch_analytics_blocks_for_sky_map(
             _ => None,
         };
 
-        blocks.push(crate::api_tmp::LightweightBlock {
+        blocks.push(crate::api::LightweightBlock {
             original_block_id,
             priority,
             priority_bin: String::new(), // Will be computed by service layer
@@ -576,8 +576,8 @@ pub async fn fetch_analytics_blocks_for_sky_map(
 /// This replaces the join-based fetch_distribution_blocks function.
 pub async fn fetch_analytics_blocks_for_distribution(
     schedule_id: i64,
-) -> Result<Vec<crate::api_tmp::DistributionBlock>, String> {
-    use crate::api_tmp::DistributionBlock;
+) -> Result<Vec<crate::api::DistributionBlock>, String> {
+    use crate::api::DistributionBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -734,8 +734,8 @@ pub async fn fetch_analytics_blocks_for_timeline(
 /// and JSON parsing, using pre-computed visibility metrics instead.
 pub async fn fetch_analytics_blocks_for_visibility_map(
     schedule_id: i64,
-) -> Result<crate::api_tmp::VisibilityMapData, String> {
-    use crate::api_tmp::{VisibilityBlockSummary, VisibilityMapData};
+) -> Result<crate::api::VisibilityMapData, String> {
+    use crate::api::{VisibilityBlockSummary, VisibilityMapData};
 
     let pool = pool::get_pool()?;
     let mut conn = pool

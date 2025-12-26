@@ -31,7 +31,7 @@ pub trait VisualizationRepository: Send + Sync {
     async fn fetch_visibility_map_data(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<crate::api_tmp::VisibilityMapData>;
+    ) -> RepositoryResult<crate::api::VisibilityMapData>;
 
     /// Fetch blocks for histogram generation.
     ///

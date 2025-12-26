@@ -190,9 +190,9 @@ pub async fn get_schedule<R: FullRepository>(
 /// * `repo` - Repository implementation
 ///
 /// # Returns
-/// * `Ok(Vec<crate::api_tmp::ScheduleInfo>)` - List of schedule metadata
+/// * `Ok(Vec<crate::api::ScheduleInfo>)` - List of schedule metadata
 /// * `Err` if query fails
-pub async fn list_schedules<R: FullRepository>(repo: &R) -> RepositoryResult<Vec<crate::api_tmp::ScheduleInfo>> {
+pub async fn list_schedules<R: FullRepository>(repo: &R) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
     info!("Service layer: listing all schedules");
     repo.list_schedules().await
 }

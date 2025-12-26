@@ -1210,7 +1210,7 @@ async fn fetch_visibility_periods_for_block(
 }
 
 /// List all available schedules with metadata.
-pub async fn list_schedules() -> Result<Vec<crate::api_tmp::ScheduleInfo>, String> {
+pub async fn list_schedules() -> Result<Vec<crate::api::ScheduleInfo>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -1250,7 +1250,7 @@ pub async fn list_schedules() -> Result<Vec<crate::api_tmp::ScheduleInfo>, Strin
             .ok_or_else(|| "schedule_id is NULL".to_string())?;
         let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
 
-        schedules.push(crate::api_tmp::ScheduleInfo {
+        schedules.push(crate::api::ScheduleInfo {
             schedule_id,
             schedule_name
         });
@@ -1490,8 +1490,8 @@ pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<Period>, Str
 /// avoiding the overhead of loading full scheduling blocks with visibility periods.
 pub async fn fetch_lightweight_blocks(
     schedule_id: i64,
-) -> Result<Vec<crate::api_tmp::LightweightBlock>, String> {
-    use crate::api_tmp::LightweightBlock;
+) -> Result<Vec<crate::api::LightweightBlock>, String> {
+    use crate::api::LightweightBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -1584,8 +1584,8 @@ pub async fn fetch_lightweight_blocks(
 /// This is optimized for the distributions page, loading only the fields needed for histograms.
 pub async fn fetch_distribution_blocks(
     schedule_id: i64,
-) -> Result<Vec<crate::api_tmp::DistributionBlock>, String> {
-    use crate::api_tmp::DistributionBlock;
+) -> Result<Vec<crate::api::DistributionBlock>, String> {
+    use crate::api::DistributionBlock;
 
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -1896,8 +1896,8 @@ pub async fn fetch_trends_blocks(
 /// This returns only the fields needed for filtering and statistics.
 pub async fn fetch_visibility_map_data(
     schedule_id: i64,
-) -> Result<crate::api_tmp::VisibilityMapData, String> {
-    use crate::api_tmp::{VisibilityBlockSummary, VisibilityMapData};
+) -> Result<crate::api::VisibilityMapData, String> {
+    use crate::api::{VisibilityBlockSummary, VisibilityMapData};
 
     let pool = pool::get_pool()?;
     let mut conn = pool

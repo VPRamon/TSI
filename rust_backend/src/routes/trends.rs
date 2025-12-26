@@ -93,7 +93,7 @@ pub fn get_trends_data(
     n_bins: Option<i64>,
     bandwidth: Option<f64>,
     n_smooth_points: Option<i64>,
-) -> PyResult<crate::api_tmp::TrendsData> {
+) -> PyResult<crate::api::TrendsData> {
     let n_bins = n_bins.unwrap_or(10) as usize;
     let bandwidth = bandwidth.unwrap_or(0.5);
     let n_smooth_points = n_smooth_points.unwrap_or(12) as usize;
@@ -115,9 +115,9 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-impl From<&models::TrendsBlock> for crate::api_tmp::TrendsBlock {
+impl From<&models::TrendsBlock> for crate::api::TrendsBlock {
     fn from(block: &models::TrendsBlock) -> Self {
-        crate::api_tmp::TrendsBlock {
+        crate::api::TrendsBlock {
             scheduling_block_id: block.scheduling_block_id,
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,
@@ -128,9 +128,9 @@ impl From<&models::TrendsBlock> for crate::api_tmp::TrendsBlock {
     }
 }
 
-impl From<&models::EmpiricalRatePoint> for crate::api_tmp::EmpiricalRatePoint {
+impl From<&models::EmpiricalRatePoint> for crate::api::EmpiricalRatePoint {
     fn from(point: &models::EmpiricalRatePoint) -> Self {
-        crate::api_tmp::EmpiricalRatePoint {
+        crate::api::EmpiricalRatePoint {
             bin_label: point.bin_label.clone(),
             mid_value: point.mid_value,
             scheduled_rate: point.scheduled_rate,
@@ -139,9 +139,9 @@ impl From<&models::EmpiricalRatePoint> for crate::api_tmp::EmpiricalRatePoint {
     }
 }
 
-impl From<&models::SmoothedPoint> for crate::api_tmp::SmoothedPoint {
+impl From<&models::SmoothedPoint> for crate::api::SmoothedPoint {
     fn from(point: &models::SmoothedPoint) -> Self {
-        crate::api_tmp::SmoothedPoint {
+        crate::api::SmoothedPoint {
             x: point.x,
             y_smoothed: point.y_smoothed,
             n_samples: point.n_samples,
@@ -149,9 +149,9 @@ impl From<&models::SmoothedPoint> for crate::api_tmp::SmoothedPoint {
     }
 }
 
-impl From<&models::HeatmapBin> for crate::api_tmp::HeatmapBin {
+impl From<&models::HeatmapBin> for crate::api::HeatmapBin {
     fn from(bin: &models::HeatmapBin) -> Self {
-        crate::api_tmp::HeatmapBin {
+        crate::api::HeatmapBin {
             visibility_mid: bin.visibility_mid.value(),
             time_mid: bin.time_mid.value(),
             scheduled_rate: bin.scheduled_rate,
@@ -160,9 +160,9 @@ impl From<&models::HeatmapBin> for crate::api_tmp::HeatmapBin {
     }
 }
 
-impl From<&models::TrendsMetrics> for crate::api_tmp::TrendsMetrics {
+impl From<&models::TrendsMetrics> for crate::api::TrendsMetrics {
     fn from(metrics: &models::TrendsMetrics) -> Self {
-        crate::api_tmp::TrendsMetrics {
+        crate::api::TrendsMetrics {
             total_count: metrics.total_count,
             scheduled_count: metrics.scheduled_count,
             scheduling_rate: metrics.scheduling_rate,
@@ -180,9 +180,9 @@ impl From<&models::TrendsMetrics> for crate::api_tmp::TrendsMetrics {
     }
 }
 
-impl From<&models::TrendsData> for crate::api_tmp::TrendsData {
+impl From<&models::TrendsData> for crate::api::TrendsData {
     fn from(data: &models::TrendsData) -> Self {
-        crate::api_tmp::TrendsData {
+        crate::api::TrendsData {
             blocks: data.blocks.iter().map(|b| b.into()).collect(),
             metrics: (&data.metrics).into(),
             by_priority: data.by_priority.iter().map(|r| r.into()).collect(),

@@ -198,7 +198,7 @@ export DB_PASSWORD=your-password
 ```rust
 use tsi_rust::db::operations;
 
-async fn get_schedules() -> Result<Vec<crate::api_tmp::ScheduleInfo>, String> {
+async fn get_schedules() -> Result<Vec<crate::api::ScheduleInfo>, String> {
     operations::list_schedules().await
 }
 ```
@@ -207,7 +207,7 @@ async fn get_schedules() -> Result<Vec<crate::api_tmp::ScheduleInfo>, String> {
 ```rust
 use tsi_rust::db::{ScheduleRepository, RepositoryFactory};
 
-async fn get_schedules(repo: &dyn ScheduleRepository) -> Result<Vec<crate::api_tmp::ScheduleInfo>, String> {
+async fn get_schedules(repo: &dyn ScheduleRepository) -> Result<Vec<crate::api::ScheduleInfo>, String> {
     repo.list_schedules()
         .await
         .map_err(|e| e.to_string())

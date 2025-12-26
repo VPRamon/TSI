@@ -54,9 +54,9 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-impl From<&models::ScheduleTimelineBlock> for crate::api_tmp::ScheduleTimelineBlock {
+impl From<&models::ScheduleTimelineBlock> for crate::api::ScheduleTimelineBlock {
     fn from(block: &models::ScheduleTimelineBlock) -> Self {
-        crate::api_tmp::ScheduleTimelineBlock {
+        crate::api::ScheduleTimelineBlock {
             scheduling_block_id: block.scheduling_block_id,
             original_block_id: block.original_block_id.clone(),
             priority: block.priority,

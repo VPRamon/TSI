@@ -3,7 +3,7 @@
 //! This module is organized into several submodules:
 //!
 //! - [`schedule`]: Core schedule types (Schedule, SchedulingBlock, Period, Constraints)
-//! - [`metadata`]: Schedule metadata and info types (ScheduleMetadata, crate::api_tmp::ScheduleInfo)
+//! - [`metadata`]: Schedule metadata and info types (ScheduleMetadata, crate::api::ScheduleInfo)
 //! - [`analytics`]: Analytics and visualization types (LightweightBlock, DistributionData, SkyMapData)
 //! - [`visualization`]: Visualization domain models (visibility, timeline, insights, trends, comparison)
 
