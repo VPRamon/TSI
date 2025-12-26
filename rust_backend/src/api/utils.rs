@@ -15,12 +15,8 @@
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
 use serde_json::Value;
-use tokio::runtime::Runtime;
 
 use crate::api::types as api;
-use crate::algorithms;
-// visualization repository types live in routes; not needed here
-use crate::db::services as db_services;
 // Re-export landing route functions so they can be registered with the Python module
 pub use crate::routes::landing::{list_schedules, store_schedule};
 // Re-export route name constants so Python can reference them without hard-coded strings
@@ -57,8 +53,7 @@ pub use crate::routes::compare::GET_COMPARE_DATA;
 pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Database initialization (initialization is now lazy; explicit init function removed)
 
-    // Analytics ETL operations
-    m.add_function(wrap_pyfunction!(has_analytics_data, m)?)?;
+    // Analytics ETL operations (internalized)
 
     // Route-specific functions, classes and constants are registered centrally by `routes`
     crate::routes::register_route_functions(m)?;
@@ -91,24 +86,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
 // Analytics population is internal to the Rust backend; there is no exported
 // `populate_analytics` Python binding anymore. Rust routes/services will ensure
 // analytics are populated as needed.
-/// Check if Phase 1 analytics exist for a schedule.
-///
-/// Args:
-///     schedule_id: Database ID of the schedule
-///
-/// Returns:
-///     True if analytics data exists
-#[pyfunction]
-fn has_analytics_data(schedule_id: i64) -> PyResult<bool> {
-    let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
-    })?;
-    let repo = crate::db::get_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    runtime
-        .block_on(db_services::has_analytics_data(repo.as_ref(), schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))
-}
+// Analytics availability checks are internal; no exported `has_analytics_data` binding.
 
 // =========================================================
 // Validation Operations
