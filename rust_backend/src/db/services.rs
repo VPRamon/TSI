@@ -57,7 +57,7 @@
 
 use log::{info, warn};
 
-use super::models::{Period, Schedule, ScheduleMetadata, SchedulingBlock};
+use super::models::{Period, Schedule, SchedulingBlock};
 use super::repository::{FullRepository, RepositoryResult};
 // ==================== Health & Connection ====================
 
@@ -90,12 +90,12 @@ pub async fn health_check<R: FullRepository>(repo: &R) -> RepositoryResult<bool>
 /// * `schedule` - The schedule to store
 ///
 /// # Returns
-/// * `Ok(ScheduleMetadata)` - Metadata of stored schedule (new or existing)
+/// * `Ok(crate::api::ScheduleInfo)` - Metadata of stored schedule (new or existing)
 /// * `Err` if storage fails
 pub async fn store_schedule<R: FullRepository>(
     repo: &R,
     schedule: &Schedule,
-) -> RepositoryResult<ScheduleMetadata> {
+) -> RepositoryResult<crate::api::ScheduleInfo> {
     store_schedule_with_options(repo, schedule, true).await
 }
 
@@ -111,7 +111,7 @@ pub async fn store_schedule<R: FullRepository>(
 /// * `skip_time_bins` - If true, skip visibility time bin computation (expensive, ~minutes for large schedules)
 ///
 /// # Returns
-/// * `Ok(ScheduleMetadata)` - Metadata of stored schedule (new or existing)
+/// * `Ok(crate::api::ScheduleInfo)` - Metadata of stored schedule (new or existing)
 /// * `Err` if storage fails
 ///
 /// # Performance Note
@@ -122,7 +122,7 @@ pub async fn store_schedule_with_options<R: FullRepository>(
     repo: &R,
     schedule: &Schedule,
     populate_analytics: bool,
-) -> RepositoryResult<ScheduleMetadata> {
+) -> RepositoryResult<crate::api::ScheduleInfo> {
     info!(
         "Service layer: storing schedule '{}' (checksum {}, {} blocks, analytics={})",
         schedule.name,
@@ -136,28 +136,27 @@ pub async fn store_schedule_with_options<R: FullRepository>(
 
     // Optionally populate analytics for the schedule (best-effort)
     if populate_analytics {
-        if let Some(schedule_id) = metadata.schedule_id {
-            info!(
-                "Service layer: populating analytics for schedule_id={}",
-                schedule_id
-            );
+        let schedule_id = metadata.schedule_id;
+        info!(
+            "Service layer: populating analytics for schedule_id={}",
+            schedule_id
+        );
 
-            // Phase 1: Block-level analytics (FAST - required for dashboard)
-            let start = std::time::Instant::now();
-            match repo.populate_schedule_analytics(schedule_id).await {
-                Ok(analytics_count) => {
-                    info!(
-                        "Service layer: ✓ Phase 1/3: Populated {} analytics rows in {:.2}s",
-                        analytics_count,
-                        start.elapsed().as_secs_f64()
-                    );
-                }
-                Err(e) => {
-                    warn!(
-                        "Service layer: failed to populate block-level analytics for schedule_id={}: {}",
-                        schedule_id, e
-                    );
-                }
+        // Phase 1: Block-level analytics (FAST - required for dashboard)
+        let start = std::time::Instant::now();
+        match repo.populate_schedule_analytics(schedule_id).await {
+            Ok(analytics_count) => {
+                info!(
+                    "Service layer: ✓ Phase 1/3: Populated {} analytics rows in {:.2}s",
+                    analytics_count,
+                    start.elapsed().as_secs_f64()
+                );
+            }
+            Err(e) => {
+                warn!(
+                    "Service layer: failed to populate block-level analytics for schedule_id={}: {}",
+                    schedule_id, e
+                );
             }
         }
     } else {
@@ -385,7 +384,7 @@ pub fn parse_schedule_from_json(
 /// * `skip_time_bins` - Whether to skip Phase 3 time bin population
 ///
 /// # Returns
-/// * `Ok(ScheduleMetadata)` - Metadata of the stored schedule
+/// * `Ok(crate::api::ScheduleInfo)` - Metadata of the stored schedule
 /// * `Err` if storage or analytics population fails
 ///
 /// # Errors
@@ -397,7 +396,7 @@ pub fn parse_schedule_from_json(
 pub fn store_schedule_sync(
     schedule: &crate::db::models::Schedule,
     populate_analytics: bool,
-) -> anyhow::Result<crate::db::models::ScheduleMetadata> {
+) -> anyhow::Result<crate::api::ScheduleInfo> {
     use anyhow::Context;
     use tokio::runtime::Runtime;
 
