@@ -7,7 +7,7 @@ and transforming schedule DataFrames.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from io import StringIO
 from typing import TYPE_CHECKING, Any, Literal, cast
 
@@ -213,7 +213,8 @@ def mjd_to_datetime(mjd: float) -> datetime:
         >>> dt = mjd_to_datetime(59580.5)
         >>> print(dt)  # 2022-01-01 12:00:00+00:00
     """
-    return cast(datetime, tsi_rust.mjd_to_datetime(mjd))
+    secs = (mjd - 40587.0) * 86400.0
+    return datetime.fromtimestamp(secs, timezone.utc)
 
 
 def datetime_to_mjd(dt: datetime) -> float:
@@ -232,7 +233,13 @@ def datetime_to_mjd(dt: datetime) -> float:
         >>> mjd = datetime_to_mjd(dt)
         >>> print(mjd)  # 59580.5
     """
-    return cast(float, tsi_rust.datetime_to_mjd(dt))
+    tzinfo = dt.tzinfo
+    if tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    else:
+        dt = dt.astimezone(timezone.utc)
+    timestamp = dt.timestamp()
+    return timestamp / 86400.0 + 40587.0
 
 
 def parse_visibility_periods(
@@ -252,4 +259,4 @@ def parse_visibility_periods(
         >>> parsed = parse_visibility_periods(periods)
         >>> print(parsed[0][0])  # datetime object
     """
-    return cast(list[tuple[datetime, datetime]], tsi_rust.parse_visibility_periods(periods))
+    return cast(list[tuple[datetime, datetime]], _utils.parse_visibility_periods(periods))

@@ -157,3 +157,28 @@ def py_validate_dataframe(json_str: str) -> tuple[bool, list[str]]:
         issues.append(f"{invalid_priorities} observations with invalid priorities")
 
     return (len(issues) == 0, issues)
+
+
+def parse_visibility_periods(periods: list[dict[str, Any]]) -> list[tuple[datetime, datetime]]:
+    """Parse list of visibility period dicts into datetime tuples.
+
+    Expected input: list of dicts with 'start' and 'end' ISO datetime strings.
+    Returns list of (start_datetime, end_datetime) tuples (timezone-aware UTC).
+    """
+    import pandas as _pd
+
+    out: list[tuple[datetime, datetime]] = []
+    for p in periods or []:
+        if not isinstance(p, dict):
+            continue
+        start = p.get("start")
+        end = p.get("end")
+        try:
+            if start is None or end is None:
+                continue
+            s_ts = _pd.to_datetime(start, utc=True)
+            e_ts = _pd.to_datetime(end, utc=True)
+            out.append((s_ts.to_pydatetime(), e_ts.to_pydatetime()))
+        except Exception:
+            continue
+    return out
