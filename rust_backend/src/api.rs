@@ -8,254 +8,291 @@
 //! - `register_api_functions` and `register_transformation_functions`
 //!
 use pyo3::prelude::*;
+pub use crate::routes::landing::ScheduleInfo;
+pub use crate::routes::skymap::PriorityBinInfo;
+pub use crate::routes::skymap::LightweightBlock;
+pub use crate::routes::skymap::SkyMapData;
+pub use crate::routes::visibility::VisibilityBlockSummary;
+pub use crate::routes::visibility::VisibilityMapData;
+pub use crate::routes::distribution::DistributionBlock;
+pub use crate::routes::distribution::DistributionStats;
+pub use crate::routes::distribution::DistributionData;
+pub use crate::routes::timeline::ScheduleTimelineBlock;
+pub use crate::routes::timeline::ScheduleTimelineData;
+pub use crate::routes::insights::InsightsBlock;
+pub use crate::routes::insights::AnalyticsMetrics;
+pub use crate::routes::insights::CorrelationEntry;
+pub use crate::routes::insights::ConflictRecord;
+pub use crate::routes::insights::TopObservation;
+pub use crate::routes::insights::InsightsData;
+pub use crate::routes::trends::TrendsBlock;
+pub use crate::routes::trends::EmpiricalRatePoint;
+pub use crate::routes::trends::SmoothedPoint;
+pub use crate::routes::trends::HeatmapBin;
+pub use crate::routes::trends::TrendsMetrics;
+pub use crate::routes::trends::TrendsData;
+pub use crate::routes::compare::CompareBlock;
+pub use crate::routes::compare::CompareStats;
+pub use crate::routes::compare::SchedulingChange;
+pub use crate::routes::compare::CompareData;
+pub use crate::routes::validation::ValidationIssue;
+pub use crate::routes::validation::ValidationReport;
 
-pub mod types {
-    //! Python-facing Data Transfer Objects (DTOs).
-    //!
-    //! This module defines all `#[pyclass]` types exposed to Python through PyO3.
+#[pyo3::pyclass(module = "tsi_rust_api")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct ScheduleId(pub i64);
 
-    use pyo3::prelude::*;
-    use pyo3::types::PyTuple;
+#[pyo3::pyclass(module = "tsi_rust_api")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct TargetId(pub i64);
 
-    use serde::{Deserialize, Serialize};
+#[pyo3::pyclass(module = "tsi_rust_api")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct ConstraintsId(pub i64);
 
-    /// Time period in Modified Julian Date (MJD) format.
-    #[pyclass(module = "tsi_rust_api", get_all)]
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct Period {
-        /// Start time in MJD
-        pub start: f64,
-        /// End time in MJD
-        pub stop: f64,
+#[pyo3::pyclass(module = "tsi_rust_api")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub struct SchedulingBlockId(pub i64);
+// Python-facing Data Transfer Objects (DTOs) moved to the api root.
+use pyo3::types::PyTuple;
+use serde::{Deserialize, Serialize};
+
+/// Time period in Modified Julian Date (MJD) format.
+#[pyclass(module = "tsi_rust_api", get_all)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Period {
+    /// Start time in MJD
+    pub start: f64,
+    /// End time in MJD
+    pub stop: f64,
+}
+
+#[pymethods]
+impl Period {
+    #[new]
+    pub fn py_new(start: f64, stop: f64) -> Self {
+        Self { start, stop }
     }
 
-    #[pymethods]
-    impl Period {
-        #[new]
-        pub fn py_new(start: f64, stop: f64) -> Self {
-            Self { start, stop }
-        }
-
-        #[staticmethod]
-        pub fn from_datetime(start: Py<PyAny>, stop: Py<PyAny>) -> PyResult<Self> {
-            Python::attach(|py| {
-                let datetime_mod = py.import("datetime")?;
-                let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
-
-                // Helper to convert a datetime object to MJD
-                let to_mjd = |dt: &Py<PyAny>| -> PyResult<f64> {
-                    let dt_obj = dt.as_ref();
-                    let tzinfo = dt_obj.getattr(py, "tzinfo")?;
-
-                    let timestamp = if tzinfo.is_none(py) {
-                        // Naive datetime - assume UTC
-                        let kwargs = pyo3::types::PyDict::new(py);
-                        kwargs.set_item("tzinfo", &timezone_utc)?;
-                        let aware = dt_obj.call_method(py, "replace", (), Some(&kwargs))?;
-                        aware.call_method0(py, "timestamp")?.extract::<f64>(py)?
-                    } else {
-                        dt_obj.call_method0(py, "timestamp")?.extract::<f64>(py)?
-                    };
-
-                    // Convert Unix timestamp to MJD (MJD 0 = 1858-11-17 00:00:00 UTC)
-                    let mjd = timestamp / 86400.0 + 40587.0;
-                    Ok(mjd)
-                };
-
-                let start_mjd = to_mjd(&start)?;
-                let stop_mjd = to_mjd(&stop)?;
-
-                Ok(Self {
-                    start: start_mjd,
-                    stop: stop_mjd,
-                })
-            })
-        }
-
-        #[getter]
-        pub fn start_mjd(&self) -> f64 {
-            self.start
-        }
-
-        #[getter]
-        pub fn stop_mjd(&self) -> f64 {
-            self.stop
-        }
-
-        pub fn contains_mjd(&self, mjd: f64) -> bool {
-            let min_mjd = self.start.min(self.stop);
-            let max_mjd = self.start.max(self.stop);
-            mjd >= min_mjd && mjd <= max_mjd
-        }
-
-        pub fn to_datetime<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
-            // Convert MJD -> seconds since UNIX epoch then use Python's datetime
-            let s_secs = (self.start - 40587.0) * 86400.0;
-            let e_secs = (self.stop - 40587.0) * 86400.0;
-
+    #[staticmethod]
+    pub fn from_datetime(start: Py<PyAny>, stop: Py<PyAny>) -> PyResult<Self> {
+        Python::attach(|py| {
             let datetime_mod = py.import("datetime")?;
-            let datetime_cls = datetime_mod.getattr("datetime")?;
             let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
 
-            let s_dt = datetime_cls.call_method1("fromtimestamp", (s_secs, timezone_utc.clone()))?;
-            let e_dt = datetime_cls.call_method1("fromtimestamp", (e_secs, timezone_utc))?;
+            // Helper to convert a datetime object to MJD
+            let to_mjd = |dt: &Py<PyAny>| -> PyResult<f64> {
+                let dt_obj = dt.as_ref();
+                let tzinfo = dt_obj.getattr(py, "tzinfo")?;
 
-            PyTuple::new(py, [s_dt, e_dt])
+                let timestamp = if tzinfo.is_none(py) {
+                    // Naive datetime - assume UTC
+                    let kwargs = pyo3::types::PyDict::new(py);
+                    kwargs.set_item("tzinfo", &timezone_utc)?;
+                    let aware = dt_obj.call_method(py, "replace", (), Some(&kwargs))?;
+                    aware.call_method0(py, "timestamp")?.extract::<f64>(py)?
+                } else {
+                    dt_obj.call_method0(py, "timestamp")?.extract::<f64>(py)?
+                };
+
+                // Convert Unix timestamp to MJD (MJD 0 = 1858-11-17 00:00:00 UTC)
+                let mjd = timestamp / 86400.0 + 40587.0;
+                Ok(mjd)
+            };
+
+            let start_mjd = to_mjd(&start)?;
+            let stop_mjd = to_mjd(&stop)?;
+
+            Ok(Self {
+                start: start_mjd,
+                stop: stop_mjd,
+            })
+        })
+    }
+
+    #[getter]
+    pub fn start_mjd(&self) -> f64 {
+        self.start
+    }
+
+    #[getter]
+    pub fn stop_mjd(&self) -> f64 {
+        self.stop
+    }
+
+    pub fn contains_mjd(&self, mjd: f64) -> bool {
+        let min_mjd = self.start.min(self.stop);
+        let max_mjd = self.start.max(self.stop);
+        mjd >= min_mjd && mjd <= max_mjd
+    }
+
+    pub fn to_datetime<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyTuple>> {
+        // Convert MJD -> seconds since UNIX epoch then use Python's datetime
+        let s_secs = (self.start - 40587.0) * 86400.0;
+        let e_secs = (self.stop - 40587.0) * 86400.0;
+
+        let datetime_mod = py.import("datetime")?;
+        let datetime_cls = datetime_mod.getattr("datetime")?;
+        let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
+
+        let s_dt = datetime_cls.call_method1("fromtimestamp", (s_secs, timezone_utc.clone()))?;
+        let e_dt = datetime_cls.call_method1("fromtimestamp", (e_secs, timezone_utc))?;
+
+        PyTuple::new(py, [s_dt, e_dt])
+    }
+}
+
+
+/// Observing constraints for a scheduling block.
+#[pyclass(module = "tsi_rust_api", get_all)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Constraints {
+    /// Minimum altitude in degrees
+    pub min_alt: f64,
+    /// Maximum altitude in degrees
+    pub max_alt: f64,
+    /// Minimum azimuth in degrees
+    pub min_az: f64,
+    /// Maximum azimuth in degrees
+    pub max_az: f64,
+    /// Fixed observation time window in MJD
+    pub fixed_time: Option<Period>,
+}
+
+#[pymethods]
+impl Constraints {
+    #[new]
+    #[pyo3(signature = (min_alt, max_alt, min_az, max_az, fixed_time=None))]
+    pub fn new(
+        min_alt: f64,
+        max_alt: f64,
+        min_az: f64,
+        max_az: f64,
+        fixed_time: Option<Period>,
+    ) -> Self {
+        Self {
+            min_alt,
+            max_alt,
+            min_az,
+            max_az,
+            fixed_time,
         }
     }
 
-
-    /// Observing constraints for a scheduling block.
-    #[pyclass(module = "tsi_rust_api", get_all)]
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct Constraints {
-        /// Minimum altitude in degrees
-        pub min_alt: f64,
-        /// Maximum altitude in degrees
-        pub max_alt: f64,
-        /// Minimum azimuth in degrees
-        pub min_az: f64,
-        /// Maximum azimuth in degrees
-        pub max_az: f64,
-        /// Fixed observation time window in MJD
-        pub fixed_time: Option<Period>,
+    fn __repr__(&self) -> String {
+        format!(
+            "Constraints(alt=[{:.2}, {:.2}], az=[{:.2}, {:.2}], fixed={:?})",
+            self.min_alt, self.max_alt, self.min_az, self.max_az, self.fixed_time
+        )
     }
+}
 
-    #[pymethods]
-    impl Constraints {
-        #[new]
-        #[pyo3(signature = (min_alt, max_alt, min_az, max_az, fixed_time=None))]
-        pub fn new(
-            min_alt: f64,
-            max_alt: f64,
-            min_az: f64,
-            max_az: f64,
-            fixed_time: Option<Period>,
-        ) -> Self {
-            Self {
-                min_alt,
-                max_alt,
-                min_az,
-                max_az,
-                fixed_time,
-            }
-        }
+/// Individual scheduling block (observation request).
+#[pyclass(module = "tsi_rust_api", get_all)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchedulingBlock {
+    /// Database ID for the block
+    pub id: i64,
+    /// Original ID from JSON (shown to user)
+    pub original_block_id: Option<String>,
+    /// Right Ascension in degrees (ICRS)
+    pub target_ra: f64,
+    /// Declination in degrees (ICRS)
+    pub target_dec: f64,
+    /// Observing constraints
+    pub constraints: Constraints,
+    /// Observation priority
+    pub priority: f64,
+    /// Minimum observation duration in seconds
+    pub min_observation: f64,
+    /// Requested observation duration in seconds
+    pub requested_duration: f64,
+    /// Visibility periods in MJD
+    pub visibility_periods: Vec<Period>,
+    /// Scheduled time window in MJD (if scheduled)
+    pub scheduled_period: Option<Period>,
+}
 
-        fn __repr__(&self) -> String {
-            format!(
-                "Constraints(alt=[{:.2}, {:.2}], az=[{:.2}, {:.2}], fixed={:?})",
-                self.min_alt, self.max_alt, self.min_az, self.max_az, self.fixed_time
-            )
-        }
-    }
-
-    /// Individual scheduling block (observation request).
-    #[pyclass(module = "tsi_rust_api", get_all)]
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct SchedulingBlock {
-        /// Database ID for the block
-        pub id: i64,
-        /// Original ID from JSON (shown to user)
-        pub original_block_id: Option<String>,
-        /// Right Ascension in degrees (ICRS)
-        pub target_ra: f64,
-        /// Declination in degrees (ICRS)
-        pub target_dec: f64,
-        /// Observing constraints
-        pub constraints: Constraints,
-        /// Observation priority
-        pub priority: f64,
-        /// Minimum observation duration in seconds
-        pub min_observation: f64,
-        /// Requested observation duration in seconds
-        pub requested_duration: f64,
-        /// Visibility periods in MJD
-        pub visibility_periods: Vec<Period>,
-        /// Scheduled time window in MJD (if scheduled)
-        pub scheduled_period: Option<Period>,
-    }
-
-    #[pymethods]
-    impl SchedulingBlock {
-        #[new]
-        #[pyo3(signature = (id, original_block_id, target_ra, target_dec, constraints, priority, min_observation, requested_duration, visibility_periods=None, scheduled_period=None))]
-        pub fn new(
-            id: i64,
-            original_block_id: Option<String>,
-            target_ra: f64,
-            target_dec: f64,
-            constraints: Constraints,
-            priority: f64,
-            min_observation: f64,
-            requested_duration: f64,
-            visibility_periods: Option<Vec<Period>>,
-            scheduled_period: Option<Period>,
-        ) -> Self {
-            Self {
-                id,
-                original_block_id,
-                target_ra,
-                target_dec,
-                constraints,
-                priority,
-                min_observation,
-                requested_duration,
-                visibility_periods: visibility_periods.unwrap_or_default(),
-                scheduled_period,
-            }
-        }
-
-        fn __repr__(&self) -> String {
-            format!(
-                "SchedulingBlock(id={}, ra={:.2}, dec={:.2}, priority={:.1})",
-                self.id, self.target_ra, self.target_dec, self.priority
-            )
+#[pymethods]
+impl SchedulingBlock {
+    #[new]
+    #[pyo3(signature = (id, original_block_id, target_ra, target_dec, constraints, priority, min_observation, requested_duration, visibility_periods=None, scheduled_period=None))]
+    pub fn new(
+        id: i64,
+        original_block_id: Option<String>,
+        target_ra: f64,
+        target_dec: f64,
+        constraints: Constraints,
+        priority: f64,
+        min_observation: f64,
+        requested_duration: f64,
+        visibility_periods: Option<Vec<Period>>,
+        scheduled_period: Option<Period>,
+    ) -> Self {
+        Self {
+            id,
+            original_block_id,
+            target_ra,
+            target_dec,
+            constraints,
+            priority,
+            min_observation,
+            requested_duration,
+            visibility_periods: visibility_periods.unwrap_or_default(),
+            scheduled_period,
         }
     }
 
-    /// Top-level schedule with metadata and blocks.
-    #[pyclass(module = "tsi_rust_api", get_all)]
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct Schedule {
-        /// Database ID
-        pub id: Option<i64>,
-        /// Schedule name
-        pub name: String,
-        /// SHA256 checksum of schedule data
-        pub checksum: String,
-        /// Dark periods (observing windows)
-        pub dark_periods: Vec<Period>,
-        /// List of scheduling blocks
-        pub blocks: Vec<SchedulingBlock>,
+    fn __repr__(&self) -> String {
+        format!(
+            "SchedulingBlock(id={}, ra={:.2}, dec={:.2}, priority={:.1})",
+            self.id, self.target_ra, self.target_dec, self.priority
+        )
+    }
+}
+
+/// Top-level schedule with metadata and blocks.
+#[pyclass(module = "tsi_rust_api", get_all)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Schedule {
+    /// Database ID
+    pub id: Option<i64>,
+    /// Schedule name
+    pub name: String,
+    /// SHA256 checksum of schedule data
+    pub checksum: String,
+    /// Dark periods (observing windows)
+    pub dark_periods: Vec<Period>,
+    /// List of scheduling blocks
+    pub blocks: Vec<SchedulingBlock>,
+}
+
+#[pymethods]
+impl Schedule {
+    #[new]
+    pub fn new(
+        id: Option<i64>,
+        name: String,
+        checksum: String,
+        dark_periods: Vec<Period>,
+        blocks: Vec<SchedulingBlock>,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            checksum,
+            dark_periods,
+            blocks,
+        }
     }
 
-    #[pymethods]
-    impl Schedule {
-        #[new]
-        pub fn new(
-            id: Option<i64>,
-            name: String,
-            checksum: String,
-            dark_periods: Vec<Period>,
-            blocks: Vec<SchedulingBlock>,
-        ) -> Self {
-            Self {
-                id,
-                name,
-                checksum,
-                dark_periods,
-                blocks,
-            }
-        }
-
-        fn __repr__(&self) -> String {
-            format!(
-                "Schedule(name='{}', blocks={}, dark_periods={})",
-                self.name,
-                self.blocks.len(),
-                self.dark_periods.len()
-            )
-        }
+    fn __repr__(&self) -> String {
+        format!(
+            "Schedule(name='{}', blocks={}, dark_periods={})",
+            self.name,
+            self.blocks.len(),
+            self.dark_periods.len()
+        )
     }
 }
 
@@ -266,10 +303,15 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::routes::register_route_functions(m)?;
 
     // Register all API classes
-    m.add_class::<types::Period>()?;
-    m.add_class::<types::Constraints>()?;
-    m.add_class::<types::SchedulingBlock>()?;
-    m.add_class::<types::Schedule>()?;
+    m.add_class::<Period>()?;
+    m.add_class::<Constraints>()?;
+    m.add_class::<SchedulingBlock>()?;
+    m.add_class::<Schedule>()?;
+
+    m.add_class::<ScheduleId>()?;
+    m.add_class::<TargetId>()?;
+    m.add_class::<ConstraintsId>()?;
+    m.add_class::<SchedulingBlockId>()?;
 
     Ok(())
 }
@@ -285,4 +327,4 @@ pub fn register_transformation_functions(_m: &Bound<'_, PyModule>) -> PyResult<(
 
 // Re-export types at the `api` root so other crates can refer to
 // `crate::api::Period` instead of `crate::api::types::Period`.
-pub use types::{Constraints, Period, Schedule, SchedulingBlock};
+// Types now live in this module; no re-export needed.

@@ -80,7 +80,7 @@ impl ScheduleRepository for AzureRepository {
             })
     }
 
-    async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api_tmp::ScheduleInfo>> {
+    async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
         operations::list_schedules()
             .await
             .map_err(RepositoryError::from)
@@ -154,7 +154,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_analytics_blocks_for_sky_map(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::api_tmp::LightweightBlock>> {
+    ) -> RepositoryResult<Vec<crate::api::LightweightBlock>> {
         analytics::fetch_analytics_blocks_for_sky_map(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -163,7 +163,7 @@ impl AnalyticsRepository for AzureRepository {
     async fn fetch_analytics_blocks_for_distribution(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<Vec<crate::api_tmp::DistributionBlock>> {
+    ) -> RepositoryResult<Vec<crate::api::DistributionBlock>> {
         analytics::fetch_analytics_blocks_for_distribution(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -196,7 +196,7 @@ impl ValidationRepository for AzureRepository {
     async fn fetch_validation_results(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<crate::api_tmp::ValidationReport> {
+    ) -> RepositoryResult<crate::api::ValidationReport> {
         validation::fetch_validation_results(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -222,7 +222,7 @@ impl VisualizationRepository for AzureRepository {
     async fn fetch_visibility_map_data(
         &self,
         schedule_id: i64,
-    ) -> RepositoryResult<crate::api_tmp::VisibilityMapData> {
+    ) -> RepositoryResult<crate::api::VisibilityMapData> {
         operations::fetch_visibility_map_data(schedule_id)
             .await
             .map_err(RepositoryError::from)

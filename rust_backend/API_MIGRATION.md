@@ -115,7 +115,7 @@ from tsi_rust_api import ...
 
 ### 5. Refactor Internal Functions (Optional)
 To remove placeholder implementations, refactor:
-- `python::py_list_schedules` → return `Vec<crate::api_tmp::ScheduleInfo>`
+- `python::py_list_schedules` → return `Vec<crate::api::ScheduleInfo>`
 - `python::py_get_schedule` → return `Schedule`
 - `python::py_store_schedule` → return `ScheduleMetadata`
 

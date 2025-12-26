@@ -35,7 +35,7 @@ use crate::db::get_repository;
 ///     print(f"Block {issue.block_id}: {issue.description}")
 /// ```
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_validation_report(schedule_id: i64) -> PyResult<crate::api_tmp::ValidationReport> {
+pub fn py_get_validation_report(schedule_id: i64) -> PyResult<crate::api::ValidationReport> {
     // Get the initialized repository
     let repo = get_repository()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;

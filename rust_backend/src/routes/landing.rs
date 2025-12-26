@@ -32,7 +32,7 @@ pub fn store_schedule(
 
 /// List all schedules in the database.
 #[pyfunction]
-pub fn list_schedules() -> PyResult<Vec<crate::api_tmp::ScheduleInfo>> {
+pub fn list_schedules() -> PyResult<Vec<crate::api::ScheduleInfo>> {
 	let runtime = Runtime::new().map_err(|e: std::io::Error| {
 		PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to create async runtime: {}", e))
 	})?;

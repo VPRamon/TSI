@@ -30,7 +30,7 @@ pub struct LightweightBlock {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkyMapData {
     pub blocks: Vec<LightweightBlock>,
-    pub priority_bins: Vec<crate::api_tmp::PriorityBinInfo>,
+    pub priority_bins: Vec<crate::api::PriorityBinInfo>,
     pub priority_min: f64,
     pub priority_max: f64,
     pub ra_min: f64,
@@ -48,7 +48,7 @@ pub const GET_SKY_MAP_DATA: &str = "get_sky_map_data";
 
 /// Get sky map visualization data (ETL-based).
 #[pyfunction]
-pub fn get_sky_map_data(schedule_id: i64) -> PyResult<crate::api_tmp::SkyMapData> {
+pub fn get_sky_map_data(schedule_id: i64) -> PyResult<crate::api::SkyMapData> {
     let data = crate::services::py_get_sky_map_data_analytics(schedule_id)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     Ok(data)
