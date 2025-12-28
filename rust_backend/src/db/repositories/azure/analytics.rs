@@ -32,7 +32,7 @@ use super::pool;
 /// # Returns
 /// * `Ok(usize)` - Number of rows inserted
 /// * `Err(String)` - Error description if the operation fails
-pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, String> {
+pub async fn populate_schedule_analytics(schedule_id: crate::api::ScheduleId) -> Result<usize, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -160,7 +160,7 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
     let mut analytics_rows: Vec<AnalyticsRow> = Vec::with_capacity(rows.len());
 
     for row in &rows {
-        let schedule_id: i64 = row.get::<i64, _>(0).unwrap_or(0);
+        let schedule_id: crate::api::ScheduleId = row.get::<crate::api::ScheduleId, _>(0).unwrap_or(crate::api::ScheduleId(0));
         let scheduling_block_id: i64 = row.get::<i64, _>(1).unwrap_or(0);
         let original_block_id: Option<&str> = row.get(2);
         let ra_deg: f64 = row.get::<f64, _>(3).unwrap_or(0.0);
@@ -188,7 +188,7 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
         let is_scheduled = scheduled_start.is_some() && scheduled_stop.is_some();
 
         analytics_rows.push(AnalyticsRow {
-            schedule_id,
+            schedule_id: schedule_id,
             scheduling_block_id,
             original_block_id: original_block_id.map(|s| s.to_string()),
             target_ra_deg: ra_deg,
@@ -288,7 +288,7 @@ pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, Stri
 /// # Returns
 /// * `Ok(usize)` - Number of rows deleted
 /// * `Err(String)` - Error description if the operation fails
-pub async fn delete_schedule_analytics(schedule_id: i64) -> Result<usize, String> {
+pub async fn delete_schedule_analytics(schedule_id: crate::api::ScheduleId) -> Result<usize, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -359,7 +359,7 @@ fn parse_visibility_periods(json: Option<&str>) -> (f64, i32) {
 
 /// Internal struct for holding analytics row data during processing.
 struct AnalyticsRow {
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
     scheduling_block_id: i64,
     original_block_id: Option<String>,
     target_ra_deg: f64,
@@ -488,7 +488,7 @@ async fn bulk_insert_analytics(
 /// Fetch lightweight blocks from the analytics table for Sky Map.
 /// This replaces the join-based fetch_lightweight_blocks function.
 pub async fn fetch_analytics_blocks_for_sky_map(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<Vec<crate::api::LightweightBlock>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
@@ -575,7 +575,7 @@ pub async fn fetch_analytics_blocks_for_sky_map(
 /// Fetch distribution blocks from the analytics table.
 /// This replaces the join-based fetch_distribution_blocks function.
 pub async fn fetch_analytics_blocks_for_distribution(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<Vec<crate::api::DistributionBlock>, String> {
     use crate::api::DistributionBlock;
 
@@ -636,7 +636,7 @@ pub async fn fetch_analytics_blocks_for_distribution(
 /// This is much faster than fetch_schedule_timeline_blocks as it avoids JOINs
 /// and uses pre-computed visibility metrics.
 pub async fn fetch_analytics_blocks_for_timeline(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<Vec<crate::db::models::ScheduleTimelineBlock>, String> {
     use crate::db::models::ScheduleTimelineBlock;
 
@@ -733,7 +733,7 @@ pub async fn fetch_analytics_blocks_for_timeline(
 /// This is much faster than fetch_visibility_map_data as it avoids JOINs
 /// and JSON parsing, using pre-computed visibility metrics instead.
 pub async fn fetch_analytics_blocks_for_visibility_map(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<crate::api::VisibilityMapData, String> {
     use crate::api::{VisibilityBlockSummary, VisibilityMapData};
 
@@ -833,7 +833,7 @@ pub async fn fetch_analytics_blocks_for_visibility_map(
 /// This is much faster than fetch_insights_blocks as it avoids JOINs
 /// and JSON parsing, using pre-computed metrics instead.
 pub async fn fetch_analytics_blocks_for_insights(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<Vec<crate::db::models::InsightsBlock>, String> {
     use crate::db::models::InsightsBlock;
 
@@ -919,7 +919,7 @@ pub async fn fetch_analytics_blocks_for_insights(
 /// This is much faster than fetch_trends_blocks as it avoids JOINs
 /// and JSON parsing, using pre-computed metrics instead.
 pub async fn fetch_analytics_blocks_for_trends(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<Vec<crate::db::models::TrendsBlock>, String> {
     use crate::db::models::TrendsBlock;
 
@@ -993,7 +993,7 @@ pub async fn fetch_analytics_blocks_for_trends(
 }
 
 /// Check if analytics data exists for a schedule.
-pub async fn has_analytics_data(schedule_id: i64) -> Result<bool, String> {
+pub async fn has_analytics_data(schedule_id: crate::api::ScheduleId) -> Result<bool, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -1040,7 +1040,7 @@ pub async fn has_analytics_data(schedule_id: i64) -> Result<bool, String> {
 /// - schedule_heatmap_bins: 2D visibility x time bins
 ///
 /// Requires that schedule_blocks_analytics is already populated.
-pub async fn populate_summary_analytics(schedule_id: i64, n_bins: usize) -> Result<(), String> {
+pub async fn populate_summary_analytics(schedule_id: crate::api::ScheduleId, n_bins: usize) -> Result<(), String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -1116,7 +1116,7 @@ pub async fn populate_summary_analytics(schedule_id: i64, n_bins: usize) -> Resu
 
 // Note: DbClient is already defined earlier in this file
 
-async fn populate_schedule_summary(conn: &mut DbClient, schedule_id: i64) -> Result<(), String> {
+async fn populate_schedule_summary(conn: &mut DbClient, schedule_id: crate::api::ScheduleId) -> Result<(), String> {
     let sql = r#"
         INSERT INTO analytics.schedule_summary_analytics (
             schedule_id,
@@ -1190,7 +1190,7 @@ async fn populate_schedule_summary(conn: &mut DbClient, schedule_id: i64) -> Res
     Ok(())
 }
 
-async fn populate_priority_rates(conn: &mut DbClient, schedule_id: i64) -> Result<(), String> {
+async fn populate_priority_rates(conn: &mut DbClient, schedule_id: crate::api::ScheduleId) -> Result<(), String> {
     let sql = r#"
         INSERT INTO analytics.schedule_priority_rates (
             schedule_id,
@@ -1241,7 +1241,7 @@ async fn populate_priority_rates(conn: &mut DbClient, schedule_id: i64) -> Resul
 
 async fn populate_visibility_bins(
     conn: &mut DbClient,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
     n_bins: usize,
 ) -> Result<(), String> {
     // First, get visibility range
@@ -1356,7 +1356,7 @@ async fn populate_visibility_bins(
 
 async fn populate_heatmap_bins(
     conn: &mut DbClient,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
     n_bins: usize,
 ) -> Result<(), String> {
     // Get ranges for both dimensions
@@ -1463,7 +1463,7 @@ async fn populate_heatmap_bins(
 }
 
 /// Check if summary analytics data exists for a schedule.
-pub async fn has_summary_analytics(schedule_id: i64) -> Result<bool, String> {
+pub async fn has_summary_analytics(schedule_id: crate::api::ScheduleId) -> Result<bool, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -1498,7 +1498,7 @@ pub async fn has_summary_analytics(schedule_id: i64) -> Result<bool, String> {
 }
 
 /// Delete summary analytics for a schedule.
-pub async fn delete_summary_analytics(schedule_id: i64) -> Result<usize, String> {
+pub async fn delete_summary_analytics(schedule_id: crate::api::ScheduleId) -> Result<usize, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()

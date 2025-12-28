@@ -87,7 +87,7 @@ pub fn compute_schedule_timeline_data(
 /// and computing the timeline data.
 ///
 /// Uses the analytics table for optimal performance when available.
-pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<crate::api::ScheduleTimelineData, String> {
+pub async fn get_schedule_timeline_data(schedule_id: crate::api::ScheduleId) -> Result<crate::api::ScheduleTimelineData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
@@ -108,7 +108,7 @@ pub async fn get_schedule_timeline_data(schedule_id: i64) -> Result<crate::api::
 /// This is the main function for the schedule timeline feature, computing all statistics
 /// on the Rust side for maximum performance.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_schedule_timeline_data(schedule_id: i64) -> PyResult<crate::api::ScheduleTimelineData> {
+pub fn py_get_schedule_timeline_data(schedule_id: crate::api::ScheduleId) -> PyResult<crate::api::ScheduleTimelineData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",

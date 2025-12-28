@@ -116,7 +116,7 @@ pub async fn insert_validation_results(results: &[ValidationResult]) -> Result<u
 /// # Returns
 /// * `Ok(usize)` - Number of rows updated
 /// * `Err(String)` - Error description if the operation fails
-pub async fn update_validation_impossible_flags(schedule_id: i64) -> Result<usize, String> {
+pub async fn update_validation_impossible_flags(schedule_id: crate::api::ScheduleId) -> Result<usize, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -169,7 +169,7 @@ pub async fn update_validation_impossible_flags(schedule_id: i64) -> Result<usiz
 /// # Returns
 /// * `Ok(ValidationReport)` - Validation report data
 /// * `Err(String)` - Error description if the operation fails
-pub async fn fetch_validation_results(schedule_id: i64) -> Result<crate::api::ValidationReport, String> {
+pub async fn fetch_validation_results(schedule_id: crate::api::ScheduleId) -> Result<crate::api::ValidationReport, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -293,7 +293,7 @@ pub async fn fetch_validation_results(schedule_id: i64) -> Result<crate::api::Va
 }
 
 /// Check if validation results exist for a schedule
-pub async fn has_validation_results(schedule_id: i64) -> Result<bool, String> {
+pub async fn has_validation_results(schedule_id: crate::api::ScheduleId) -> Result<bool, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -325,7 +325,7 @@ pub async fn has_validation_results(schedule_id: i64) -> Result<bool, String> {
 }
 
 /// Delete validation results for a schedule
-pub async fn delete_validation_results(schedule_id: i64) -> Result<u64, String> {
+pub async fn delete_validation_results(schedule_id: crate::api::ScheduleId) -> Result<u64, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()

@@ -53,8 +53,8 @@ pub const GET_COMPARE_DATA: &str = "get_compare_data";
 
 #[pyfunction]
 pub fn get_compare_data(
-    current_schedule_id: i64,
-    comparison_schedule_id: i64,
+    current_schedule_id: crate::api::ScheduleId,
+    comparison_schedule_id: crate::api::ScheduleId,
     current_name: Option<String>,
     comparison_name: Option<String>,
 ) -> PyResult<crate::api::CompareData> {

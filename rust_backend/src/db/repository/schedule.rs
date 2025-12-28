@@ -49,7 +49,7 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `Ok(Schedule)` - The complete schedule with all blocks and dark periods
     /// * `Err(RepositoryError::NotFound)` - If the schedule doesn't exist
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn get_schedule(&self, schedule_id: i64) -> RepositoryResult<Schedule>;
+    async fn get_schedule(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Schedule>;
 
     /// List all schedules with basic metadata.
     ///
@@ -67,7 +67,7 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `Ok(Some(Period))` - Time range as a Period
     /// * `Ok(None)` - If the schedule has no time constraints
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn get_schedule_time_range(&self, schedule_id: i64) -> RepositoryResult<Option<Period>>;
+    async fn get_schedule_time_range(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Option<Period>>;
 
     // ==================== Scheduling Block Operations ====================
 
@@ -95,7 +95,7 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn get_blocks_for_schedule(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<SchedulingBlock>>;
 
     // ==================== Dark Periods & Possible Periods ====================
@@ -108,7 +108,7 @@ pub trait ScheduleRepository: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<Period>)` - List of dark periods
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_dark_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>>;
+    async fn fetch_dark_periods(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Vec<Period>>;
 
     /// Fetch possible observation periods for a schedule.
     ///
@@ -118,5 +118,5 @@ pub trait ScheduleRepository: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<Period>)` - List of visibility periods
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_possible_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>>;
+    async fn fetch_possible_periods(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Vec<Period>>;
 }

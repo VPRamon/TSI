@@ -178,7 +178,7 @@ pub async fn store_schedule_with_options<R: FullRepository>(
 /// * `Err` if schedule not found or retrieval fails
 pub async fn get_schedule<R: FullRepository>(
     repo: &R,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Schedule> {
     info!("Service layer: loading schedule by id {}", schedule_id);
     repo.get_schedule(schedule_id).await
@@ -209,7 +209,7 @@ pub async fn list_schedules<R: FullRepository>(repo: &R) -> RepositoryResult<Vec
 /// * `Err` if query fails
 pub async fn get_schedule_time_range<R: FullRepository>(
     repo: &R,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Option<Period>> {
     repo.get_schedule_time_range(schedule_id).await
 }
@@ -243,7 +243,7 @@ pub async fn get_scheduling_block<R: FullRepository>(
 /// * `Err` if query fails
 pub async fn get_blocks_for_schedule<R: FullRepository>(
     repo: &R,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Vec<SchedulingBlock>> {
     repo.get_blocks_for_schedule(schedule_id).await
 }
@@ -261,7 +261,7 @@ pub async fn get_blocks_for_schedule<R: FullRepository>(
 /// * `Err` if query fails
 pub async fn fetch_dark_periods<R: FullRepository>(
     repo: &R,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Vec<Period>> {
     repo.fetch_dark_periods(schedule_id).await
 }
@@ -277,7 +277,7 @@ pub async fn fetch_dark_periods<R: FullRepository>(
 /// * `Err` if query fails
 pub async fn fetch_possible_periods<R: FullRepository>(
     repo: &R,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Vec<Period>> {
     repo.fetch_possible_periods(schedule_id).await
 }
@@ -299,7 +299,7 @@ pub async fn fetch_possible_periods<R: FullRepository>(
 /// * `Err` if population fails
 pub async fn ensure_analytics<R: FullRepository>(
     repo: &R,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<()> {
     if !repo.has_analytics_data(schedule_id).await? {
         info!(
@@ -322,7 +322,7 @@ pub async fn ensure_analytics<R: FullRepository>(
 /// * `Err` if query fails
 pub async fn has_analytics_data<R: FullRepository>(
     repo: &R,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<bool> {
     repo.has_analytics_data(schedule_id).await
 }

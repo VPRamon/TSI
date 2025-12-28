@@ -105,7 +105,7 @@ pub fn compute_distribution_data(
 /// which contains pre-computed, denormalized data for optimal performance.
 ///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
-pub async fn get_distribution_data(schedule_id: i64) -> Result<DistributionData, String> {
+pub async fn get_distribution_data(schedule_id: crate::api::ScheduleId) -> Result<DistributionData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
@@ -139,9 +139,9 @@ pub fn py_get_distribution_data(schedule_id: i64) -> PyResult<DistributionData> 
             e
         ))
     })?;
-
+    let sid = crate::api::ScheduleId(schedule_id);
     runtime
-        .block_on(get_distribution_data(schedule_id))
+        .block_on(get_distribution_data(sid))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 

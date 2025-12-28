@@ -155,7 +155,7 @@ impl<'a> ScheduleInserter<'a> {
     async fn insert_schedule_row(
         &mut self,
         schedule: &Schedule,
-    ) -> Result<(i64, DateTime<Utc>), String> {
+    ) -> Result<(crate::api::ScheduleId, DateTime<Utc>), String> {
         debug!(
             "Inserting schedule metadata row for '{}' (checksum {})",
             schedule.name, schedule.checksum
@@ -202,15 +202,15 @@ impl<'a> ScheduleInserter<'a> {
             .map_err(|e| format!("Failed to get schedule insert result: {e}"))?
             .ok_or_else(|| "No schedule_id returned from insert".to_string())?;
 
-        let schedule_id: i64 = row
-            .get::<i64, _>(0)
+        let schedule_id: ScheduleId = row
+            .get::<ScheduleId, _>(0)
             .ok_or_else(|| "schedule_id is NULL".to_string())?;
         let upload_timestamp: DateTime<Utc> = row
             .get::<DateTime<Utc>, _>(1)
             .ok_or_else(|| "upload_timestamp is NULL".to_string())?;
 
         debug!(
-            "Inserted schedule '{}' as id {} (uploaded at {})",
+            "Inserted schedule '{}' as id {:?} (uploaded at {})",
             schedule.name, schedule_id, upload_timestamp
         );
         Ok((schedule_id, upload_timestamp))
@@ -218,7 +218,7 @@ impl<'a> ScheduleInserter<'a> {
 
     async fn insert_scheduling_blocks_bulk(
         &mut self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
         blocks: &[SchedulingBlock],
     ) -> Result<(), String> {
         // Step 1: Batch create all unique targets using VALUES + MERGE
@@ -247,7 +247,7 @@ impl<'a> ScheduleInserter<'a> {
 
     async fn bulk_insert_scheduling_blocks(
         &mut self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
         blocks: &[SchedulingBlock],
     ) -> Result<(), String> {
         if blocks.is_empty() {
@@ -255,7 +255,7 @@ impl<'a> ScheduleInserter<'a> {
         }
 
         debug!(
-            "Preparing bulk insert for {} scheduling blocks (schedule_id={})",
+            "Preparing bulk insert for {} scheduling blocks (schedule_id={:?})",
             blocks.len(),
             schedule_id
         );
@@ -776,8 +776,8 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<crate::api::ScheduleI
         .await
         .map_err(|e| format!("Failed to read schedule lookup result: {e}"))?
     {
-        let schedule_id: i64 = row
-            .get::<i64, _>(0)
+        let schedule_id: crate::api::ScheduleId = row
+            .get::<crate::api::ScheduleId, _>(0)
             .ok_or_else(|| "Existing schedule_id is NULL".to_string())?;
         let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
         let upload_timestamp: DateTime<Utc> = row
@@ -785,7 +785,7 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<crate::api::ScheduleI
             .ok_or_else(|| "Existing upload_timestamp is NULL".to_string())?;
 
         info!(
-            "Schedule '{}' already present as id {} (upload timestamp: {})",
+            "Schedule '{}' already present as id {:?} (upload timestamp: {})",
             schedule_name, schedule_id, upload_timestamp
         );
 
@@ -813,7 +813,7 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<crate::api::ScheduleI
     // to allow flexible control over when and if analytics are computed.
     // This dramatically improves upload performance for large schedules.
     info!(
-        "✓ Successfully inserted schedule '{}' with id {} ({} blocks)",
+        "✓ Successfully inserted schedule '{}' with id {:?} ({} blocks)",
         schedule.name,
         metadata.schedule_id,
         schedule.blocks.len()
@@ -832,7 +832,7 @@ async fn insert_full_schedule(
 
 /// Fetch a schedule from the database by ID or name.
 pub async fn get_schedule(
-    schedule_id: Option<i64>,
+    schedule_id: Option<crate::api::ScheduleId>,
     schedule_name: Option<&str>,
 ) -> Result<Schedule, String> {
     if schedule_id.is_none() && schedule_name.is_none() {
@@ -867,7 +867,7 @@ pub async fn get_schedule(
     let blocks = fetch_scheduling_blocks(&mut *conn, db_schedule_id).await?;
 
     info!(
-        "Loaded schedule '{}' (id {}) with {} blocks and {} dark periods",
+        "Loaded schedule '{}' (id {:?}) with {} blocks and {} dark periods",
         metadata.schedule_name,
         db_schedule_id,
         blocks.len(),
@@ -875,7 +875,7 @@ pub async fn get_schedule(
     );
 
     Ok(Schedule {
-        id: Some(ScheduleId(db_schedule_id)),
+        id: Some(db_schedule_id),
         name: metadata.schedule_name,
         checksum,
         dark_periods,
@@ -886,7 +886,7 @@ pub async fn get_schedule(
 /// Fetch schedule metadata by ID.
 async fn fetch_schedule_metadata_by_id(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<(crate::api::ScheduleInfo, String), String> {
     let mut query = Query::new(
         r#"
@@ -947,15 +947,15 @@ fn parse_schedule_metadata_row(row: Row) -> Result<(crate::api::ScheduleInfo, St
     let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
     let checksum: String = row.get::<&str, _>(3).unwrap_or_default().to_string();
 
-    Ok((crate::api::ScheduleInfo { schedule_id, schedule_name }, checksum))
+    Ok((crate::api::ScheduleInfo { schedule_id: crate::api::ScheduleId(schedule_id), schedule_name }, checksum))
 }
 
 /// Fetch dark periods for a schedule.
 async fn fetch_dark_periods(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<Vec<Period>, String> {
-    debug!("Fetching dark periods for schedule_id {}", schedule_id);
+    debug!("Fetching dark periods for schedule_id {:?}", schedule_id);
     let mut query = Query::new(
         r#"
         SELECT dark_periods_json
@@ -974,7 +974,7 @@ async fn fetch_dark_periods(
         .into_row()
         .await
         .map_err(|e| format!("Failed to read dark periods: {e}"))?
-        .ok_or_else(|| format!("Schedule {} not found", schedule_id))?;
+        .ok_or_else(|| format!("Schedule {:?} not found", schedule_id))?;
 
     let json_str: Option<&str> = row.get(0);
 
@@ -1011,7 +1011,7 @@ async fn fetch_dark_periods(
 /// Fetch all scheduling blocks for a schedule.
 async fn fetch_scheduling_blocks(
     conn: &mut tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<Vec<SchedulingBlock>, String> {
     debug!("Fetching scheduling blocks for schedule_id {}", schedule_id);
     let mut query = Query::new(
@@ -1220,8 +1220,8 @@ pub async fn list_schedules() -> Result<Vec<crate::api::ScheduleInfo>, String> {
 
     let mut schedules = Vec::new();
     for row in rows {
-        let schedule_id: i64 = row
-            .get::<i64, _>(0)
+        let schedule_id: crate::api::ScheduleId = row
+            .get::<crate::api::ScheduleId, _>(0)
             .ok_or_else(|| "schedule_id is NULL".to_string())?;
         let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
 
@@ -1338,7 +1338,7 @@ pub async fn get_scheduling_block(sb_id: i64) -> Result<SchedulingBlock, String>
 }
 
 /// Get all scheduling blocks for a schedule.
-pub async fn get_blocks_for_schedule(schedule_id: i64) -> Result<Vec<SchedulingBlock>, String> {
+pub async fn get_blocks_for_schedule(schedule_id: crate::api::ScheduleId) -> Result<Vec<SchedulingBlock>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -1349,7 +1349,7 @@ pub async fn get_blocks_for_schedule(schedule_id: i64) -> Result<Vec<SchedulingB
 }
 
 /// Fetch dark periods for a schedule (public version for Python).
-pub async fn fetch_dark_periods_public(schedule_id: Option<i64>) -> Result<Vec<Period>, String> {
+pub async fn fetch_dark_periods_public(schedule_id: Option<crate::api::ScheduleId>) -> Result<Vec<Period>, String> {
     if let Some(sid) = schedule_id {
         let pool = pool::get_pool()?;
         let mut conn = pool
@@ -1406,7 +1406,7 @@ pub async fn fetch_dark_periods_public(schedule_id: Option<i64>) -> Result<Vec<P
 }
 
 /// Fetch visibility (possible) periods for a schedule.
-pub async fn fetch_possible_periods(schedule_id: i64) -> Result<Vec<Period>, String> {
+pub async fn fetch_possible_periods(schedule_id: crate::api::ScheduleId) -> Result<Vec<Period>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -1870,7 +1870,7 @@ pub async fn fetch_trends_blocks(
 /// Fetch lightweight visibility data for the visibility map page.
 /// This returns only the fields needed for filtering and statistics.
 pub async fn fetch_visibility_map_data(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<crate::api::VisibilityMapData, String> {
     use crate::api::{VisibilityBlockSummary, VisibilityMapData};
 
@@ -1996,7 +1996,7 @@ pub async fn fetch_visibility_map_data(
 /// ## Returns
 /// Vector of BlockHistogramData with minimal fields
 pub async fn fetch_blocks_for_histogram(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
     priority_min: Option<i32>,
     priority_max: Option<i32>,
     block_ids: Option<&[i64]>,
@@ -2130,7 +2130,7 @@ pub async fn fetch_blocks_for_histogram(
 /// ## Returns
 /// Returns Some(Period) representing the time range. Returns None if no
 /// visibility periods exist or if schedule not found.
-pub async fn get_schedule_time_range(schedule_id: i64) -> Result<Option<Period>, String> {
+pub async fn get_schedule_time_range(schedule_id: crate::api::ScheduleId) -> Result<Option<Period>, String> {
     let pool = pool::get_pool()?;
     let mut conn = pool
         .get()
@@ -2203,7 +2203,7 @@ pub async fn get_schedule_time_range(schedule_id: i64) -> Result<Option<Period>,
 /// This returns only scheduled blocks with valid start/stop times and all required fields
 /// for the monthly timeline visualization.
 pub async fn fetch_schedule_timeline_blocks(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<Vec<crate::db::models::ScheduleTimelineBlock>, String> {
     use crate::db::models::ScheduleTimelineBlock;
 
@@ -2328,7 +2328,7 @@ pub async fn fetch_schedule_timeline_blocks(
 /// Fetch compare blocks for schedule comparison.
 /// This returns only the fields needed for comparing two schedules.
 pub async fn fetch_compare_blocks(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<Vec<crate::db::models::CompareBlock>, String> {
     use crate::db::models::CompareBlock;
 

@@ -70,7 +70,7 @@ impl ScheduleRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn get_schedule(&self, schedule_id: i64) -> RepositoryResult<Schedule> {
+    async fn get_schedule(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Schedule> {
         operations::get_schedule(Some(schedule_id), None)
             .await
             .map_err(|e| {
@@ -88,7 +88,7 @@ impl ScheduleRepository for AzureRepository {
             .map_err(RepositoryError::from)
     }
 
-    async fn get_schedule_time_range(&self, schedule_id: i64) -> RepositoryResult<Option<Period>> {
+    async fn get_schedule_time_range(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Option<Period>> {
         operations::get_schedule_time_range(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -111,20 +111,20 @@ impl ScheduleRepository for AzureRepository {
 
     async fn get_blocks_for_schedule(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<crate::db::models::SchedulingBlock>> {
         operations::get_blocks_for_schedule(schedule_id)
             .await
             .map_err(RepositoryError::from)
     }
 
-    async fn fetch_dark_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>> {
+    async fn fetch_dark_periods(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Vec<Period>> {
         operations::fetch_dark_periods_public(Some(schedule_id))
             .await
             .map_err(RepositoryError::from)
     }
 
-    async fn fetch_possible_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>> {
+    async fn fetch_possible_periods(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Vec<Period>> {
         operations::fetch_possible_periods(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -135,19 +135,19 @@ impl ScheduleRepository for AzureRepository {
 
 #[async_trait]
 impl AnalyticsRepository for AzureRepository {
-    async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
+    async fn populate_schedule_analytics(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<usize> {
         analytics::populate_schedule_analytics(schedule_id)
             .await
             .map_err(RepositoryError::from)
     }
 
-    async fn delete_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
+    async fn delete_schedule_analytics(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<usize> {
         analytics::delete_schedule_analytics(schedule_id)
             .await
             .map_err(RepositoryError::from)
     }
 
-    async fn has_analytics_data(&self, schedule_id: i64) -> RepositoryResult<bool> {
+    async fn has_analytics_data(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<bool> {
         analytics::has_analytics_data(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -155,7 +155,7 @@ impl AnalyticsRepository for AzureRepository {
 
     async fn fetch_analytics_blocks_for_sky_map(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<crate::api::LightweightBlock>> {
         analytics::fetch_analytics_blocks_for_sky_map(schedule_id)
             .await
@@ -164,7 +164,7 @@ impl AnalyticsRepository for AzureRepository {
 
     async fn fetch_analytics_blocks_for_distribution(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<crate::api::DistributionBlock>> {
         analytics::fetch_analytics_blocks_for_distribution(schedule_id)
             .await
@@ -173,7 +173,7 @@ impl AnalyticsRepository for AzureRepository {
 
     async fn fetch_analytics_blocks_for_insights(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<InsightsBlock>> {
         analytics::fetch_analytics_blocks_for_insights(schedule_id)
             .await
@@ -197,20 +197,20 @@ impl ValidationRepository for AzureRepository {
 
     async fn fetch_validation_results(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<crate::api::ValidationReport> {
         validation::fetch_validation_results(schedule_id)
             .await
             .map_err(RepositoryError::from)
     }
 
-    async fn has_validation_results(&self, schedule_id: i64) -> RepositoryResult<bool> {
+    async fn has_validation_results(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<bool> {
         validation::has_validation_results(schedule_id)
             .await
             .map_err(RepositoryError::from)
     }
 
-    async fn delete_validation_results(&self, schedule_id: i64) -> RepositoryResult<u64> {
+    async fn delete_validation_results(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<u64> {
         validation::delete_validation_results(schedule_id)
             .await
             .map_err(RepositoryError::from)
@@ -223,7 +223,7 @@ impl ValidationRepository for AzureRepository {
 impl VisualizationRepository for AzureRepository {
     async fn fetch_visibility_map_data(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<crate::api::VisibilityMapData> {
         operations::fetch_visibility_map_data(schedule_id)
             .await
@@ -232,7 +232,7 @@ impl VisualizationRepository for AzureRepository {
 
     async fn fetch_blocks_for_histogram(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
         priority_min: Option<i32>,
         priority_max: Option<i32>,
         block_ids: Option<Vec<i64>>,
@@ -249,7 +249,7 @@ impl VisualizationRepository for AzureRepository {
 
     async fn fetch_schedule_timeline_blocks(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<crate::db::models::ScheduleTimelineBlock>> {
         operations::fetch_schedule_timeline_blocks(schedule_id)
             .await
@@ -258,7 +258,7 @@ impl VisualizationRepository for AzureRepository {
 
     async fn fetch_compare_blocks(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<crate::db::models::CompareBlock>> {
         operations::fetch_compare_blocks(schedule_id)
             .await

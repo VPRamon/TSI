@@ -41,7 +41,7 @@ pub const GET_VISIBILITY_HISTOGRAM: &str = "get_visibility_histogram";
 
 /// Get visibility map data (wraps repository call)
 #[pyfunction]
-pub fn get_visibility_map_data(schedule_id: i64) -> PyResult<VisibilityMapData> {
+pub fn get_visibility_map_data(schedule_id: crate::api::ScheduleId) -> PyResult<VisibilityMapData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -74,7 +74,7 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
 
 #[pyfunction]
-fn get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64)>> {
+fn get_schedule_time_range(schedule_id: crate::api::ScheduleId) -> PyResult<Option<(i64, i64)>> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -103,7 +103,7 @@ fn get_schedule_time_range(schedule_id: i64) -> PyResult<Option<(i64, i64)>> {
 #[allow(clippy::too_many_arguments)]
 fn get_visibility_histogram(
     py: Python,
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
     start_unix: i64,
     end_unix: i64,
     bin_duration_minutes: i64,

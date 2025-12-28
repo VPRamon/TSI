@@ -308,7 +308,7 @@ pub fn compute_insights_data(blocks: Vec<InsightsBlock>) -> Result<InsightsData,
 ///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded during ETL.
 /// Validation results are stored separately and can be retrieved via py_get_validation_report.
-pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String> {
+pub async fn get_insights_data(schedule_id: crate::api::ScheduleId) -> Result<InsightsData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
@@ -346,9 +346,9 @@ pub fn py_get_insights_data(schedule_id: i64) -> PyResult<InsightsData> {
             e
         ))
     })?;
-
+    let sid = crate::api::ScheduleId(schedule_id);
     runtime
-        .block_on(get_insights_data(schedule_id))
+        .block_on(get_insights_data(sid))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 

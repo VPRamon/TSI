@@ -132,7 +132,7 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
 ///
 /// This function retrieves blocks from the analytics repository
 /// which contains pre-computed, denormalized data for optimal performance.
-pub async fn get_sky_map_data(schedule_id: i64) -> Result<SkyMapData, String> {
+pub async fn get_sky_map_data(schedule_id: crate::api::ScheduleId) -> Result<SkyMapData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
@@ -153,7 +153,7 @@ pub async fn get_sky_map_data(schedule_id: i64) -> Result<SkyMapData, String> {
 /// Get complete sky map data with computed bins and metadata.
 /// This is the main Python-callable function for the sky map feature.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_sky_map_data(schedule_id: i64) -> PyResult<SkyMapData> {
+pub fn py_get_sky_map_data(schedule_id: crate::api::ScheduleId) -> PyResult<SkyMapData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -168,6 +168,6 @@ pub fn py_get_sky_map_data(schedule_id: i64) -> PyResult<SkyMapData> {
 
 /// Alias for compatibility - uses analytics path.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_sky_map_data_analytics(schedule_id: i64) -> PyResult<SkyMapData> {
+pub fn py_get_sky_map_data_analytics(schedule_id: crate::api::ScheduleId) -> PyResult<SkyMapData> {
     py_get_sky_map_data(schedule_id)
 }
