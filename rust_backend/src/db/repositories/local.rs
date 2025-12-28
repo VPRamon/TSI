@@ -14,7 +14,7 @@ use crate::db::{
 };
 use crate::api::Period;
 use crate::services::validation::ValidationResult;
-use crate::siderust::astro::ModifiedJulianDate;
+use crate::api::ModifiedJulianDate;
 
 /// In-memory local repository.
 ///
