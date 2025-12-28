@@ -67,7 +67,7 @@ def render_criticality_stats(validation_data: ValidationReport) -> None:
 
     # Count validation errors by criticality
     for error in validation_data.validation_errors:
-        criticality = error.get("criticality", "Medium")
+        criticality = getattr(error, "criticality", None) or "Medium"
         if criticality == "Critical":
             critical_count += 1
         elif criticality == "High":
