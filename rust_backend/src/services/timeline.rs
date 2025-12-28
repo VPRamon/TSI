@@ -140,8 +140,8 @@ mod tests {
                 scheduling_block_id: 1,
                 original_block_id: "SB001".to_string(),
                 priority: 5.0,
-                scheduled_start_mjd: crate::siderust::astro::ModifiedJulianDate::new(59000.0), // 2020-05-10
-                scheduled_stop_mjd: crate::siderust::astro::ModifiedJulianDate::new(59001.0),
+                scheduled_start_mjd: crate::api::ModifiedJulianDate::new(59000.0), // 2020-05-10
+                scheduled_stop_mjd: crate::api::ModifiedJulianDate::new(59001.0),
                 ra_deg: qtty::angular::Degrees::new(180.0),
                 dec_deg: qtty::angular::Degrees::new(45.0),
                 requested_hours: qtty::time::Hours::new(1.0),
@@ -152,8 +152,8 @@ mod tests {
                 scheduling_block_id: 2,
                 original_block_id: "SB002".to_string(),
                 priority: 8.0,
-                scheduled_start_mjd: crate::siderust::astro::ModifiedJulianDate::new(59030.0), // 2020-06-09
-                scheduled_stop_mjd: crate::siderust::astro::ModifiedJulianDate::new(59031.0),
+                scheduled_start_mjd: crate::api::ModifiedJulianDate::new(59030.0), // 2020-06-09
+                scheduled_stop_mjd: crate::api::ModifiedJulianDate::new(59031.0),
                 ra_deg: qtty::angular::Degrees::new(200.0),
                 dec_deg: qtty::angular::Degrees::new(-30.0),
                 requested_hours: qtty::time::Hours::new(2.0),

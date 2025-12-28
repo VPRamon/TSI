@@ -356,7 +356,7 @@ pub fn py_get_insights_data(schedule_id: i64) -> PyResult<InsightsData> {
 mod tests {
     use super::*;
     use qtty::angular::Degrees;
-    use crate::siderust::astro::ModifiedJulianDate;
+    use crate::api::ModifiedJulianDate;
 
     #[test]
     fn test_compute_metrics() {
