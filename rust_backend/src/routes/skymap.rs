@@ -48,7 +48,7 @@ pub const GET_SKY_MAP_DATA: &str = "get_sky_map_data";
 
 /// Get sky map visualization data (ETL-based).
 #[pyfunction]
-pub fn get_sky_map_data(schedule_id: i64) -> PyResult<crate::api::SkyMapData> {
+pub fn get_sky_map_data(schedule_id: crate::api::ScheduleId) -> PyResult<crate::api::SkyMapData> {
     let data = crate::services::py_get_sky_map_data_analytics(schedule_id)
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
     Ok(data)

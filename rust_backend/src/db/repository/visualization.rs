@@ -30,7 +30,7 @@ pub trait VisualizationRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_visibility_map_data(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<crate::api::VisibilityMapData>;
 
     /// Fetch blocks for histogram generation.
@@ -46,7 +46,7 @@ pub trait VisualizationRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_blocks_for_histogram(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
         priority_min: Option<i32>,
         priority_max: Option<i32>,
         block_ids: Option<Vec<i64>>,
@@ -62,7 +62,7 @@ pub trait VisualizationRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_schedule_timeline_blocks(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<ScheduleTimelineBlock>>;
 
     /// Fetch blocks for comparison view.
@@ -73,5 +73,5 @@ pub trait VisualizationRepository: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<CompareBlock>)` - Blocks for comparison
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_compare_blocks(&self, schedule_id: i64) -> RepositoryResult<Vec<CompareBlock>>;
+    async fn fetch_compare_blocks(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Vec<CompareBlock>>;
 }

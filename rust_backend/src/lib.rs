@@ -67,6 +67,7 @@ pub mod db;
 pub mod services;
 pub mod transformations;
 pub mod siderust;
+mod models;
 
 /// Python module entry point for the new TSI Rust API.
 ///

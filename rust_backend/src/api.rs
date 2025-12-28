@@ -37,10 +37,7 @@ pub use crate::routes::compare::SchedulingChange;
 pub use crate::routes::compare::CompareData;
 pub use crate::routes::validation::ValidationIssue;
 pub use crate::routes::validation::ValidationReport;
-
-#[pyo3::pyclass(module = "tsi_rust_api")]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct ScheduleId(pub i64);
+pub use crate::models::*;
 
 #[pyo3::pyclass(module = "tsi_rust_api")]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
@@ -281,7 +278,7 @@ impl SchedulingBlock {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Schedule {
     /// Database ID
-    pub id: Option<i64>,
+    pub id: Option<ScheduleId>,
     /// Schedule name
     pub name: String,
     /// SHA256 checksum of schedule data
@@ -296,7 +293,7 @@ pub struct Schedule {
 impl Schedule {
     #[new]
     pub fn new(
-        id: Option<i64>,
+        id: Option<ScheduleId>,
         name: String,
         checksum: String,
         dark_periods: Vec<Period>,

@@ -2,13 +2,14 @@ use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
 use crate::db::services as db_services;
+use crate::api::ScheduleId;
 use serde::{Deserialize, Serialize};
 
 /// Schedule information with block counts.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleInfo {
-	pub schedule_id: i64,
+	pub schedule_id: ScheduleId,
 	pub schedule_name: String,
 }
 
@@ -27,7 +28,7 @@ pub fn store_schedule(
 		.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 	let metadata = db_services::store_schedule_sync(&schedule, true)
 		.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-	Ok(metadata.schedule_id)
+	Ok(metadata.schedule_id.into())
 }
 
 /// List all schedules in the database.

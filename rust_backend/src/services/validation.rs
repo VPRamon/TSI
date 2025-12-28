@@ -81,7 +81,7 @@ impl IssueCategory {
 /// A single validation result for a scheduling block
 #[derive(Debug, Clone)]
 pub struct ValidationResult {
-    pub schedule_id: i64,
+    pub schedule_id: crate::api::ScheduleId,
     pub scheduling_block_id: i64,
     pub status: ValidationStatus,
     pub issue_type: Option<String>,
@@ -95,7 +95,7 @@ pub struct ValidationResult {
 
 impl ValidationResult {
     /// Create a validation result indicating the block is valid
-    pub fn valid(schedule_id: i64, scheduling_block_id: i64) -> Self {
+    pub fn valid(schedule_id: crate::api::ScheduleId, scheduling_block_id: i64) -> Self {
         Self {
             schedule_id,
             scheduling_block_id,
@@ -112,7 +112,7 @@ impl ValidationResult {
 
     /// Create a validation result for an impossible block (cannot be scheduled)
     pub fn impossible(
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
         scheduling_block_id: i64,
         issue_type: String,
         category: IssueCategory,
@@ -137,7 +137,7 @@ impl ValidationResult {
 
     /// Create a validation error result
     pub fn error(
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
         scheduling_block_id: i64,
         issue_type: String,
         category: IssueCategory,
@@ -163,7 +163,7 @@ impl ValidationResult {
 
     /// Create a validation warning result
     pub fn warning(
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
         scheduling_block_id: i64,
         issue_type: String,
         category: IssueCategory,
@@ -190,7 +190,7 @@ impl ValidationResult {
 /// Data structure for a scheduling block being validated
 #[derive(Debug, Clone)]
 pub struct BlockForValidation {
-    pub schedule_id: i64,
+    pub schedule_id: crate::api::ScheduleId,
     pub scheduling_block_id: i64,
     pub priority: f64,
     pub requested_duration_sec: i32,

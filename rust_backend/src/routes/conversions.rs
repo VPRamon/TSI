@@ -36,7 +36,7 @@ impl From<&crate::db::models::SchedulingBlock> for crate::api::SchedulingBlock {
 impl From<&crate::db::models::Schedule> for crate::api::Schedule {
     fn from(schedule: &crate::db::models::Schedule) -> Self {
         crate::api::Schedule {
-            id: schedule.id.map(|id| id.0),
+            id: schedule.id,
             name: schedule.name.clone(),
             checksum: schedule.checksum.clone(),
             dark_periods: schedule.dark_periods.iter().map(|p| p.clone()).collect(),

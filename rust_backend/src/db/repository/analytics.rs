@@ -34,7 +34,7 @@ pub trait AnalyticsRepository: Send + Sync {
     /// # Returns
     /// * `Ok(usize)` - Number of analytics rows inserted
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize>;
+    async fn populate_schedule_analytics(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<usize>;
 
     /// Delete analytics data for a schedule.
     ///
@@ -44,7 +44,7 @@ pub trait AnalyticsRepository: Send + Sync {
     /// # Returns
     /// * `Ok(usize)` - Number of rows deleted
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn delete_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize>;
+    async fn delete_schedule_analytics(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<usize>;
 
     /// Check if analytics data exists for a schedule.
     ///
@@ -54,7 +54,7 @@ pub trait AnalyticsRepository: Send + Sync {
     /// # Returns
     /// * `Ok(bool)` - True if analytics data exists
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn has_analytics_data(&self, schedule_id: i64) -> RepositoryResult<bool>;
+    async fn has_analytics_data(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<bool>;
 
     /// Fetch analytics blocks for sky map visualization.
     ///
@@ -66,7 +66,7 @@ pub trait AnalyticsRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_analytics_blocks_for_sky_map(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<LightweightBlock>>;
 
     /// Fetch analytics blocks for distribution charts.
@@ -79,7 +79,7 @@ pub trait AnalyticsRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_analytics_blocks_for_distribution(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<DistributionBlock>>;
 
     /// Fetch analytics blocks for insights computations.
@@ -92,7 +92,7 @@ pub trait AnalyticsRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn fetch_analytics_blocks_for_insights(
         &self,
-        schedule_id: i64,
+        schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<InsightsBlock>>;
 
 }

@@ -20,7 +20,7 @@ pub struct ValidationIssue {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ValidationReport {
-	pub schedule_id: i64,
+	pub schedule_id: crate::api::ScheduleId,
 	pub total_blocks: usize,
 	pub valid_blocks: usize,
 	pub impossible_blocks: Vec<ValidationIssue>,
@@ -33,7 +33,7 @@ pub const GET_VALIDATION_REPORT: &str = "get_validation_report";
 
 /// Get validation report for a schedule.
 #[pyfunction]
-pub fn get_validation_report(schedule_id: i64) -> PyResult<ValidationReport> {
+pub fn get_validation_report(schedule_id: crate::api::ScheduleId) -> PyResult<ValidationReport> {
 	let report = crate::services::py_get_validation_report(schedule_id)
 		.map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 	Ok(report)

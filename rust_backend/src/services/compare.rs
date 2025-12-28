@@ -133,8 +133,8 @@ pub fn compute_compare_data(
 
 /// Get comparison data from the database by fetching both schedules.
 pub async fn get_compare_data(
-    current_schedule_id: i64,
-    comparison_schedule_id: i64,
+    current_schedule_id: crate::api::ScheduleId,
+    comparison_schedule_id: crate::api::ScheduleId,
     current_name: String,
     comparison_name: String,
 ) -> Result<CompareData, String> {
@@ -154,8 +154,8 @@ pub async fn get_compare_data(
 /// Fetches and compares two schedules from the database.
 // #[pyfunction] - removed, function now internal only
 pub fn py_get_compare_data(
-    current_schedule_id: i64,
-    comparison_schedule_id: i64,
+    current_schedule_id: crate::api::ScheduleId,
+    comparison_schedule_id: crate::api::ScheduleId,
     current_name: String,
     comparison_name: String,
 ) -> PyResult<CompareData> {
