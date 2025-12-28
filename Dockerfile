@@ -86,6 +86,8 @@ FROM rust-base AS cargo-planner
 WORKDIR /workspace
 COPY Cargo.toml Cargo.lock ./
 COPY rust_backend/Cargo.toml rust_backend/Cargo.toml
+# Ensure local path crates referenced by the workspace are present for cargo metadata
+COPY rust_backend/qtty rust_backend/qtty
 # Create dummy lib.rs to satisfy cargo metadata
 RUN mkdir -p rust_backend/src && echo "// dummy" > rust_backend/src/lib.rs
 RUN cargo chef prepare --recipe-path recipe.json
