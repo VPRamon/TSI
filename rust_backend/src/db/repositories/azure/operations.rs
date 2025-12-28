@@ -5,7 +5,7 @@
 
 use chrono::{DateTime, Utc};
 use log::{debug, info};
-use siderust::{
+use crate::siderust::{
     astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS,
 };
 use std::collections::HashMap;
@@ -1535,8 +1535,8 @@ pub async fn fetch_lightweight_blocks(
         // Handle optional scheduled period
         let scheduled_period = match (row.get::<f64, _>(6), row.get::<f64, _>(7)) {
             (Some(start_mjd), Some(stop_mjd)) => Some(crate::api::Period {
-                start: siderust::astro::ModifiedJulianDate::new(start_mjd),
-                stop: siderust::astro::ModifiedJulianDate::new(stop_mjd),
+                start: crate::siderust::astro::ModifiedJulianDate::new(start_mjd),
+                stop: crate::siderust::astro::ModifiedJulianDate::new(stop_mjd),
             }),
             _ => None,
         };
@@ -1759,8 +1759,8 @@ pub async fn fetch_insights_blocks(
             requested_hours: qtty::time::Hours::new(requested_hours),
             elevation_range_deg: qtty::angular::Degrees::new(elevation_range_deg),
             scheduled,
-            scheduled_start_mjd: scheduled_start_mjd.map(siderust::astro::ModifiedJulianDate::new),
-            scheduled_stop_mjd: scheduled_stop_mjd.map(siderust::astro::ModifiedJulianDate::new),
+            scheduled_start_mjd: scheduled_start_mjd.map(crate::siderust::astro::ModifiedJulianDate::new),
+            scheduled_stop_mjd: scheduled_stop_mjd.map(crate::siderust::astro::ModifiedJulianDate::new),
         });
     }
 
@@ -2312,8 +2312,8 @@ pub async fn fetch_schedule_timeline_blocks(
             scheduling_block_id,
             original_block_id,
             priority,
-            scheduled_start_mjd: siderust::astro::ModifiedJulianDate::new(scheduled_start_mjd),
-            scheduled_stop_mjd: siderust::astro::ModifiedJulianDate::new(scheduled_stop_mjd),
+            scheduled_start_mjd: crate::siderust::astro::ModifiedJulianDate::new(scheduled_start_mjd),
+            scheduled_stop_mjd: crate::siderust::astro::ModifiedJulianDate::new(scheduled_stop_mjd),
             ra_deg: qtty::angular::Degrees::new(ra_deg),
             dec_deg: qtty::angular::Degrees::new(dec_deg),
             requested_hours: qtty::time::Hours::new(requested_hours),
