@@ -901,8 +901,8 @@ pub async fn fetch_analytics_blocks_for_insights(
             requested_hours: qtty::time::Hours::new(requested_hours),
             elevation_range_deg: qtty::angular::Degrees::new(elevation_range_deg),
             scheduled,
-            scheduled_start_mjd: scheduled_start_mjd.map(crate::api::ModifiedJulianDate::new),
-            scheduled_stop_mjd: scheduled_stop_mjd.map(crate::api::ModifiedJulianDate::new),
+            scheduled_start_mjd: scheduled_start_mjd.map(crate::api::ModifiedJulianDate::from),
+            scheduled_stop_mjd: scheduled_stop_mjd.map(crate::api::ModifiedJulianDate::from),
         });
     }
 

@@ -983,16 +983,16 @@ async fn fetch_dark_periods(
             .map_err(|e| format!("Failed to parse dark periods JSON: {e}"))?;
 
         for period_obj in periods_array {
-            let start = period_obj["start"]
+            let start = ModifiedJulianDate::new(qtty::Days::new(period_obj["start"]
                 .as_f64()
-                .ok_or_else(|| "Invalid start value in dark period".to_string())?;
-            let stop = period_obj["stop"]
+                .ok_or_else(|| "Invalid start value in dark period".to_string())?));
+            let stop = ModifiedJulianDate::new(qtty::Days::new(period_obj["stop"]
                 .as_f64()
-                .ok_or_else(|| "Invalid stop value in dark period".to_string())?;
+                .ok_or_else(|| "Invalid stop value in dark period".to_string())?));
 
             if let Some(period) = Period::new(
-                ModifiedJulianDate::new(start),
-                ModifiedJulianDate::new(stop),
+                start,
+                stop,
             ) {
                 periods.push(period);
             }
@@ -1758,8 +1758,8 @@ pub async fn fetch_insights_blocks(
             requested_hours: qtty::time::Hours::new(requested_hours),
             elevation_range_deg: qtty::angular::Degrees::new(elevation_range_deg),
             scheduled,
-            scheduled_start_mjd: scheduled_start_mjd.map(crate::api::ModifiedJulianDate::new),
-            scheduled_stop_mjd: scheduled_stop_mjd.map(crate::api::ModifiedJulianDate::new),
+            scheduled_start_mjd: scheduled_start_mjd.map(crate::api::ModifiedJulianDate::from),
+            scheduled_stop_mjd: scheduled_stop_mjd.map(crate::api::ModifiedJulianDate::from),
         });
     }
 
