@@ -119,8 +119,8 @@ impl From<&models::InsightsBlock> for crate::api::InsightsBlock {
             requested_hours: block.requested_hours.value(),
             elevation_range_deg: block.elevation_range_deg.value(),
             scheduled: block.scheduled,
-            scheduled_start_mjd: block.scheduled_start_mjd.map(|v| v.value()),
-            scheduled_stop_mjd: block.scheduled_stop_mjd.map(|v| v.value()),
+            scheduled_start_mjd: block.scheduled_start_mjd.as_ref().map(|v| v.value()),
+            scheduled_stop_mjd: block.scheduled_stop_mjd.as_ref().map(|v| v.value()),
         }
     }
 }

@@ -3,18 +3,18 @@ use pyo3::types::PyTuple;
 
 use serde::*;
 
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
-pub struct ModifiedJulianDate(f64);
+#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
+pub struct ModifiedJulianDate(qtty::Days);
 
 impl ModifiedJulianDate {
     /// Create a new MJD value.
-    pub fn new(v: f64) -> Self {
-        Self(v)
+    pub fn new<V: Into<qtty::Days>>(v: V) -> Self {
+        Self(v.into())
     }
 
     /// Raw MJD value as f64.
     pub fn value(&self) -> f64 {
-        self.0
+        self.0.value()
     }
 }
 
@@ -102,10 +102,11 @@ impl Period {
         let datetime_cls = datetime_mod.getattr("datetime")?;
         let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
 
-        let s_dt = datetime_cls.call_method1("fromtimestamp", (s_secs, timezone_utc.clone()))?;
-        let e_dt = datetime_cls.call_method1("fromtimestamp", (e_secs, timezone_utc))?;
+        let s_obj = datetime_cls.call_method1("fromtimestamp", (s_secs, timezone_utc.clone()))?;
+        let e_obj = datetime_cls.call_method1("fromtimestamp", (e_secs, timezone_utc))?;
 
-        PyTuple::new(py, [s_dt, e_dt])
+        let tup = PyTuple::new(py, &[s_obj, e_obj])?;
+        Ok(tup)
     }
 }
 

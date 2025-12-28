@@ -240,10 +240,10 @@ fn find_conflicts(blocks: &[InsightsBlock]) -> Vec<ConflictRecord> {
             let block1 = scheduled[i];
             let block2 = scheduled[j];
 
-            let start1 = block1.scheduled_start_mjd.unwrap();
-            let stop1 = block1.scheduled_stop_mjd.unwrap();
-            let start2 = block2.scheduled_start_mjd.unwrap();
-            let stop2 = block2.scheduled_stop_mjd.unwrap();
+            let start1 = block1.scheduled_start_mjd.as_ref().unwrap().clone();
+            let stop1 = block1.scheduled_stop_mjd.as_ref().unwrap().clone();
+            let start2 = block2.scheduled_start_mjd.as_ref().unwrap().clone();
+            let stop2 = block2.scheduled_stop_mjd.as_ref().unwrap().clone();
 
             // Use primitive mjd values for numeric overlap calculations
             let s1 = start1.value();

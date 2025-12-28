@@ -486,8 +486,8 @@ impl AnalyticsRepository for LocalRepository {
                         b.constraints.max_alt.value() - b.constraints.min_alt.value(),
                     ),
                     scheduled: b.scheduled_period.is_some(),
-                    scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start),
-                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop),
+                    scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start.clone()),
+                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop.clone()),
                 }
             })
             .collect();
@@ -795,8 +795,8 @@ impl VisualizationRepository for LocalRepository {
                     scheduling_block_id: idx as i64 + 1,
                     original_block_id,
                     priority: b.priority,
-                    scheduled_start_mjd: scheduled_period.start,
-                    scheduled_stop_mjd: scheduled_period.stop,
+                    scheduled_start_mjd: scheduled_period.start.clone(),
+                    scheduled_stop_mjd: scheduled_period.stop.clone(),
                     ra_deg: b.target_ra,
                     dec_deg: b.target_dec,
                     requested_hours: qtty::time::Hours::new(requested_hours),
