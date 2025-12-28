@@ -58,20 +58,20 @@ use pyo3::types::PyTuple;
 use serde::{Deserialize, Serialize};
 
 /// Time period in Modified Julian Date (MJD) format.
-#[pyclass(module = "tsi_rust_api", get_all)]
+#[pyclass(module = "tsi_rust_api")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Period {
     /// Start time in MJD
-    pub start: siderust::astro::ModifiedJulianDate,
+    pub start: crate::siderust::astro::ModifiedJulianDate,
     /// End time in MJD
-    pub stop: siderust::astro::ModifiedJulianDate,
+    pub stop: crate::siderust::astro::ModifiedJulianDate,
 }
 
 #[pymethods]
 impl Period {
     #[new]
     pub fn py_new(start: f64, stop: f64) -> Self {
-        Self { start: siderust::astro::ModifiedJulianDate::new(start), stop: siderust::astro::ModifiedJulianDate::new(stop) }
+        Self { start: crate::siderust::astro::ModifiedJulianDate::new(start), stop: crate::siderust::astro::ModifiedJulianDate::new(stop) }
     }
 
     #[staticmethod]
@@ -104,8 +104,8 @@ impl Period {
             let stop_mjd = to_mjd(&stop)?;
 
             Ok(Self {
-                start: siderust::astro::ModifiedJulianDate::new(start_mjd),
-                stop: siderust::astro::ModifiedJulianDate::new(stop_mjd),
+                start: crate::siderust::astro::ModifiedJulianDate::new(start_mjd),
+                stop: crate::siderust::astro::ModifiedJulianDate::new(stop_mjd),
             })
         })
     }
@@ -144,7 +144,7 @@ impl Period {
 
 
 impl Period {
-    pub fn new(start: siderust::astro::ModifiedJulianDate, stop: siderust::astro::ModifiedJulianDate) -> Option<Self> {
+    pub fn new(start: crate::siderust::astro::ModifiedJulianDate, stop: crate::siderust::astro::ModifiedJulianDate) -> Option<Self> {
         if start.value() < stop.value() {
             Some(Self { start, stop })
         } else {
@@ -158,7 +158,7 @@ impl Period {
     }
 
     /// Check if a given MJD instant lies inside this interval (inclusive start, exclusive end).
-    pub fn contains(&self, t_mjd: siderust::astro::ModifiedJulianDate) -> bool {
+    pub fn contains(&self, t_mjd: crate::siderust::astro::ModifiedJulianDate) -> bool {
         self.start.value() <= t_mjd.value() && t_mjd.value() < self.stop.value()
     }
 

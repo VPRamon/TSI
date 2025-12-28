@@ -14,9 +14,7 @@
 //! - [`Constraints`]: Observing constraints (altitude, azimuth, fixed time)
 //! - ID types: Strongly-typed identifiers for database records
 
-use siderust::{
-    coordinates::spherical::direction::ICRS
-};
+use crate::siderust::coordinates::spherical::direction::ICRS;
 
 use qtty::*;
 

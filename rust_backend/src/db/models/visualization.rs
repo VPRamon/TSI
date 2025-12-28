@@ -8,7 +8,7 @@
 //! - Comparison types (CompareBlock, CompareData)
 
 
-use siderust::astro::ModifiedJulianDate;
+use crate::siderust::astro::ModifiedJulianDate;
 use qtty::*;
 
 /// Represents a single time bin in a visibility histogram.
