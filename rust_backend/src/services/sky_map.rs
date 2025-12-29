@@ -3,7 +3,6 @@
 #![allow(clippy::useless_vec)]
 
 use crate::api::{LightweightBlock, SkyMapData};
-use crate::db::repository::AnalyticsRepository;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 

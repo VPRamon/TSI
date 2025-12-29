@@ -6,10 +6,13 @@
 use anyhow::{Context, Result};
 use std::sync::{Arc, OnceLock};
 
-use super::repositories::LocalRepository;
+use super::factory::{RepositoryFactory, RepositoryType};
+use super::{config::DbConfig, PostgresConfig};
+use crate::db::repository::FullRepository;
+use tokio::runtime::Runtime;
 
 /// Global repository instance initialized once
-static REPOSITORY: OnceLock<Arc<LocalRepository>> = OnceLock::new();
+static REPOSITORY: OnceLock<Arc<dyn FullRepository>> = OnceLock::new();
 
 /// Initialize the global repository singleton.
 ///
@@ -36,8 +39,26 @@ pub fn init_repository() -> Result<()> {
         return Ok(());
     }
 
-    // Create local in-memory repository (no database required)
-    let repo = Arc::new(LocalRepository::new());
+    let repo_type = RepositoryType::from_env();
+    let runtime = Runtime::new().context("Failed to create async runtime for repository init")?;
+
+    let repo = runtime.block_on(async {
+        match repo_type {
+            RepositoryType::Azure => {
+                let config = DbConfig::from_env()
+                    .map_err(anyhow::Error::msg)
+                    .map_err(|e| crate::db::repository::RepositoryError::ConfigurationError(e.to_string()))?;
+                RepositoryFactory::create(RepositoryType::Azure, Some(&config), None).await
+            }
+            RepositoryType::Postgres => {
+                let config = PostgresConfig::from_env()
+                    .map_err(anyhow::Error::msg)
+                    .map_err(|e| crate::db::repository::RepositoryError::ConfigurationError(e.to_string()))?;
+                RepositoryFactory::create(RepositoryType::Postgres, None, Some(&config)).await
+            }
+            RepositoryType::Local => RepositoryFactory::create(RepositoryType::Local, None, None).await,
+        }
+    })?;
 
     // Try to set - if it fails (race condition), that's okay
     let _ = REPOSITORY.set(repo);
@@ -66,7 +87,7 @@ pub fn init_repository() -> Result<()> {
 ///     Ok(())
 /// }
 /// ```
-pub fn get_repository() -> Result<&'static Arc<LocalRepository>> {
+pub fn get_repository() -> Result<&'static Arc<dyn FullRepository>> {
     // Ensure repository is initialized lazily.
     if REPOSITORY.get().is_none() {
         // Best-effort initialize to local repository if not already done.

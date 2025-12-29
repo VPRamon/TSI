@@ -5,7 +5,7 @@
 # Type of repository to use: "azure" or "local"
 # - azure: Production Azure SQL Server (requires database configuration)
 # - local: In-memory repository for testing and local development
-type = "local"
+type = "postgres"
 
 # Database configuration for Azure repository
 [database]
@@ -34,3 +34,9 @@ min_connections = 1
 
 # Connection timeout in seconds
 connect_timeout = 30
+
+# Postgres configuration (used when repository.type = "postgres")
+[postgres]
+# Example: postgres://user:password@localhost:5432/tsi
+database_url = "postgres://user:pass@host:5432/dbname"
+max_connections = 10

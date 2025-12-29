@@ -8,10 +8,13 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use crate::api::ModifiedJulianDate;
-use crate::api::*;
-use crate::db::repository::*;
+use crate::db::{
+    models::{InsightsBlock, Schedule, SchedulingBlock},
+    repository::*,
+};
+use crate::api::Period;
 use crate::services::validation::ValidationResult;
+use crate::siderust::astro::ModifiedJulianDate;
 
 /// In-memory local repository.
 ///
@@ -38,40 +41,25 @@ pub struct LocalRepository {
     data: Arc<RwLock<LocalData>>,
 }
 
+#[derive(Default)]
 struct LocalData {
-    schedules: HashMap<crate::api::ScheduleId, Schedule>,
-    schedule_metadata: HashMap<crate::api::ScheduleId, crate::api::ScheduleInfo>,
+    schedules: HashMap<i64, Schedule>,
+    schedule_metadata: HashMap<i64, crate::api::ScheduleInfo>,
     blocks: HashMap<i64, SchedulingBlock>,
-    possible_periods: HashMap<crate::api::ScheduleId, Vec<Period>>,
+    possible_periods: HashMap<i64, Vec<Period>>,
 
     // Analytics data
-    analytics_exists: HashMap<crate::api::ScheduleId, bool>,
+    analytics_exists: HashMap<i64, bool>,
 
     // Validation data
-    validation_results: HashMap<crate::api::ScheduleId, crate::api::ValidationReport>,
+    validation_results: HashMap<i64, crate::api::ValidationReport>,
 
     // ID counters
-    next_schedule_id: crate::api::ScheduleId,
+    next_schedule_id: i64,
     next_block_id: i64,
 
     // Connection health
     is_healthy: bool,
-}
-
-impl Default for LocalData {
-    fn default() -> Self {
-        Self {
-            schedules: HashMap::new(),
-            schedule_metadata: HashMap::new(),
-            blocks: HashMap::new(),
-            possible_periods: HashMap::new(),
-            analytics_exists: HashMap::new(),
-            validation_results: HashMap::new(),
-            next_schedule_id: crate::api::ScheduleId(1),
-            next_block_id: 1,
-            is_healthy: true,
-        }
-    }
 }
 
 impl LocalRepository {
@@ -80,7 +68,7 @@ impl LocalRepository {
         Self {
             data: Arc::new(RwLock::new(LocalData {
                 is_healthy: true,
-                next_schedule_id: crate::api::ScheduleId(1),
+                next_schedule_id: 1,
                 next_block_id: 1,
                 ..Default::default()
             })),
@@ -97,10 +85,10 @@ impl LocalRepository {
     ///
     /// # Returns
     /// The ID assigned to the schedule
-    pub fn store_schedule_impl(&self, mut schedule: Schedule) -> crate::api::ScheduleId {
+    pub fn store_schedule_impl(&self, mut schedule: Schedule) -> i64 {
         let mut data = self.data.write().unwrap();
         let schedule_id = data.next_schedule_id;
-        data.next_schedule_id = crate::api::ScheduleId(data.next_schedule_id.0 + 1);
+        data.next_schedule_id += 1;
 
         // Assign IDs to blocks
         for block in &mut schedule.blocks {
@@ -131,7 +119,7 @@ impl LocalRepository {
         let mut data = self.data.write().unwrap();
         *data = LocalData {
             is_healthy: data.is_healthy,
-            next_schedule_id: crate::api::ScheduleId(1),
+            next_schedule_id: 1,
             next_block_id: 1,
             ..Default::default()
         };
@@ -143,7 +131,7 @@ impl LocalRepository {
     }
 
     /// Check if a schedule exists.
-    pub fn has_schedule(&self, schedule_id: crate::api::ScheduleId) -> bool {
+    pub fn has_schedule(&self, schedule_id: i64) -> bool {
         self.data
             .read()
             .unwrap()
@@ -163,18 +151,19 @@ impl LocalRepository {
     }
 
     /// Helper to get a schedule or return NotFound error.
-    fn get_schedule_impl(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Schedule> {
+    fn get_schedule_impl(&self, schedule_id: i64) -> RepositoryResult<Schedule> {
         let data = self.data.read().unwrap();
-        data.schedules.get(&schedule_id).cloned().ok_or_else(|| {
-            RepositoryError::NotFound(format!("Schedule {} not found", schedule_id.0))
-        })
+        data.schedules
+            .get(&schedule_id)
+            .cloned()
+            .ok_or_else(|| RepositoryError::NotFound(format!("Schedule {} not found", schedule_id)))
     }
 
     /// Helper for the common deletion pattern.
     fn delete_from_map<T>(
         &self,
-        map_accessor: impl FnOnce(&mut LocalData) -> &mut HashMap<crate::api::ScheduleId, T>,
-        schedule_id: crate::api::ScheduleId,
+        map_accessor: impl FnOnce(&mut LocalData) -> &mut HashMap<i64, T>,
+        schedule_id: i64,
     ) -> usize {
         let mut data = self.data.write().unwrap();
         let existed = map_accessor(&mut data).remove(&schedule_id).is_some();
@@ -199,10 +188,7 @@ impl ScheduleRepository for LocalRepository {
         Ok(data.is_healthy)
     }
 
-    async fn store_schedule(
-        &self,
-        schedule: &Schedule,
-    ) -> RepositoryResult<crate::api::ScheduleInfo> {
+    async fn store_schedule(&self, schedule: &Schedule) -> RepositoryResult<crate::api::ScheduleInfo> {
         self.check_health()?;
 
         // Use the helper method to add the schedule
@@ -215,27 +201,24 @@ impl ScheduleRepository for LocalRepository {
         Ok(metadata)
     }
 
-    async fn get_schedule(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<Schedule> {
+    async fn get_schedule(&self, schedule_id: i64) -> RepositoryResult<Schedule> {
         self.get_schedule_impl(schedule_id)
     }
 
     async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
         let data = self.data.read().unwrap();
 
-        let mut schedules: Vec<crate::api::ScheduleInfo> =
-            data.schedule_metadata.values().cloned().collect();
+        let mut schedules: Vec<crate::api::ScheduleInfo> = data
+            .schedule_metadata
+            .values()
+            .cloned()
+            .collect();
 
         schedules.sort_by_key(|s| s.schedule_id);
         Ok(schedules)
     }
 
-    async fn get_schedule_time_range(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<Option<Period>> {
+    async fn get_schedule_time_range(&self, schedule_id: i64) -> RepositoryResult<Option<Period>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Calculate time range from dark periods
@@ -282,24 +265,18 @@ impl ScheduleRepository for LocalRepository {
 
     async fn get_blocks_for_schedule(
         &self,
-        schedule_id: crate::api::ScheduleId,
+        schedule_id: i64,
     ) -> RepositoryResult<Vec<SchedulingBlock>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
         Ok(schedule.blocks.clone())
     }
 
-    async fn fetch_dark_periods(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<Vec<Period>> {
+    async fn fetch_dark_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
         Ok(schedule.dark_periods.clone())
     }
 
-    async fn fetch_possible_periods(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<Vec<Period>> {
+    async fn fetch_possible_periods(&self, schedule_id: i64) -> RepositoryResult<Vec<Period>> {
         let data = self.data.read().unwrap();
 
         Ok(data
@@ -314,10 +291,7 @@ impl ScheduleRepository for LocalRepository {
 
 #[async_trait]
 impl AnalyticsRepository for LocalRepository {
-    async fn populate_schedule_analytics(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<usize> {
+    async fn populate_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Build validation input from schedule blocks
@@ -336,11 +310,6 @@ impl AnalyticsRepository for LocalRepository {
                         .iter()
                         .map(|p| p.duration().value() * 24.0)
                         .sum(),
-                    max_visibility_period_hours: b
-                        .visibility_periods
-                        .iter()
-                        .map(|p| p.duration().value() * 24.0)
-                        .fold(0.0, |acc, v| acc.max(v)),
                     min_alt_deg: Some(b.constraints.min_alt.value()),
                     max_alt_deg: Some(b.constraints.max_alt.value()),
                     constraint_start_mjd: b
@@ -392,17 +361,11 @@ impl AnalyticsRepository for LocalRepository {
         Ok(schedule.blocks.len())
     }
 
-    async fn delete_schedule_analytics(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<usize> {
+    async fn delete_schedule_analytics(&self, schedule_id: i64) -> RepositoryResult<usize> {
         Ok(self.delete_from_map(|d| &mut d.analytics_exists, schedule_id))
     }
 
-    async fn has_analytics_data(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<bool> {
+    async fn has_analytics_data(&self, schedule_id: i64) -> RepositoryResult<bool> {
         let data = self.data.read().unwrap();
         Ok(data
             .analytics_exists
@@ -413,7 +376,7 @@ impl AnalyticsRepository for LocalRepository {
 
     async fn fetch_analytics_blocks_for_sky_map(
         &self,
-        schedule_id: crate::api::ScheduleId,
+        schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::api::LightweightBlock>> {
         use crate::api::LightweightBlock;
 
@@ -423,12 +386,13 @@ impl AnalyticsRepository for LocalRepository {
         let blocks: Vec<LightweightBlock> = schedule
             .blocks
             .iter()
-            .map(|b| {
-                // Use original_block_id if available, otherwise fallback to the parsed block id
+            .enumerate()
+            .map(|(idx, b)| {
+                // Use original_block_id if available, otherwise fallback to internal ID
                 let original_block_id = b
                     .original_block_id
                     .clone()
-                    .unwrap_or_else(|| "-".to_string());
+                    .unwrap_or_else(|| format!("{}", idx + 1));
 
                 LightweightBlock {
                     original_block_id,
@@ -447,7 +411,7 @@ impl AnalyticsRepository for LocalRepository {
 
     async fn fetch_analytics_blocks_for_distribution(
         &self,
-        schedule_id: crate::api::ScheduleId,
+        schedule_id: i64,
     ) -> RepositoryResult<Vec<crate::api::DistributionBlock>> {
         use crate::api::DistributionBlock;
 
@@ -479,25 +443,16 @@ impl AnalyticsRepository for LocalRepository {
             })
             .collect();
 
-        // Exclude blocks marked as impossible in the validation report (if any).
-        // Note: DistributionBlock doesn't contain `scheduling_block_id`, so we
-        // cannot remove specific entries here. Keep blocks as-is; higher-level
-        // consumers will rely on validation report for counts.
-        let data_read = self.data.read().unwrap();
-        if let Some(_report) = data_read.validation_results.get(&schedule_id) {
-            // intentionally no-op: cannot filter without block id in DistributionBlock
-        }
-
         Ok(blocks)
     }
 
     async fn fetch_analytics_blocks_for_insights(
         &self,
-        schedule_id: crate::api::ScheduleId,
+        schedule_id: i64,
     ) -> RepositoryResult<Vec<InsightsBlock>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
-        let mut blocks: Vec<InsightsBlock> = schedule
+        let blocks = schedule
             .blocks
             .iter()
             .map(|b| {
@@ -520,26 +475,15 @@ impl AnalyticsRepository for LocalRepository {
                         b.constraints.max_alt.value() - b.constraints.min_alt.value(),
                     ),
                     scheduled: b.scheduled_period.is_some(),
-                    scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start.clone()),
-                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop.clone()),
+                    scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start),
+                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop),
                 }
             })
             .collect();
 
-        // Exclude blocks marked as impossible in the validation report (if any).
-        let data_read = self.data.read().unwrap();
-        if let Some(report) = data_read.validation_results.get(&schedule_id) {
-            let impossible_ids: std::collections::HashSet<i64> = report
-                .impossible_blocks
-                .iter()
-                .map(|issue| issue.block_id)
-                .collect();
-
-            blocks.retain(|b| !impossible_ids.contains(&b.scheduling_block_id));
-        }
-
         Ok(blocks)
     }
+
 }
 
 // ==================== Validation Repository ====================
@@ -656,7 +600,7 @@ impl ValidationRepository for LocalRepository {
 
     async fn fetch_validation_results(
         &self,
-        schedule_id: crate::api::ScheduleId,
+        schedule_id: i64,
     ) -> RepositoryResult<crate::api::ValidationReport> {
         let data = self.data.read().unwrap();
 
@@ -671,18 +615,12 @@ impl ValidationRepository for LocalRepository {
             })
     }
 
-    async fn has_validation_results(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<bool> {
+    async fn has_validation_results(&self, schedule_id: i64) -> RepositoryResult<bool> {
         let data = self.data.read().unwrap();
         Ok(data.validation_results.contains_key(&schedule_id))
     }
 
-    async fn delete_validation_results(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<u64> {
+    async fn delete_validation_results(&self, schedule_id: i64) -> RepositoryResult<u64> {
         Ok(self.delete_from_map(|d| &mut d.validation_results, schedule_id) as u64)
     }
 }
@@ -693,7 +631,7 @@ impl ValidationRepository for LocalRepository {
 impl VisualizationRepository for LocalRepository {
     async fn fetch_visibility_map_data(
         &self,
-        schedule_id: crate::api::ScheduleId,
+        schedule_id: i64,
     ) -> RepositoryResult<crate::api::VisibilityMapData> {
         use crate::api::VisibilityBlockSummary;
 
@@ -713,15 +651,16 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<VisibilityBlockSummary> = schedule
             .blocks
             .iter()
-            .map(|b| {
-                // Use original_block_id if available, otherwise fallback to the parsed block id
+            .enumerate()
+            .map(|(idx, b)| {
+                // Use original_block_id if available, otherwise fallback to internal ID
                 let original_block_id = b
                     .original_block_id
                     .clone()
-                    .unwrap_or_else(|| b.id.0.to_string());
+                    .unwrap_or_else(|| format!("{}", idx + 1));
 
                 VisibilityBlockSummary {
-                    scheduling_block_id: b.id.0,
+                    scheduling_block_id: idx as i64 + 1,
                     original_block_id,
                     priority: b.priority,
                     num_visibility_periods: b.visibility_periods.len(),
@@ -755,12 +694,12 @@ impl VisualizationRepository for LocalRepository {
 
     async fn fetch_blocks_for_histogram(
         &self,
-        schedule_id: crate::api::ScheduleId,
+        schedule_id: i64,
         priority_min: Option<i32>,
         priority_max: Option<i32>,
         block_ids: Option<Vec<i64>>,
-    ) -> RepositoryResult<Vec<crate::services::visibility::BlockHistogramData>> {
-        use crate::services::visibility::BlockHistogramData;
+    ) -> RepositoryResult<Vec<crate::db::models::BlockHistogramData>> {
+        use crate::db::models::BlockHistogramData;
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 
@@ -768,8 +707,9 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<BlockHistogramData> = schedule
             .blocks
             .iter()
-            .filter_map(|b| {
-                let block_id = b.id.0;
+            .enumerate()
+            .filter_map(|(idx, b)| {
+                let block_id = idx as i64 + 1;
                 let priority = b.priority as i32;
 
                 // Apply filters if provided
@@ -811,9 +751,9 @@ impl VisualizationRepository for LocalRepository {
 
     async fn fetch_schedule_timeline_blocks(
         &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<Vec<crate::api::ScheduleTimelineBlock>> {
-        use crate::api::ScheduleTimelineBlock;
+        schedule_id: i64,
+    ) -> RepositoryResult<Vec<crate::db::models::ScheduleTimelineBlock>> {
+        use crate::db::models::ScheduleTimelineBlock;
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 
@@ -821,7 +761,8 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<ScheduleTimelineBlock> = schedule
             .blocks
             .iter()
-            .filter_map(|b| {
+            .enumerate()
+            .filter_map(|(idx, b)| {
                 // Only include scheduled blocks
                 let scheduled_period = b.scheduled_period.as_ref()?;
 
@@ -833,18 +774,18 @@ impl VisualizationRepository for LocalRepository {
 
                 let requested_hours = b.requested_duration.value() / 3600.0;
 
-                // Use original_block_id if available, otherwise fallback to the parsed block id
+                // Use original_block_id if available, otherwise fallback to internal ID
                 let original_block_id = b
                     .original_block_id
                     .clone()
-                    .unwrap_or_else(|| b.id.0.to_string());
+                    .unwrap_or_else(|| format!("{}", idx + 1));
 
                 Some(ScheduleTimelineBlock {
-                    scheduling_block_id: b.id.0,
+                    scheduling_block_id: idx as i64 + 1,
                     original_block_id,
                     priority: b.priority,
-                    scheduled_start_mjd: scheduled_period.start.clone(),
-                    scheduled_stop_mjd: scheduled_period.stop.clone(),
+                    scheduled_start_mjd: scheduled_period.start,
+                    scheduled_stop_mjd: scheduled_period.stop,
                     ra_deg: b.target_ra,
                     dec_deg: b.target_dec,
                     requested_hours: qtty::time::Hours::new(requested_hours),
@@ -859,9 +800,9 @@ impl VisualizationRepository for LocalRepository {
 
     async fn fetch_compare_blocks(
         &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<Vec<crate::api::CompareBlock>> {
-        use crate::api::CompareBlock;
+        schedule_id: i64,
+    ) -> RepositoryResult<Vec<crate::db::models::CompareBlock>> {
+        use crate::db::models::CompareBlock;
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 
@@ -869,11 +810,12 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<CompareBlock> = schedule
             .blocks
             .iter()
-            .map(|b| {
+            .enumerate()
+            .map(|(idx, b)| {
                 let requested_hours_f64 = b.requested_duration.value() / 3600.0;
 
                 CompareBlock {
-                    scheduling_block_id: b.id.0.to_string(),
+                    scheduling_block_id: format!("{}", idx + 1),
                     priority: b.priority,
                     scheduled: b.scheduled_period.is_some(),
                     requested_hours: qtty::time::Hours::new(requested_hours_f64),
@@ -911,10 +853,10 @@ mod tests {
         };
 
         let metadata = repo.store_schedule(&schedule).await.unwrap();
-        let schedule_id = metadata.schedule_id;
+        assert!(metadata.schedule_id.is_some());
 
         let retrieved = repo
-            .get_schedule(schedule_id)
+            .get_schedule(metadata.schedule_id.unwrap())
             .await
             .unwrap();
         assert_eq!(retrieved.name, schedule.name);
@@ -951,7 +893,7 @@ mod tests {
     async fn test_not_found_error() {
         let repo = LocalRepository::new();
 
-        let result = repo.get_schedule(ScheduleId(999)).await;
+        let result = repo.get_schedule(999).await;
         assert!(matches!(result, Err(RepositoryError::NotFound(_))));
     }
 
@@ -968,7 +910,7 @@ mod tests {
         };
 
         let metadata = repo.store_schedule(&schedule).await.unwrap();
-        let schedule_id = metadata.schedule_id;
+        let schedule_id = metadata.schedule_id.unwrap();
 
         assert!(!repo.has_analytics_data(schedule_id).await.unwrap());
 

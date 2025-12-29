@@ -70,6 +70,8 @@ pub mod repositories;
 pub mod repository;
 pub mod repository_manager;
 pub mod services;
+// Postgres config is colocated with the repository implementation.
+pub use repositories::postgres::PostgresConfig;
 
 // ==================== Service Layer (Recommended for new code) ====================
 // Use these high-level functions that work with any repository implementation
@@ -91,7 +93,7 @@ pub use repo_config::RepositoryConfig;
 
 // Repository trait and implementations
 pub use factory::{RepositoryBuilder, RepositoryFactory, RepositoryType};
-pub use repositories::{AzureRepository, LocalRepository};
+pub use repositories::{AzureRepository, LocalRepository, PostgresRepository};
 pub use repository::{
     AnalyticsRepository, FullRepository, RepositoryError, RepositoryResult, ScheduleRepository,
     ValidationRepository, VisualizationRepository,

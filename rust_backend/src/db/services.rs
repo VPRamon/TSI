@@ -71,7 +71,7 @@ use crate::api::*;
 /// # Returns
 /// * `Ok(true)` if connection is healthy
 /// * `Err` if check fails
-pub async fn health_check<R: FullRepository>(repo: &R) -> RepositoryResult<bool> {
+pub async fn health_check<R: FullRepository + ?Sized>(repo: &R) -> RepositoryResult<bool> {
     repo.health_check().await
 }
 
@@ -92,7 +92,7 @@ pub async fn health_check<R: FullRepository>(repo: &R) -> RepositoryResult<bool>
 /// # Returns
 /// * `Ok(crate::api::ScheduleInfo)` - Metadata of stored schedule (new or existing)
 /// * `Err` if storage fails
-pub async fn store_schedule<R: FullRepository>(
+pub async fn store_schedule<R: FullRepository + ?Sized>(
     repo: &R,
     schedule: &Schedule,
 ) -> RepositoryResult<crate::api::ScheduleInfo> {
@@ -118,7 +118,7 @@ pub async fn store_schedule<R: FullRepository>(
 /// For large schedules (>1000 blocks), consider:
 /// - `populate_analytics=true, skip_time_bins=true` for fast upload with basic analytics
 /// - `populate_analytics=false, skip_time_bins=true` for fastest upload (compute analytics later)
-pub async fn store_schedule_with_options<R: FullRepository>(
+pub async fn store_schedule_with_options<R: FullRepository + ?Sized>(
     repo: &R,
     schedule: &Schedule,
     populate_analytics: bool,
@@ -175,7 +175,7 @@ pub async fn store_schedule_with_options<R: FullRepository>(
 /// # Returns
 /// * `Ok(Schedule)` - The complete schedule with all blocks and dark periods
 /// * `Err` if schedule not found or retrieval fails
-pub async fn get_schedule<R: FullRepository>(
+pub async fn get_schedule<R: FullRepository + ?Sized>(
     repo: &R,
     schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Schedule> {
@@ -191,7 +191,7 @@ pub async fn get_schedule<R: FullRepository>(
 /// # Returns
 /// * `Ok(Vec<crate::api::ScheduleInfo>)` - List of schedule metadata
 /// * `Err` if query fails
-pub async fn list_schedules<R: FullRepository>(
+pub async fn list_schedules<R: FullRepository + ?Sized>(
     repo: &R,
 ) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
     info!("Service layer: listing all schedules");
@@ -208,7 +208,7 @@ pub async fn list_schedules<R: FullRepository>(
 /// * `Ok(Some(Period))` - Time range as a Period
 /// * `Ok(None)` - If schedule has no time constraints
 /// * `Err` if query fails
-pub async fn get_schedule_time_range<R: FullRepository>(
+pub async fn get_schedule_time_range<R: FullRepository + ?Sized>(
     repo: &R,
     schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Option<Period>> {
@@ -226,7 +226,7 @@ pub async fn get_schedule_time_range<R: FullRepository>(
 /// # Returns
 /// * `Ok(SchedulingBlock)` - The scheduling block with all details
 /// * `Err` if block not found or query fails
-pub async fn get_scheduling_block<R: FullRepository>(
+pub async fn get_scheduling_block<R: FullRepository + ?Sized>(
     repo: &R,
     scheduling_block_id: i64,
 ) -> RepositoryResult<SchedulingBlock> {
@@ -242,7 +242,7 @@ pub async fn get_scheduling_block<R: FullRepository>(
 /// # Returns
 /// * `Ok(Vec<SchedulingBlock>)` - List of all blocks
 /// * `Err` if query fails
-pub async fn get_blocks_for_schedule<R: FullRepository>(
+pub async fn get_blocks_for_schedule<R: FullRepository + ?Sized>(
     repo: &R,
     schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Vec<SchedulingBlock>> {
@@ -260,7 +260,7 @@ pub async fn get_blocks_for_schedule<R: FullRepository>(
 /// # Returns
 /// * `Ok(Vec<Period>)` - List of dark periods
 /// * `Err` if query fails
-pub async fn fetch_dark_periods<R: FullRepository>(
+pub async fn fetch_dark_periods<R: FullRepository + ?Sized>(
     repo: &R,
     schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Vec<Period>> {
@@ -276,7 +276,7 @@ pub async fn fetch_dark_periods<R: FullRepository>(
 /// # Returns
 /// * `Ok(Vec<Period>)` - List of visibility periods
 /// * `Err` if query fails
-pub async fn fetch_possible_periods<R: FullRepository>(
+pub async fn fetch_possible_periods<R: FullRepository + ?Sized>(
     repo: &R,
     schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<Vec<Period>> {
@@ -298,7 +298,7 @@ pub async fn fetch_possible_periods<R: FullRepository>(
 /// # Returns
 /// * `Ok(())` if analytics are available
 /// * `Err` if population fails
-pub async fn ensure_analytics<R: FullRepository>(
+pub async fn ensure_analytics<R: FullRepository + ?Sized>(
     repo: &R,
     schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<()> {
@@ -321,7 +321,7 @@ pub async fn ensure_analytics<R: FullRepository>(
 /// # Returns
 /// * `Ok(bool)` - True if analytics exist
 /// * `Err` if query fails
-pub async fn has_analytics_data<R: FullRepository>(
+pub async fn has_analytics_data<R: FullRepository + ?Sized>(
     repo: &R,
     schedule_id: crate::api::ScheduleId,
 ) -> RepositoryResult<bool> {

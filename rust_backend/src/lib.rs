@@ -60,14 +60,13 @@
 
 use pyo3::prelude::*;
 
+pub mod routes;
 pub mod algorithms;
 pub mod api;
 pub mod db;
-mod models;
-pub mod routes;
 pub mod services;
-pub mod siderust;
 pub mod transformations;
+pub mod siderust;
 
 /// Python module entry point for the new TSI Rust API.
 ///
@@ -136,3 +135,4 @@ fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
 fn tsi_rust_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
     api::register_api_functions(m)
 }
+

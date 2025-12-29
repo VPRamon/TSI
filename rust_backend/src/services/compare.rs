@@ -3,7 +3,6 @@
 
 use crate::api::{CompareBlock, CompareData, CompareStats, SchedulingChange};
 use crate::db::get_repository;
-use crate::db::VisualizationRepository;
 use pyo3::prelude::*;
 use std::collections::{HashMap, HashSet};
 use tokio::runtime::Runtime;

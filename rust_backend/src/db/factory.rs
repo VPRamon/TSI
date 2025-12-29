@@ -8,8 +8,9 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use super::repo_config::RepositoryConfig;
-use super::repositories::{AzureRepository, LocalRepository};
-use super::repository::{RepositoryError, RepositoryResult, ScheduleRepository};
+use super::repositories::postgres::PostgresConfig;
+use super::repositories::{AzureRepository, LocalRepository, PostgresRepository};
+use super::repository::{FullRepository, RepositoryError, RepositoryResult};
 use super::{config::DbConfig, repositories::azure::pool};
 
 /// Repository type configuration.
@@ -17,6 +18,8 @@ use super::{config::DbConfig, repositories::azure::pool};
 pub enum RepositoryType {
     /// Azure SQL Server (production)
     Azure,
+    /// Postgres + Diesel implementation
+    Postgres,
     /// In-memory local repository
     Local,
 }
@@ -35,6 +38,7 @@ impl FromStr for RepositoryType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
             "azure" => Ok(Self::Azure),
+            "postgres" | "pg" => Ok(Self::Postgres),
             "local" => Ok(Self::Local),
             _ => Err(format!("Unknown repository type: {}", s)),
         }
@@ -44,12 +48,18 @@ impl FromStr for RepositoryType {
 impl RepositoryType {
     /// Get repository type from environment variable.
     ///
-    /// Reads `REPOSITORY_TYPE` environment variable. Defaults to Azure if not set.
+    /// Reads `REPOSITORY_TYPE` environment variable. Defaults to Postgres if a
+    /// database URL is present, otherwise Local.
     pub fn from_env() -> Self {
-        std::env::var("REPOSITORY_TYPE")
-            .ok()
-            .and_then(|s| s.parse().ok())
-            .unwrap_or(Self::Azure)
+        if let Ok(val) = std::env::var("REPOSITORY_TYPE") {
+            return val.parse().unwrap_or(Self::Local);
+        }
+
+        if std::env::var("DATABASE_URL").is_ok() || std::env::var("PG_DATABASE_URL").is_ok() {
+            Self::Postgres
+        } else {
+            Self::Local
+        }
     }
 }
 
@@ -72,7 +82,7 @@ impl RepositoryType {
 ///     let local_repo = RepositoryFactory::create_local();
 ///     
 ///     // Create from configuration
-///     let repo = RepositoryFactory::create(RepositoryType::Azure, Some(&config)).await?;
+///     let repo = RepositoryFactory::create(RepositoryType::Azure, Some(&config), None).await?;
 ///     
 ///     Ok(())
 /// }
@@ -87,21 +97,31 @@ impl RepositoryFactory {
     /// * `config` - Optional database configuration (required for Azure)
     ///
     /// # Returns
-    /// * `Ok(Arc<dyn ScheduleRepository>)` - Boxed repository instance
+    /// * `Ok(Arc<dyn FullRepository>)` - Boxed repository instance
     /// * `Err(RepositoryError)` - If creation fails
     pub async fn create(
         repo_type: RepositoryType,
-        config: Option<&DbConfig>,
-    ) -> RepositoryResult<Arc<dyn ScheduleRepository>> {
+        azure_config: Option<&DbConfig>,
+        postgres_config: Option<&PostgresConfig>,
+    ) -> RepositoryResult<Arc<dyn FullRepository>> {
         match repo_type {
             RepositoryType::Azure => {
-                let config = config.ok_or_else(|| {
+                let config = azure_config.ok_or_else(|| {
                     RepositoryError::ConfigurationError(
                         "Azure repository requires DbConfig".to_string(),
                     )
                 })?;
                 let azure = Self::create_azure(config).await?;
-                Ok(azure as Arc<dyn ScheduleRepository>)
+                Ok(azure as Arc<dyn FullRepository>)
+            }
+            RepositoryType::Postgres => {
+                let config = postgres_config.ok_or_else(|| {
+                    RepositoryError::ConfigurationError(
+                        "Postgres repository requires PostgresConfig".to_string(),
+                    )
+                })?;
+                let pg = Self::create_postgres(config).await?;
+                Ok(pg as Arc<dyn FullRepository>)
             }
             RepositoryType::Local => Ok(Self::create_local()),
         }
@@ -126,11 +146,26 @@ impl RepositoryFactory {
         Ok(Arc::new(AzureRepository::new()))
     }
 
+    /// Create a Postgres repository.
+    ///
+    /// # Arguments
+    /// * `config` - Postgres configuration
+    ///
+    /// # Returns
+    /// * `Ok(Arc<PostgresRepository>)` - Postgres repository instance
+    /// * `Err(RepositoryError)` - If initialization fails
+    pub async fn create_postgres(
+        config: &PostgresConfig,
+    ) -> RepositoryResult<Arc<PostgresRepository>> {
+        let repo = PostgresRepository::new(config.clone())?;
+        Ok(Arc::new(repo))
+    }
+
     /// Create an in-memory local repository.
     ///
     /// # Returns
     /// Boxed local repository instance
-    pub fn create_local() -> Arc<dyn ScheduleRepository> {
+    pub fn create_local() -> Arc<dyn FullRepository> {
         Arc::new(LocalRepository::new())
     }
 
@@ -142,14 +177,20 @@ impl RepositoryFactory {
     /// # Returns
     /// * `Ok(Arc<dyn ScheduleRepository>)` - Repository instance
     /// * `Err(RepositoryError)` - If creation fails
-    pub async fn from_env() -> RepositoryResult<Arc<dyn ScheduleRepository>> {
+    pub async fn from_env() -> RepositoryResult<Arc<dyn FullRepository>> {
         let repo_type = RepositoryType::from_env();
 
         match repo_type {
             RepositoryType::Azure => {
                 let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
                 let azure = Self::create_azure(&config).await?;
-                Ok(azure as Arc<dyn ScheduleRepository>)
+                Ok(azure as Arc<dyn FullRepository>)
+            }
+            RepositoryType::Postgres => {
+                let config =
+                    PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
+                let pg = Self::create_postgres(&config).await?;
+                Ok(pg as Arc<dyn FullRepository>)
             }
             RepositoryType::Local => Ok(Self::create_local()),
         }
@@ -165,7 +206,7 @@ impl RepositoryFactory {
     /// * `Err(RepositoryError)` - If creation fails
     pub async fn from_config_file<P: AsRef<Path>>(
         config_path: P,
-    ) -> RepositoryResult<Arc<dyn ScheduleRepository>> {
+    ) -> RepositoryResult<Arc<dyn FullRepository>> {
         let config = RepositoryConfig::from_file(config_path)?;
         Self::from_repository_config(&config).await
     }
@@ -178,7 +219,7 @@ impl RepositoryFactory {
     /// # Returns
     /// * `Ok(Arc<dyn ScheduleRepository>)` - Repository instance
     /// * `Err(RepositoryError)` - If creation fails
-    pub async fn from_default_config() -> RepositoryResult<Arc<dyn ScheduleRepository>> {
+    pub async fn from_default_config() -> RepositoryResult<Arc<dyn FullRepository>> {
         let config = RepositoryConfig::from_default_location()?;
         Self::from_repository_config(&config).await
     }
@@ -193,7 +234,7 @@ impl RepositoryFactory {
     /// * `Err(RepositoryError)` - If creation fails
     async fn from_repository_config(
         config: &RepositoryConfig,
-    ) -> RepositoryResult<Arc<dyn ScheduleRepository>> {
+    ) -> RepositoryResult<Arc<dyn FullRepository>> {
         let repo_type = config.repository_type().map_err(|e| {
             RepositoryError::ConfigurationError(format!("Invalid repository type: {}", e))
         })?;
@@ -206,7 +247,16 @@ impl RepositoryFactory {
                     )
                 })?;
                 let azure = Self::create_azure(&db_config).await?;
-                Ok(azure as Arc<dyn ScheduleRepository>)
+                Ok(azure as Arc<dyn FullRepository>)
+            }
+            RepositoryType::Postgres => {
+                let pg_config = config.to_postgres_config()?.ok_or_else(|| {
+                    RepositoryError::ConfigurationError(
+                        "Postgres repository requires database configuration".to_string(),
+                    )
+                })?;
+                let pg = Self::create_postgres(&pg_config).await?;
+                Ok(pg as Arc<dyn FullRepository>)
             }
             RepositoryType::Local => Ok(Self::create_local()),
         }
@@ -236,7 +286,8 @@ impl RepositoryFactory {
 /// ```
 pub struct RepositoryBuilder {
     repo_type: RepositoryType,
-    config: Option<DbConfig>,
+    azure_config: Option<DbConfig>,
+    postgres_config: Option<PostgresConfig>,
 }
 
 impl RepositoryBuilder {
@@ -246,7 +297,8 @@ impl RepositoryBuilder {
     pub fn new() -> Self {
         Self {
             repo_type: RepositoryType::Azure,
-            config: None,
+            azure_config: None,
+            postgres_config: None,
         }
     }
 
@@ -258,7 +310,13 @@ impl RepositoryBuilder {
 
     /// Set the database configuration.
     pub fn config(mut self, config: DbConfig) -> Self {
-        self.config = Some(config);
+        self.azure_config = Some(config);
+        self
+    }
+
+    /// Set the Postgres configuration.
+    pub fn postgres_config(mut self, config: PostgresConfig) -> Self {
+        self.postgres_config = Some(config);
         self
     }
 
@@ -268,7 +326,11 @@ impl RepositoryBuilder {
 
         if self.repo_type == RepositoryType::Azure {
             let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
-            self.config = Some(config);
+            self.azure_config = Some(config);
+        } else if self.repo_type == RepositoryType::Postgres {
+            let config =
+                PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
+            self.postgres_config = Some(config);
         }
 
         Ok(self)
@@ -298,7 +360,14 @@ impl RepositoryBuilder {
                     "Azure repository requires database configuration".to_string(),
                 )
             })?;
-            self.config = Some(config);
+            self.azure_config = Some(config);
+        } else if self.repo_type == RepositoryType::Postgres {
+            let config = repo_config.to_postgres_config()?.ok_or_else(|| {
+                RepositoryError::ConfigurationError(
+                    "Postgres repository requires database configuration".to_string(),
+                )
+            })?;
+            self.postgres_config = Some(config);
         }
 
         Ok(self)
@@ -324,7 +393,14 @@ impl RepositoryBuilder {
                     "Azure repository requires database configuration".to_string(),
                 )
             })?;
-            self.config = Some(config);
+            self.azure_config = Some(config);
+        } else if self.repo_type == RepositoryType::Postgres {
+            let config = repo_config.to_postgres_config()?.ok_or_else(|| {
+                RepositoryError::ConfigurationError(
+                    "Postgres repository requires database configuration".to_string(),
+                )
+            })?;
+            self.postgres_config = Some(config);
         }
 
         Ok(self)
@@ -333,10 +409,15 @@ impl RepositoryBuilder {
     /// Build the repository instance.
     ///
     /// # Returns
-    /// * `Ok(Arc<dyn ScheduleRepository>)` - Configured repository
+    /// * `Ok(Arc<dyn FullRepository>)` - Configured repository
     /// * `Err(RepositoryError)` - If build fails
-    pub async fn build(self) -> RepositoryResult<Arc<dyn ScheduleRepository>> {
-        RepositoryFactory::create(self.repo_type, self.config.as_ref()).await
+    pub async fn build(self) -> RepositoryResult<Arc<dyn FullRepository>> {
+        RepositoryFactory::create(
+            self.repo_type,
+            self.azure_config.as_ref(),
+            self.postgres_config.as_ref(),
+        )
+        .await
     }
 }
 
@@ -359,6 +440,10 @@ mod tests {
         assert_eq!(
             RepositoryType::from_str("local").unwrap(),
             RepositoryType::Local
+        );
+        assert_eq!(
+            RepositoryType::from_str("postgres").unwrap(),
+            RepositoryType::Postgres
         );
         assert_eq!(
             RepositoryType::from_str("Azure").unwrap(),
@@ -386,7 +471,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_azure_requires_config() {
-        let result = RepositoryFactory::create(RepositoryType::Azure, None).await;
+        let result =
+            RepositoryFactory::create(RepositoryType::Azure, None, None).await;
         assert!(matches!(
             result,
             Err(RepositoryError::ConfigurationError(_))

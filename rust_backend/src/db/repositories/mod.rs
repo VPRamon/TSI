@@ -6,6 +6,8 @@
 
 pub mod azure;
 pub mod local;
+pub mod postgres;
 
 pub use azure::AzureRepository;
 pub use local::LocalRepository;
+pub use postgres::PostgresRepository;
