@@ -10,7 +10,7 @@ use std::str::FromStr;
 
 use super::config::{DbAuthMethod, DbConfig};
 use super::factory::RepositoryType;
-use super::repositories::postgres::PostgresConfig;
+use crate::db::PostgresConfig;
 use super::repository::RepositoryError;
 
 /// Repository configuration from file.
@@ -233,6 +233,7 @@ impl RepositoryConfig {
     }
 
     /// Convert to PostgresConfig if this is a Postgres configuration.
+    #[cfg(feature = "postgres-repo")]
     pub fn to_postgres_config(&self) -> Result<Option<PostgresConfig>, RepositoryError> {
         let repo_type = self.repository_type().map_err(|e| {
             RepositoryError::ConfigurationError(format!("Invalid repository type: {}", e))
@@ -252,6 +253,22 @@ impl RepositoryConfig {
             database_url: self.postgres.database_url.clone(),
             max_pool_size: self.postgres.max_connections,
         }))
+    }
+
+    /// Convert to PostgresConfig when the feature is disabled.
+    #[cfg(not(feature = "postgres-repo"))]
+    pub fn to_postgres_config(&self) -> Result<Option<PostgresConfig>, RepositoryError> {
+        let repo_type = self.repository_type().map_err(|e| {
+            RepositoryError::ConfigurationError(format!("Invalid repository type: {}", e))
+        })?;
+
+        if repo_type == RepositoryType::Postgres {
+            return Err(RepositoryError::ConfigurationError(
+                "Postgres repository feature not enabled".to_string(),
+            ));
+        }
+
+        Ok(None)
     }
 }
 

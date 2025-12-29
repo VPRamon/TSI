@@ -37,6 +37,7 @@ impl From<&str> for RepositoryError {
     }
 }
 
+#[cfg(feature = "postgres-repo")]
 impl From<diesel::result::Error> for RepositoryError {
     fn from(err: diesel::result::Error) -> Self {
         match err {

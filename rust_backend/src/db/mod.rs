@@ -62,21 +62,33 @@
 //! - `validation`: Validation result storage
 //! - `pool`: Connection pooling
 
+#[cfg(all(feature = "azure-repo", feature = "postgres-repo"))]
+compile_error!("Enable only one repository backend feature at a time.");
+#[cfg(all(feature = "azure-repo", feature = "local-repo"))]
+compile_error!("Enable only one repository backend feature at a time.");
+#[cfg(all(feature = "postgres-repo", feature = "local-repo"))]
+compile_error!("Enable only one repository backend feature at a time.");
+#[cfg(not(any(feature = "azure-repo", feature = "postgres-repo", feature = "local-repo")))]
+compile_error!("Enable exactly one repository backend feature.");
+
 pub mod checksum;
 pub mod config;
 pub mod factory;
 pub mod repo_config;
 pub mod repositories;
 pub mod repository;
-pub mod repository_manager;
 pub mod services;
 // Postgres config is colocated with the repository implementation.
+#[cfg(feature = "postgres-repo")]
 pub use repositories::postgres::PostgresConfig;
+#[cfg(not(feature = "postgres-repo"))]
+#[derive(Debug, Clone)]
+pub struct PostgresConfig {
+    _private: (),
+}
 
 // ==================== Service Layer (Recommended for new code) ====================
 // Use these high-level functions that work with any repository implementation
-
-pub use repository_manager::{get_repository, init_repository};
 
 pub use services::{
     ensure_analytics, fetch_dark_periods, fetch_possible_periods, get_blocks_for_schedule,
@@ -93,7 +105,11 @@ pub use repo_config::RepositoryConfig;
 
 // Repository trait and implementations
 pub use factory::{RepositoryBuilder, RepositoryFactory, RepositoryType};
-pub use repositories::{AzureRepository, LocalRepository, PostgresRepository};
+#[cfg(feature = "azure-repo")]
+pub use repositories::AzureRepository;
+pub use repositories::LocalRepository;
+#[cfg(feature = "postgres-repo")]
+pub use repositories::PostgresRepository;
 pub use repository::{
     AnalyticsRepository, FullRepository, RepositoryError, RepositoryResult, ScheduleRepository,
     ValidationRepository, VisualizationRepository,
@@ -104,13 +120,83 @@ pub use repository::{
 // the Azure-specific modules.
 
 // Re-export Azure module functions and types for compatibility
+#[cfg(feature = "azure-repo")]
 pub use repositories::azure::{analytics, operations, pool, validation};
 
 // Validation
+#[cfg(feature = "azure-repo")]
 pub use repositories::azure::validation::{
     delete_validation_results, fetch_validation_results, has_validation_results,
     insert_validation_results,
 };
 
 // Database pool type
+#[cfg(feature = "azure-repo")]
 pub use repositories::azure::pool::DbPool;
+
+use anyhow::Result;
+#[cfg(any(feature = "azure-repo", feature = "postgres-repo"))]
+use anyhow::Context;
+use std::sync::{Arc, OnceLock};
+#[cfg(any(feature = "azure-repo", feature = "postgres-repo"))]
+use tokio::runtime::Runtime;
+
+/// Global repository instance initialized once per process.
+static REPOSITORY: OnceLock<Arc<dyn FullRepository>> = OnceLock::new();
+
+#[cfg(feature = "azure-repo")]
+async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
+    let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
+    let repo = RepositoryFactory::create_azure(&config).await?;
+    Ok(repo as Arc<dyn FullRepository>)
+}
+
+#[cfg(feature = "postgres-repo")]
+async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
+    let config = PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
+    let repo = RepositoryFactory::create_postgres(&config).await?;
+    Ok(repo as Arc<dyn FullRepository>)
+}
+
+#[cfg(feature = "local-repo")]
+fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
+    Ok(RepositoryFactory::create_local())
+}
+
+/// Initialize the global repository singleton for the selected backend.
+#[cfg(any(feature = "azure-repo", feature = "postgres-repo"))]
+pub fn init_repository() -> Result<()> {
+    if REPOSITORY.get().is_some() {
+        return Ok(());
+    }
+
+    let runtime = Runtime::new().context("Failed to create async runtime for repository init")?;
+    let repo = runtime
+        .block_on(create_selected_repository())
+        .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+    let _ = REPOSITORY.set(repo);
+    Ok(())
+}
+
+/// Initialize the global repository singleton for the selected backend.
+#[cfg(feature = "local-repo")]
+pub fn init_repository() -> Result<()> {
+    if REPOSITORY.get().is_some() {
+        return Ok(());
+    }
+
+    let repo = create_selected_repository().map_err(|e| anyhow::Error::msg(e.to_string()))?;
+    let _ = REPOSITORY.set(repo);
+    Ok(())
+}
+
+/// Get a reference to the global repository instance.
+pub fn get_repository() -> Result<&'static Arc<dyn FullRepository>> {
+    if REPOSITORY.get().is_none() {
+        let _ = init_repository();
+    }
+
+    REPOSITORY
+        .get()
+        .context("Database not initialized. Call init_repository() first.")
+}
