@@ -1,6 +1,5 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
-use crate::db::models;
 
 // =========================================================
 // Trends types + route
@@ -10,11 +9,11 @@ use crate::db::models;
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendsBlock {
-    pub scheduling_block_id: i64,
-    pub original_block_id: String,
+    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
-    pub total_visibility_hours: f64,
-    pub requested_hours: f64,
+    pub total_visibility_hours: qtty::Hours,
+    pub requested_hours: qtty::Hours,
     pub scheduled: bool,
 }
 
@@ -41,8 +40,8 @@ pub struct SmoothedPoint {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeatmapBin {
-    pub visibility_mid: f64,
-    pub time_mid: f64,
+    pub visibility_mid: qtty::Hours,
+    pub time_mid: qtty::Hours,
     pub scheduled_rate: f64,
     pub count: usize,
 }
@@ -58,12 +57,12 @@ pub struct TrendsMetrics {
     pub priority_min: f64,
     pub priority_max: f64,
     pub priority_mean: f64,
-    pub visibility_min: f64,
-    pub visibility_max: f64,
-    pub visibility_mean: f64,
-    pub time_min: f64,
-    pub time_max: f64,
-    pub time_mean: f64,
+    pub visibility_min: qtty::Hours,
+    pub visibility_max: qtty::Hours,
+    pub visibility_mean: qtty::Hours,
+    pub time_min: qtty::Hours,
+    pub time_max: qtty::Hours,
+    pub time_mean: qtty::Hours,
 }
 
 /// Complete trends dataset.
@@ -99,7 +98,7 @@ pub fn get_trends_data(
     let n_smooth_points = n_smooth_points.unwrap_or(12) as usize;
 
     let data = crate::services::py_get_trends_data(schedule_id, n_bins, bandwidth, n_smooth_points)?;
-    Ok((&data).into())
+    Ok(data)
 }
 
 /// Register trends-related functions, classes, and constants.
@@ -113,85 +112,4 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<TrendsData>()?;
     m.add("GET_TRENDS_DATA", GET_TRENDS_DATA)?;
     Ok(())
-}
-
-impl From<&models::TrendsBlock> for crate::api::TrendsBlock {
-    fn from(block: &models::TrendsBlock) -> Self {
-        crate::api::TrendsBlock {
-            scheduling_block_id: block.scheduling_block_id,
-            original_block_id: block.original_block_id.clone(),
-            priority: block.priority,
-            total_visibility_hours: block.total_visibility_hours.value(),
-            requested_hours: block.requested_hours.value(),
-            scheduled: block.scheduled,
-        }
-    }
-}
-
-impl From<&models::EmpiricalRatePoint> for crate::api::EmpiricalRatePoint {
-    fn from(point: &models::EmpiricalRatePoint) -> Self {
-        crate::api::EmpiricalRatePoint {
-            bin_label: point.bin_label.clone(),
-            mid_value: point.mid_value,
-            scheduled_rate: point.scheduled_rate,
-            count: point.count,
-        }
-    }
-}
-
-impl From<&models::SmoothedPoint> for crate::api::SmoothedPoint {
-    fn from(point: &models::SmoothedPoint) -> Self {
-        crate::api::SmoothedPoint {
-            x: point.x,
-            y_smoothed: point.y_smoothed,
-            n_samples: point.n_samples,
-        }
-    }
-}
-
-impl From<&models::HeatmapBin> for crate::api::HeatmapBin {
-    fn from(bin: &models::HeatmapBin) -> Self {
-        crate::api::HeatmapBin {
-            visibility_mid: bin.visibility_mid.value(),
-            time_mid: bin.time_mid.value(),
-            scheduled_rate: bin.scheduled_rate,
-            count: bin.count,
-        }
-    }
-}
-
-impl From<&models::TrendsMetrics> for crate::api::TrendsMetrics {
-    fn from(metrics: &models::TrendsMetrics) -> Self {
-        crate::api::TrendsMetrics {
-            total_count: metrics.total_count,
-            scheduled_count: metrics.scheduled_count,
-            scheduling_rate: metrics.scheduling_rate,
-            zero_visibility_count: metrics.zero_visibility_count,
-            priority_min: metrics.priority_min,
-            priority_max: metrics.priority_max,
-            priority_mean: metrics.priority_mean,
-            visibility_min: metrics.visibility_min.value(),
-            visibility_max: metrics.visibility_max.value(),
-            visibility_mean: metrics.visibility_mean.value(),
-            time_min: metrics.time_min.value(),
-            time_max: metrics.time_max.value(),
-            time_mean: metrics.time_mean.value(),
-        }
-    }
-}
-
-impl From<&models::TrendsData> for crate::api::TrendsData {
-    fn from(data: &models::TrendsData) -> Self {
-        crate::api::TrendsData {
-            blocks: data.blocks.iter().map(|b| b.into()).collect(),
-            metrics: (&data.metrics).into(),
-            by_priority: data.by_priority.iter().map(|r| r.into()).collect(),
-            by_visibility: data.by_visibility.iter().map(|r| r.into()).collect(),
-            by_time: data.by_time.iter().map(|r| r.into()).collect(),
-            smoothed_visibility: data.smoothed_visibility.iter().map(|s| s.into()).collect(),
-            smoothed_time: data.smoothed_time.iter().map(|s| s.into()).collect(),
-            heatmap_bins: data.heatmap_bins.iter().map(|h| h.into()).collect(),
-            priority_values: data.priority_values.clone(),
-        }
-    }
 }

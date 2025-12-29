@@ -9,10 +9,9 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 use crate::db::{
-    models::{InsightsBlock, Schedule, SchedulingBlock},
     repository::*,
 };
-use crate::api::Period;
+use crate::api::*;
 use crate::services::validation::ValidationResult;
 use crate::api::ModifiedJulianDate;
 
@@ -709,8 +708,8 @@ impl VisualizationRepository for LocalRepository {
         priority_min: Option<i32>,
         priority_max: Option<i32>,
         block_ids: Option<Vec<i64>>,
-    ) -> RepositoryResult<Vec<crate::db::models::BlockHistogramData>> {
-        use crate::db::models::BlockHistogramData;
+    ) -> RepositoryResult<Vec<crate::services::visibility::BlockHistogramData>> {
+        use crate::services::visibility::BlockHistogramData;
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 
@@ -759,12 +758,12 @@ impl VisualizationRepository for LocalRepository {
 
         Ok(blocks)
     }
-
+ 
     async fn fetch_schedule_timeline_blocks(
         &self,
         schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<Vec<crate::db::models::ScheduleTimelineBlock>> {
-        use crate::db::models::ScheduleTimelineBlock;
+    ) -> RepositoryResult<Vec<crate::api::ScheduleTimelineBlock>> {
+        use crate::api::ScheduleTimelineBlock;
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 
@@ -812,8 +811,8 @@ impl VisualizationRepository for LocalRepository {
     async fn fetch_compare_blocks(
         &self,
         schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<Vec<crate::db::models::CompareBlock>> {
-        use crate::db::models::CompareBlock;
+    ) -> RepositoryResult<Vec<crate::api::CompareBlock>> {
+        use crate::api::CompareBlock;
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 

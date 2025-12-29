@@ -10,6 +10,7 @@ from tsi.components.visibility.visibility_controls import (
 )
 from tsi.components.visibility.visibility_map_figure import render_visibility_map_figure
 from tsi.components.visibility.visibility_stats import render_chart_info, render_dataset_statistics
+import tsi_rust as api
 from tsi.services import database as db
 from tsi.services.utils.visibility_processing import (
     compute_effective_priority_range,

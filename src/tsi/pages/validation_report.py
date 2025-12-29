@@ -10,6 +10,7 @@ from tsi.components.validation.validation_summary import (
     render_criticality_stats,
     render_summary_metrics,
 )
+import tsi_rust as api
 from tsi.services import database as db
 
 

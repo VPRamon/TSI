@@ -3,6 +3,7 @@ use pyo3::types::PyTuple;
 
 use serde::*;
 
+#[pyclass(module = "tsi_rust_api")]
 #[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct ModifiedJulianDate(qtty::Days);
 

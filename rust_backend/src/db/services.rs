@@ -57,9 +57,8 @@
 
 use log::{info, warn};
 
-use super::models::{Schedule, SchedulingBlock};
 use super::repository::{FullRepository, RepositoryResult};
-use crate::api::Period;
+use crate::api::*;
 // ==================== Health & Connection ====================
 
 /// Check if the database connection is healthy.
@@ -354,14 +353,14 @@ pub fn parse_schedule_from_json(
     schedule_name: &str,
     schedule_json: &str,
     visibility_json: Option<&str>,
-) -> anyhow::Result<crate::db::models::Schedule> {
+) -> anyhow::Result<crate::api::Schedule> {
     use anyhow::Context;
 
     let dark_periods = std::fs::read_to_string("data/dark_periods.json")
         .context("Failed to read dark_periods.json")?;
 
-    let mut schedule: crate::db::models::Schedule =
-        crate::db::models::schedule::parse_schedule_json_str(
+    let mut schedule: crate::api::Schedule =
+        parse_schedule_json_str(
             schedule_json,
             visibility_json,
             dark_periods.as_str(),
@@ -395,7 +394,7 @@ pub fn parse_schedule_from_json(
 /// - The schedule storage fails
 /// - Analytics population fails (if requested)
 pub fn store_schedule_sync(
-    schedule: &crate::db::models::Schedule,
+    schedule: &crate::api::Schedule,
     populate_analytics: bool,
 ) -> anyhow::Result<crate::api::ScheduleInfo> {
     use anyhow::Context;

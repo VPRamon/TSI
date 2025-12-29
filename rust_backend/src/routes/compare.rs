@@ -12,7 +12,7 @@ pub struct CompareBlock {
     pub scheduling_block_id: String,
     pub priority: f64,
     pub scheduled: bool,
-    pub requested_hours: f64,
+    pub requested_hours: qtty::Hours,
 }
 
 #[pyclass(module = "tsi_rust_api", get_all)]
@@ -23,7 +23,7 @@ pub struct CompareStats {
     pub total_priority: f64,
     pub mean_priority: f64,
     pub median_priority: f64,
-    pub total_hours: f64,
+    pub total_hours: qtty::Hours,
 }
 
 #[pyclass(module = "tsi_rust_api", get_all)]
@@ -67,7 +67,7 @@ pub fn get_compare_data(
         current_name,
         comparison_name,
     )?;
-    Ok((&data).into())
+    Ok(data)
 }
 
 /// Register compare route functions, classes and constants.
@@ -79,55 +79,4 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<CompareData>()?;
     m.add("GET_COMPARE_DATA", GET_COMPARE_DATA)?;
     Ok(())
-}
-
-impl From<&crate::db::models::CompareBlock> for crate::api::CompareBlock {
-    fn from(block: &crate::db::models::CompareBlock) -> Self {
-        crate::api::CompareBlock {
-            scheduling_block_id: block.scheduling_block_id.clone(),
-            priority: block.priority,
-            scheduled: block.scheduled,
-            requested_hours: block.requested_hours.value(),
-        }
-    }
-}
-
-impl From<&crate::db::models::CompareStats> for crate::api::CompareStats {
-    fn from(stats: &crate::db::models::CompareStats) -> Self {
-        crate::api::CompareStats {
-            scheduled_count: stats.scheduled_count,
-            unscheduled_count: stats.unscheduled_count,
-            total_priority: stats.total_priority,
-            mean_priority: stats.mean_priority,
-            median_priority: stats.median_priority,
-            total_hours: stats.total_hours.value(),
-        }
-    }
-}
-
-impl From<&crate::db::models::SchedulingChange> for crate::api::SchedulingChange {
-    fn from(change: &crate::db::models::SchedulingChange) -> Self {
-        crate::api::SchedulingChange {
-            scheduling_block_id: change.scheduling_block_id.clone(),
-            priority: change.priority,
-            change_type: change.change_type.clone(),
-        }
-    }
-}
-
-impl From<&crate::db::models::CompareData> for crate::api::CompareData {
-    fn from(data: &crate::db::models::CompareData) -> Self {
-        crate::api::CompareData {
-            current_blocks: data.current_blocks.iter().map(|b| b.into()).collect(),
-            comparison_blocks: data.comparison_blocks.iter().map(|b| b.into()).collect(),
-            current_stats: (&data.current_stats).into(),
-            comparison_stats: (&data.comparison_stats).into(),
-            common_ids: data.common_ids.clone(),
-            only_in_current: data.only_in_current.clone(),
-            only_in_comparison: data.only_in_comparison.clone(),
-            scheduling_changes: data.scheduling_changes.iter().map(|c| c.into()).collect(),
-            current_name: data.current_name.clone(),
-            comparison_name: data.comparison_name.clone(),
-        }
-    }
 }

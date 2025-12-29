@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ```rust
 use tsi_rust::db::{repositories::TestRepository, ScheduleRepository};
-use tsi_rust::db::models::Schedule;
+use tsi_rust::api::Schedule;
 
 #[tokio::test]
 async fn test_schedule_operations() {

@@ -5,11 +5,12 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi.plots.timeline import build_visibility_histogram_from_bins
+import tsi_rust as api
 from tsi.services.database import get_schedule_time_range, get_visibility_histogram
 
 
 def render_visibility_map_figure(
-    schedule_id: int | None,
+    schedule_id: api.ScheduleId,
     settings: dict,
     effective_priority_range: tuple[float, float],
     total_blocks: int,

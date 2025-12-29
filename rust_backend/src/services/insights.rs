@@ -2,7 +2,7 @@
 #![allow(clippy::redundant_closure)]
 #![allow(clippy::useless_vec)]
 
-use crate::db::models::{
+use crate::api::{
     AnalyticsMetrics, ConflictRecord, CorrelationEntry, InsightsBlock, InsightsData, TopObservation,
 };
 use pyo3::prelude::*;

@@ -10,6 +10,7 @@ from tsi.components.insights.insights_analysis import (
 from tsi.components.insights.insights_metrics import render_key_metrics, render_priority_analysis
 from tsi.components.insights.insights_reports import render_report_downloads
 from tsi.components.insights.insights_tables import render_integrity_checks, render_top_observations
+import tsi_rust as api
 from tsi.services import database as db
 from tsi.services.data.analytics import generate_insights
 

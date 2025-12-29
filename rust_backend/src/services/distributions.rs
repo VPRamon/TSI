@@ -132,22 +132,21 @@ pub async fn get_distribution_data(schedule_id: crate::api::ScheduleId) -> Resul
 ///
 /// **Note**: Impossible blocks are automatically excluded.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_distribution_data(schedule_id: i64) -> PyResult<DistributionData> {
+pub fn py_get_distribution_data(schedule_id: crate::api::ScheduleId) -> PyResult<DistributionData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
             e
         ))
     })?;
-    let sid = crate::api::ScheduleId(schedule_id);
     runtime
-        .block_on(get_distribution_data(sid))
+        .block_on(get_distribution_data(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 /// Alias for compatibility - uses analytics path.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_distribution_data_analytics(schedule_id: i64) -> PyResult<DistributionData> {
+pub fn py_get_distribution_data_analytics(schedule_id: crate::api::ScheduleId) -> PyResult<DistributionData> {
     py_get_distribution_data(schedule_id)
 }
 

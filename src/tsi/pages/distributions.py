@@ -6,6 +6,7 @@ from tsi import state
 from tsi.components.distributions.distributions_layout import render_figure_layout
 from tsi.components.distributions.distributions_stats import render_statistical_summary
 from tsi.plots.distributions import build_figures
+import tsi_rust as api
 from tsi.services import database as db
 from tsi.utils.error_display import display_backend_error
 
