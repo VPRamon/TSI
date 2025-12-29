@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import pandas as pd
-from datetime import datetime as _dt
 
-MJD_EPOCH = datetime(1858, 11, 17, tzinfo=timezone.utc)
+try:
+    from tsi_rust import ModifiedJulianDate
+except ImportError as exc:  # pragma: no cover - enforced by build setup
+    raise ImportError(
+        "ModifiedJulianDate not available from tsi_rust. "
+        "Please compile the Rust backend with: maturin develop --release"
+    ) from exc
+
 SECONDS_PER_DAY = 86400.0
 
 
@@ -20,50 +25,24 @@ def _ensure_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
-@dataclass(frozen=True)
-class ModifiedJulianDate:
-    """Lightweight Modified Julian Date representation with datetime helpers.
-
-    Note: Core MJD conversions now use Rust backend (tsi_rust.mjd_to_datetime,
-    tsi_rust.datetime_to_mjd) for better performance and accuracy.
-    """
-
-    value: float
-
-    def to_datetime(self) -> datetime:
-        """Convert to a timezone-aware UTC datetime using Python implementation."""
-        secs = (self.value - 40587.0) * SECONDS_PER_DAY
-        return _dt.fromtimestamp(secs, timezone.utc)
-
-    def to_timestamp(self) -> pd.Timestamp:
-        """Convert to pandas Timestamp."""
-        return pd.Timestamp(self.to_datetime())
-
-    @classmethod
-    def from_datetime(cls, dt: datetime) -> ModifiedJulianDate:
-        """Create an MJD from a Python datetime using Rust backend."""
-        dt_utc = _ensure_utc(dt)
-        timestamp = dt_utc.timestamp()
-        mjd_value = timestamp / SECONDS_PER_DAY + 40587.0
-        return cls(mjd_value)
-
-    @classmethod
-    def from_timestamp(cls, ts: pd.Timestamp) -> ModifiedJulianDate:
-        """Create an MJD from a pandas Timestamp."""
-        if ts.tzinfo is None:
-            ts = ts.tz_localize("UTC")
-        else:
-            ts = ts.tz_convert("UTC")
-        return cls.from_datetime(ts.to_pydatetime())
-
-    def __float__(self) -> float:
-        return float(self.value)
+def _mjd_value(mjd: float | ModifiedJulianDate) -> float:
+    """Normalize float-like or Rust-backed ModifiedJulianDate values."""
+    if isinstance(mjd, ModifiedJulianDate):
+        try:
+            return float(mjd)
+        except TypeError:
+            value = getattr(mjd, "value", None)
+            if value is not None:
+                return float(value)
+            raise
+    return float(mjd)
 
 
-def mjd_to_datetime(mjd: float) -> pd.Timestamp:
+def mjd_to_datetime(mjd: float | ModifiedJulianDate) -> pd.Timestamp:
     """Convert Modified Julian Date to a pandas Timestamp (UTC)."""
-    secs = (mjd - 40587.0) * SECONDS_PER_DAY
-    return pd.Timestamp(_dt.fromtimestamp(secs, timezone.utc))
+    mjd_val = _mjd_value(mjd)
+    secs = (mjd_val - 40587.0) * SECONDS_PER_DAY
+    return pd.Timestamp(datetime.fromtimestamp(secs, timezone.utc))
 
 
 def datetime_to_mjd(dt: datetime) -> float:
@@ -94,7 +73,7 @@ def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd
         for item in parsed:
             if isinstance(item, (tuple, list)) and len(item) == 2:
                 start_mjd, stop_mjd = item
-                # Convert MJD values to timestamps using Rust backend
+                # Convert MJD values to timestamps using shared MJD helpers
                 start_ts = mjd_to_datetime(float(start_mjd))
                 stop_ts = mjd_to_datetime(float(stop_mjd))
                 result.append((start_ts, stop_ts))
@@ -104,11 +83,15 @@ def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd
         return []
 
 
-def parse_optional_mjd(value: float | None) -> pd.Timestamp | None:
+def parse_optional_mjd(value: float | ModifiedJulianDate | None) -> pd.Timestamp | None:
     """Convert an optional MJD value to a Timestamp, preserving missing values."""
-    if value is None or (isinstance(value, float) and pd.isna(value)):
+    if value is None:
         return None
-    return ModifiedJulianDate(float(value)).to_timestamp()
+
+    if isinstance(value, float) and pd.isna(value):
+        return None
+
+    return mjd_to_datetime(_mjd_value(value))
 
 
 def get_time_range(

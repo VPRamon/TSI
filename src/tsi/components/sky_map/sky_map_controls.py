@@ -16,7 +16,7 @@ from tsi.components.toolbar.toolbar import (
     render_reset_filters_button,
     render_toggle,
 )
-from tsi.services.utils.time import ModifiedJulianDate
+from tsi.services.utils.time import ModifiedJulianDate, mjd_to_datetime
 
 if TYPE_CHECKING:
     from tsi_rust import LightweightBlock
@@ -187,7 +187,7 @@ def _normalize_datetime(value: Any) -> datetime | None:
 
 def _mjd_to_datetime(mjd_value: float) -> datetime:
     """Helper to convert raw MJD values to datetime for UI controls."""
-    return ModifiedJulianDate(mjd_value).to_datetime()  # type: ignore[no-any-return]
+    return mjd_to_datetime(mjd_value).to_pydatetime()  # type: ignore[no-any-return]
 
 
 def reset_sky_map_controls() -> None:

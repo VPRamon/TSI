@@ -61,17 +61,19 @@ def _blocks_to_dataframe(blocks: list) -> pd.DataFrame:
     """
     display_data = []
     for block in blocks:
+        start_mjd = float(block.scheduled_start_mjd)
+        stop_mjd = float(block.scheduled_stop_mjd)
         display_data.append(
             {
                 "Block ID": block.scheduling_block_id,
                 "Priority": block.priority,
-                "Scheduled Start": mjd_to_datetime(block.scheduled_start_mjd).strftime(
+                "Scheduled Start": mjd_to_datetime(start_mjd).strftime(
                     "%Y-%m-%d %H:%M UTC"
                 ),
-                "Scheduled Stop": mjd_to_datetime(block.scheduled_stop_mjd).strftime(
+                "Scheduled Stop": mjd_to_datetime(stop_mjd).strftime(
                     "%Y-%m-%d %H:%M UTC"
                 ),
-                "Duration (h)": (block.scheduled_stop_mjd - block.scheduled_start_mjd) * 24.0,
+                "Duration (h)": (stop_mjd - start_mjd) * 24.0,
                 "RA (°)": block.ra_deg,
                 "Dec (°)": block.dec_deg,
                 "Requested (h)": block.requested_hours,
