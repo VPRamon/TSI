@@ -4,12 +4,11 @@ import streamlit as st
 
 from tsi import state
 from tsi.components.visibility.visibility_controls import (
-    render_generate_button,
     render_histogram_settings,
     render_sidebar_controls,
 )
 from tsi.components.visibility.visibility_map_figure import render_visibility_map_figure
-from tsi.components.visibility.visibility_stats import render_chart_info, render_dataset_statistics
+from tsi.components.visibility.visibility_stats import render_dataset_statistics
 from tsi.services import backend_client
 from tsi.services.utils.visibility_processing import (
     filter_visibility_blocks,
@@ -49,37 +48,27 @@ def render() -> None:
         block_ids=settings["selected_block_ids"] if settings["selected_block_ids"] else None,
     )
 
-    # Show statistics FIRST - immediate feedback while histogram loads
-    render_dataset_statistics(visibility_data.blocks, filtered_blocks)
+
+
+    # Create placeholder for the histogram and build it immediately on page load
+    histogram_container = st.container()
+
+    with histogram_container:
+        with st.spinner(
+            "🔄 Building visibility histogram using Rust backend... This is much faster!"
+        ):
+            # Call the modular figure component
+            try:
+                render_visibility_map_figure(
+                    schedule_ref=schedule_ref,
+                    settings=settings,
+                    effective_priority_range=priority_range,
+                    total_blocks=len(filtered_blocks),
+                )
+            except Exception as e:
+                st.error(f"Failed to generate histogram: {e}")
+                st.exception(e)
 
     st.divider()
 
-    # Information panel BEFORE heavy computation
-    render_chart_info()
-
-    # Create placeholder for the histogram
-    histogram_container = st.container()
-
-    # Generate button
-    should_generate = render_generate_button()
-
-    # Only build histogram if button was clicked or if we have a cached result
-    if should_generate:
-        # Mark that we've generated it at least once
-        st.session_state["visibility_histogram_generated"] = True
-
-        with histogram_container:
-            with st.spinner(
-                "🔄 Building visibility histogram using Rust backend... This is much faster!"
-            ):
-                # Call the modular figure component
-                try:
-                    render_visibility_map_figure(
-                        schedule_ref=schedule_ref,
-                        settings=settings,
-                        effective_priority_range=priority_range,
-                        total_blocks=len(filtered_blocks),
-                    )
-                except Exception as e:
-                    st.error(f"Failed to generate histogram: {e}")
-                    st.exception(e)
+    render_dataset_statistics(visibility_data.blocks, filtered_blocks)

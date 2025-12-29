@@ -54,7 +54,7 @@ from .visibility.visibility_controls import (
 from .visibility.visibility_controls import (
     render_sidebar_controls as render_visibility_sidebar_controls,
 )
-from .visibility.visibility_stats import render_chart_info, render_dataset_statistics
+from .visibility.visibility_stats import render_dataset_statistics
 
 __all__ = [
     # Shared components
@@ -74,7 +74,6 @@ __all__ = [
     "render_histogram_settings",
     "render_generate_button",
     "render_dataset_statistics",
-    "render_chart_info",
     # Timeline components
     "render_search_filters",
     "render_key_metrics",

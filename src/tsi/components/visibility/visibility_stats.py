@@ -40,17 +40,3 @@ def render_dataset_statistics(all_blocks: Sequence[Any], filtered_blocks: Sequen
         else:
             st.metric("Avg Visibility Periods", "N/A")
 
-
-def render_chart_info() -> None:
-    """Render information panel explaining the chart."""
-    st.info(
-        """
-        **How to read this chart:**
-        - **X-axis**: Time period of observations (UTC)
-        - **Y-axis**: Number of blocks/targets that are visible at that time
-        - **Color**: Intensity indicates density of visible targets (darker = more targets)
-
-        This histogram aggregates all visibility windows into time bins, showing when
-        the telescope has the most observation opportunities.
-        """
-    )
