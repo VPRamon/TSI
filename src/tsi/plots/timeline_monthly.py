@@ -756,7 +756,9 @@ def _dark_periods_to_dataframe(dark_periods: list[tuple[float, float]]) -> pd.Da
     from tsi.services.utils.time import mjd_to_datetime
 
     data = []
-    for start_mjd, stop_mjd in dark_periods:
+    for start_mjd_raw, stop_mjd_raw in dark_periods:
+        start_mjd = float(start_mjd_raw)
+        stop_mjd = float(stop_mjd_raw)
         start_dt = mjd_to_datetime(start_mjd)
         stop_dt = mjd_to_datetime(stop_mjd)
         duration_hours = (stop_mjd - start_mjd) * 24.0
@@ -797,9 +799,11 @@ def _add_observation_traces_from_blocks(
     for block in blocks:
         block_id = block.scheduling_block_id
         priority = block.priority
-        start_dt = mjd_to_datetime(block.scheduled_start_mjd)
-        stop_dt = mjd_to_datetime(block.scheduled_stop_mjd)
-        duration_hours = (block.scheduled_stop_mjd - block.scheduled_start_mjd) * 24.0
+        start_mjd = float(block.scheduled_start_mjd)
+        stop_mjd = float(block.scheduled_stop_mjd)
+        start_dt = mjd_to_datetime(start_mjd)
+        stop_dt = mjd_to_datetime(stop_mjd)
+        duration_hours = (stop_mjd - start_mjd) * 24.0
 
         # Normalize priority to [0, 1] for colorscale
         normalized_priority = (priority - priority_min) / (priority_max - priority_min)

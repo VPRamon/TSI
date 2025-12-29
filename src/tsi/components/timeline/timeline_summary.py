@@ -23,7 +23,8 @@ def render_timeline_summary(blocks: list, unique_months: list[str]) -> None:
     # Calculate metrics
     total_blocks = len(blocks)
     total_hours = sum(
-        (block.scheduled_stop_mjd - block.scheduled_start_mjd) * 24.0 for block in blocks
+        (float(block.scheduled_stop_mjd) - float(block.scheduled_start_mjd)) * 24.0
+        for block in blocks
     )
     avg_duration = total_hours / total_blocks if total_blocks > 0 else 0
     months_covered = len(unique_months)
@@ -45,8 +46,8 @@ def render_timeline_summary(blocks: list, unique_months: list[str]) -> None:
 
     # Display date range
     if blocks:
-        min_mjd = min(block.scheduled_start_mjd for block in blocks)
-        max_mjd = max(block.scheduled_stop_mjd for block in blocks)
+        min_mjd = min(float(block.scheduled_start_mjd) for block in blocks)
+        max_mjd = max(float(block.scheduled_stop_mjd) for block in blocks)
         min_date = mjd_to_datetime(min_mjd)
         max_date = mjd_to_datetime(max_mjd)
         st.caption(

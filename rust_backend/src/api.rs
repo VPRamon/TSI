@@ -45,6 +45,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::routes::register_route_functions(m)?;
 
     // Register all API classes
+    m.add_class::<ModifiedJulianDate>()?;
     m.add_class::<Period>()?;
     m.add_class::<Constraints>()?;
     m.add_class::<SchedulingBlock>()?;
