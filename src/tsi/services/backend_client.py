@@ -93,6 +93,17 @@ def _to_schedule_id(schedule_ref: ScheduleSummary | api.ScheduleId | int | int64
     return api.ScheduleId(int(schedule_ref))
 
 
+def _to_int(schedule_id: api.ScheduleId | int | int64 | Any) -> int:
+    """Normalize a backend ScheduleId or numeric-like value to a plain int.
+
+    The Rust `ScheduleId` is exposed as a Python object with a `value`
+    attribute (no `__int__` implementation). Handle that here.
+    """
+    if isinstance(schedule_id, api.ScheduleId):
+        return int(schedule_id.value)
+    return int(schedule_id)
+
+
 @with_retry(max_attempts=3, backoff_factor=1.5)
 def upload_schedule(
     schedule_name: str,
@@ -107,7 +118,7 @@ def upload_schedule(
             schedule_json,
             visibility_json,
         )
-        schedule_id = int(result)
+        schedule_id = _to_int(result)
         return ScheduleSummary(id=schedule_id, name=schedule_name)
     except Exception as e:
         raise ServerError(
@@ -132,8 +143,8 @@ def list_schedules() -> list[ScheduleSummary]:
 
         summaries.append(
             ScheduleSummary(
-                id=int(schedule_id),
-                name=str(schedule_name) if schedule_name is not None else f"Schedule {schedule_id}",
+                id=_to_int(schedule_id),
+                name=str(schedule_name) if schedule_name is not None else f"Schedule {_to_int(schedule_id)}",
             )
         )
 
