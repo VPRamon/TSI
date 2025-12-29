@@ -7,9 +7,11 @@
 //! 4. All validation rules work as expected
 
 use qtty::{angular::Degrees, time::Seconds};
-use siderust::astro::ModifiedJulianDate;
+use tsi_rust::api::{
+    Constraints, ModifiedJulianDate, Period, Schedule, ScheduleId, SchedulingBlock,
+    SchedulingBlockId,
+};
 use tsi_rust::db::{
-    models::{Constraints, Period, Schedule, SchedulingBlock, SchedulingBlockId},
     repositories::LocalRepository,
     repository::{AnalyticsRepository, ScheduleRepository, ValidationRepository},
 };
@@ -60,7 +62,7 @@ fn create_test_block(
 #[allow(dead_code)]
 fn create_validation_input(block: &SchedulingBlock) -> BlockForValidation {
     BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: block.id.0,
         priority: block.priority,
         requested_duration_sec: block.requested_duration.value() as i32,
@@ -68,7 +70,7 @@ fn create_validation_input(block: &SchedulingBlock) -> BlockForValidation {
         total_visibility_hours: block
             .visibility_periods
             .iter()
-            .map(|p| p.duration().value() * 24.0)
+            .map(|p: &Period| p.duration().value() * 24.0)
             .sum(),
         min_alt_deg: Some(block.constraints.min_alt.value()),
         max_alt_deg: Some(block.constraints.max_alt.value()),
@@ -76,8 +78,8 @@ fn create_validation_input(block: &SchedulingBlock) -> BlockForValidation {
         constraint_stop_mjd: None,
         scheduled_start_mjd: None,
         scheduled_stop_mjd: None,
-        target_ra_deg: block.target().ra().to::<qtty::angular::Degree>().value(),
-        target_dec_deg: block.target().dec().to::<qtty::angular::Degree>().value(),
+        target_ra_deg: block.target_ra.to::<qtty::angular::Degree>().value(),
+        target_dec_deg: block.target_dec.to::<qtty::angular::Degree>().value(),
     }
 }
 
@@ -86,7 +88,7 @@ fn create_validation_input(block: &SchedulingBlock) -> BlockForValidation {
 #[test]
 fn test_validation_rule_zero_visibility() {
     let input = BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: 100,
         priority: 5.0,
         requested_duration_sec: 3600,
@@ -117,7 +119,7 @@ fn test_validation_rule_zero_visibility() {
 #[test]
 fn test_validation_rule_insufficient_visibility() {
     let input = BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: 101,
         priority: 5.0,
         requested_duration_sec: 7200, // 2 hours requested
@@ -147,7 +149,7 @@ fn test_validation_rule_insufficient_visibility() {
 #[test]
 fn test_validation_rule_negative_priority() {
     let input = BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: 102,
         priority: -2.5, // Negative priority (error)
         requested_duration_sec: 3600,
@@ -175,7 +177,7 @@ fn test_validation_rule_negative_priority() {
 fn test_validation_rule_invalid_coordinates() {
     // Invalid RA (>= 360)
     let input_ra = BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: 103,
         priority: 5.0,
         requested_duration_sec: 3600,
@@ -200,7 +202,7 @@ fn test_validation_rule_invalid_coordinates() {
 
     // Invalid Dec (> 90)
     let input_dec = BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: 104,
         priority: 5.0,
         requested_duration_sec: 3600,
@@ -227,7 +229,7 @@ fn test_validation_rule_invalid_coordinates() {
 #[test]
 fn test_validation_rule_invalid_altitude_constraints() {
     let input = BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: 105,
         priority: 5.0,
         requested_duration_sec: 3600,
@@ -258,7 +260,7 @@ fn test_validation_rule_invalid_altitude_constraints() {
 #[test]
 fn test_validation_rule_narrow_elevation_warning() {
     let input = BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: 106,
         priority: 5.0,
         requested_duration_sec: 3600,
@@ -285,7 +287,7 @@ fn test_validation_rule_narrow_elevation_warning() {
 #[test]
 fn test_validation_rule_valid_block() {
     let input = BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: 107,
         priority: 5.0,
         requested_duration_sec: 3600,
@@ -311,7 +313,7 @@ fn test_validation_rule_valid_block() {
 fn test_validation_multiple_issues_per_block() {
     // Block with multiple issues
     let input = BlockForValidation {
-        schedule_id: 1,
+        schedule_id: ScheduleId(1),
         scheduling_block_id: 108,
         priority: -1.0,              // Issue 1: Negative priority
         requested_duration_sec: 0,   // Issue 2: Zero duration
@@ -351,7 +353,7 @@ fn test_validation_multiple_issues_per_block() {
 fn test_validation_batch_processing() {
     let blocks = vec![
         BlockForValidation {
-            schedule_id: 1,
+            schedule_id: ScheduleId(1),
             scheduling_block_id: 200,
             priority: 5.0,
             requested_duration_sec: 3600,
@@ -367,7 +369,7 @@ fn test_validation_batch_processing() {
             target_dec_deg: 45.0,
         },
         BlockForValidation {
-            schedule_id: 1,
+            schedule_id: ScheduleId(1),
             scheduling_block_id: 201,
             priority: 5.0,
             requested_duration_sec: 3600,
@@ -383,7 +385,7 @@ fn test_validation_batch_processing() {
             target_dec_deg: 45.0,
         },
         BlockForValidation {
-            schedule_id: 1,
+            schedule_id: ScheduleId(1),
             scheduling_block_id: 202,
             priority: -1.0, // Negative priority (error)
             requested_duration_sec: 3600,
@@ -437,7 +439,7 @@ async fn test_local_repository_validation_storage() {
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
-    let schedule_id = metadata.schedule_id.unwrap();
+    let schedule_id = metadata.schedule_id;
 
     // Initially no validation results
     assert!(!repo.has_validation_results(schedule_id).await.unwrap());
@@ -494,7 +496,7 @@ async fn test_validation_report_structure() {
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
-    let schedule_id = metadata.schedule_id.unwrap();
+    let schedule_id = metadata.schedule_id;
 
     repo.populate_schedule_analytics(schedule_id).await.unwrap();
 
@@ -557,7 +559,7 @@ async fn test_validation_empty_schedule() {
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
-    let schedule_id = metadata.schedule_id.unwrap();
+    let schedule_id = metadata.schedule_id;
 
     let analytics_count = repo.populate_schedule_analytics(schedule_id).await.unwrap();
     assert_eq!(analytics_count, 0);
@@ -589,7 +591,7 @@ async fn test_validation_all_valid_blocks() {
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
-    let schedule_id = metadata.schedule_id.unwrap();
+    let schedule_id = metadata.schedule_id;
 
     repo.populate_schedule_analytics(schedule_id).await.unwrap();
 

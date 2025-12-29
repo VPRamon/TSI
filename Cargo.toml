@@ -1,5 +1,7 @@
 [workspace]
 members = ["rust_backend"]
+default-members = ["rust_backend"]
+exclude = ["rust_backend/qtty/qtty", "rust_backend/qtty/qtty-core"]
 resolver = "2"
 
 [patch.crates-io]
