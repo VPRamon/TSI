@@ -8,7 +8,7 @@ from tsi import state
 from tsi.services import backend_client
 
 
-def render_backend_section() -> None:
+def render_schedules_section() -> None:
     """Render the backend loading section."""
     st.markdown("### 📊 Load from Backend")
     st.markdown("Select a previously uploaded schedule")

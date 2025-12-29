@@ -26,7 +26,7 @@ from .insights.insights_metrics import (
 )
 from .insights.insights_reports import render_report_downloads
 from .insights.insights_tables import render_integrity_checks, render_top_observations
-from .landing.landing_backend import render_backend_section
+from .landing.landing_backend import render_schedules_section
 from .landing.landing_upload import render_upload_section
 from .shared.filters import (
     render_exclude_impossible_checkbox,
@@ -103,6 +103,6 @@ __all__ = [
     "compute_scheduling_changes",
     "render_comparison_tables",
     # Landing components
-    "render_backend_section",
+    "render_schedules_section",
     "render_upload_section",
 ]
