@@ -90,7 +90,9 @@ pub const GET_INSIGHTS_DATA: &str = "get_insights_data";
 
 /// Get insights analysis data (wraps service call)
 #[pyfunction]
-pub fn get_insights_data(schedule_id: i64) -> PyResult<crate::api::InsightsData> {
+pub fn get_insights_data(
+    schedule_id: crate::api::ScheduleId,
+) -> PyResult<crate::api::InsightsData> {
     let data = crate::services::py_get_insights_data(schedule_id)?;
     Ok(data)
 }

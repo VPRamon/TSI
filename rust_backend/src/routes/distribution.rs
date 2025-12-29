@@ -48,7 +48,9 @@ pub const GET_DISTRIBUTION_DATA: &str = "get_distribution_data";
 
 /// Get distribution visualization data (wraps service call)
 #[pyfunction]
-pub fn get_distribution_data(schedule_id: crate::api::ScheduleId) -> PyResult<crate::api::DistributionData> {
+pub fn get_distribution_data(
+    schedule_id: crate::api::ScheduleId,
+) -> PyResult<crate::api::DistributionData> {
     let data = crate::services::py_get_distribution_data_analytics(schedule_id)?;
     Ok(data)
 }

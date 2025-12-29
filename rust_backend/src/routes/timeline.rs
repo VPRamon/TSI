@@ -39,7 +39,9 @@ pub const GET_SCHEDULE_TIMELINE_DATA: &str = "get_schedule_timeline_data";
 
 /// Get schedule timeline data (wraps service call)
 #[pyfunction]
-pub fn get_schedule_timeline_data(schedule_id: crate::api::ScheduleId) -> PyResult<ScheduleTimelineData> {
+pub fn get_schedule_timeline_data(
+    schedule_id: crate::api::ScheduleId,
+) -> PyResult<ScheduleTimelineData> {
     let data = crate::services::py_get_schedule_timeline_data(schedule_id)?;
     Ok(data)
 }

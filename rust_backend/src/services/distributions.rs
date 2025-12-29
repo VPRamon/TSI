@@ -105,7 +105,9 @@ pub fn compute_distribution_data(
 /// which contains pre-computed, denormalized data for optimal performance.
 ///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
-pub async fn get_distribution_data(schedule_id: crate::api::ScheduleId) -> Result<DistributionData, String> {
+pub async fn get_distribution_data(
+    schedule_id: crate::api::ScheduleId,
+) -> Result<DistributionData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
@@ -146,7 +148,9 @@ pub fn py_get_distribution_data(schedule_id: crate::api::ScheduleId) -> PyResult
 
 /// Alias for compatibility - uses analytics path.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_distribution_data_analytics(schedule_id: crate::api::ScheduleId) -> PyResult<DistributionData> {
+pub fn py_get_distribution_data_analytics(
+    schedule_id: crate::api::ScheduleId,
+) -> PyResult<DistributionData> {
     py_get_distribution_data(schedule_id)
 }
 

@@ -1,7 +1,6 @@
 use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
-
 /// Priority bin information for sky map.
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]

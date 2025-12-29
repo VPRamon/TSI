@@ -191,7 +191,9 @@ pub async fn get_schedule<R: FullRepository>(
 /// # Returns
 /// * `Ok(Vec<crate::api::ScheduleInfo>)` - List of schedule metadata
 /// * `Err` if query fails
-pub async fn list_schedules<R: FullRepository>(repo: &R) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
+pub async fn list_schedules<R: FullRepository>(
+    repo: &R,
+) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
     info!("Service layer: listing all schedules");
     repo.list_schedules().await
 }
@@ -326,7 +328,6 @@ pub async fn has_analytics_data<R: FullRepository>(
     repo.has_analytics_data(schedule_id).await
 }
 
-
 // =============================================================================
 // Schedule Parsing and Storage Helpers
 // =============================================================================
@@ -360,13 +361,9 @@ pub fn parse_schedule_from_json(
         .context("Failed to read dark_periods.json")?;
 
     let mut schedule: crate::api::Schedule =
-        parse_schedule_json_str(
-            schedule_json,
-            visibility_json,
-            dark_periods.as_str(),
-        )
-        .context("Failed to parse schedule")?;
-    
+        parse_schedule_json_str(schedule_json, visibility_json, dark_periods.as_str())
+            .context("Failed to parse schedule")?;
+
     schedule.name = schedule_name.to_string();
 
     Ok(schedule)
@@ -402,7 +399,7 @@ pub fn store_schedule_sync(
 
     let runtime = Runtime::new().context("Failed to create async runtime")?;
     let repo = crate::db::get_repository().context("Repository not initialized")?;
-    
+
     Ok(runtime.block_on(store_schedule_with_options(
         repo.as_ref(),
         schedule,

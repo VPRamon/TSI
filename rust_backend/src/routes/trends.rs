@@ -97,7 +97,8 @@ pub fn get_trends_data(
     let bandwidth = bandwidth.unwrap_or(0.5);
     let n_smooth_points = n_smooth_points.unwrap_or(12) as usize;
 
-    let data = crate::services::py_get_trends_data(schedule_id, n_bins, bandwidth, n_smooth_points)?;
+    let data =
+        crate::services::py_get_trends_data(schedule_id, n_bins, bandwidth, n_smooth_points)?;
     Ok(data)
 }
 

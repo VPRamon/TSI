@@ -113,9 +113,8 @@ pub fn impute_missing(
                 sorted[mid]
             }
         }
-        "constant" => fill_value.ok_or_else(|| {
-            "fill_value must be provided for 'constant' strategy".to_string()
-        })?,
+        "constant" => fill_value
+            .ok_or_else(|| "fill_value must be provided for 'constant' strategy".to_string())?,
         _ => {
             return Err(format!(
                 "Invalid imputation strategy: {}. Must be 'mean', 'median', or 'constant'",

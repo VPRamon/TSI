@@ -89,7 +89,10 @@ pub struct Period {
 impl Period {
     #[new]
     pub fn py_new(start: f64, stop: f64) -> Self {
-        Self { start: crate::api::ModifiedJulianDate::new(start), stop: crate::api::ModifiedJulianDate::new(stop) }
+        Self {
+            start: crate::api::ModifiedJulianDate::new(start),
+            stop: crate::api::ModifiedJulianDate::new(stop),
+        }
     }
 
     #[staticmethod]
@@ -161,9 +164,11 @@ impl Period {
     }
 }
 
-
 impl Period {
-    pub fn new(start: crate::api::ModifiedJulianDate, stop: crate::api::ModifiedJulianDate) -> Option<Self> {
+    pub fn new(
+        start: crate::api::ModifiedJulianDate,
+        stop: crate::api::ModifiedJulianDate,
+    ) -> Option<Self> {
         if start.value() < stop.value() {
             Some(Self { start, stop })
         } else {

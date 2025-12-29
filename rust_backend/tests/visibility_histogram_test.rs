@@ -3,9 +3,9 @@
 
 #[cfg(test)]
 mod visibility_histogram_tests {
+    use siderust::astro::ModifiedJulianDate;
     use tsi_rust::api::{BlockHistogramData, Period};
     use tsi_rust::services::visibility::compute_visibility_histogram_rust;
-    use siderust::astro::ModifiedJulianDate;
 
     /// Helper to create test block with visibility periods
     fn make_block_from_json(id: i64, priority: i32, vis_json: &str) -> BlockHistogramData {
