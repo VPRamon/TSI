@@ -24,12 +24,7 @@ def render() -> None:
     )
 
     schedule_ref = state.get_schedule_ref()
-
-    try:
-        timeline_data = backend_client.get_schedule_timeline_data(schedule_ref)
-    except Exception as exc:
-        st.error(f"Failed to load schedule timeline data from the backend: {exc}")
-        return
+    timeline_data = backend_client.get_schedule_timeline_data(schedule_ref)
 
     if timeline_data.total_count == 0:
         st.warning("There are no scheduled observations with valid dates.")
