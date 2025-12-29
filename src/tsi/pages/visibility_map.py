@@ -12,7 +12,6 @@ from tsi.components.visibility.visibility_map_figure import render_visibility_ma
 from tsi.components.visibility.visibility_stats import render_chart_info, render_dataset_statistics
 from tsi.services import backend_client
 from tsi.services.utils.visibility_processing import (
-    compute_effective_priority_range,
     filter_visibility_blocks,
 )
 
@@ -23,44 +22,30 @@ def render() -> None:
 
     st.markdown(
         """
-        Histogram showing the number of targets visible over the observation period.
+        Histogram showing the number of targets observable over the observation period.
         """
     )
 
     # Check for schedule reference first - this is now required
     schedule_ref = state.get_schedule_ref()
 
-    try:
-        visibility_data = backend_client.get_visibility_map_data(schedule_ref)
-    except Exception as exc:
-        st.error(f"Failed to load visibility data from the backend: {exc}")
-        return
+    visibility_data = backend_client.get_visibility_map_data(schedule_ref)
 
     if visibility_data.total_count == 0:
         st.warning("No scheduling blocks were returned for this schedule.")
         return
 
     # Calculate priority range and get block IDs
-    priority_min, priority_max = visibility_data.priority_min, visibility_data.priority_max
+    priority_range = (visibility_data.priority_min, visibility_data.priority_max)
     all_block_ids = sorted(block.original_block_id for block in visibility_data.blocks)
 
-    # Sidebar controls
-    with st.sidebar:
-        priority_range = render_sidebar_controls(priority_min, priority_max)
-
     # Main-panel histogram settings
-    settings = render_histogram_settings(priority_min, priority_max, all_block_ids)
-
-    # Compute effective priority range
-    effective_priority_range = compute_effective_priority_range(
-        priority_range,
-        settings["priority_filter_range"],
-    )
+    settings = render_histogram_settings(priority_range, all_block_ids)
 
     # Filter data to get count of blocks matching filters
     filtered_blocks = filter_visibility_blocks(
         visibility_data.blocks,
-        priority_range=effective_priority_range,
+        priority_range=priority_range,
         block_ids=settings["selected_block_ids"] if settings["selected_block_ids"] else None,
     )
 
@@ -92,7 +77,7 @@ def render() -> None:
                     render_visibility_map_figure(
                         schedule_ref=schedule_ref,
                         settings=settings,
-                        effective_priority_range=effective_priority_range,
+                        effective_priority_range=priority_range,
                         total_blocks=len(filtered_blocks),
                     )
                 except Exception as e:

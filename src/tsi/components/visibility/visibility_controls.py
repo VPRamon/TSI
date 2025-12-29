@@ -53,8 +53,7 @@ def render_sidebar_controls(
 
 
 def render_histogram_settings(
-    priority_min: float,
-    priority_max: float,
+    priority_range: tuple[float, float],
     all_block_ids: list,
 ) -> dict:
     """
@@ -76,7 +75,7 @@ def render_histogram_settings(
         )
 
         # Priority filter
-        priority_filter_range = _render_priority_filter_section(priority_min, priority_max)
+        priority_filter_range = _render_priority_filter_section(priority_range)
 
         # Block ID filter
         selected_block_ids = _render_block_id_filter_section(all_block_ids)
@@ -97,16 +96,15 @@ def render_histogram_settings(
 
 
 def _render_priority_filter_section(
-    priority_min: float,
-    priority_max: float,
+    priority_range: tuple[float, float],
 ) -> tuple[float, float]:
     """Render priority filter section."""
     st.subheader("🎯 Priority Filter")
     result = render_priority_filter(
         key="visibility_histogram_priority_filter",
-        min_value=priority_min,
-        max_value=priority_max,
-        default=(priority_min, priority_max),
+        min_value=priority_range[0],
+        max_value=priority_range[1],
+        default=priority_range,
         label="Filter by Priority Range",
     )
     return result  # type: ignore[no-any-return]

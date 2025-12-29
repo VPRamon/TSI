@@ -64,7 +64,6 @@ from tsi.services.backend_client import (
 # ============================================================================
 from tsi.services.filters import (
     apply_insights_filter,
-    build_palette,
     check_filter_support,
     compute_impossible_mask,
     filter_blocks,
@@ -94,7 +93,6 @@ from tsi.services.rust_backend import BACKEND
 # Utils: Time, Visibility, Reporting
 # ============================================================================
 from tsi.services.utils import (
-    compute_effective_priority_range,
     datetime_to_mjd,
     filter_visibility_blocks,
     format_datetime_utc,
@@ -152,7 +150,6 @@ __all__ = [
     "check_filter_support",
     "apply_insights_filter",
     "filter_blocks",
-    "build_palette",
     # Processors
     "prepare_scheduled_data",
     "filter_scheduled_data",
@@ -173,7 +170,6 @@ __all__ = [
     "parse_optional_mjd",
     "get_time_range",
     "format_datetime_utc",
-    "compute_effective_priority_range",
     "filter_visibility_blocks",
     "get_all_block_ids",
 ]

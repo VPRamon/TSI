@@ -7,7 +7,6 @@ from tsi.services.filters.impossible import (
     filter_impossible_observations,
 )
 from tsi.services.filters.sky_map import (
-    build_palette,
     filter_blocks,
 )
 
@@ -19,5 +18,4 @@ __all__ = [
     "apply_insights_filter",
     # sky_map filters
     "filter_blocks",
-    "build_palette",
 ]

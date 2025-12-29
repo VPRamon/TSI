@@ -59,36 +59,6 @@ def filter_blocks(
 
     return filtered
 
-
-def build_palette(labels: Sequence[str]) -> dict:
-    """
-    Generate a simple color palette for categorical bins.
-
-    Args:
-        labels: Sequence of category labels
-
-    Returns:
-        Dictionary mapping labels to colors
-    """
-    base_colors = [
-        "#1f77b4",
-        "#ff7f0e",
-        "#2ca02c",
-        "#d62728",
-        "#9467bd",
-        "#8c564b",
-        "#e377c2",
-        "#7f7f7f",
-        "#bcbd22",
-        "#17becf",
-    ]
-    palette = {}
-    for idx, label in enumerate(labels):
-        palette[label] = base_colors[idx % len(base_colors)]
-    return palette
-
-
 __all__ = [
     "filter_blocks",
-    "build_palette",
 ]

@@ -9,7 +9,6 @@ from tsi.services.utils.time import (
     parse_visibility_periods,
 )
 from tsi.services.utils.visibility_processing import (
-    compute_effective_priority_range,
     filter_visibility_blocks,
     get_all_block_ids,
 )
@@ -23,7 +22,6 @@ __all__ = [
     "get_time_range",
     "format_datetime_utc",
     # visibility processing
-    "compute_effective_priority_range",
     "filter_visibility_blocks",
     "get_all_block_ids",
 ]
