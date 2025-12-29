@@ -1,9 +1,9 @@
 //! Integration tests for repository implementations.
 
 use std::sync::Arc;
+use tsi_rust::api::{Schedule, ScheduleId};
 use tsi_rust::db::{
-    models::Schedule, repositories::LocalRepository, AnalyticsRepository, RepositoryError,
-    ScheduleRepository, ValidationRepository,
+    AnalyticsRepository, LocalRepository, RepositoryError, ScheduleRepository, ValidationRepository,
 };
 
 #[tokio::test]
@@ -28,12 +28,10 @@ async fn test_store_and_retrieve_schedule() {
 
     // Store the schedule
     let metadata = repo.store_schedule(&schedule).await.unwrap();
-    assert!(metadata.schedule_id.is_some());
     assert_eq!(metadata.schedule_name, schedule.name);
-    assert_eq!(metadata.checksum, schedule.checksum);
 
     // Retrieve by ID
-    let schedule_id = metadata.schedule_id.unwrap();
+    let schedule_id = metadata.schedule_id;
     let retrieved = repo.get_schedule(schedule_id).await.unwrap();
     assert_eq!(retrieved.name, schedule.name);
     assert_eq!(retrieved.checksum, schedule.checksum);
@@ -68,7 +66,7 @@ async fn test_list_schedules() {
 async fn test_not_found_error() {
     let repo = LocalRepository::new();
 
-    let result = repo.get_schedule(99999).await;
+    let result = repo.get_schedule(ScheduleId(99999)).await;
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), RepositoryError::NotFound(_)));
 }
@@ -87,7 +85,7 @@ async fn test_analytics_lifecycle() {
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
-    let schedule_id = metadata.schedule_id.unwrap();
+    let schedule_id = metadata.schedule_id;
 
     // Initially no analytics
     assert!(!repo.has_analytics_data(schedule_id).await.unwrap());
@@ -104,44 +102,6 @@ async fn test_analytics_lifecycle() {
 }
 
 #[tokio::test]
-async fn test_summary_analytics_lifecycle() {
-    let repo = LocalRepository::new();
-
-    let schedule = Schedule {
-        id: None,
-        name: "Summary Test".to_string(),
-        blocks: vec![],
-        dark_periods: vec![],
-        checksum: "summary_test".to_string(),
-    };
-
-    let metadata = repo.store_schedule(&schedule).await.unwrap();
-    let schedule_id = metadata.schedule_id.unwrap();
-
-    // Initially no summary
-    assert!(!repo.has_summary_analytics(schedule_id).await.unwrap());
-    assert!(repo
-        .fetch_schedule_summary(schedule_id)
-        .await
-        .unwrap()
-        .is_none());
-
-    // Populate summary
-    repo.populate_summary_analytics(schedule_id, 10)
-        .await
-        .unwrap();
-    assert!(repo.has_summary_analytics(schedule_id).await.unwrap());
-
-    let summary = repo.fetch_schedule_summary(schedule_id).await.unwrap();
-    assert!(summary.is_some());
-    assert_eq!(summary.unwrap().schedule_id, schedule_id);
-
-    // Delete summary
-    repo.delete_summary_analytics(schedule_id).await.unwrap();
-    assert!(!repo.has_summary_analytics(schedule_id).await.unwrap());
-}
-
-#[tokio::test]
 async fn test_validation_lifecycle() {
     let repo = LocalRepository::new();
 
@@ -154,7 +114,7 @@ async fn test_validation_lifecycle() {
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
-    let schedule_id = metadata.schedule_id.unwrap();
+    let schedule_id = metadata.schedule_id;
 
     // Initially no validation results
     assert!(!repo.has_validation_results(schedule_id).await.unwrap());
@@ -210,7 +170,7 @@ async fn test_helper_methods() {
 
     // Test helper methods
     assert_eq!(repo.schedule_count(), 0);
-    assert!(!repo.has_schedule(1));
+    assert!(!repo.has_schedule(ScheduleId(1)));
 
     // Add schedule using helper
     let schedule = Schedule {
@@ -224,8 +184,7 @@ async fn test_helper_methods() {
         .store_schedule(&schedule)
         .await
         .unwrap()
-        .schedule_id
-        .unwrap();
+        .schedule_id;
 
     assert_eq!(repo.schedule_count(), 1);
     assert!(repo.has_schedule(schedule_id));

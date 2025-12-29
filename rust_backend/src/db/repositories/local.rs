@@ -890,10 +890,10 @@ mod tests {
         };
 
         let metadata = repo.store_schedule(&schedule).await.unwrap();
-        assert!(metadata.schedule_id.is_some());
+        let schedule_id = metadata.schedule_id;
 
         let retrieved = repo
-            .get_schedule(metadata.schedule_id.unwrap())
+            .get_schedule(schedule_id)
             .await
             .unwrap();
         assert_eq!(retrieved.name, schedule.name);
@@ -930,7 +930,7 @@ mod tests {
     async fn test_not_found_error() {
         let repo = LocalRepository::new();
 
-        let result = repo.get_schedule(999).await;
+        let result = repo.get_schedule(ScheduleId(999)).await;
         assert!(matches!(result, Err(RepositoryError::NotFound(_))));
     }
 
@@ -947,7 +947,7 @@ mod tests {
         };
 
         let metadata = repo.store_schedule(&schedule).await.unwrap();
-        let schedule_id = metadata.schedule_id.unwrap();
+        let schedule_id = metadata.schedule_id;
 
         assert!(!repo.has_analytics_data(schedule_id).await.unwrap());
 
