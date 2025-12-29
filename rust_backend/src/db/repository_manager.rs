@@ -47,16 +47,22 @@ pub fn init_repository() -> Result<()> {
             RepositoryType::Azure => {
                 let config = DbConfig::from_env()
                     .map_err(anyhow::Error::msg)
-                    .map_err(|e| crate::db::repository::RepositoryError::ConfigurationError(e.to_string()))?;
+                    .map_err(|e| {
+                        crate::db::repository::RepositoryError::ConfigurationError(e.to_string())
+                    })?;
                 RepositoryFactory::create(RepositoryType::Azure, Some(&config), None).await
             }
             RepositoryType::Postgres => {
                 let config = PostgresConfig::from_env()
                     .map_err(anyhow::Error::msg)
-                    .map_err(|e| crate::db::repository::RepositoryError::ConfigurationError(e.to_string()))?;
+                    .map_err(|e| {
+                        crate::db::repository::RepositoryError::ConfigurationError(e.to_string())
+                    })?;
                 RepositoryFactory::create(RepositoryType::Postgres, None, Some(&config)).await
             }
-            RepositoryType::Local => RepositoryFactory::create(RepositoryType::Local, None, None).await,
+            RepositoryType::Local => {
+                RepositoryFactory::create(RepositoryType::Local, None, None).await
+            }
         }
     })?;
 

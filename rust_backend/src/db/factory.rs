@@ -328,8 +328,7 @@ impl RepositoryBuilder {
             let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
             self.azure_config = Some(config);
         } else if self.repo_type == RepositoryType::Postgres {
-            let config =
-                PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
+            let config = PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
             self.postgres_config = Some(config);
         }
 
@@ -471,8 +470,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_azure_requires_config() {
-        let result =
-            RepositoryFactory::create(RepositoryType::Azure, None, None).await;
+        let result = RepositoryFactory::create(RepositoryType::Azure, None, None).await;
         assert!(matches!(
             result,
             Err(RepositoryError::ConfigurationError(_))

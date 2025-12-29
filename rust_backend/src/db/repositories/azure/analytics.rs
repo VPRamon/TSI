@@ -710,7 +710,9 @@ pub async fn fetch_analytics_blocks_for_timeline(
             scheduling_block_id,
             original_block_id,
             priority,
-            scheduled_start_mjd: crate::siderust::astro::ModifiedJulianDate::new(scheduled_start_mjd),
+            scheduled_start_mjd: crate::siderust::astro::ModifiedJulianDate::new(
+                scheduled_start_mjd,
+            ),
             scheduled_stop_mjd: crate::siderust::astro::ModifiedJulianDate::new(scheduled_stop_mjd),
             ra_deg: qtty::angular::Degrees::new(ra_deg),
             dec_deg: qtty::angular::Degrees::new(dec_deg),
@@ -901,8 +903,10 @@ pub async fn fetch_analytics_blocks_for_insights(
             requested_hours: qtty::time::Hours::new(requested_hours),
             elevation_range_deg: qtty::angular::Degrees::new(elevation_range_deg),
             scheduled,
-            scheduled_start_mjd: scheduled_start_mjd.map(crate::siderust::astro::ModifiedJulianDate::new),
-            scheduled_stop_mjd: scheduled_stop_mjd.map(crate::siderust::astro::ModifiedJulianDate::new),
+            scheduled_start_mjd: scheduled_start_mjd
+                .map(crate::siderust::astro::ModifiedJulianDate::new),
+            scheduled_stop_mjd: scheduled_stop_mjd
+                .map(crate::siderust::astro::ModifiedJulianDate::new),
         });
     }
 
