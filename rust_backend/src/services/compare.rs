@@ -2,7 +2,8 @@
 #![allow(clippy::redundant_closure)]
 
 use crate::api::{CompareBlock, CompareData, CompareStats, SchedulingChange};
-use crate::db::operations;
+use crate::db::get_repository;
+use crate::db::VisualizationRepository;
 use pyo3::prelude::*;
 use std::collections::{HashMap, HashSet};
 use tokio::runtime::Runtime;
@@ -141,9 +142,18 @@ pub async fn get_compare_data(
     current_name: String,
     comparison_name: String,
 ) -> Result<CompareData, String> {
+    // Use the initialized repository (local by default)
+    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
+
     // Fetch blocks from both schedules
-    let current_blocks = operations::fetch_compare_blocks(current_schedule_id).await?;
-    let comparison_blocks = operations::fetch_compare_blocks(comparison_schedule_id).await?;
+    let current_blocks = repo
+        .fetch_compare_blocks(current_schedule_id)
+        .await
+        .map_err(|e| format!("Failed to fetch current schedule blocks: {}", e))?;
+    let comparison_blocks = repo
+        .fetch_compare_blocks(comparison_schedule_id)
+        .await
+        .map_err(|e| format!("Failed to fetch comparison schedule blocks: {}", e))?;
 
     compute_compare_data(
         current_blocks,

@@ -454,7 +454,7 @@ impl AnalyticsRepository for LocalRepository {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Convert schedule blocks to DistributionBlock format
-        let mut blocks: Vec<DistributionBlock> = schedule
+        let blocks: Vec<DistributionBlock> = schedule
             .blocks
             .iter()
             .map(|b| {
