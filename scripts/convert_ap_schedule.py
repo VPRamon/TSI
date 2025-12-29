@@ -162,10 +162,13 @@ def convert_block(blk: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     if original is not None:
         out["original_block_id"] = original
 
-    scheduled = blk.get("scheduled_period") or blk.get("scheduledPeriod")
-    csp = convert_period_legacy(scheduled) if scheduled else None
-    if csp:
-        out["scheduled_period"] = csp
+    # Only add `scheduled_period` to output if the original block actually had it.
+    if "scheduled_period" in blk or "scheduledPeriod" in blk:
+        scheduled = blk.get("scheduled_period") or blk.get("scheduledPeriod")
+        if isinstance(scheduled, dict):
+            csp = convert_period_legacy(scheduled)
+            if csp:
+                out["scheduled_period"] = csp
 
     vis = extract_visibility_periods(blk)
     if vis is not None:
