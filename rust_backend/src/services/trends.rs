@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
-use crate::db::repository::AnalyticsRepository;
 use crate::db::get_repository;
+use crate::db::repository::AnalyticsRepository;
 use crate::db::services as db_services;
 
 /// Compute overview metrics from trends blocks.
@@ -29,7 +29,10 @@ fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
 
     // Collect all values for stats (use primitive f64 values)
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
-    let visibilities: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours.value()).collect();
+    let visibilities: Vec<f64> = blocks
+        .iter()
+        .map(|b| b.total_visibility_hours.value())
+        .collect();
     let times: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
 
     let priority_min = priorities.iter().copied().fold(f64::INFINITY, f64::min);
@@ -262,7 +265,10 @@ fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin
     }
 
     // Find ranges (use primitive values)
-    let vis_values: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours.value()).collect();
+    let vis_values: Vec<f64> = blocks
+        .iter()
+        .map(|b| b.total_visibility_hours.value())
+        .collect();
     let time_values: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
 
     let vis_min = vis_values.iter().copied().fold(f64::INFINITY, f64::min);
@@ -339,7 +345,12 @@ pub fn compute_trends_data(
 
     // Compute empirical rates
     let by_priority = compute_by_priority(&blocks);
-    let by_visibility = compute_by_bins(&blocks, |b| b.total_visibility_hours.value(), n_bins, "Visibility");
+    let by_visibility = compute_by_bins(
+        &blocks,
+        |b| b.total_visibility_hours.value(),
+        n_bins,
+        "Visibility",
+    );
     let by_time = compute_by_bins(&blocks, |b| b.requested_hours.value(), n_bins, "Time");
 
     // Compute smoothed trends
@@ -349,7 +360,12 @@ pub fn compute_trends_data(
         bandwidth,
         n_smooth_points,
     );
-    let smoothed_time = compute_smoothed_trend(&blocks, |b| b.requested_hours.value(), bandwidth, n_smooth_points);
+    let smoothed_time = compute_smoothed_trend(
+        &blocks,
+        |b| b.requested_hours.value(),
+        bandwidth,
+        n_smooth_points,
+    );
 
     // Compute heatmap bins
     let heatmap_bins = compute_heatmap_bins(&blocks, n_bins);
@@ -460,12 +476,7 @@ pub fn py_get_trends_data(
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
 
     runtime
-        .block_on(get_trends_data(
-            sid,
-            n_bins,
-            bandwidth,
-            n_smooth_points,
-        ))
+        .block_on(get_trends_data(sid, n_bins, bandwidth, n_smooth_points))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
@@ -480,16 +491,16 @@ mod tests {
                 scheduling_block_id: 1,
                 original_block_id: "SB001".to_string(),
                 priority: 5.0,
-                    total_visibility_hours: qtty::time::Hours::new(10.0),
-                    requested_hours: qtty::time::Hours::new(2.0),
+                total_visibility_hours: qtty::time::Hours::new(10.0),
+                requested_hours: qtty::time::Hours::new(2.0),
                 scheduled: true,
             },
             TrendsBlock {
                 scheduling_block_id: 2,
                 original_block_id: "SB002".to_string(),
                 priority: 3.0,
-                    total_visibility_hours: qtty::time::Hours::new(5.0),
-                    requested_hours: qtty::time::Hours::new(1.0),
+                total_visibility_hours: qtty::time::Hours::new(5.0),
+                requested_hours: qtty::time::Hours::new(1.0),
                 scheduled: false,
             },
         ];

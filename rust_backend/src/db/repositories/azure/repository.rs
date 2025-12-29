@@ -69,10 +69,7 @@ impl ScheduleRepository for AzureRepository {
         todo!("Azure placeholder: get_blocks_for_schedule")
     }
 
-    async fn fetch_dark_periods(
-        &self,
-        _schedule_id: ScheduleId,
-    ) -> RepositoryResult<Vec<Period>> {
+    async fn fetch_dark_periods(&self, _schedule_id: ScheduleId) -> RepositoryResult<Vec<Period>> {
         todo!("Azure placeholder: fetch_dark_periods")
     }
 
@@ -95,10 +92,7 @@ impl AnalyticsRepository for AzureRepository {
         todo!("Azure placeholder: populate_schedule_analytics")
     }
 
-    async fn delete_schedule_analytics(
-        &self,
-        _schedule_id: ScheduleId,
-    ) -> RepositoryResult<usize> {
+    async fn delete_schedule_analytics(&self, _schedule_id: ScheduleId) -> RepositoryResult<usize> {
         todo!("Azure placeholder: delete_schedule_analytics")
     }
 
@@ -146,17 +140,11 @@ impl ValidationRepository for AzureRepository {
         todo!("Azure placeholder: fetch_validation_results")
     }
 
-    async fn has_validation_results(
-        &self,
-        _schedule_id: ScheduleId,
-    ) -> RepositoryResult<bool> {
+    async fn has_validation_results(&self, _schedule_id: ScheduleId) -> RepositoryResult<bool> {
         todo!("Azure placeholder: has_validation_results")
     }
 
-    async fn delete_validation_results(
-        &self,
-        _schedule_id: ScheduleId,
-    ) -> RepositoryResult<u64> {
+    async fn delete_validation_results(&self, _schedule_id: ScheduleId) -> RepositoryResult<u64> {
         todo!("Azure placeholder: delete_validation_results")
     }
 }
@@ -195,5 +183,4 @@ impl VisualizationRepository for AzureRepository {
     ) -> RepositoryResult<Vec<crate::services::visibility::BlockHistogramData>> {
         todo!("Azure placeholder: fetch_compare_blocks")
     }
-
 }

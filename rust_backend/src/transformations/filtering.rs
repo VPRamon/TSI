@@ -1,7 +1,11 @@
 use serde_json::Value;
 
 /// Filter records by a single column condition (string value)
-pub fn filter_by_column(records: &[Value], column: &str, value: &str) -> Result<Vec<Value>, String> {
+pub fn filter_by_column(
+    records: &[Value],
+    column: &str,
+    value: &str,
+) -> Result<Vec<Value>, String> {
     let filtered: Vec<Value> = records
         .iter()
         .filter(|r| {
@@ -136,7 +140,10 @@ pub fn validate_dataframe(records: &[Value]) -> (bool, Vec<String>) {
         .filter(|r| r.get("priority").and_then(|v| v.as_f64()).is_none())
         .count();
     if invalid_priority_count > 0 {
-        issues.push(format!("{} rows have invalid priority values", invalid_priority_count));
+        issues.push(format!(
+            "{} rows have invalid priority values",
+            invalid_priority_count
+        ));
     }
 
     // Check for invalid declination (must be in [-90, 90])
@@ -150,7 +157,10 @@ pub fn validate_dataframe(records: &[Value]) -> (bool, Vec<String>) {
         })
         .count();
     if invalid_dec_count > 0 {
-        issues.push(format!("{} rows have invalid declination", invalid_dec_count));
+        issues.push(format!(
+            "{} rows have invalid declination",
+            invalid_dec_count
+        ));
     }
 
     // Check for invalid right ascension (must be in [0, 360))
@@ -164,7 +174,10 @@ pub fn validate_dataframe(records: &[Value]) -> (bool, Vec<String>) {
         })
         .count();
     if invalid_ra_count > 0 {
-        issues.push(format!("{} rows have invalid right ascension", invalid_ra_count));
+        issues.push(format!(
+            "{} rows have invalid right ascension",
+            invalid_ra_count
+        ));
     }
 
     (issues.is_empty(), issues)
@@ -229,43 +242,30 @@ mod tests {
         let records = sample_records();
 
         // Priority 8-18, scheduled only
-        let filtered = filter_dataframe(
-            &records,
-            8.0,
-            18.0,
-            "Scheduled",
-            None,
-            None,
-        )
-        .unwrap();
+        let filtered = filter_dataframe(&records, 8.0, 18.0, "Scheduled", None, None).unwrap();
         assert_eq!(filtered.len(), 1);
         assert_eq!(filtered[0].get("priority").unwrap().as_f64().unwrap(), 15.0);
     }
 
     #[test]
     fn test_validate_dataframe() {
-        let good_records = vec![
-            json!({
-                "schedulingBlockId": "SB001",
-                "priority": 5.0,
-                "raInDeg": 120.0,
-                "decInDeg": 45.0,
-            }),
-        ];
+        let good_records = vec![json!({
+            "schedulingBlockId": "SB001",
+            "priority": 5.0,
+            "raInDeg": 120.0,
+            "decInDeg": 45.0,
+        })];
         let (is_valid, issues) = validate_dataframe(&good_records);
         assert!(is_valid);
         assert_eq!(issues.len(), 0);
 
-        let bad_records = vec![
-            json!({
-                "priority": 5.0,
-                "raInDeg": 400.0,  // Invalid
-                "decInDeg": -100.0, // Invalid
-            }),
-        ];
+        let bad_records = vec![json!({
+            "priority": 5.0,
+            "raInDeg": 400.0,  // Invalid
+            "decInDeg": -100.0, // Invalid
+        })];
         let (is_valid, issues) = validate_dataframe(&bad_records);
         assert!(!is_valid);
         assert!(issues.len() >= 2);
     }
 }
-

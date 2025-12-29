@@ -28,7 +28,7 @@ macro_rules! define_id_type {
             Ord,
             Hash,
             serde::Serialize,
-            serde::Deserialize
+            serde::Deserialize,
         )]
         pub struct $name(pub $inner);
 

@@ -50,9 +50,7 @@ pub async fn fetch_possible_periods(_schedule_id: ScheduleId) -> Result<Vec<Peri
     todo!("Azure placeholder: fetch_possible_periods")
 }
 
-pub async fn fetch_lightweight_blocks(
-    _schedule_id: i64,
-) -> Result<Vec<LightweightBlock>, String> {
+pub async fn fetch_lightweight_blocks(_schedule_id: i64) -> Result<Vec<LightweightBlock>, String> {
     todo!("Azure placeholder: fetch_lightweight_blocks")
 }
 
@@ -76,9 +74,7 @@ pub async fn fetch_visibility_map_data(
     todo!("Azure placeholder: fetch_visibility_map_data")
 }
 
-pub async fn get_schedule_time_range(
-    _schedule_id: ScheduleId,
-) -> Result<Option<Period>, String> {
+pub async fn get_schedule_time_range(_schedule_id: ScheduleId) -> Result<Option<Period>, String> {
     todo!("Azure placeholder: get_schedule_time_range")
 }
 
@@ -88,8 +84,6 @@ pub async fn fetch_schedule_timeline_blocks(
     todo!("Azure placeholder: fetch_schedule_timeline_blocks")
 }
 
-pub async fn fetch_compare_blocks(
-    _schedule_id: ScheduleId,
-) -> Result<Vec<CompareBlock>, String> {
+pub async fn fetch_compare_blocks(_schedule_id: ScheduleId) -> Result<Vec<CompareBlock>, String> {
     todo!("Azure placeholder: fetch_compare_blocks")
 }

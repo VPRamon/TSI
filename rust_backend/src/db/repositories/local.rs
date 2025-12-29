@@ -8,12 +8,10 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-use crate::db::{
-    repository::*,
-};
-use crate::api::*;
-use crate::services::validation::ValidationResult;
 use crate::api::ModifiedJulianDate;
+use crate::api::*;
+use crate::db::repository::*;
+use crate::services::validation::ValidationResult;
 
 /// In-memory local repository.
 ///
@@ -146,7 +144,11 @@ impl LocalRepository {
 
     /// Check if a schedule exists.
     pub fn has_schedule(&self, schedule_id: crate::api::ScheduleId) -> bool {
-        self.data.read().unwrap().schedules.contains_key(&schedule_id)
+        self.data
+            .read()
+            .unwrap()
+            .schedules
+            .contains_key(&schedule_id)
     }
 
     /// Helper to check health and return error if unhealthy.
@@ -163,10 +165,9 @@ impl LocalRepository {
     /// Helper to get a schedule or return NotFound error.
     fn get_schedule_impl(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Schedule> {
         let data = self.data.read().unwrap();
-        data.schedules
-            .get(&schedule_id)
-            .cloned()
-            .ok_or_else(|| RepositoryError::NotFound(format!("Schedule {} not found", schedule_id.0)))
+        data.schedules.get(&schedule_id).cloned().ok_or_else(|| {
+            RepositoryError::NotFound(format!("Schedule {} not found", schedule_id.0))
+        })
     }
 
     /// Helper for the common deletion pattern.
@@ -198,7 +199,10 @@ impl ScheduleRepository for LocalRepository {
         Ok(data.is_healthy)
     }
 
-    async fn store_schedule(&self, schedule: &Schedule) -> RepositoryResult<crate::api::ScheduleInfo> {
+    async fn store_schedule(
+        &self,
+        schedule: &Schedule,
+    ) -> RepositoryResult<crate::api::ScheduleInfo> {
         self.check_health()?;
 
         // Use the helper method to add the schedule
@@ -211,24 +215,27 @@ impl ScheduleRepository for LocalRepository {
         Ok(metadata)
     }
 
-    async fn get_schedule(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Schedule> {
+    async fn get_schedule(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<Schedule> {
         self.get_schedule_impl(schedule_id)
     }
 
     async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
         let data = self.data.read().unwrap();
 
-        let mut schedules: Vec<crate::api::ScheduleInfo> = data
-            .schedule_metadata
-            .values()
-            .cloned()
-            .collect();
+        let mut schedules: Vec<crate::api::ScheduleInfo> =
+            data.schedule_metadata.values().cloned().collect();
 
         schedules.sort_by_key(|s| s.schedule_id);
         Ok(schedules)
     }
 
-    async fn get_schedule_time_range(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Option<Period>> {
+    async fn get_schedule_time_range(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<Option<Period>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Calculate time range from dark periods
@@ -281,12 +288,18 @@ impl ScheduleRepository for LocalRepository {
         Ok(schedule.blocks.clone())
     }
 
-    async fn fetch_dark_periods(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Vec<Period>> {
+    async fn fetch_dark_periods(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<Vec<Period>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
         Ok(schedule.dark_periods.clone())
     }
 
-    async fn fetch_possible_periods(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Vec<Period>> {
+    async fn fetch_possible_periods(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<Vec<Period>> {
         let data = self.data.read().unwrap();
 
         Ok(data
@@ -301,7 +314,10 @@ impl ScheduleRepository for LocalRepository {
 
 #[async_trait]
 impl AnalyticsRepository for LocalRepository {
-    async fn populate_schedule_analytics(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<usize> {
+    async fn populate_schedule_analytics(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<usize> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Build validation input from schedule blocks
@@ -371,11 +387,17 @@ impl AnalyticsRepository for LocalRepository {
         Ok(schedule.blocks.len())
     }
 
-    async fn delete_schedule_analytics(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<usize> {
+    async fn delete_schedule_analytics(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<usize> {
         Ok(self.delete_from_map(|d| &mut d.analytics_exists, schedule_id))
     }
 
-    async fn has_analytics_data(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<bool> {
+    async fn has_analytics_data(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<bool> {
         let data = self.data.read().unwrap();
         Ok(data
             .analytics_exists
@@ -493,7 +515,6 @@ impl AnalyticsRepository for LocalRepository {
 
         Ok(blocks)
     }
-
 }
 
 // ==================== Validation Repository ====================
@@ -625,12 +646,18 @@ impl ValidationRepository for LocalRepository {
             })
     }
 
-    async fn has_validation_results(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<bool> {
+    async fn has_validation_results(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<bool> {
         let data = self.data.read().unwrap();
         Ok(data.validation_results.contains_key(&schedule_id))
     }
 
-    async fn delete_validation_results(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<u64> {
+    async fn delete_validation_results(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<u64> {
         Ok(self.delete_from_map(|d| &mut d.validation_results, schedule_id) as u64)
     }
 }
@@ -758,7 +785,7 @@ impl VisualizationRepository for LocalRepository {
 
         Ok(blocks)
     }
- 
+
     async fn fetch_schedule_timeline_blocks(
         &self,
         schedule_id: crate::api::ScheduleId,

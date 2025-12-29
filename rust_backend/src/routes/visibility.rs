@@ -1,10 +1,10 @@
+use crate::db;
+use crate::db::repository::visualization::VisualizationRepository;
+use crate::services;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use serde::{Deserialize, Serialize};
 use tokio::runtime::Runtime;
-use crate::db;
-use crate::services;
-use crate::db::repository::visualization::VisualizationRepository;
 
 // =========================================================
 // Visibility Map types + route
@@ -39,7 +39,6 @@ pub const GET_SCHEDULE_TIME_RANGE: &str = "get_schedule_time_range";
 /// Route function name constant for visibility histogram
 pub const GET_VISIBILITY_HISTOGRAM: &str = "get_visibility_histogram";
 
-
 /// Get visibility map data (wraps repository call)
 #[pyfunction]
 pub fn get_visibility_map_data(schedule_id: crate::api::ScheduleId) -> PyResult<VisibilityMapData> {
@@ -73,7 +72,6 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
-
 #[pyfunction]
 fn get_schedule_time_range(schedule_id: crate::api::ScheduleId) -> PyResult<Option<(i64, i64)>> {
     let runtime = Runtime::new().map_err(|e| {
@@ -86,7 +84,10 @@ fn get_schedule_time_range(schedule_id: crate::api::ScheduleId) -> PyResult<Opti
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
 
     let time_range_period = runtime
-        .block_on(db::services::get_schedule_time_range(repo.as_ref(), schedule_id))
+        .block_on(db::services::get_schedule_time_range(
+            repo.as_ref(),
+            schedule_id,
+        ))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
 
     if let Some(period) = time_range_period {
@@ -98,7 +99,6 @@ fn get_schedule_time_range(schedule_id: crate::api::ScheduleId) -> PyResult<Opti
         Ok(None)
     }
 }
-
 
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]

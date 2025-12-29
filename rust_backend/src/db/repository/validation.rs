@@ -51,7 +51,10 @@ pub trait ValidationRepository: Send + Sync {
     /// # Returns
     /// * `Ok(bool)` - True if validation results exist
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn has_validation_results(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<bool>;
+    async fn has_validation_results(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<bool>;
 
     /// Delete validation results for a schedule.
     ///
@@ -61,5 +64,8 @@ pub trait ValidationRepository: Send + Sync {
     /// # Returns
     /// * `Ok(u64)` - Number of rows deleted
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn delete_validation_results(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<u64>;
+    async fn delete_validation_results(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<u64>;
 }

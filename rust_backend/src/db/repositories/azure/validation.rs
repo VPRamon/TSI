@@ -13,9 +13,7 @@ pub async fn insert_validation_results(_results: &[ValidationResult]) -> Result<
     todo!("Azure placeholder: insert_validation_results")
 }
 
-pub async fn update_validation_impossible_flags(
-    _schedule_id: ScheduleId,
-) -> Result<usize, String> {
+pub async fn update_validation_impossible_flags(_schedule_id: ScheduleId) -> Result<usize, String> {
     todo!("Azure placeholder: update_validation_impossible_flags")
 }
 

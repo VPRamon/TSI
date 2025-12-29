@@ -18,7 +18,6 @@ use crate::api::CompareBlock;
 /// Implementations must be `Send + Sync` to work with async Rust.
 #[async_trait]
 pub trait VisualizationRepository: Send + Sync {
-
     /// Fetch blocks for timeline visualization.
     ///
     /// # Arguments
@@ -40,7 +39,10 @@ pub trait VisualizationRepository: Send + Sync {
     /// # Returns
     /// * `Ok(Vec<CompareBlock>)` - Blocks for comparison
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn fetch_compare_blocks(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<Vec<CompareBlock>>;
+    async fn fetch_compare_blocks(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<Vec<CompareBlock>>;
 
     async fn fetch_visibility_map_data(
         &self,
@@ -54,5 +56,4 @@ pub trait VisualizationRepository: Send + Sync {
         priority_max: Option<i32>,
         block_ids: Option<Vec<i64>>,
     ) -> RepositoryResult<Vec<crate::services::visibility::BlockHistogramData>>;
-
 }

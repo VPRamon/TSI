@@ -78,8 +78,8 @@ pub use repository_manager::{get_repository, init_repository};
 
 pub use services::{
     ensure_analytics, fetch_dark_periods, fetch_possible_periods, get_blocks_for_schedule,
-    get_schedule, get_schedule_time_range, get_scheduling_block, has_analytics_data,
-    health_check, list_schedules, store_schedule,
+    get_schedule, get_schedule_time_range, get_scheduling_block, has_analytics_data, health_check,
+    list_schedules, store_schedule,
 };
 
 // ==================== Repository Pattern Exports ====================
@@ -102,9 +102,7 @@ pub use repository::{
 // the Azure-specific modules.
 
 // Re-export Azure module functions and types for compatibility
-pub use repositories::azure::{
-    analytics, operations, pool, validation,
-};
+pub use repositories::azure::{analytics, operations, pool, validation};
 
 // Validation
 pub use repositories::azure::validation::{

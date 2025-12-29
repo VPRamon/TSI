@@ -52,8 +52,8 @@ pub fn parse_schedule_json_str(
     dark_periods_json: &str,
 ) -> Result<crate::api::Schedule> {
     // Deserialize schedule using Serde (snake_case JSON matching schema)
-    let mut schedule = parse_schedule_direct(json_schedule_json)
-        .context("Failed to parse schedule JSON")?;
+    let mut schedule =
+        parse_schedule_direct(json_schedule_json).context("Failed to parse schedule JSON")?;
 
     // If possible periods are supplied separately, merge them into block.visibility_periods.
     // Accept either a wrapper `{"blocks": { "<id>": [ ... ] }}` or a direct map `{ "<id>": [ ... ] }`.
@@ -69,10 +69,14 @@ pub fn parse_schedule_json_str(
             let maybe_map: Option<HashMap<String, Vec<crate::api::Period>>> =
                 match serde_json::from_str::<BlocksWrapper>(trimmed) {
                     Ok(wrapper) => Some(wrapper.blocks),
-                    Err(_) => match serde_json::from_str::<HashMap<String, Vec<crate::api::Period>>>(trimmed) {
-                        Ok(m) => Some(m),
-                        Err(_) => None,
-                    },
+                    Err(_) => {
+                        match serde_json::from_str::<HashMap<String, Vec<crate::api::Period>>>(
+                            trimmed,
+                        ) {
+                            Ok(m) => Some(m),
+                            Err(_) => None,
+                        }
+                    }
                 };
 
             if let Some(map) = maybe_map {
@@ -152,25 +156,36 @@ pub fn parse_schedule_json(
 ) -> Result<crate::api::Schedule> {
     // Read schedule JSON
     let schedule_json = std::fs::read_to_string(schedule_json_path).with_context(|| {
-        format!("Failed to read schedule file: {}", schedule_json_path.display())
+        format!(
+            "Failed to read schedule file: {}",
+            schedule_json_path.display()
+        )
     })?;
 
     // Read possible periods if provided
-    let possible_periods_json = if let Some(path) = possible_periods_json_path {
-        Some(std::fs::read_to_string(path).with_context(|| {
-            format!("Failed to read possible periods file: {}", path.display())
-        })?)
-    } else {
-        None
-    };
+    let possible_periods_json =
+        if let Some(path) = possible_periods_json_path {
+            Some(std::fs::read_to_string(path).with_context(|| {
+                format!("Failed to read possible periods file: {}", path.display())
+            })?)
+        } else {
+            None
+        };
 
     // Read dark periods
     let dark_periods_json = std::fs::read_to_string(dark_periods_json_path).with_context(|| {
-        format!("Failed to read dark periods file: {}", dark_periods_json_path.display())
+        format!(
+            "Failed to read dark periods file: {}",
+            dark_periods_json_path.display()
+        )
     })?;
 
     // Parse using string-based function
-    parse_schedule_json_str(&schedule_json, possible_periods_json.as_deref(), &dark_periods_json)
+    parse_schedule_json_str(
+        &schedule_json,
+        possible_periods_json.as_deref(),
+        &dark_periods_json,
+    )
 }
 
 // ============================================================================
@@ -206,7 +221,9 @@ mod tests {
         assert!(
             diff < 1e-9,
             "Mismatch for {}: expected {}, got {}",
-            label, expected, value
+            label,
+            expected,
+            value
         );
     }
 
@@ -235,7 +252,11 @@ mod tests {
         let dark_periods_json = r#"{ "dark_periods": [ { "start": 61771.0, "stop": 61772.0 } ] }"#;
 
         let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
-        assert!(result.is_ok(), "Should parse minimal schedule: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Should parse minimal schedule: {:?}",
+            result.err()
+        );
 
         let schedule = result.unwrap();
         assert_eq!(schedule.blocks.len(), 1);
@@ -269,7 +290,11 @@ mod tests {
 
         let dark_periods_json = r#"{"dark_periods": []}"#;
         let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
-        assert!(result.is_ok(), "Should parse with scheduled period: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Should parse with scheduled period: {:?}",
+            result.err()
+        );
 
         let schedule = result.unwrap();
         assert_eq!(schedule.blocks.len(), 1);
@@ -301,7 +326,11 @@ mod tests {
         let possible_periods_json = r#"{ "blocks": { "1000004990": [ { "start": 61771.0, "stop": 61772.0 }, { "start": 61773.0, "stop": 61774.0 } ] } }"#;
 
         let dark_periods_json = r#"{"dark_periods": []}"#;
-        let result = parse_schedule_json_str(schedule_json, Some(possible_periods_json), dark_periods_json);
+        let result = parse_schedule_json_str(
+            schedule_json,
+            Some(possible_periods_json),
+            dark_periods_json,
+        );
         assert!(result.is_ok(), "Should parse with possible periods");
 
         let schedule = result.unwrap();
@@ -330,32 +359,63 @@ mod tests {
         let schedule = parse_real_schedule_fixture();
 
         assert_eq!(schedule.blocks.len(), 2647, "Unexpected block count");
-        assert_eq!(schedule.dark_periods.len(), 314, "Unexpected dark period count");
+        assert_eq!(
+            schedule.dark_periods.len(),
+            314,
+            "Unexpected dark period count"
+        );
         assert_eq!(schedule.name, "parsed_schedule");
         assert_eq!(schedule.checksum, EXPECTED_SCHEDULE_CHECKSUM);
 
-        let first_dark = schedule.dark_periods.first().expect("Dark periods should not be empty");
+        let first_dark = schedule
+            .dark_periods
+            .first()
+            .expect("Dark periods should not be empty");
         assert_close(first_dark.start.value(), 61771.0, "first dark period start");
-        assert_close(first_dark.stop.value(), 61771.276910532266, "first dark period stop");
+        assert_close(
+            first_dark.stop.value(),
+            61771.276910532266,
+            "first dark period stop",
+        );
 
-        let block_4990 = schedule.blocks.iter().find(|block| block.id.0 == 1000004990)
+        let block_4990 = schedule
+            .blocks
+            .iter()
+            .find(|block| block.id.0 == 1000004990)
             .expect("Scheduling block 1000004990 should exist");
         assert_eq!(block_4990.priority, 8.5);
         assert_eq!(block_4990.visibility_periods.len(), 120);
 
-        let scheduled_period = block_4990.scheduled_period.clone()
+        let scheduled_period = block_4990
+            .scheduled_period
+            .clone()
             .expect("Scheduling block 1000004990 should be scheduled");
-        assert_close(scheduled_period.start.value(), 61894.19429606479, "scheduled period start");
-        assert_close(scheduled_period.stop.value(), 61894.20818495378, "scheduled period stop");
+        assert_close(
+            scheduled_period.start.value(),
+            61894.19429606479,
+            "scheduled period start",
+        );
+        assert_close(
+            scheduled_period.stop.value(),
+            61894.20818495378,
+            "scheduled period stop",
+        );
     }
 
     #[test]
     fn test_parse_fixed_time_block_from_real_data() {
         let schedule = parse_real_schedule_fixture();
 
-        let block_2662 = schedule.blocks.iter().find(|block| block.id.0 == 1000002662)
+        let block_2662 = schedule
+            .blocks
+            .iter()
+            .find(|block| block.id.0 == 1000002662)
             .expect("Scheduling block 1000002662 should exist");
-        assert_eq!(block_2662.visibility_periods.len(), 3, "Expected three possible periods");
+        assert_eq!(
+            block_2662.visibility_periods.len(),
+            3,
+            "Expected three possible periods"
+        );
         // Validate constraint ranges (accept fixtures converted to snake_case).
         assert!(block_2662.constraints.min_alt.value() <= block_2662.constraints.max_alt.value());
         assert!(block_2662.constraints.min_az.value() <= block_2662.constraints.max_az.value());

@@ -9,8 +9,8 @@ use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
-use crate::db::repository::AnalyticsRepository;
 use crate::db::get_repository;
+use crate::db::repository::AnalyticsRepository;
 use qtty::time::Hours;
 
 /// Compute analytics metrics from insights blocks.
@@ -154,9 +154,15 @@ fn compute_correlations(blocks: &[InsightsBlock]) -> Vec<CorrelationEntry> {
 
     // Extract variables (use primitive values for statistical routines)
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
-    let visibility: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours.value()).collect();
+    let visibility: Vec<f64> = blocks
+        .iter()
+        .map(|b| b.total_visibility_hours.value())
+        .collect();
     let requested: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
-    let elevation: Vec<f64> = blocks.iter().map(|b| b.elevation_range_deg.value()).collect();
+    let elevation: Vec<f64> = blocks
+        .iter()
+        .map(|b| b.elevation_range_deg.value())
+        .collect();
 
     let variables = vec![
         ("priority", &priorities[..]),
@@ -308,7 +314,9 @@ pub fn compute_insights_data(blocks: Vec<InsightsBlock>) -> Result<InsightsData,
 ///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded during ETL.
 /// Validation results are stored separately and can be retrieved via py_get_validation_report.
-pub async fn get_insights_data(schedule_id: crate::api::ScheduleId) -> Result<InsightsData, String> {
+pub async fn get_insights_data(
+    schedule_id: crate::api::ScheduleId,
+) -> Result<InsightsData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
@@ -339,51 +347,50 @@ pub async fn get_insights_data(schedule_id: crate::api::ScheduleId) -> Result<In
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 /// To see validation issues, use py_get_validation_report.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_insights_data(schedule_id: i64) -> PyResult<InsightsData> {
+pub fn py_get_insights_data(schedule_id: crate::api::ScheduleId) -> PyResult<InsightsData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
             e
         ))
     })?;
-    let sid = crate::api::ScheduleId(schedule_id);
     runtime
-        .block_on(get_insights_data(sid))
+        .block_on(get_insights_data(schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use qtty::angular::Degrees;
     use crate::api::ModifiedJulianDate;
+    use qtty::angular::Degrees;
 
     #[test]
     fn test_compute_metrics() {
         let blocks = vec![
-                InsightsBlock {
-                    scheduling_block_id: 1,
-                    original_block_id: "SB001".to_string(),
-                    priority: 5.0,
-                    total_visibility_hours: Hours::new(10.0),
-                    requested_hours: Hours::new(2.0),
-                    elevation_range_deg: Degrees::new(45.0),
-                    scheduled: true,
-                    scheduled_start_mjd: Some(ModifiedJulianDate::new(60000.0)),
-                    scheduled_stop_mjd: Some(ModifiedJulianDate::new(60001.0)),
-                },
-                InsightsBlock {
-                    scheduling_block_id: 2,
-                    original_block_id: "SB002".to_string(),
-                    priority: 3.0,
-                    total_visibility_hours: Hours::new(0.0),
-                    requested_hours: Hours::new(1.0),
-                    elevation_range_deg: Degrees::new(30.0),
-                    scheduled: false,
-                    scheduled_start_mjd: None,
-                    scheduled_stop_mjd: None,
-                },
-            ];
+            InsightsBlock {
+                scheduling_block_id: 1,
+                original_block_id: "SB001".to_string(),
+                priority: 5.0,
+                total_visibility_hours: Hours::new(10.0),
+                requested_hours: Hours::new(2.0),
+                elevation_range_deg: Degrees::new(45.0),
+                scheduled: true,
+                scheduled_start_mjd: Some(ModifiedJulianDate::new(60000.0)),
+                scheduled_stop_mjd: Some(ModifiedJulianDate::new(60001.0)),
+            },
+            InsightsBlock {
+                scheduling_block_id: 2,
+                original_block_id: "SB002".to_string(),
+                priority: 3.0,
+                total_visibility_hours: Hours::new(0.0),
+                requested_hours: Hours::new(1.0),
+                elevation_range_deg: Degrees::new(30.0),
+                scheduled: false,
+                scheduled_start_mjd: None,
+                scheduled_stop_mjd: None,
+            },
+        ];
 
         let metrics = compute_metrics(&blocks);
         assert_eq!(metrics.total_observations, 2);

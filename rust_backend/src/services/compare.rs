@@ -37,7 +37,10 @@ fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
         sorted_priorities[scheduled_count / 2]
     };
 
-    let total_hours_f64: f64 = scheduled_blocks.iter().map(|b| b.requested_hours.value()).sum();
+    let total_hours_f64: f64 = scheduled_blocks
+        .iter()
+        .map(|b| b.requested_hours.value())
+        .sum();
 
     CompareStats {
         scheduled_count,

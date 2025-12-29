@@ -193,10 +193,19 @@ mod tests {
 
         let top = get_top_observations(&records, "priority", 1).unwrap();
         assert_eq!(top.len(), 1);
-        assert_eq!(top[0].get("schedulingBlockId").unwrap().as_str().unwrap(), "b");
+        assert_eq!(
+            top[0].get("schedulingBlockId").unwrap().as_str().unwrap(),
+            "b"
+        );
 
         // When column missing, returns empty
-        assert_eq!(get_top_observations(&records, "unknown", 1).unwrap().len(), 0);
-        assert_eq!(get_top_observations(&records, "priority", 0).unwrap().len(), 0);
+        assert_eq!(
+            get_top_observations(&records, "unknown", 1).unwrap().len(),
+            0
+        );
+        assert_eq!(
+            get_top_observations(&records, "priority", 0).unwrap().len(),
+            0
+        );
     }
 }
