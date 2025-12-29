@@ -700,17 +700,17 @@ Un usuario abre la página **"Distributions"** en la GUI Streamlit. Quiere ver u
 
 **Secuencia**:
 
-1. **Streamlit (Python)** → `tsi.services.data_access.get_distribution_data(schedule_id=123, filter_impossible=True)`
+1. **Streamlit (Python)** → `tsi.services.backend_client.get_distribution_data(schedule_ref=123)`
 
 2. **Python Service Layer** → Llama al **Rust backend** via PyO3:
    ```python
    from tsi_rust import py_get_distribution_data
-   data = py_get_distribution_data(schedule_id, filter_impossible)
+   data = py_get_distribution_data(schedule_id)
    ```
 
 3. **Rust Backend** → Crea un **Tokio async runtime** y ejecuta:
    ```rust
-   let blocks = fetch_analytics_blocks_for_distributions(pool, schedule_id, filter_impossible).await?;
+   let blocks = fetch_analytics_blocks_for_distributions(pool, schedule_id).await?;
    ```
 
 4. **Consulta SQL** (ejecutada por Rust):
@@ -723,7 +723,6 @@ Un usuario abre la página **"Distributions"** en la GUI Streamlit. Quiere ver u
        is_scheduled
    FROM analytics.schedule_blocks_analytics
    WHERE schedule_id = @p1
-     AND (validation_impossible = 0 OR @p2 = 0)  -- filter_impossible
    ```
 
 5. **Azure SQL Database** → **Index seek** en `IX_analytics_distribution`, retorna ~5000 filas en ~10ms.

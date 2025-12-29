@@ -1043,13 +1043,13 @@ WHERE sb.scheduling_block_id IS NULL;
 
 ```python
 import streamlit as st
-from tsi.services import data_access
+from tsi.services import backend_client
 
-schedule_id = st.selectbox("Select Schedule", data_access.list_schedules())
+schedule_id = st.selectbox("Select Schedule", backend_client.list_schedules())
 
 with st.spinner("Fetching metrics..."):
     start_time = time.time()
-    data = data_access.get_trends_data(schedule_id)
+    data = backend_client.get_trends_data(schedule_id)
     elapsed = time.time() - start_time
 
 st.metric("Query Time", f"{elapsed:.2f}s")
