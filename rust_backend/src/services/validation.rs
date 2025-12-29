@@ -195,7 +195,11 @@ pub struct BlockForValidation {
     pub priority: f64,
     pub requested_duration_sec: i32,
     pub min_observation_sec: i32,
-    pub total_visibility_hours: f64,
+        pub total_visibility_hours: f64,
+        /// Maximum single contiguous visibility period length (hours).
+        /// Used to determine whether the minimum observation time can fit
+        /// inside any single visibility window.
+        pub max_visibility_period_hours: f64,
     pub min_alt_deg: Option<f64>,
     pub max_alt_deg: Option<f64>,
     pub constraint_start_mjd: Option<f64>,
@@ -217,7 +221,8 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
     // Check 1: Zero visibility (impossible to schedule)
     let requested_hours = block.requested_duration_sec as f64 / 3600.0;
 
-    if block.total_visibility_hours < 0.001 {
+    // If there are no visibility periods at all, mark impossible
+    if block.max_visibility_period_hours < 0.001 {
         // Less than ~3.6 seconds
         results.push(ValidationResult::impossible(
             block.schedule_id,
@@ -233,39 +238,45 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
             Some(format!(">= {:.2}h", requested_hours)),
         ));
     }
-    // Check 2: Insufficient visibility for requested duration
+    // Check 2: Insufficient visibility
     else {
-        if block.total_visibility_hours < requested_hours {
-            results.push(ValidationResult::impossible(
-                block.schedule_id,
-                block.scheduling_block_id,
-                "Visibility less than requested duration".to_string(),
-                IssueCategory::Visibility,
-                format!(
-                    "Needs {:.2}h but only {:.2}h available",
-                    requested_hours, block.total_visibility_hours
-                ),
-                Some("total_visibility_hours".to_string()),
-                Some(format!("{:.2}h", block.total_visibility_hours)),
-                Some(format!(">= {:.2}h", requested_hours)),
-            ));
-        }
-
-        // Check 3: Insufficient visibility for minimum observation time
+        // If the longest single visibility period is shorter than the minimum
+        // observation time, the block is impossible: the minimum observation
+        // cannot be completed in any contiguous window.
         let min_observation_hours = block.min_observation_sec as f64 / 3600.0;
-        if block.total_visibility_hours < min_observation_hours {
+        if block.max_visibility_period_hours < min_observation_hours {
             results.push(ValidationResult::impossible(
                 block.schedule_id,
                 block.scheduling_block_id,
                 "Visibility less than minimum observation time".to_string(),
                 IssueCategory::Visibility,
                 format!(
-                    "Minimum {:.2}h required but only {:.2}h available",
-                    min_observation_hours, block.total_visibility_hours
+                    "Minimum {:.2}h required but no single visibility period is that long (max {:.2}h)",
+                    min_observation_hours, block.max_visibility_period_hours
+                ),
+                Some("max_visibility_period_hours".to_string()),
+                Some(format!("{:.2}h", block.max_visibility_period_hours)),
+                Some(format!(">= {:.2}h", min_observation_hours)),
+            ));
+        }
+
+        // If the minimum fits in at least one contiguous period, but the total
+        // available visibility across all periods is less than requested, mark
+        // it as a high-severity issue (possible but problematic).
+        else if block.total_visibility_hours + 1e-6 < requested_hours {
+            results.push(ValidationResult::error(
+                block.schedule_id,
+                block.scheduling_block_id,
+                "Visibility less than requested duration".to_string(),
+                IssueCategory::Visibility,
+                Criticality::High,
+                format!(
+                    "Needs {:.2}h but only {:.2}h available across all visibility periods",
+                    requested_hours, block.total_visibility_hours
                 ),
                 Some("total_visibility_hours".to_string()),
                 Some(format!("{:.2}h", block.total_visibility_hours)),
-                Some(format!(">= {:.2}h", min_observation_hours)),
+                Some(format!(">= {:.2}h", requested_hours)),
             ));
         }
     }

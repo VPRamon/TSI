@@ -72,6 +72,11 @@ fn create_validation_input(block: &SchedulingBlock) -> BlockForValidation {
             .iter()
             .map(|p: &Period| p.duration().value() * 24.0)
             .sum(),
+        max_visibility_period_hours: block
+            .visibility_periods
+            .iter()
+            .map(|p: &Period| p.duration().value() * 24.0)
+            .fold(0.0, |acc, v| acc.max(v)),
         min_alt_deg: Some(block.constraints.min_alt.value()),
         max_alt_deg: Some(block.constraints.max_alt.value()),
         constraint_start_mjd: None,
@@ -94,6 +99,7 @@ fn test_validation_rule_zero_visibility() {
         requested_duration_sec: 3600,
         min_observation_sec: 600,
         total_visibility_hours: 0.0, // Zero visibility
+        max_visibility_period_hours: 0.0,
         min_alt_deg: Some(30.0),
         max_alt_deg: Some(80.0),
         constraint_start_mjd: None,
@@ -125,6 +131,7 @@ fn test_validation_rule_insufficient_visibility() {
         requested_duration_sec: 7200, // 2 hours requested
         min_observation_sec: 600,
         total_visibility_hours: 1.0, // Only 1 hour available
+        max_visibility_period_hours: 1.0,
         min_alt_deg: Some(30.0),
         max_alt_deg: Some(80.0),
         constraint_start_mjd: None,
@@ -138,7 +145,10 @@ fn test_validation_rule_insufficient_visibility() {
     let results = validate_block(&input);
 
     assert_eq!(results.len(), 1);
-    assert_eq!(results[0].status, ValidationStatus::Impossible);
+    // Minimum observation fits in a contiguous period, but total visibility
+    // is less than requested -> possible but High-severity error
+    assert_eq!(results[0].status, ValidationStatus::Error);
+    assert_eq!(results[0].criticality, Some(Criticality::High));
     assert!(results[0]
         .issue_type
         .as_ref()
@@ -155,6 +165,7 @@ fn test_validation_rule_negative_priority() {
         requested_duration_sec: 3600,
         min_observation_sec: 600,
         total_visibility_hours: 5.0,
+        max_visibility_period_hours: 5.0,
         min_alt_deg: Some(30.0),
         max_alt_deg: Some(80.0),
         constraint_start_mjd: None,
@@ -183,6 +194,7 @@ fn test_validation_rule_invalid_coordinates() {
         requested_duration_sec: 3600,
         min_observation_sec: 600,
         total_visibility_hours: 5.0,
+        max_visibility_period_hours: 5.0,
         min_alt_deg: Some(30.0),
         max_alt_deg: Some(80.0),
         constraint_start_mjd: None,
@@ -208,6 +220,7 @@ fn test_validation_rule_invalid_coordinates() {
         requested_duration_sec: 3600,
         min_observation_sec: 600,
         total_visibility_hours: 5.0,
+        max_visibility_period_hours: 5.0,
         min_alt_deg: Some(30.0),
         max_alt_deg: Some(80.0),
         constraint_start_mjd: None,
@@ -235,6 +248,7 @@ fn test_validation_rule_invalid_altitude_constraints() {
         requested_duration_sec: 3600,
         min_observation_sec: 600,
         total_visibility_hours: 5.0,
+        max_visibility_period_hours: 5.0,
         min_alt_deg: Some(80.0), // Min > Max
         max_alt_deg: Some(30.0),
         constraint_start_mjd: None,
@@ -266,6 +280,7 @@ fn test_validation_rule_narrow_elevation_warning() {
         requested_duration_sec: 3600,
         min_observation_sec: 600,
         total_visibility_hours: 5.0,
+        max_visibility_period_hours: 5.0,
         min_alt_deg: Some(30.0),
         max_alt_deg: Some(32.0), // Only 2° range
         constraint_start_mjd: None,
@@ -293,6 +308,7 @@ fn test_validation_rule_valid_block() {
         requested_duration_sec: 3600,
         min_observation_sec: 600,
         total_visibility_hours: 5.0,
+        max_visibility_period_hours: 5.0,
         min_alt_deg: Some(30.0),
         max_alt_deg: Some(80.0),
         constraint_start_mjd: None,
@@ -319,6 +335,7 @@ fn test_validation_multiple_issues_per_block() {
         requested_duration_sec: 0,   // Issue 2: Zero duration
         min_observation_sec: -100,   // Issue 3: Negative min obs
         total_visibility_hours: 0.0, // Issue 4: Zero visibility
+        max_visibility_period_hours: 0.0,
         min_alt_deg: Some(30.0),
         max_alt_deg: Some(80.0),
         constraint_start_mjd: None,
@@ -359,6 +376,7 @@ fn test_validation_batch_processing() {
             requested_duration_sec: 3600,
             min_observation_sec: 600,
             total_visibility_hours: 5.0,
+            max_visibility_period_hours: 5.0,
             min_alt_deg: Some(30.0),
             max_alt_deg: Some(80.0),
             constraint_start_mjd: None,
@@ -375,6 +393,7 @@ fn test_validation_batch_processing() {
             requested_duration_sec: 3600,
             min_observation_sec: 600,
             total_visibility_hours: 0.0, // Zero visibility (impossible)
+            max_visibility_period_hours: 0.0,
             min_alt_deg: Some(30.0),
             max_alt_deg: Some(80.0),
             constraint_start_mjd: None,
@@ -391,6 +410,7 @@ fn test_validation_batch_processing() {
             requested_duration_sec: 3600,
             min_observation_sec: 600,
             total_visibility_hours: 5.0,
+            max_visibility_period_hours: 5.0,
             min_alt_deg: Some(30.0),
             max_alt_deg: Some(80.0),
             constraint_start_mjd: None,

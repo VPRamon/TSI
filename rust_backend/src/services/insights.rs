@@ -11,6 +11,7 @@ use tokio::runtime::Runtime;
 // Import the global repository accessor
 use crate::db::get_repository;
 use crate::db::repository::AnalyticsRepository;
+use crate::db::repository::ValidationRepository;
 use qtty::time::Hours;
 
 /// Compute analytics metrics from insights blocks.
@@ -281,13 +282,12 @@ fn find_conflicts(blocks: &[InsightsBlock]) -> Vec<ConflictRecord> {
 }
 
 /// Compute insights data with all analytics from raw blocks.
-pub fn compute_insights_data(blocks: Vec<InsightsBlock>) -> Result<InsightsData, String> {
+pub fn compute_insights_data(
+    blocks: Vec<InsightsBlock>,
+    impossible_count: usize,
+) -> Result<InsightsData, String> {
     let total_count = blocks.len();
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
-    let impossible_count = blocks
-        .iter()
-        .filter(|b| b.total_visibility_hours.value() == 0.0)
-        .count();
 
     // Compute all analytics
     let metrics = compute_metrics(&blocks);
@@ -334,10 +334,17 @@ pub async fn get_insights_data(
     }
 
     // Filter out impossible blocks (zero visibility)
-    // These are tracked in the validation results table
+    // These are tracked in the validation results table; also fetch the
+    // validation report to get the authoritative impossible count.
     blocks.retain(|b| b.total_visibility_hours.value() > 0.0);
 
-    compute_insights_data(blocks)
+    // Attempt to fetch validation report; if unavailable, assume zero impossible
+    let impossible_count = match repo.fetch_validation_results(schedule_id).await {
+        Ok(report) => report.impossible_blocks.len(),
+        Err(_) => 0,
+    };
+
+    compute_insights_data(blocks, impossible_count)
 }
 
 /// Get complete insights data with computed analytics and metadata.
