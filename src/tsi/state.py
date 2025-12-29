@@ -14,7 +14,7 @@ KEY_DATA_PREPARED = "data_prepared"
 KEY_CURRENT_PAGE = "current_page"
 KEY_DATA_SOURCE = "data_source"
 KEY_DATA_FILENAME = "data_filename"
-KEY_SCHEDULE_ID = "schedule_id"
+KEY_SCHEDULE_REF = "schedule_ref"
 KEY_SCHEDULE_NAME = "schedule_name"
 KEY_PRIORITY_RANGE = "priority_range"
 KEY_SCHEDULED_FILTER = "scheduled_filter"
@@ -45,8 +45,9 @@ def initialize_state() -> None:
     if KEY_DATA_FILENAME not in st.session_state:
         st.session_state[KEY_DATA_FILENAME] = None
 
-    if KEY_SCHEDULE_ID not in st.session_state:
-        st.session_state[KEY_SCHEDULE_ID] = None
+    if KEY_SCHEDULE_REF not in st.session_state:
+        legacy_id = st.session_state.pop("schedule_id", None)
+        st.session_state[KEY_SCHEDULE_REF] = legacy_id
 
     if KEY_SCHEDULE_NAME not in st.session_state:
         st.session_state[KEY_SCHEDULE_NAME] = None
@@ -81,9 +82,9 @@ def initialize_state() -> None:
 
 
 def has_data() -> bool:
-    """Check if data has been loaded (either from database or file upload)."""
-    # For database loads: check if schedule_id is set
-    if st.session_state.get(KEY_SCHEDULE_ID) is not None:
+    """Check if data has been loaded (either from backend or file upload)."""
+    # For backend loads: check if schedule_ref is set
+    if st.session_state.get(KEY_SCHEDULE_REF) is not None:
         return True
     # For file uploads: check if prepared DataFrame is set
     if st.session_state.get(KEY_DATA_PREPARED) is not None:
@@ -181,19 +182,21 @@ def set_comparison_schedule(df: Any) -> None:
     st.session_state[KEY_COMPARISON_SCHEDULE] = df
 
 
-def get_schedule_id() -> ScheduleId:
-    """Get the current schedule ID from the database."""
+def get_schedule_ref() -> ScheduleId:
+    """Get the current schedule reference from the backend."""
 
-    schedule_id = st.session_state.get(KEY_SCHEDULE_ID)
-    if schedule_id is None:
-        raise RuntimeError("Load a schedule from the database to view the validation report.")
+    schedule_ref = st.session_state.get(KEY_SCHEDULE_REF)
+    if schedule_ref is None:
+        raise RuntimeError("Load a schedule from the backend to view the validation report.")
 
-    return ScheduleId(schedule_id)
+    return schedule_ref if isinstance(schedule_ref, ScheduleId) else ScheduleId(schedule_ref)
 
 
-def set_schedule_id(schedule_id: int) -> None:
-    """Set the current schedule ID."""
-    st.session_state[KEY_SCHEDULE_ID] = schedule_id
+def set_schedule_ref(schedule_ref: int | ScheduleId) -> None:
+    """Set the current schedule reference."""
+    st.session_state[KEY_SCHEDULE_REF] = (
+        schedule_ref if isinstance(schedule_ref, ScheduleId) else ScheduleId(schedule_ref)
+    )
 
 
 def get_schedule_name() -> str | None:

@@ -10,14 +10,11 @@ This package provides high-level services organized into logical sub-packages:
 
 Core modules at the root level:
 - `rust_backend`: Shared Rust backend instance
-- `database`: Database orchestration layer with Rust backend integration
+- `backend_client`: High-level client for Rust backend operations
 """
 
 # ============================================================================
-# Core Backend & Database
-# ============================================================================
-# ============================================================================
-# Data: Loading, Preparation, Analytics
+# Core Backend Client & Data
 # ============================================================================
 from tsi.services.data import (
     AnalyticsSnapshot,
@@ -32,32 +29,34 @@ from tsi.services.data import (
     validate_dataframe,
 )
 from tsi.services.data_access import (
-    get_compare_data,
-    get_insights_data,
-    get_schedule_timeline_data,
-    get_trends_data,
+    get_compare_data as get_compare_data_etl,
+    get_insights_data as get_insights_data_etl,
+    get_schedule_timeline_data as get_schedule_timeline_data_etl,
+    get_trends_data as get_trends_data_etl,
 )
-from tsi.services.data_access import (
-    get_distribution_data as get_distribution_data_etl,
-)
+from tsi.services.data_access import get_distribution_data as get_distribution_data_etl
 
 # ============================================================================
 # ETL Data Access Layer
 # ============================================================================
-from tsi.services.data_access import (
-    get_sky_map_data as get_sky_map_data_etl,
-)
-from tsi.services.data_access import (
-    get_visibility_map_data as get_visibility_map_data_etl,
-)
-from tsi.services.database import (
-    fetch_dark_periods_db,
-    fetch_possible_periods_db,
+from tsi.services.data_access import get_sky_map_data as get_sky_map_data_etl
+from tsi.services.data_access import get_visibility_map_data as get_visibility_map_data_etl
+from tsi.services.backend_client import (
+    ScheduleSummary,
+    fetch_dark_periods,
+    fetch_possible_periods,
+    get_compare_data,
     get_distribution_data,
+    get_insights_data,
+    get_schedule_time_range,
+    get_schedule_timeline_data,
     get_sky_map_data,
+    get_trends_data,
+    get_validation_report,
+    get_visibility_histogram,
     get_visibility_map_data,
-    list_schedules_db,
-    store_schedule_db,
+    list_schedules,
+    upload_schedule,
 )
 
 # ============================================================================
@@ -110,23 +109,31 @@ from tsi.services.utils import (
 from tsi_rust_api import load_dark_periods
 
 __all__ = [
-    # Core Backend & Database (connection pooling handled automatically by Rust)
+    # Core Backend Client
     "BACKEND",
-    "store_schedule_db",
-    "list_schedules_db",
-    "fetch_dark_periods_db",
-    "fetch_possible_periods_db",
+    "upload_schedule",
+    "list_schedules",
+    "ScheduleSummary",
+    "fetch_dark_periods",
+    "fetch_possible_periods",
     "get_visibility_map_data",
     "get_distribution_data",
     "get_sky_map_data",
-    # ETL Data Access
-    "get_sky_map_data_etl",
-    "get_distribution_data_etl",
-    "get_visibility_map_data_etl",
+    "get_schedule_time_range",
+    "get_visibility_histogram",
     "get_schedule_timeline_data",
     "get_insights_data",
     "get_trends_data",
     "get_compare_data",
+    "get_validation_report",
+    # ETL Data Access
+    "get_sky_map_data_etl",
+    "get_distribution_data_etl",
+    "get_visibility_map_data_etl",
+    "get_schedule_timeline_data_etl",
+    "get_insights_data_etl",
+    "get_trends_data_etl",
+    "get_compare_data_etl",
     # Data
     "prepare_dataframe",
     "get_filtered_dataframe",

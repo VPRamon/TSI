@@ -6,8 +6,7 @@ from tsi import state
 from tsi.components.distributions.distributions_layout import render_figure_layout
 from tsi.components.distributions.distributions_stats import render_statistical_summary
 from tsi.plots.distributions import build_figures
-import tsi_rust as api
-from tsi.services import database as db
+from tsi.services import backend_client
 from tsi.utils.error_display import display_backend_error
 
 
@@ -25,12 +24,12 @@ def render() -> None:
         """
     )
 
-    schedule_id = state.get_schedule_id()
+    schedule_ref = state.get_schedule_ref()
 
     try:
         with st.spinner("Loading distribution data..."):
-            distribution_data = db.get_distribution_data(
-                schedule_id=schedule_id,
+            distribution_data = backend_client.get_distribution_data(
+                schedule_ref,
             )
     except Exception as exc:
         display_backend_error(exc)

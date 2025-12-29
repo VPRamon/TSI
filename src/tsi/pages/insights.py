@@ -10,8 +10,7 @@ from tsi.components.insights.insights_analysis import (
 from tsi.components.insights.insights_metrics import render_key_metrics, render_priority_analysis
 from tsi.components.insights.insights_reports import render_report_downloads
 from tsi.components.insights.insights_tables import render_integrity_checks, render_top_observations
-import tsi_rust as api
-from tsi.services import database as db
+from tsi.services import backend_client
 from tsi.services.data.analytics import generate_insights
 
 
@@ -30,12 +29,12 @@ def render() -> None:
         """
     )
 
-    schedule_id = state.get_schedule_id()
+    schedule_ref = state.get_schedule_ref()
 
     try:
         with st.spinner("Loading insights data..."):
-            insights_data = db.get_insights_data(
-                schedule_id=schedule_id,
+            insights_data = backend_client.get_insights_data(
+                schedule_ref,
             )
     except Exception as exc:
         st.error(f"Failed to load insights data from the backend: {exc}")

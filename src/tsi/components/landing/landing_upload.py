@@ -6,14 +6,14 @@ from typing import Any
 
 import streamlit as st
 
-from tsi.components.landing.landing_database import load_schedule_from_db
-from tsi.services import database as db
+from tsi.components.landing.landing_backend import load_schedule_from_backend
+from tsi.services import backend_client
 
 
 def render_upload_section() -> None:
     """Render the upload section."""
     st.markdown("### 📤 Upload New Schedule")
-    st.markdown("Upload a schedule.json file to store in database")
+    st.markdown("Upload a schedule.json file to store in the backend")
 
     uploaded_json = st.file_uploader(
         "Choose a schedule.json file",
@@ -57,7 +57,7 @@ def upload_schedule(
     visibility_file: Any | None = None,
 ) -> None:
     """
-    Upload and store a new schedule in the database.
+    Upload and store a new schedule in the backend.
 
     Args:
         schedule_file: Uploaded schedule.json file
@@ -77,17 +77,16 @@ def upload_schedule(
                 if isinstance(visibility_content, bytes):
                     visibility_content = visibility_content.decode("utf-8")
 
-            # Store in database (preprocesses automatically)
-            schedule_id = db.store_schedule_db(
+            created_schedule = backend_client.upload_schedule(
                 schedule_name=schedule_name,
                 schedule_json=schedule_content,
                 visibility_json=visibility_content,
             )
 
-            st.success(f"✅ Schedule stored successfully (ID: {schedule_id})")
+            st.success(f"✅ Schedule stored successfully (ID: {created_schedule.id})")
 
             # Now load it
-            load_schedule_from_db(schedule_id, schedule_name)
+            load_schedule_from_backend(created_schedule)
 
     except Exception as e:
         st.error(f"❌ Error uploading schedule: {str(e)}")

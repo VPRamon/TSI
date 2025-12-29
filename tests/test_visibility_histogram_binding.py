@@ -2,24 +2,26 @@
 
 import pytest
 
+try:
+    import tsi_rust
+except ImportError:
+    tsi_rust = None  # type: ignore[assignment]
 
+
+HAS_VIS_HIST = tsi_rust is not None and hasattr(tsi_rust, "py_get_visibility_histogram")
+
+
+@pytest.mark.skipif(tsi_rust is None, reason="tsi_rust module not available")
+@pytest.mark.skipif(not HAS_VIS_HIST, reason="Visibility histogram binding not available")
 def test_visibility_histogram_import():
     """Test that we can import the visibility histogram function."""
-    try:
-        import tsi_rust
-
-        assert hasattr(tsi_rust, "py_get_visibility_histogram")
-    except ImportError:
-        pytest.skip("tsi_rust module not available")
+    assert hasattr(tsi_rust, "py_get_visibility_histogram")
 
 
+@pytest.mark.skipif(tsi_rust is None, reason="tsi_rust module not available")
+@pytest.mark.skipif(not HAS_VIS_HIST, reason="Visibility histogram binding not available")
 def test_visibility_histogram_validation():
     """Test that validation errors are raised correctly."""
-    try:
-        import tsi_rust
-    except ImportError:
-        pytest.skip("tsi_rust module not available")
-
     # Test invalid start/end
     with pytest.raises(ValueError, match="start_unix must be less than end_unix"):
         tsi_rust.py_get_visibility_histogram(
@@ -39,15 +41,10 @@ def test_visibility_histogram_validation():
         )
 
 
+@pytest.mark.skipif(tsi_rust is None, reason="tsi_rust module not available")
+@pytest.mark.skipif(not HAS_VIS_HIST, reason="Visibility histogram binding not available")
 def test_visibility_histogram_return_type():
     """Test that the function returns the correct type."""
-    try:
-        import tsi_rust
-    except ImportError:
-        pytest.skip("tsi_rust module not available")
-
-    # This will fail with DB connection error, but we can check the error type
-    # indicates the function signature is correct
     try:
         result = tsi_rust.py_get_visibility_histogram(
             schedule_id=1,

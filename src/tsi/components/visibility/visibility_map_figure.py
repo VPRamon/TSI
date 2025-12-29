@@ -6,11 +6,11 @@ import streamlit as st
 
 from tsi.plots.timeline import build_visibility_histogram_from_bins
 import tsi_rust as api
-from tsi.services.database import get_schedule_time_range, get_visibility_histogram
+from tsi.services import backend_client
 
 
 def render_visibility_map_figure(
-    schedule_id: api.ScheduleId,
+    schedule_ref: backend_client.ScheduleSummary | api.ScheduleId | int,
     settings: dict,
     effective_priority_range: tuple[float, float],
     total_blocks: int,
@@ -22,7 +22,7 @@ def render_visibility_map_figure(
     visualization, and displays it via Streamlit.
 
     Args:
-        schedule_id: Schedule ID in the database (required, cannot be None)
+        schedule_ref: Schedule reference in the backend (required, cannot be None)
         settings: Dict of histogram settings from controls component containing:
             - num_bins: Number of bins (if bin_duration_minutes not set)
             - bin_duration_minutes: Duration of each bin in minutes
@@ -36,21 +36,19 @@ def render_visibility_map_figure(
         or None if generation fails.
 
     Raises:
-        ValueError: If schedule_id is None or database is not reachable
+        ValueError: If schedule_ref is None or backend is not reachable
         RuntimeError: If backend histogram generation fails
     """
-    # Validate that we have a schedule ID
-    if schedule_id is None:
+    if schedule_ref is None:
         raise ValueError(
-            "Schedule ID is required to generate visibility map. "
-            "Please load a schedule from the database first."
+            "Schedule reference is required to generate visibility map. "
+            "Please load a schedule from the backend first."
         )
 
-    # Get time range from database
-    time_range = get_schedule_time_range(schedule_id)
+    time_range = backend_client.get_schedule_time_range(schedule_ref)
     if time_range is None:
         raise RuntimeError(
-            f"No visibility periods found for schedule ID {schedule_id}. "
+            f"No visibility periods found for schedule reference {schedule_ref}. "
             "Cannot generate visibility map without visibility data."
         )
 
@@ -78,8 +76,8 @@ def render_visibility_map_figure(
         bin_duration_minutes = max(1, int(time_range_minutes / num_bins))
 
     # Call backend histogram function
-    bins = get_visibility_histogram(
-        schedule_id=schedule_id,
+    bins = backend_client.get_visibility_histogram(
+        schedule_ref=schedule_ref,
         start=start_time,
         end=end_time,
         bin_duration_minutes=bin_duration_minutes,

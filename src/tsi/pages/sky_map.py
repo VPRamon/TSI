@@ -8,8 +8,7 @@ from tsi import state
 from tsi.components.sky_map.sky_map_controls import render_sidebar_controls
 from tsi.components.sky_map.sky_map_figure import render_sky_map_figure
 from tsi.components.sky_map.sky_map_stats import render_stats
-import tsi_rust as api
-from tsi.services import database as db
+from tsi.services import backend_client
 from tsi.services.filters.sky_map import filter_blocks
 
 
@@ -24,10 +23,10 @@ def render() -> None:
         """
     )
 
-    schedule_id = state.get_schedule_id()
+    schedule_ref = state.get_schedule_ref()
 
     try:
-        sky_map_data = db.get_sky_map_data(schedule_id=schedule_id)
+        sky_map_data = backend_client.get_sky_map_data(schedule_ref)
     except Exception as exc:
         st.error(f"Failed to load sky map data from the backend: {exc}")
         return
