@@ -308,7 +308,6 @@ Update `.env` to use this user for the application.
 │    └── Pages: Sky Map, Distributions, Trends, etc.      │
 ├─────────────────────────────────────────────────────────┤
 │  Services Layer (Python)                                 │
-│    └── data_access.py: ETL data retrieval               │
 │    └── backend_client.py: Backend schedule operations   │
 ├─────────────────────────────────────────────────────────┤
 │  Rust Backend (tsi_rust)                                │

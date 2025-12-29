@@ -54,7 +54,7 @@ The following diagram illustrates the complete flow of a user request when analy
 sequenceDiagram
     participant User
     participant Streamlit as Streamlit UI
-    participant Python as Python Service Layer<br/>(tsi.services.data_access)
+    participant Python as Python Service Layer<br/>(tsi.services.backend_client)
     participant Rust as Rust Backend<br/>(tsi_rust.py_get_trends_data)
     participant Tokio as Tokio Async Runtime
     participant DB as Azure SQL Server<br/>(Analytics/Operations)
