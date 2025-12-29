@@ -418,13 +418,12 @@ impl AnalyticsRepository for LocalRepository {
         let blocks: Vec<LightweightBlock> = schedule
             .blocks
             .iter()
-            .enumerate()
-            .map(|(idx, b)| {
-                // Use original_block_id if available, otherwise fallback to internal ID
+            .map(|b| {
+                // Use original_block_id if available, otherwise fallback to the parsed block id
                 let original_block_id = b
                     .original_block_id
                     .clone()
-                    .unwrap_or_else(|| format!("{}", idx + 1));
+                    .unwrap_or_else(|| "-".to_string());
 
                 LightweightBlock {
                     original_block_id,
@@ -688,16 +687,15 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<VisibilityBlockSummary> = schedule
             .blocks
             .iter()
-            .enumerate()
-            .map(|(idx, b)| {
-                // Use original_block_id if available, otherwise fallback to internal ID
+            .map(|b| {
+                // Use original_block_id if available, otherwise fallback to the parsed block id
                 let original_block_id = b
                     .original_block_id
                     .clone()
-                    .unwrap_or_else(|| format!("{}", idx + 1));
+                    .unwrap_or_else(|| b.id.0.to_string());
 
                 VisibilityBlockSummary {
-                    scheduling_block_id: idx as i64 + 1,
+                    scheduling_block_id: b.id.0,
                     original_block_id,
                     priority: b.priority,
                     num_visibility_periods: b.visibility_periods.len(),
@@ -744,9 +742,8 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<BlockHistogramData> = schedule
             .blocks
             .iter()
-            .enumerate()
-            .filter_map(|(idx, b)| {
-                let block_id = idx as i64 + 1;
+            .filter_map(|b| {
+                let block_id = b.id.0;
                 let priority = b.priority as i32;
 
                 // Apply filters if provided
@@ -798,8 +795,7 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<ScheduleTimelineBlock> = schedule
             .blocks
             .iter()
-            .enumerate()
-            .filter_map(|(idx, b)| {
+            .filter_map(|b| {
                 // Only include scheduled blocks
                 let scheduled_period = b.scheduled_period.as_ref()?;
 
@@ -811,14 +807,14 @@ impl VisualizationRepository for LocalRepository {
 
                 let requested_hours = b.requested_duration.value() / 3600.0;
 
-                // Use original_block_id if available, otherwise fallback to internal ID
+                // Use original_block_id if available, otherwise fallback to the parsed block id
                 let original_block_id = b
                     .original_block_id
                     .clone()
-                    .unwrap_or_else(|| format!("{}", idx + 1));
+                    .unwrap_or_else(|| b.id.0.to_string());
 
                 Some(ScheduleTimelineBlock {
-                    scheduling_block_id: idx as i64 + 1,
+                    scheduling_block_id: b.id.0,
                     original_block_id,
                     priority: b.priority,
                     scheduled_start_mjd: scheduled_period.start.clone(),
@@ -847,12 +843,11 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<CompareBlock> = schedule
             .blocks
             .iter()
-            .enumerate()
-            .map(|(idx, b)| {
+            .map(|b| {
                 let requested_hours_f64 = b.requested_duration.value() / 3600.0;
 
                 CompareBlock {
-                    scheduling_block_id: format!("{}", idx + 1),
+                    scheduling_block_id: b.id.0.to_string(),
                     priority: b.priority,
                     scheduled: b.scheduled_period.is_some(),
                     requested_hours: qtty::time::Hours::new(requested_hours_f64),

@@ -41,10 +41,15 @@ def render() -> None:
     # Main-panel histogram settings
     settings = render_histogram_settings(priority_range, all_block_ids)
 
-    # Filter data to get count of blocks matching filters
+    # Filter data to get count of blocks matching filters. Use the priority
+    # range from the histogram settings if provided (so UI filter applies).
+    filter_priority_range = (
+        settings.get("priority_filter_range") if settings.get("priority_filter_range") else priority_range
+    )
+
     filtered_blocks = filter_visibility_blocks(
         visibility_data.blocks,
-        priority_range=priority_range,
+        priority_range=filter_priority_range,
         block_ids=settings["selected_block_ids"] if settings["selected_block_ids"] else None,
     )
 
@@ -60,7 +65,7 @@ def render() -> None:
                 render_visibility_map_figure(
                     schedule_ref=schedule_ref,
                     settings=settings,
-                    effective_priority_range=priority_range,
+                    effective_priority_range=filter_priority_range,
                     total_blocks=len(filtered_blocks),
                 )
             except Exception as e:
