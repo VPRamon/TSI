@@ -48,8 +48,6 @@ def render() -> None:
         block_ids=settings["selected_block_ids"] if settings["selected_block_ids"] else None,
     )
 
-
-
     # Create placeholder for the histogram and build it immediately on page load
     histogram_container = st.container()
 
