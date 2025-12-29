@@ -25,7 +25,7 @@ from .insights.insights_metrics import (
     render_priority_analysis,
 )
 from .insights.insights_reports import render_report_downloads
-from .insights.insights_tables import render_integrity_checks, render_top_observations
+from .insights.insights_tables import render_top_observations
 from .landing.landing_backend import render_schedules_section
 from .landing.landing_upload import render_upload_section
 from .shared.filters import (
@@ -85,7 +85,6 @@ __all__ = [
     "render_automated_insights",
     "render_correlation_analysis",
     "render_top_observations",
-    "render_integrity_checks",
     "render_report_downloads",
     # Trends components
     "render_trends_sidebar_controls",
