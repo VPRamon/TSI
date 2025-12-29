@@ -8,10 +8,15 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use super::repo_config::RepositoryConfig;
-use super::repositories::postgres::PostgresConfig;
-use super::repositories::{AzureRepository, LocalRepository, PostgresRepository};
+use super::repositories::LocalRepository;
+#[cfg(feature = "azure-repo")]
+use super::repositories::AzureRepository;
+#[cfg(feature = "postgres-repo")]
+use super::repositories::PostgresRepository;
 use super::repository::{FullRepository, RepositoryError, RepositoryResult};
-use super::{config::DbConfig, repositories::azure::pool};
+use super::{config::DbConfig, PostgresConfig};
+#[cfg(feature = "azure-repo")]
+use super::repositories::azure::pool;
 
 /// Repository type configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,22 +111,42 @@ impl RepositoryFactory {
     ) -> RepositoryResult<Arc<dyn FullRepository>> {
         match repo_type {
             RepositoryType::Azure => {
-                let config = azure_config.ok_or_else(|| {
-                    RepositoryError::ConfigurationError(
-                        "Azure repository requires DbConfig".to_string(),
-                    )
-                })?;
-                let azure = Self::create_azure(config).await?;
-                Ok(azure as Arc<dyn FullRepository>)
+                #[cfg(feature = "azure-repo")]
+                {
+                    let config = azure_config.ok_or_else(|| {
+                        RepositoryError::ConfigurationError(
+                            "Azure repository requires DbConfig".to_string(),
+                        )
+                    })?;
+                    let azure = Self::create_azure(config).await?;
+                    Ok(azure as Arc<dyn FullRepository>)
+                }
+                #[cfg(not(feature = "azure-repo"))]
+                {
+                    let _ = azure_config;
+                    Err(RepositoryError::ConfigurationError(
+                        "Azure repository feature not enabled".to_string(),
+                    ))
+                }
             }
             RepositoryType::Postgres => {
-                let config = postgres_config.ok_or_else(|| {
-                    RepositoryError::ConfigurationError(
-                        "Postgres repository requires PostgresConfig".to_string(),
-                    )
-                })?;
-                let pg = Self::create_postgres(config).await?;
-                Ok(pg as Arc<dyn FullRepository>)
+                #[cfg(feature = "postgres-repo")]
+                {
+                    let config = postgres_config.ok_or_else(|| {
+                        RepositoryError::ConfigurationError(
+                            "Postgres repository requires PostgresConfig".to_string(),
+                        )
+                    })?;
+                    let pg = Self::create_postgres(config).await?;
+                    Ok(pg as Arc<dyn FullRepository>)
+                }
+                #[cfg(not(feature = "postgres-repo"))]
+                {
+                    let _ = postgres_config;
+                    Err(RepositoryError::ConfigurationError(
+                        "Postgres repository feature not enabled".to_string(),
+                    ))
+                }
             }
             RepositoryType::Local => Ok(Self::create_local()),
         }
@@ -137,6 +162,7 @@ impl RepositoryFactory {
     /// # Returns
     /// * `Ok(Arc<AzureRepository>)` - Azure repository instance
     /// * `Err(RepositoryError)` - If pool initialization fails
+    #[cfg(feature = "azure-repo")]
     pub async fn create_azure(config: &DbConfig) -> RepositoryResult<Arc<AzureRepository>> {
         // Initialize pool if not already done
         pool::init_pool(config)
@@ -154,6 +180,7 @@ impl RepositoryFactory {
     /// # Returns
     /// * `Ok(Arc<PostgresRepository>)` - Postgres repository instance
     /// * `Err(RepositoryError)` - If initialization fails
+    #[cfg(feature = "postgres-repo")]
     pub async fn create_postgres(
         config: &PostgresConfig,
     ) -> RepositoryResult<Arc<PostgresRepository>> {
@@ -182,15 +209,34 @@ impl RepositoryFactory {
 
         match repo_type {
             RepositoryType::Azure => {
-                let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
-                let azure = Self::create_azure(&config).await?;
-                Ok(azure as Arc<dyn FullRepository>)
+                #[cfg(feature = "azure-repo")]
+                {
+                    let config =
+                        DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
+                    let azure = Self::create_azure(&config).await?;
+                    Ok(azure as Arc<dyn FullRepository>)
+                }
+                #[cfg(not(feature = "azure-repo"))]
+                {
+                    Err(RepositoryError::ConfigurationError(
+                        "Azure repository feature not enabled".to_string(),
+                    ))
+                }
             }
             RepositoryType::Postgres => {
-                let config =
-                    PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
-                let pg = Self::create_postgres(&config).await?;
-                Ok(pg as Arc<dyn FullRepository>)
+                #[cfg(feature = "postgres-repo")]
+                {
+                    let config =
+                        PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
+                    let pg = Self::create_postgres(&config).await?;
+                    Ok(pg as Arc<dyn FullRepository>)
+                }
+                #[cfg(not(feature = "postgres-repo"))]
+                {
+                    Err(RepositoryError::ConfigurationError(
+                        "Postgres repository feature not enabled".to_string(),
+                    ))
+                }
             }
             RepositoryType::Local => Ok(Self::create_local()),
         }
@@ -241,22 +287,40 @@ impl RepositoryFactory {
 
         match repo_type {
             RepositoryType::Azure => {
-                let db_config = config.to_db_config()?.ok_or_else(|| {
-                    RepositoryError::ConfigurationError(
-                        "Azure repository requires database configuration".to_string(),
-                    )
-                })?;
-                let azure = Self::create_azure(&db_config).await?;
-                Ok(azure as Arc<dyn FullRepository>)
+                #[cfg(feature = "azure-repo")]
+                {
+                    let db_config = config.to_db_config()?.ok_or_else(|| {
+                        RepositoryError::ConfigurationError(
+                            "Azure repository requires database configuration".to_string(),
+                        )
+                    })?;
+                    let azure = Self::create_azure(&db_config).await?;
+                    Ok(azure as Arc<dyn FullRepository>)
+                }
+                #[cfg(not(feature = "azure-repo"))]
+                {
+                    Err(RepositoryError::ConfigurationError(
+                        "Azure repository feature not enabled".to_string(),
+                    ))
+                }
             }
             RepositoryType::Postgres => {
-                let pg_config = config.to_postgres_config()?.ok_or_else(|| {
-                    RepositoryError::ConfigurationError(
-                        "Postgres repository requires database configuration".to_string(),
-                    )
-                })?;
-                let pg = Self::create_postgres(&pg_config).await?;
-                Ok(pg as Arc<dyn FullRepository>)
+                #[cfg(feature = "postgres-repo")]
+                {
+                    let pg_config = config.to_postgres_config()?.ok_or_else(|| {
+                        RepositoryError::ConfigurationError(
+                            "Postgres repository requires database configuration".to_string(),
+                        )
+                    })?;
+                    let pg = Self::create_postgres(&pg_config).await?;
+                    Ok(pg as Arc<dyn FullRepository>)
+                }
+                #[cfg(not(feature = "postgres-repo"))]
+                {
+                    Err(RepositoryError::ConfigurationError(
+                        "Postgres repository feature not enabled".to_string(),
+                    ))
+                }
             }
             RepositoryType::Local => Ok(Self::create_local()),
         }
@@ -287,6 +351,7 @@ impl RepositoryFactory {
 pub struct RepositoryBuilder {
     repo_type: RepositoryType,
     azure_config: Option<DbConfig>,
+    #[cfg(feature = "postgres-repo")]
     postgres_config: Option<PostgresConfig>,
 }
 
@@ -298,6 +363,7 @@ impl RepositoryBuilder {
         Self {
             repo_type: RepositoryType::Azure,
             azure_config: None,
+            #[cfg(feature = "postgres-repo")]
             postgres_config: None,
         }
     }
@@ -315,6 +381,7 @@ impl RepositoryBuilder {
     }
 
     /// Set the Postgres configuration.
+    #[cfg(feature = "postgres-repo")]
     pub fn postgres_config(mut self, config: PostgresConfig) -> Self {
         self.postgres_config = Some(config);
         self
@@ -328,8 +395,18 @@ impl RepositoryBuilder {
             let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
             self.azure_config = Some(config);
         } else if self.repo_type == RepositoryType::Postgres {
-            let config = PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
-            self.postgres_config = Some(config);
+            #[cfg(feature = "postgres-repo")]
+            {
+                let config =
+                    PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
+                self.postgres_config = Some(config);
+            }
+            #[cfg(not(feature = "postgres-repo"))]
+            {
+                return Err(RepositoryError::ConfigurationError(
+                    "Postgres repository feature not enabled".to_string(),
+                ));
+            }
         }
 
         Ok(self)
@@ -361,12 +438,21 @@ impl RepositoryBuilder {
             })?;
             self.azure_config = Some(config);
         } else if self.repo_type == RepositoryType::Postgres {
-            let config = repo_config.to_postgres_config()?.ok_or_else(|| {
-                RepositoryError::ConfigurationError(
-                    "Postgres repository requires database configuration".to_string(),
-                )
-            })?;
-            self.postgres_config = Some(config);
+            #[cfg(feature = "postgres-repo")]
+            {
+                let config = repo_config.to_postgres_config()?.ok_or_else(|| {
+                    RepositoryError::ConfigurationError(
+                        "Postgres repository requires database configuration".to_string(),
+                    )
+                })?;
+                self.postgres_config = Some(config);
+            }
+            #[cfg(not(feature = "postgres-repo"))]
+            {
+                return Err(RepositoryError::ConfigurationError(
+                    "Postgres repository feature not enabled".to_string(),
+                ));
+            }
         }
 
         Ok(self)
@@ -394,12 +480,21 @@ impl RepositoryBuilder {
             })?;
             self.azure_config = Some(config);
         } else if self.repo_type == RepositoryType::Postgres {
-            let config = repo_config.to_postgres_config()?.ok_or_else(|| {
-                RepositoryError::ConfigurationError(
-                    "Postgres repository requires database configuration".to_string(),
-                )
-            })?;
-            self.postgres_config = Some(config);
+            #[cfg(feature = "postgres-repo")]
+            {
+                let config = repo_config.to_postgres_config()?.ok_or_else(|| {
+                    RepositoryError::ConfigurationError(
+                        "Postgres repository requires database configuration".to_string(),
+                    )
+                })?;
+                self.postgres_config = Some(config);
+            }
+            #[cfg(not(feature = "postgres-repo"))]
+            {
+                return Err(RepositoryError::ConfigurationError(
+                    "Postgres repository feature not enabled".to_string(),
+                ));
+            }
         }
 
         Ok(self)
@@ -414,7 +509,10 @@ impl RepositoryBuilder {
         RepositoryFactory::create(
             self.repo_type,
             self.azure_config.as_ref(),
+            #[cfg(feature = "postgres-repo")]
             self.postgres_config.as_ref(),
+            #[cfg(not(feature = "postgres-repo"))]
+            None,
         )
         .await
     }

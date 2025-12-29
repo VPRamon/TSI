@@ -4,10 +4,26 @@ This guide explains how to configure and select which repository system to use i
 
 ## Overview
 
-The TSI backend supports two repository implementations:
+The TSI backend supports three repository implementations:
 
 1. **Local Repository** (`local`): In-memory storage for testing and local development
 2. **Azure Repository** (`azure`): Azure SQL Server for production use
+3. **Postgres Repository** (`postgres`): Diesel/Postgres implementation
+
+Repository backends are now controlled by Cargo features so only the chosen backend is built. The default build enables `local-repo`. To pick a different backend, disable defaults and enable the feature you want, for example:
+
+```bash
+cargo build --no-default-features --features azure-repo
+cargo build --no-default-features --features postgres-repo
+cargo build --no-default-features --features local-repo
+```
+
+Available features:
+- `azure-repo`: Azure SQL Server backend
+- `local-repo`: In-memory backend (default)
+- `postgres-repo`: Diesel/Postgres backend
+
+Only one backend feature can be enabled at a time. The selected backend is fixed at compile time; runtime selectors like `REPOSITORY_TYPE` or `[repository].type` are ignored by the default initialization path and only connection details are read at runtime.
 
 ## Configuration Methods
 
