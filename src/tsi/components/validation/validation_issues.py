@@ -12,6 +12,22 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from tsi_rust import ValidationReport
 
+
+def _calculate_width_category(series: pd.Series) -> str:
+    """
+    Heuristically pick a Streamlit column width bucket based on content length.
+
+    Streamlit only allows small/medium/large widths, so we map the longest string
+    in the column into one of those buckets.
+    """
+    max_len = series.astype(str).str.len().max() if not series.empty else 0
+    if max_len <= 10:
+        return "small"
+    if max_len <= 24:
+        return "medium"
+    return "large"
+
+
 def _get_criticality_emoji(criticality: str) -> str:
     """Get emoji for criticality level."""
     return {
@@ -126,6 +142,10 @@ def render_unified_validation_table(validation_data: ValidationReport) -> None:
     # Show count
     st.info(f"Showing {len(filtered_df)} of {len(df)} issues")
 
+    # Calculate width buckets dynamically from the current data so narrow fields
+    # (like Field) stay compact while long descriptions get more room.
+    width_map = {col: _calculate_width_category(filtered_df[col]) for col in filtered_df.columns}
+
     # Display table with styling
     st.dataframe(
         filtered_df,
@@ -136,37 +156,37 @@ def render_unified_validation_table(validation_data: ValidationReport) -> None:
             "Criticality": st.column_config.TextColumn(
                 "Criticality",
                 help="Severity of the issue",
-                width="small",
+                width=width_map.get("Criticality", "small"),
             ),
             "Block ID": st.column_config.TextColumn(
                 "Block ID",
                 help="Original scheduling block ID from JSON file",
-                width="medium",
+                width=width_map.get("Block ID", "medium"),
             ),
             "Issue Type": st.column_config.TextColumn(
                 "Issue Type",
                 help="Category of validation issue",
-                width="medium",
+                width=width_map.get("Issue Type", "medium"),
             ),
             "Field": st.column_config.TextColumn(
                 "Field",
                 help="Data field with the issue",
-                width="small",
+                width=width_map.get("Field", "small"),
             ),
             "Current Value": st.column_config.TextColumn(
                 "Current Value",
                 help="Actual value in the data",
-                width="medium",
+                width=width_map.get("Current Value", "medium"),
             ),
             "Expected/Issue": st.column_config.TextColumn(
                 "Expected/Issue",
                 help="Expected value or description of issue",
-                width="medium",
+                width=width_map.get("Expected/Issue", "medium"),
             ),
             "Description": st.column_config.TextColumn(
                 "Description",
                 help="Detailed explanation",
-                width="large",
+                width=width_map.get("Description", "large"),
             ),
         },
     )
