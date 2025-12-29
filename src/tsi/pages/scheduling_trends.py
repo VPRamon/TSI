@@ -22,14 +22,13 @@ from tsi.components.trends.trends_model import (
 )
 from tsi.components.trends.trends_smoothed import render_smoothed_trends
 from tsi.modeling.trends import fit_logistic_with_interactions
-import tsi_rust as api
-from tsi.services import database as db
+from tsi.services import backend_client
 from tsi.utils.error_display import display_backend_error
 
 
 @st.cache_data(show_spinner="Training logistic model...")
 def _fit_model_cached(
-    schedule_id: int,
+    schedule_ref: int,
     class_weight: str,
     vis_range: tuple[float, float],
     time_range: tuple[float, float],
@@ -38,7 +37,7 @@ def _fit_model_cached(
     """Train logistic model with cache using Rust-loaded data."""
     try:
         # Load data from Rust backend (impossible blocks already filtered during ETL)
-        trends_data = db.get_trends_data(schedule_id=api.ScheduleId(schedule_id))
+        trends_data = backend_client.get_trends_data(schedule_ref)
 
         # Filter blocks based on controls
         blocks = trends_data.blocks
@@ -104,19 +103,18 @@ def render() -> None:
         """
     )
 
-    schedule_id = state.get_schedule_id()
-
-    if schedule_id is None:
-        st.info("Load a schedule from the database to view trends.")
+    try:
+        schedule_ref = state.get_schedule_ref()
+    except RuntimeError as exc:
+        st.info("Load a schedule from the backend to view trends.")
         return
-    schedule_sid = schedule_id if isinstance(schedule_id, api.ScheduleId) else api.ScheduleId(int(schedule_id))
-    schedule_id_value = schedule_sid.value
+    schedule_key = int(schedule_ref.value) if hasattr(schedule_ref, "value") else int(schedule_ref)
 
     # Load trends data from Rust backend
     try:
         with st.spinner("Loading trends data..."):
-            trends_data = db.get_trends_data(
-                schedule_id=schedule_sid,
+            trends_data = backend_client.get_trends_data(
+                schedule_ref,
                 n_bins=10,  # Will be updated based on controls
                 bandwidth=0.3,  # Will be updated based on controls
                 n_smooth_points=100,
@@ -135,8 +133,8 @@ def render() -> None:
     # Reload with updated parameters if controls changed
     if controls["n_bins"] != 10 or controls["bandwidth"] != 0.3:
         with st.spinner("Recomputing with updated parameters..."):
-            trends_data = db.get_trends_data(
-                schedule_id=schedule_sid,
+            trends_data = backend_client.get_trends_data(
+                schedule_ref,
                 n_bins=controls["n_bins"],
                 bandwidth=controls["bandwidth"],
                 n_smooth_points=100,
@@ -195,7 +193,7 @@ def render() -> None:
 
     with st.spinner("Training logistic model..."):
         model_result, error = _fit_model_cached(
-            schedule_id_value,
+            schedule_key,
             class_weight=controls["class_weight"],
             vis_range=controls["vis_range"],
             time_range=controls["time_range"],

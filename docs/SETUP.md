@@ -309,7 +309,7 @@ Update `.env` to use this user for the application.
 ├─────────────────────────────────────────────────────────┤
 │  Services Layer (Python)                                 │
 │    └── data_access.py: ETL data retrieval               │
-│    └── database.py: Schedule upload/management          │
+│    └── backend_client.py: Backend schedule operations   │
 ├─────────────────────────────────────────────────────────┤
 │  Rust Backend (tsi_rust)                                │
 │    └── High-performance data processing                 │

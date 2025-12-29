@@ -11,7 +11,7 @@ class TestServicesImports:
     """Test that all services can be imported from their new locations."""
 
     def test_core_backend_imports(self):
-        """Test core backend and database imports."""
+        """Test core backend imports."""
         from tsi.services import (
             BACKEND,
         )

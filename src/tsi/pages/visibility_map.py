@@ -10,12 +10,10 @@ from tsi.components.visibility.visibility_controls import (
 )
 from tsi.components.visibility.visibility_map_figure import render_visibility_map_figure
 from tsi.components.visibility.visibility_stats import render_chart_info, render_dataset_statistics
-import tsi_rust as api
-from tsi.services import database as db
+from tsi.services import backend_client
 from tsi.services.utils.visibility_processing import (
     compute_effective_priority_range,
     filter_visibility_blocks,
-    get_all_block_ids,
 )
 
 
@@ -29,11 +27,11 @@ def render() -> None:
         """
     )
 
-    # Check for schedule ID first - this is now required
-    schedule_id = state.get_schedule_id()
+    # Check for schedule reference first - this is now required
+    schedule_ref = state.get_schedule_ref()
 
     try:
-        visibility_data = db.get_visibility_map_data(schedule_id=schedule_id)
+        visibility_data = backend_client.get_visibility_map_data(schedule_ref)
     except Exception as exc:
         st.error(f"Failed to load visibility data from the backend: {exc}")
         return
@@ -92,7 +90,7 @@ def render() -> None:
                 # Call the modular figure component
                 try:
                     render_visibility_map_figure(
-                        schedule_id=schedule_id,
+                        schedule_ref=schedule_ref,
                         settings=settings,
                         effective_priority_range=effective_priority_range,
                         total_blocks=len(filtered_blocks),

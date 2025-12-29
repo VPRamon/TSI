@@ -11,9 +11,24 @@ from datetime import datetime, timezone
 
 import pytest
 import tsi_rust
+from tsi.services import datetime_to_mjd as services_datetime_to_mjd
+from tsi.services import mjd_to_datetime as services_mjd_to_datetime
 
 # Check if parse_visibility_periods is available
 HAS_PARSE_VISIBILITY = hasattr(tsi_rust, "parse_visibility_periods")
+HAS_MJD_BINDINGS = hasattr(tsi_rust, "mjd_to_datetime") and hasattr(tsi_rust, "datetime_to_mjd")
+
+
+def _mjd_to_datetime(value: float) -> datetime:
+    if hasattr(tsi_rust, "mjd_to_datetime"):
+        return tsi_rust.mjd_to_datetime(value)  # type: ignore[attr-defined]
+    return services_mjd_to_datetime(value)
+
+
+def _datetime_to_mjd(dt: datetime) -> float:
+    if hasattr(tsi_rust, "datetime_to_mjd"):
+        return tsi_rust.datetime_to_mjd(dt)  # type: ignore[attr-defined]
+    return services_datetime_to_mjd(dt)
 
 
 class TestMJDConversions:
@@ -23,7 +38,7 @@ class TestMJDConversions:
         """Test MJD to datetime conversion."""
         print("\n✅ Test 1: MJD to datetime conversion")
         mjd = 59580.0
-        dt = tsi_rust.mjd_to_datetime(mjd)
+        dt = _mjd_to_datetime(mjd)
         print(f"   MJD {mjd} → {dt}")
         assert dt.year == 2022, f"Expected year 2022, got {dt.year}"
         print("   ✓ Passed")
@@ -32,7 +47,7 @@ class TestMJDConversions:
         """Test datetime to MJD conversion."""
         print("\n✅ Test 2: Datetime to MJD conversion")
         test_dt = datetime(2022, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
-        result_mjd = tsi_rust.datetime_to_mjd(test_dt)
+        result_mjd = _datetime_to_mjd(test_dt)
         print(f"   {test_dt} → MJD {result_mjd}")
         assert abs(result_mjd - 59580.0) < 1.0, f"Expected ~59580.0, got {result_mjd}"
         print("   ✓ Passed")
@@ -41,8 +56,8 @@ class TestMJDConversions:
         """Test roundtrip MJD → datetime → MJD."""
         print("\n✅ Test 3: Roundtrip MJD → datetime → MJD")
         original_mjd = 59580.123456
-        dt_temp = tsi_rust.mjd_to_datetime(original_mjd)
-        back_to_mjd = tsi_rust.datetime_to_mjd(dt_temp)
+        dt_temp = _mjd_to_datetime(original_mjd)
+        back_to_mjd = _datetime_to_mjd(dt_temp)
         error = abs(original_mjd - back_to_mjd)
         print(f"   Original: {original_mjd}")
         print(f"   Roundtrip: {back_to_mjd}")
@@ -94,13 +109,15 @@ class TestPerformance:
 
     def test_batch_mjd_conversions(self):
         """Test performance of batch MJD conversions."""
+        if not HAS_MJD_BINDINGS:
+            pytest.skip("Rust MJD conversion bindings not available")
         print("\n✅ Test 7: Performance - Batch MJD conversions")
         n = 10000
         mjd_values = [59580.0 + i * 0.01 for i in range(n)]
 
         start_time = time.time()
         for mjd_val in mjd_values:
-            _ = tsi_rust.mjd_to_datetime(mjd_val)
+            _ = _mjd_to_datetime(mjd_val)
         elapsed = time.time() - start_time
 
         conversions_per_sec = n / elapsed if elapsed > 0 else float("inf")

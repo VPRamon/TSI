@@ -11,8 +11,7 @@ from tsi import state
 from tsi.components.compare.compare_plots import render_comparison_plots
 from tsi.components.compare.compare_tables import render_comparison_tables
 from tsi.components.compare.compare_upload import render_file_upload
-import tsi_rust as api
-from tsi.services import database as db
+from tsi.services import backend_client
 from tsi.theme import add_vertical_space
 
 
@@ -22,29 +21,29 @@ def render() -> None:
 
     st.markdown(
         """
-        Compare the current schedule with another one from the database or upload a new one.
+        Compare the current schedule with another one from the backend or upload a new one.
         View differences in scheduled blocks, priority distributions, and planned time.
         """
     )
 
     # Get current schedule information
-    current_schedule_id = state.get_schedule_id()
+    current_schedule_ref = state.get_schedule_ref()
     current_name = state.get_schedule_name() or state.get_data_filename() or "Current"
 
-    # Handle comparison schedule selection (database or file upload)
-    # The upload component handles storing uploaded files to the database
+    # Handle comparison schedule selection (backend or file upload)
+    # The upload component handles storing uploaded files to the backend
     comparison_schedule_id, comparison_name, _ = render_file_upload()
 
     if comparison_schedule_id is None:
-        st.info("👆 Select a schedule from the database or upload a file to compare")
+        st.info("👆 Select a schedule from the backend or upload a file to compare")
         return
 
     # Get comparison data from Rust backend
     try:
         with st.spinner("Computing comparison..."):
-            compare_data = db.get_compare_data(
-                current_schedule_id=current_schedule_id,
-                comparison_schedule_id=api.ScheduleId(int(comparison_schedule_id)),
+            compare_data = backend_client.get_compare_data(
+                current_schedule_ref=current_schedule_ref,
+                comparison_schedule_ref=comparison_schedule_id,
                 current_name=current_name,
                 comparison_name=comparison_name or "Comparison",
             )

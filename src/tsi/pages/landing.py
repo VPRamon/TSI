@@ -7,7 +7,7 @@ import logging
 import streamlit as st
 
 from app_config import get_settings
-from tsi.components.landing.landing_database import render_database_section
+from tsi.components.landing.landing_backend import render_backend_section
 from tsi.components.landing.landing_upload import render_upload_section
 from tsi.theme import add_vertical_space, render_landing_title
 
@@ -38,7 +38,7 @@ def render() -> None:
     col1, col2 = st.columns(2)
 
     with col1:
-        render_database_section()
+        render_backend_section()
 
     with col2:
         render_upload_section()

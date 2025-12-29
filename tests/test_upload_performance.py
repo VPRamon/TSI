@@ -15,10 +15,14 @@ import sys
 import time
 from pathlib import Path
 
+import pytest
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from tsi.services.database import store_schedule_db
+from tsi.services import backend_client
+
+pytestmark = pytest.mark.skip(reason="Requires backend service to store schedules for performance measurements.")
 
 
 def load_test_data():
@@ -58,17 +62,15 @@ def test_fast_mode():
 
     start = time.time()
     try:
-        metadata = store_schedule_db(
+        metadata = backend_client.upload_schedule(
             schedule_name="test_fast_mode",
             schedule_json=schedule_data,
             visibility_json=visibility_data,
-            populate_analytics=True,
-            skip_time_bins=True,  # Fast mode
         )
         elapsed = time.time() - start
 
         print("✅ Upload successful!")
-        print(f"   Schedule ID: {metadata['schedule_id']}")
+        print(f"   Schedule ID: {metadata.id}")
         print(f"   Time: {elapsed:.2f} seconds")
         print(f"   Rate: {block_count / elapsed:.1f} blocks/sec")
 
@@ -77,7 +79,7 @@ def test_fast_mode():
         else:
             print("   ⚠️ Slower than expected (target: <60s)")
 
-        return metadata["schedule_id"], elapsed
+        return metadata.id, elapsed
 
     except Exception as e:
         print(f"❌ Upload failed: {e}")
@@ -98,21 +100,19 @@ def test_full_mode():
 
     start = time.time()
     try:
-        metadata = store_schedule_db(
+        metadata = backend_client.upload_schedule(
             schedule_name="test_full_mode",
             schedule_json=schedule_data,
             visibility_json=visibility_data,
-            populate_analytics=True,
-            skip_time_bins=False,  # Full mode
         )
         elapsed = time.time() - start
 
         print("✅ Upload successful!")
-        print(f"   Schedule ID: {metadata['schedule_id']}")
+        print(f"   Schedule ID: {metadata.id}")
         print(f"   Time: {elapsed:.2f} seconds ({elapsed/60:.1f} minutes)")
         print(f"   Rate: {block_count / elapsed:.1f} blocks/sec")
 
-        return metadata["schedule_id"], elapsed
+        return metadata.id, elapsed
 
     except Exception as e:
         print(f"❌ Upload failed: {e}")
@@ -132,17 +132,15 @@ def test_no_analytics():
 
     start = time.time()
     try:
-        metadata = store_schedule_db(
+        metadata = backend_client.upload_schedule(
             schedule_name="test_no_analytics",
             schedule_json=schedule_data,
             visibility_json=visibility_data,
-            populate_analytics=False,  # Fastest mode
-            skip_time_bins=True,
         )
         elapsed = time.time() - start
 
         print("✅ Upload successful!")
-        print(f"   Schedule ID: {metadata['schedule_id']}")
+        print(f"   Schedule ID: {metadata.id}")
         print(f"   Time: {elapsed:.2f} seconds")
         print(f"   Rate: {block_count / elapsed:.1f} blocks/sec")
 
@@ -151,7 +149,7 @@ def test_no_analytics():
         else:
             print("   ⚠️ Slower than expected (target: <30s)")
 
-        return metadata["schedule_id"], elapsed
+        return metadata.id, elapsed
 
     except Exception as e:
         print(f"❌ Upload failed: {e}")
