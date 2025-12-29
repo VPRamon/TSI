@@ -14,9 +14,9 @@ use serde_json::{json, Value};
 use tokio::task;
 
 use crate::api::{
-    CompareBlock, Constraints, DistributionBlock, InsightsBlock, LightweightBlock, ModifiedJulianDate,
-    Period, Schedule, ScheduleId, ScheduleInfo, ScheduleTimelineBlock, SchedulingBlock,
-    SchedulingBlockId, VisibilityBlockSummary, VisibilityMapData,
+    CompareBlock, Constraints, DistributionBlock, InsightsBlock, LightweightBlock,
+    ModifiedJulianDate, Period, Schedule, ScheduleId, ScheduleInfo, ScheduleTimelineBlock,
+    SchedulingBlock, SchedulingBlockId, VisibilityBlockSummary, VisibilityMapData,
 };
 use crate::db::repository::{
     AnalyticsRepository, RepositoryError, RepositoryResult, ScheduleRepository,
@@ -86,7 +86,9 @@ impl PostgresRepository {
     fn run_migrations(conn: &mut PgConnection) -> RepositoryResult<()> {
         let migrations =
             FileBasedMigrations::from_path(format!("{}/migrations", env!("CARGO_MANIFEST_DIR")))
-                .map_err(|e| RepositoryError::InternalError(format!("Migrations not found: {e}")))?;
+                .map_err(|e| {
+                    RepositoryError::InternalError(format!("Migrations not found: {e}"))
+                })?;
 
         conn.run_pending_migrations(migrations)
             .map_err(|e| RepositoryError::InternalError(format!("Migration error: {e}")))?;
@@ -261,9 +263,7 @@ fn compute_summary_metrics(
     let priority_scheduled_mean = if scheduled_priorities.is_empty() {
         None
     } else {
-        Some(
-            scheduled_priorities.iter().sum::<f64>() / scheduled_priorities.len() as f64,
-        )
+        Some(scheduled_priorities.iter().sum::<f64>() / scheduled_priorities.len() as f64)
     };
 
     let unscheduled_priorities: Vec<f64> = block_rows
@@ -275,9 +275,7 @@ fn compute_summary_metrics(
     let priority_unscheduled_mean = if unscheduled_priorities.is_empty() {
         None
     } else {
-        Some(
-            unscheduled_priorities.iter().sum::<f64>() / unscheduled_priorities.len() as f64,
-        )
+        Some(unscheduled_priorities.iter().sum::<f64>() / unscheduled_priorities.len() as f64)
     };
 
     let visibility_total_hours = analytics_rows
@@ -588,17 +586,12 @@ impl AnalyticsRepository for PostgresRepository {
                         .sum();
 
                     let scheduled_period = value_to_single_period(&row.scheduled_periods_json)?;
-                    let (scheduled, scheduled_start, scheduled_stop) = if let Some(p) =
-                        scheduled_period
-                    {
-                        (
-                            true,
-                            Some(p.start.value()),
-                            Some(p.stop.value()),
-                        )
-                    } else {
-                        (false, None, None)
-                    };
+                    let (scheduled, scheduled_start, scheduled_stop) =
+                        if let Some(p) = scheduled_period {
+                            (true, Some(p.start.value()), Some(p.stop.value()))
+                        } else {
+                            (false, None, None)
+                        };
 
                     let elevation_range = match (row.min_altitude_deg, row.max_altitude_deg) {
                         (Some(min), Some(max)) => Some(max - min),
@@ -672,10 +665,12 @@ impl AnalyticsRepository for PostgresRepository {
                             .eq(excluded(schedule_summary_analytics::priority_mean)),
                         schedule_summary_analytics::priority_median
                             .eq(excluded(schedule_summary_analytics::priority_median)),
-                        schedule_summary_analytics::priority_scheduled_mean
-                            .eq(excluded(schedule_summary_analytics::priority_scheduled_mean)),
-                        schedule_summary_analytics::priority_unscheduled_mean
-                            .eq(excluded(schedule_summary_analytics::priority_unscheduled_mean)),
+                        schedule_summary_analytics::priority_scheduled_mean.eq(excluded(
+                            schedule_summary_analytics::priority_scheduled_mean,
+                        )),
+                        schedule_summary_analytics::priority_unscheduled_mean.eq(excluded(
+                            schedule_summary_analytics::priority_unscheduled_mean,
+                        )),
                         schedule_summary_analytics::visibility_total_hours
                             .eq(excluded(schedule_summary_analytics::visibility_total_hours)),
                         schedule_summary_analytics::requested_mean_hours
@@ -738,10 +733,11 @@ impl AnalyticsRepository for PostgresRepository {
     ) -> RepositoryResult<Vec<LightweightBlock>> {
         self.with_conn(move |conn| {
             let rows = schedule_blocks::table
-                .inner_join(schedule_block_analytics::table.on(
-                    schedule_block_analytics::scheduling_block_id
-                        .eq(schedule_blocks::scheduling_block_id),
-                ))
+                .inner_join(
+                    schedule_block_analytics::table
+                        .on(schedule_block_analytics::scheduling_block_id
+                            .eq(schedule_blocks::scheduling_block_id)),
+                )
                 .filter(schedule_blocks::schedule_id.eq(schedule_id.0))
                 .select((
                     schedule_blocks::scheduling_block_id,
@@ -814,10 +810,11 @@ impl AnalyticsRepository for PostgresRepository {
     ) -> RepositoryResult<Vec<DistributionBlock>> {
         self.with_conn(move |conn| {
             let rows = schedule_blocks::table
-                .inner_join(schedule_block_analytics::table.on(
-                    schedule_block_analytics::scheduling_block_id
-                        .eq(schedule_blocks::scheduling_block_id),
-                ))
+                .inner_join(
+                    schedule_block_analytics::table
+                        .on(schedule_block_analytics::scheduling_block_id
+                            .eq(schedule_blocks::scheduling_block_id)),
+                )
                 .filter(schedule_blocks::schedule_id.eq(schedule_id.0))
                 .select((
                     schedule_blocks::priority,
@@ -831,13 +828,15 @@ impl AnalyticsRepository for PostgresRepository {
 
             let blocks = rows
                 .into_iter()
-                .map(|(priority, total_vis, requested, elevation, scheduled)| DistributionBlock {
-                    priority,
-                    total_visibility_hours: total_vis,
-                    requested_hours: requested,
-                    elevation_range_deg: elevation.unwrap_or(0.0),
-                    scheduled,
-                })
+                .map(
+                    |(priority, total_vis, requested, elevation, scheduled)| DistributionBlock {
+                        priority,
+                        total_visibility_hours: total_vis,
+                        requested_hours: requested,
+                        elevation_range_deg: elevation.unwrap_or(0.0),
+                        scheduled,
+                    },
+                )
                 .collect();
             Ok(blocks)
         })
@@ -850,10 +849,11 @@ impl AnalyticsRepository for PostgresRepository {
     ) -> RepositoryResult<Vec<InsightsBlock>> {
         self.with_conn(move |conn| {
             let rows = schedule_blocks::table
-                .inner_join(schedule_block_analytics::table.on(
-                    schedule_block_analytics::scheduling_block_id
-                        .eq(schedule_blocks::scheduling_block_id),
-                ))
+                .inner_join(
+                    schedule_block_analytics::table
+                        .on(schedule_block_analytics::scheduling_block_id
+                            .eq(schedule_blocks::scheduling_block_id)),
+                )
                 .filter(schedule_blocks::schedule_id.eq(schedule_id.0))
                 .select((
                     schedule_blocks::scheduling_block_id,
@@ -1119,10 +1119,11 @@ impl VisualizationRepository for PostgresRepository {
     ) -> RepositoryResult<Vec<ScheduleTimelineBlock>> {
         self.with_conn(move |conn| {
             let rows = schedule_blocks::table
-                .inner_join(schedule_block_analytics::table.on(
-                    schedule_block_analytics::scheduling_block_id
-                        .eq(schedule_blocks::scheduling_block_id),
-                ))
+                .inner_join(
+                    schedule_block_analytics::table
+                        .on(schedule_block_analytics::scheduling_block_id
+                            .eq(schedule_blocks::scheduling_block_id)),
+                )
                 .filter(schedule_blocks::schedule_id.eq(schedule_id.0))
                 .filter(schedule_block_analytics::scheduled.eq(true))
                 .select((
@@ -1199,10 +1200,11 @@ impl VisualizationRepository for PostgresRepository {
     ) -> RepositoryResult<Vec<CompareBlock>> {
         self.with_conn(move |conn| {
             let rows = schedule_blocks::table
-                .inner_join(schedule_block_analytics::table.on(
-                    schedule_block_analytics::scheduling_block_id
-                        .eq(schedule_blocks::scheduling_block_id),
-                ))
+                .inner_join(
+                    schedule_block_analytics::table
+                        .on(schedule_block_analytics::scheduling_block_id
+                            .eq(schedule_blocks::scheduling_block_id)),
+                )
                 .filter(schedule_blocks::schedule_id.eq(schedule_id.0))
                 .select((
                     schedule_blocks::scheduling_block_id,
@@ -1215,12 +1217,14 @@ impl VisualizationRepository for PostgresRepository {
 
             let blocks = rows
                 .into_iter()
-                .map(|(block_id, priority, scheduled, requested_hours)| CompareBlock {
-                    scheduling_block_id: block_id.to_string(),
-                    priority,
-                    scheduled,
-                    requested_hours: qtty::time::Hours::new(requested_hours),
-                })
+                .map(
+                    |(block_id, priority, scheduled, requested_hours)| CompareBlock {
+                        scheduling_block_id: block_id.to_string(),
+                        priority,
+                        scheduled,
+                        requested_hours: qtty::time::Hours::new(requested_hours),
+                    },
+                )
                 .collect();
 
             Ok(blocks)
@@ -1234,10 +1238,11 @@ impl VisualizationRepository for PostgresRepository {
     ) -> RepositoryResult<VisibilityMapData> {
         self.with_conn(move |conn| {
             let rows = schedule_blocks::table
-                .inner_join(schedule_block_analytics::table.on(
-                    schedule_block_analytics::scheduling_block_id
-                        .eq(schedule_blocks::scheduling_block_id),
-                ))
+                .inner_join(
+                    schedule_block_analytics::table
+                        .on(schedule_block_analytics::scheduling_block_id
+                            .eq(schedule_blocks::scheduling_block_id)),
+                )
                 .filter(schedule_blocks::schedule_id.eq(schedule_id.0))
                 .select((
                     schedule_blocks::scheduling_block_id,
@@ -1266,22 +1271,31 @@ impl VisualizationRepository for PostgresRepository {
 
             let blocks: Vec<VisibilityBlockSummary> = rows
                 .into_iter()
-                .map(|(block_id, source_block_id, original_block_id, priority, num_periods, scheduled)| {
-                    priority_min = priority_min.min(priority);
-                    priority_max = priority_max.max(priority);
-                    if scheduled {
-                        scheduled_count += 1;
-                    }
-
-                    VisibilityBlockSummary {
-                        scheduling_block_id: block_id,
-                        original_block_id: original_block_id
-                            .unwrap_or_else(|| source_block_id.to_string()),
+                .map(
+                    |(
+                        block_id,
+                        source_block_id,
+                        original_block_id,
                         priority,
-                        num_visibility_periods: num_periods as usize,
+                        num_periods,
                         scheduled,
-                    }
-                })
+                    )| {
+                        priority_min = priority_min.min(priority);
+                        priority_max = priority_max.max(priority);
+                        if scheduled {
+                            scheduled_count += 1;
+                        }
+
+                        VisibilityBlockSummary {
+                            scheduling_block_id: block_id,
+                            original_block_id: original_block_id
+                                .unwrap_or_else(|| source_block_id.to_string()),
+                            priority,
+                            num_visibility_periods: num_periods as usize,
+                            scheduled,
+                        }
+                    },
+                )
                 .collect();
             let total_count = blocks.len();
 

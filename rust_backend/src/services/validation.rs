@@ -195,11 +195,11 @@ pub struct BlockForValidation {
     pub priority: f64,
     pub requested_duration_sec: i32,
     pub min_observation_sec: i32,
-        pub total_visibility_hours: f64,
-        /// Maximum single contiguous visibility period length (hours).
-        /// Used to determine whether the minimum observation time can fit
-        /// inside any single visibility window.
-        pub max_visibility_period_hours: f64,
+    pub total_visibility_hours: f64,
+    /// Maximum single contiguous visibility period length (hours).
+    /// Used to determine whether the minimum observation time can fit
+    /// inside any single visibility window.
+    pub max_visibility_period_hours: f64,
     pub min_alt_deg: Option<f64>,
     pub max_alt_deg: Option<f64>,
     pub constraint_start_mjd: Option<f64>,
@@ -259,7 +259,6 @@ pub fn validate_block(block: &BlockForValidation) -> Vec<ValidationResult> {
                 Some(format!(">= {:.2}h", min_observation_hours)),
             ));
         }
-
         // If the minimum fits in at least one contiguous period, but the total
         // available visibility across all periods is less than requested, mark
         // it as a high-severity issue (possible but problematic).

@@ -10,8 +10,8 @@ use std::str::FromStr;
 
 use super::config::{DbAuthMethod, DbConfig};
 use super::factory::RepositoryType;
-use super::repository::RepositoryError;
 use super::repositories::postgres::PostgresConfig;
+use super::repository::RepositoryError;
 
 /// Repository configuration from file.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -8,11 +8,11 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
+use crate::api::Period;
 use crate::db::{
     models::{InsightsBlock, Schedule, SchedulingBlock},
     repository::*,
 };
-use crate::api::Period;
 use crate::services::validation::ValidationResult;
 use crate::siderust::astro::ModifiedJulianDate;
 
@@ -188,7 +188,10 @@ impl ScheduleRepository for LocalRepository {
         Ok(data.is_healthy)
     }
 
-    async fn store_schedule(&self, schedule: &Schedule) -> RepositoryResult<crate::api::ScheduleInfo> {
+    async fn store_schedule(
+        &self,
+        schedule: &Schedule,
+    ) -> RepositoryResult<crate::api::ScheduleInfo> {
         self.check_health()?;
 
         // Use the helper method to add the schedule
@@ -208,11 +211,8 @@ impl ScheduleRepository for LocalRepository {
     async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
         let data = self.data.read().unwrap();
 
-        let mut schedules: Vec<crate::api::ScheduleInfo> = data
-            .schedule_metadata
-            .values()
-            .cloned()
-            .collect();
+        let mut schedules: Vec<crate::api::ScheduleInfo> =
+            data.schedule_metadata.values().cloned().collect();
 
         schedules.sort_by_key(|s| s.schedule_id);
         Ok(schedules)
@@ -483,7 +483,6 @@ impl AnalyticsRepository for LocalRepository {
 
         Ok(blocks)
     }
-
 }
 
 // ==================== Validation Repository ====================

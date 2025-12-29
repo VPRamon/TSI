@@ -3,20 +3,16 @@
 #![allow(clippy::needless_question_mark)]
 #![allow(clippy::match_like_matches_macro)]
 
+use crate::siderust::{astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS};
 use chrono::{DateTime, Utc};
 use log::{debug, info};
-use crate::siderust::{
-    astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS,
-};
-use std::collections::HashMap;
 use qtty::*;
+use std::collections::HashMap;
 use tiberius::{numeric::Numeric, Query, Row};
 
 use super::pool;
-use crate::db::models::{
-    Constraints, Schedule, SchedulingBlock,
-};
 use crate::api::*;
+use crate::db::models::{Constraints, Schedule, SchedulingBlock};
 type DbClient = tiberius::Client<tokio_util::compat::Compat<tokio::net::TcpStream>>;
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
@@ -127,7 +123,10 @@ impl<'a> ScheduleInserter<'a> {
         }
     }
 
-    async fn insert_schedule(&mut self, schedule: &Schedule) -> Result<crate::api::ScheduleInfo, String> {
+    async fn insert_schedule(
+        &mut self,
+        schedule: &Schedule,
+    ) -> Result<crate::api::ScheduleInfo, String> {
         info!(
             "Uploading schedule '{}' ({} blocks, {} dark periods)",
             schedule.name,
@@ -276,7 +275,8 @@ impl<'a> ScheduleInserter<'a> {
             let mut json_strings: Vec<Option<String>> = Vec::new();
 
             for (i, block) in chunk.iter().enumerate() {
-                let target_key = TargetKey::from_coords(block.target_ra.value(), block.target_dec.value());
+                let target_key =
+                    TargetKey::from_coords(block.target_ra.value(), block.target_dec.value());
                 let _target_id = *self
                     .target_cache
                     .get(&target_key)
@@ -335,7 +335,8 @@ impl<'a> ScheduleInserter<'a> {
 
             let mut insert = Query::new(sql);
             for (i, block) in chunk.iter().enumerate() {
-                let target_key = TargetKey::from_coords(block.target_ra.value(), block.target_dec.value());
+                let target_key =
+                    TargetKey::from_coords(block.target_ra.value(), block.target_dec.value());
                 let target_id = *self.target_cache.get(&target_key).unwrap();
 
                 let constraints_key = ConstraintsKey::new(&block.constraints);
@@ -458,7 +459,8 @@ impl<'a> ScheduleInserter<'a> {
         let mut unique_azimuths = std::collections::HashSet::new();
 
         for constraints in constraints_list {
-            let alt_key = AltitudeKey::new(constraints.min_alt.value(), constraints.max_alt.value());
+            let alt_key =
+                AltitudeKey::new(constraints.min_alt.value(), constraints.max_alt.value());
             let az_key = AzimuthKey::new(constraints.min_az.value(), constraints.max_az.value());
             unique_altitudes.insert(alt_key);
             unique_azimuths.insert(az_key);
@@ -794,7 +796,10 @@ pub async fn store_schedule(schedule: &Schedule) -> Result<crate::api::ScheduleI
         // separate API endpoints. This avoids slow duplicate uploads.
 
         // Return lightweight schedule listing for the existing schedule
-        return Ok(crate::api::ScheduleInfo { schedule_id, schedule_name });
+        return Ok(crate::api::ScheduleInfo {
+            schedule_id,
+            schedule_name,
+        });
     }
 
     //
@@ -947,7 +952,13 @@ fn parse_schedule_metadata_row(row: Row) -> Result<(crate::api::ScheduleInfo, St
     let schedule_name: String = row.get::<&str, _>(1).unwrap_or_default().to_string();
     let checksum: String = row.get::<&str, _>(3).unwrap_or_default().to_string();
 
-    Ok((crate::api::ScheduleInfo { schedule_id, schedule_name }, checksum))
+    Ok((
+        crate::api::ScheduleInfo {
+            schedule_id,
+            schedule_name,
+        },
+        checksum,
+    ))
 }
 
 /// Fetch dark periods for a schedule.
@@ -1227,7 +1238,7 @@ pub async fn list_schedules() -> Result<Vec<crate::api::ScheduleInfo>, String> {
 
         schedules.push(crate::api::ScheduleInfo {
             schedule_id,
-            schedule_name
+            schedule_name,
         });
     }
 
@@ -1759,8 +1770,10 @@ pub async fn fetch_insights_blocks(
             requested_hours: qtty::time::Hours::new(requested_hours),
             elevation_range_deg: qtty::angular::Degrees::new(elevation_range_deg),
             scheduled,
-            scheduled_start_mjd: scheduled_start_mjd.map(crate::siderust::astro::ModifiedJulianDate::new),
-            scheduled_stop_mjd: scheduled_stop_mjd.map(crate::siderust::astro::ModifiedJulianDate::new),
+            scheduled_start_mjd: scheduled_start_mjd
+                .map(crate::siderust::astro::ModifiedJulianDate::new),
+            scheduled_stop_mjd: scheduled_stop_mjd
+                .map(crate::siderust::astro::ModifiedJulianDate::new),
         });
     }
 
@@ -2312,7 +2325,9 @@ pub async fn fetch_schedule_timeline_blocks(
             scheduling_block_id,
             original_block_id,
             priority,
-            scheduled_start_mjd: crate::siderust::astro::ModifiedJulianDate::new(scheduled_start_mjd),
+            scheduled_start_mjd: crate::siderust::astro::ModifiedJulianDate::new(
+                scheduled_start_mjd,
+            ),
             scheduled_stop_mjd: crate::siderust::astro::ModifiedJulianDate::new(scheduled_stop_mjd),
             ra_deg: qtty::angular::Degrees::new(ra_deg),
             dec_deg: qtty::angular::Degrees::new(dec_deg),
