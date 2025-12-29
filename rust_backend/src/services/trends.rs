@@ -453,7 +453,7 @@ pub async fn get_trends_data(
 /// **Note**: Impossible blocks are automatically excluded.
 // #[pyfunction] - removed, function now internal only
 pub fn py_get_trends_data(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
     n_bins: usize,
     bandwidth: f64,
     n_smooth_points: usize,
@@ -469,14 +469,17 @@ pub fn py_get_trends_data(
     let repo = crate::db::get_repository()
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
 
-    let sid = crate::api::ScheduleId(schedule_id);
-
     runtime
-        .block_on(db_services::ensure_analytics(repo.as_ref(), sid))
+        .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
 
     runtime
-        .block_on(get_trends_data(sid, n_bins, bandwidth, n_smooth_points))
+        .block_on(get_trends_data(
+            schedule_id,
+            n_bins,
+            bandwidth,
+            n_smooth_points,
+        ))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 

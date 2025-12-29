@@ -109,9 +109,8 @@ def render() -> None:
     if schedule_id is None:
         st.info("Load a schedule from the database to view trends.")
         return
-
-    schedule_id = int(schedule_id)
-    schedule_sid = api.ScheduleId(schedule_id)
+    schedule_sid = schedule_id if isinstance(schedule_id, api.ScheduleId) else api.ScheduleId(int(schedule_id))
+    schedule_id_value = schedule_sid.value
 
     # Load trends data from Rust backend
     try:
@@ -196,7 +195,7 @@ def render() -> None:
 
     with st.spinner("Training logistic model..."):
         model_result, error = _fit_model_cached(
-            schedule_id,
+            schedule_id_value,
             class_weight=controls["class_weight"],
             vis_range=controls["vis_range"],
             time_range=controls["time_range"],

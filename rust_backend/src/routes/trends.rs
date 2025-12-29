@@ -88,7 +88,7 @@ pub const GET_TRENDS_DATA: &str = "get_trends_data";
 #[pyfunction]
 #[allow(clippy::too_many_arguments)]
 pub fn get_trends_data(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
     n_bins: Option<i64>,
     bandwidth: Option<f64>,
     n_smooth_points: Option<i64>,
