@@ -2,13 +2,11 @@
 #![allow(clippy::redundant_closure)]
 
 use crate::api::{DistributionBlock, DistributionData, DistributionStats};
-use crate::db::repository::AnalyticsRepository;
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
 use crate::db::get_repository;
-use crate::db::repository::ValidationRepository;
 
 /// Compute statistics for a set of values.
 /// This is a helper function that calculates mean, median, std dev, min, max, and sum.

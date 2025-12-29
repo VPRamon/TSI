@@ -11,6 +11,7 @@ use std::str::FromStr;
 use super::config::{DbAuthMethod, DbConfig};
 use super::factory::RepositoryType;
 use super::repository::RepositoryError;
+use super::repositories::postgres::PostgresConfig;
 
 /// Repository configuration from file.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,6 +19,8 @@ pub struct RepositoryConfig {
     pub repository: RepositorySettings,
     #[serde(default)]
     pub database: DatabaseSettings,
+    #[serde(default)]
+    pub postgres: PostgresSettings,
     #[serde(default)]
     pub connection_pool: ConnectionPoolSettings,
 }
@@ -42,6 +45,15 @@ pub struct DatabaseSettings {
     pub username: String,
     #[serde(default)]
     pub password: String,
+}
+
+/// Postgres connection settings.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PostgresSettings {
+    #[serde(default)]
+    pub database_url: String,
+    #[serde(default = "default_max_connections")]
+    pub max_connections: u32,
 }
 
 /// Connection pool settings.
@@ -218,6 +230,28 @@ impl RepositoryConfig {
         }
 
         Ok(Some(config))
+    }
+
+    /// Convert to PostgresConfig if this is a Postgres configuration.
+    pub fn to_postgres_config(&self) -> Result<Option<PostgresConfig>, RepositoryError> {
+        let repo_type = self.repository_type().map_err(|e| {
+            RepositoryError::ConfigurationError(format!("Invalid repository type: {}", e))
+        })?;
+
+        if repo_type != RepositoryType::Postgres {
+            return Ok(None);
+        }
+
+        if self.postgres.database_url.is_empty() {
+            return Err(RepositoryError::ConfigurationError(
+                "Postgres repository requires 'postgres.database_url' setting".to_string(),
+            ));
+        }
+
+        Ok(Some(PostgresConfig {
+            database_url: self.postgres.database_url.clone(),
+            max_pool_size: self.postgres.max_connections,
+        }))
     }
 }
 

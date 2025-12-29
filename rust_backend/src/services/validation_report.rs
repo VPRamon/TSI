@@ -5,8 +5,6 @@
 use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
-use crate::db::repository::ValidationRepository;
-
 // Import the global repository accessor from python/database module
 use crate::db::get_repository;
 

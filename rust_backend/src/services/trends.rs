@@ -9,9 +9,7 @@ use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
-use crate::db::get_repository;
-use crate::db::repository::AnalyticsRepository;
-use crate::db::services as db_services;
+use crate::db::{get_repository, services as db_services};
 
 /// Compute overview metrics from trends blocks.
 fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {

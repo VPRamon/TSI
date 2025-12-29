@@ -1,5 +1,4 @@
 use crate::db;
-use crate::db::repository::visualization::VisualizationRepository;
 use crate::services;
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};

@@ -36,3 +36,14 @@ impl From<&str> for RepositoryError {
         RepositoryError::InternalError(s.to_string())
     }
 }
+
+impl From<diesel::result::Error> for RepositoryError {
+    fn from(err: diesel::result::Error) -> Self {
+        match err {
+            diesel::result::Error::NotFound => {
+                RepositoryError::NotFound("Record not found".to_string())
+            }
+            other => RepositoryError::QueryError(other.to_string()),
+        }
+    }
+}

@@ -12,6 +12,8 @@
 
 use std::collections::HashSet;
 
+use crate::db::models::{BlockHistogramData, VisibilityBin};
+
 /// MJD epoch (1858-11-17 00:00:00 UTC) as Unix timestamp
 const MJD_EPOCH_UNIX: i64 = -3506716800;
 
@@ -27,45 +29,6 @@ struct VisibilityPeriod {
     start_unix: i64,
     end_unix: i64,
     block_id: i64,
-}
-
-/// Represents a single time bin in a visibility histogram.
-/// Used internally in Rust for efficient computation.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct VisibilityBin {
-    /// Start of the bin as Unix timestamp (seconds since epoch)
-    pub bin_start_unix: i64,
-    /// End of the bin as Unix timestamp (seconds since epoch)
-    pub bin_end_unix: i64,
-    /// Number of unique scheduling blocks visible in this bin
-    pub visible_count: u32,
-}
-
-impl VisibilityBin {
-    /// Create a new visibility bin
-    pub fn new(bin_start_unix: i64, bin_end_unix: i64, visible_count: u32) -> Self {
-        Self {
-            bin_start_unix,
-            bin_end_unix,
-            visible_count,
-        }
-    }
-
-    /// Check if a time period (in Unix timestamps) overlaps with this bin
-    pub fn overlaps_period(&self, period_start_unix: i64, period_end_unix: i64) -> bool {
-        period_start_unix < self.bin_end_unix && period_end_unix > self.bin_start_unix
-    }
-}
-
-/// A row from the database containing minimal data needed for histogram computation
-#[derive(Debug, Clone)]
-pub struct BlockHistogramData {
-    /// Scheduling block ID
-    pub scheduling_block_id: i64,
-    /// Priority of the block
-    pub priority: i32,
-    /// Visibility periods for this block
-    pub visibility_periods: Option<Vec<crate::api::Period>>,
 }
 
 /// Compute visibility histogram from database rows.
@@ -217,8 +180,8 @@ mod tests {
 
     #[test]
     fn test_compute_histogram_single_block() {
-        use crate::api::ModifiedJulianDate;
         use crate::api::Period;
+        use crate::siderust::astro::ModifiedJulianDate;
 
         let block = BlockHistogramData {
             scheduling_block_id: 1,
@@ -242,8 +205,8 @@ mod tests {
 
     #[test]
     fn test_compute_histogram_priority_filter() {
-        use crate::api::ModifiedJulianDate;
         use crate::api::Period;
+        use crate::siderust::astro::ModifiedJulianDate;
 
         let blocks = vec![
             BlockHistogramData {
@@ -276,8 +239,8 @@ mod tests {
 
     #[test]
     fn test_compute_histogram_overlapping_periods() {
-        use crate::api::ModifiedJulianDate;
         use crate::api::Period;
+        use crate::siderust::astro::ModifiedJulianDate;
 
         // Same block with multiple overlapping periods in same bin
         let block = BlockHistogramData {
