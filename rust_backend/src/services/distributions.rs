@@ -8,6 +8,7 @@ use tokio::runtime::Runtime;
 
 // Import the global repository accessor
 use crate::db::get_repository;
+use crate::db::repository::ValidationRepository;
 
 /// Compute statistics for a set of values.
 /// This is a helper function that calculates mean, median, std dev, min, max, and sum.
@@ -66,16 +67,11 @@ fn compute_stats(values: &[f64]) -> DistributionStats {
 /// This function takes the blocks and computes all necessary statistics on the Rust side.
 pub fn compute_distribution_data(
     blocks: Vec<DistributionBlock>,
+    impossible_count: usize,
 ) -> Result<DistributionData, String> {
     let total_count = blocks.len();
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
     let unscheduled_count = total_count - scheduled_count;
-
-    // Count impossible observations (those with zero visibility)
-    let impossible_count = blocks
-        .iter()
-        .filter(|b| b.total_visibility_hours == 0.0)
-        .count();
 
     // Collect values for statistics
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
@@ -126,7 +122,13 @@ pub async fn get_distribution_data(
     // Filter out impossible blocks (zero visibility)
     blocks.retain(|b| b.total_visibility_hours > 0.0);
 
-    compute_distribution_data(blocks)
+    // Attempt to fetch validation report; if unavailable, assume zero impossible
+    let impossible_count = match repo.fetch_validation_results(schedule_id).await {
+        Ok(report) => report.impossible_blocks.len(),
+        Err(_) => 0,
+    };
+
+    compute_distribution_data(blocks, impossible_count)
 }
 
 /// Get complete distribution data with computed statistics and metadata.
@@ -207,7 +209,7 @@ mod tests {
             },
         ];
 
-        let result = compute_distribution_data(blocks).unwrap();
+        let result = compute_distribution_data(blocks, 1).unwrap();
 
         assert_eq!(result.total_count, 3);
         assert_eq!(result.scheduled_count, 2);

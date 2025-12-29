@@ -60,7 +60,7 @@ def render_comparison_plots(compare_data: Any) -> None:
             compare_data.current_name,
             compare_data.comparison_name,
         )
-        st.plotly_chart(fig_priority, use_container_width=True)
+        st.plotly_chart(fig_priority, width="stretch")
 
     with col2:
         st.subheader("Scheduling Status Breakdown")
@@ -79,7 +79,7 @@ def render_comparison_plots(compare_data: Any) -> None:
             compare_data.current_name,
             compare_data.comparison_name,
         )
-        st.plotly_chart(fig_status, use_container_width=True)
+        st.plotly_chart(fig_status, width="stretch")
 
     # Plot 3: Changes Flow
     newly_scheduled_count = sum(
@@ -92,7 +92,7 @@ def render_comparison_plots(compare_data: Any) -> None:
     if newly_scheduled_count > 0 or newly_unscheduled_count > 0:
         st.subheader("Scheduling Changes")
         fig_changes = create_changes_plot(newly_scheduled_count, newly_unscheduled_count)
-        st.plotly_chart(fig_changes, use_container_width=True)
+        st.plotly_chart(fig_changes, width="stretch")
 
     # Plot 4: Time comparison (if available)
     has_time_data = any(b.requested_hours > 0 for b in current_scheduled + comparison_scheduled)
@@ -108,4 +108,4 @@ def render_comparison_plots(compare_data: Any) -> None:
             compare_data.current_name,
             compare_data.comparison_name,
         )
-        st.plotly_chart(fig_time, use_container_width=True)
+        st.plotly_chart(fig_time, width="stretch")

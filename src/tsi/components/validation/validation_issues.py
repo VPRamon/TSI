@@ -149,7 +149,7 @@ def render_unified_validation_table(validation_data: ValidationReport) -> None:
     # Display table with styling
     st.dataframe(
         filtered_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
         height=min(600, len(filtered_df) * 35 + 38),
         column_config={

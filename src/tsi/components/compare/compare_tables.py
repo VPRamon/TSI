@@ -334,7 +334,7 @@ def _render_change_details(
                         }
                     )
                 display_df = pd.DataFrame(display_data)
-                st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
+                st.dataframe(display_df, hide_index=True, height=200, width="stretch")
         else:
             with st.expander("📋 View 0 newly scheduled blocks", expanded=False):
                 st.info("No blocks were newly scheduled in the comparison schedule.")
@@ -352,7 +352,7 @@ def _render_change_details(
                         }
                     )
                 display_df = pd.DataFrame(display_data)
-                st.dataframe(display_df, hide_index=True, height=200, use_container_width=True)
+                st.dataframe(display_df, hide_index=True, height=200, width="stretch")
         else:
             with st.expander("📋 View 0 newly unscheduled blocks", expanded=False):
                 st.info("No blocks were removed in the comparison schedule.")

@@ -336,6 +336,11 @@ impl AnalyticsRepository for LocalRepository {
                         .iter()
                         .map(|p| p.duration().value() * 24.0)
                         .sum(),
+                    max_visibility_period_hours: b
+                        .visibility_periods
+                        .iter()
+                        .map(|p| p.duration().value() * 24.0)
+                        .fold(0.0, |acc, v| acc.max(v)),
                     min_alt_deg: Some(b.constraints.min_alt.value()),
                     max_alt_deg: Some(b.constraints.max_alt.value()),
                     constraint_start_mjd: b
@@ -449,7 +454,7 @@ impl AnalyticsRepository for LocalRepository {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Convert schedule blocks to DistributionBlock format
-        let blocks: Vec<DistributionBlock> = schedule
+        let mut blocks: Vec<DistributionBlock> = schedule
             .blocks
             .iter()
             .map(|b| {
@@ -474,6 +479,15 @@ impl AnalyticsRepository for LocalRepository {
             })
             .collect();
 
+        // Exclude blocks marked as impossible in the validation report (if any).
+        // Note: DistributionBlock doesn't contain `scheduling_block_id`, so we
+        // cannot remove specific entries here. Keep blocks as-is; higher-level
+        // consumers will rely on validation report for counts.
+        let data_read = self.data.read().unwrap();
+        if let Some(_report) = data_read.validation_results.get(&schedule_id) {
+            // intentionally no-op: cannot filter without block id in DistributionBlock
+        }
+
         Ok(blocks)
     }
 
@@ -483,7 +497,7 @@ impl AnalyticsRepository for LocalRepository {
     ) -> RepositoryResult<Vec<InsightsBlock>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
-        let blocks = schedule
+        let mut blocks: Vec<InsightsBlock> = schedule
             .blocks
             .iter()
             .map(|b| {
@@ -511,6 +525,18 @@ impl AnalyticsRepository for LocalRepository {
                 }
             })
             .collect();
+
+        // Exclude blocks marked as impossible in the validation report (if any).
+        let data_read = self.data.read().unwrap();
+        if let Some(report) = data_read.validation_results.get(&schedule_id) {
+            let impossible_ids: std::collections::HashSet<i64> = report
+                .impossible_blocks
+                .iter()
+                .map(|issue| issue.block_id)
+                .collect();
+
+            blocks.retain(|b| !impossible_ids.contains(&b.scheduling_block_id));
+        }
 
         Ok(blocks)
     }
