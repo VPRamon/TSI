@@ -2,9 +2,9 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList};
 use serde::{Deserialize, Serialize};
 use tokio::runtime::Runtime;
-use crate::db::repository::visualization::VisualizationRepository;
 use crate::db;
 use crate::services;
+use crate::db::repository::visualization::VisualizationRepository;
 
 // =========================================================
 // Visibility Map types + route
@@ -38,6 +38,7 @@ pub const GET_VISIBILITY_MAP_DATA: &str = "get_visibility_map_data";
 pub const GET_SCHEDULE_TIME_RANGE: &str = "get_schedule_time_range";
 /// Route function name constant for visibility histogram
 pub const GET_VISIBILITY_HISTOGRAM: &str = "get_visibility_histogram";
+
 
 /// Get visibility map data (wraps repository call)
 #[pyfunction]

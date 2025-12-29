@@ -66,7 +66,7 @@ from tsi.exceptions import (
 )
 
 if TYPE_CHECKING:
-    from tsi_rust import SkyMapData, VisibilityMapData, ValidationReport, ScheduleInfo
+    from tsi_rust import SkyMapData, VisibilityMapData, ValidationReport, ScheduleInfo, ScheduleId
 import tsi_rust as api
 
 logger = logging.getLogger(__name__)
@@ -129,11 +129,6 @@ def _rust_call(method: str, *args: Any) -> Any:
         )
         raise
 
-
-# Note: Connection pool initialization is handled automatically by the Rust backend
-# on first database operation. No explicit initialization is needed from Python.
-
-
 @with_retry(max_attempts=3, backoff_factor=1.5)
 def store_schedule_db(
     schedule_name: str,
@@ -190,14 +185,14 @@ def list_schedules_db() -> list[ScheduleInfo]:
     """
     return _rust_call(api.LIST_SCHEDULES)
 
-def get_schedule_blocks(schedule_id: int) -> list[Any]:
+def get_schedule_blocks(schedule_id: api.ScheduleId) -> list[Any]:
     """Fetch scheduling block models via PyO3 bindings."""
     return _rust_call("py_get_schedule_blocks", schedule_id)  # type: ignore[no-any-return]
 
 
 def get_sky_map_data(
     *,
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
 ) -> SkyMapData:
     """
     Get complete sky map data with computed bins and metadata.
@@ -222,7 +217,7 @@ def get_sky_map_data(
 
 def get_visibility_map_data(
     *,
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
 ) -> VisibilityMapData:
     """
     Fetch visibility map metadata and block summaries from the Rust backend.
@@ -238,7 +233,7 @@ def get_visibility_map_data(
 
 def get_distribution_data(
     *,
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
 ) -> api.DistributionData:
     """
     Get complete distribution data with computed statistics.
@@ -272,7 +267,7 @@ def get_distribution_data(
 
 def get_schedule_timeline_data(
     *,
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
 ) -> Any:
     """
     Get complete schedule timeline data with computed statistics and metadata.
@@ -300,7 +295,7 @@ def get_schedule_timeline_data(
 
 def get_insights_data(
     *,
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
 ) -> Any:
     """
     Get complete insights data with computed analytics and metadata.
@@ -333,7 +328,7 @@ def get_insights_data(
 
 def get_trends_data(
     *,
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
     n_bins: int = 10,
     bandwidth: float = 0.3,
     n_smooth_points: int = 100,
@@ -374,8 +369,8 @@ def get_trends_data(
 
 def get_compare_data(
     *,
-    current_schedule_id: int,
-    comparison_schedule_id: int,
+    current_schedule_id: api.ScheduleId,
+    comparison_schedule_id: api.ScheduleId,
     current_name: str,
     comparison_name: str,
 ) -> Any:
@@ -417,13 +412,13 @@ def get_compare_data(
     )
 
 
-def fetch_dark_periods_db(schedule_id: int) -> pd.DataFrame:
+def fetch_dark_periods_db(schedule_id: api.ScheduleId) -> pd.DataFrame:
     """Fetch dark periods for a schedule (with global fallback)."""
     df_polars = _rust_call("py_fetch_dark_periods", schedule_id)
     return df_polars.to_pandas()  # type: ignore[no-any-return]
 
 
-def fetch_possible_periods_db(schedule_id: int) -> pd.DataFrame:
+def fetch_possible_periods_db(schedule_id: api.ScheduleId) -> pd.DataFrame:
     """Fetch possible/visibility periods for a schedule."""
     df_polars = _rust_call("py_fetch_possible_periods", schedule_id)
     return df_polars.to_pandas()  # type: ignore[no-any-return]
@@ -502,7 +497,7 @@ def _standardize_schedule_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_visibility_histogram(
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
     start: pd.Timestamp,
     end: pd.Timestamp,
     bin_duration_minutes: int,
@@ -587,7 +582,7 @@ def get_visibility_histogram(
     )
 
 
-def get_schedule_time_range(schedule_id: int) -> tuple[pd.Timestamp, pd.Timestamp] | None:
+def get_schedule_time_range(schedule_id: api.ScheduleId) -> tuple[pd.Timestamp, pd.Timestamp] | None:
     """
     Get the time range (min/max timestamps) for a schedule's visibility periods.
 
@@ -626,7 +621,7 @@ def get_schedule_time_range(schedule_id: int) -> tuple[pd.Timestamp, pd.Timestam
     return start_time, end_time
 
 
-def get_validation_report_data(schedule_id: int) -> ValidationReport:
+def get_validation_report_data(schedule_id: api.ScheduleId) -> ValidationReport:
     """
     Get validation report data for a schedule.
 
@@ -655,6 +650,7 @@ def get_validation_report_data(schedule_id: int) -> ValidationReport:
         Impossible blocks are automatically filtered from analytics queries.
     """
     # Get validation data from Rust backend (use exported constant)
+    # Use the runtime-exported ScheduleId class from the tsi_rust module
     report = _rust_call(api.GET_VALIDATION_REPORT, schedule_id)
     # TODO: Assert fields exist on report object
     return report

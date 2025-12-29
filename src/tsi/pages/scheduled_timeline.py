@@ -8,6 +8,7 @@ from tsi.components.timeline.timeline_figure import render_timeline_figure
 from tsi.components.timeline.timeline_observable_periods import render_observable_periods_info
 from tsi.components.timeline.timeline_observation_details import render_observation_details_table
 from tsi.components.timeline.timeline_summary import render_timeline_summary
+import tsi_rust as api
 from tsi.services import database as db
 
 

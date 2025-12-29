@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod visibility_histogram_tests {
-    use tsi_rust::db::models::{BlockHistogramData, Period};
+    use tsi_rust::api::{BlockHistogramData, Period};
     use tsi_rust::services::visibility::compute_visibility_histogram_rust;
     use siderust::astro::ModifiedJulianDate;
 

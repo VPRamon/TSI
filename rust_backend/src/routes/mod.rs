@@ -7,7 +7,6 @@ pub mod timeline;
 pub mod insights;
 pub mod trends;
 pub mod compare;
-pub mod conversions;
 
 use pyo3::prelude::*;
 

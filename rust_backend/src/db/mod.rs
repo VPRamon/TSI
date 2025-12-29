@@ -65,7 +65,6 @@
 pub mod checksum;
 pub mod config;
 pub mod factory;
-pub mod models;
 pub mod repo_config;
 pub mod repositories;
 pub mod repository;

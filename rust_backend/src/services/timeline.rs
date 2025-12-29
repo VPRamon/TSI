@@ -2,7 +2,7 @@
 #![allow(clippy::len_zero)]
 
 use crate::api;
-use crate::db::models::ScheduleTimelineBlock;
+use crate::api::ScheduleTimelineBlock;
 use pyo3::prelude::*;
 use chrono::TimeZone;
 use std::collections::HashSet;
@@ -68,15 +68,12 @@ pub fn compute_schedule_timeline_data(
         priority_max = priority_min + 1.0;
     }
 
-    let api_blocks: Vec<crate::api::ScheduleTimelineBlock> =
-        blocks.iter().map(|block| block.into()).collect();
-
     Ok(crate::api::ScheduleTimelineData {
-        blocks: api_blocks,
-        priority_min,
-        priority_max,
         total_count: blocks.len(),
         scheduled_count: blocks.len(),
+        blocks: blocks,
+        priority_min,
+        priority_max,
         unique_months: sorted_months,
         dark_periods: api_dark_periods,
     })

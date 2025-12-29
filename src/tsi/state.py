@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 import streamlit as st
+from tsi_rust import ScheduleId
 
 logger = logging.getLogger(__name__)
 
@@ -180,17 +181,17 @@ def set_comparison_schedule(df: Any) -> None:
     st.session_state[KEY_COMPARISON_SCHEDULE] = df
 
 
-def get_schedule_id() -> int:
+def get_schedule_id() -> ScheduleId:
     """Get the current schedule ID from the database."""
 
     schedule_id = st.session_state.get(KEY_SCHEDULE_ID)
     if schedule_id is None:
         raise RuntimeError("Load a schedule from the database to view the validation report.")
 
-    return int(schedule_id)
+    return ScheduleId(schedule_id)
 
 
-def set_schedule_id(schedule_id: int | None) -> None:
+def set_schedule_id(schedule_id: int) -> None:
     """Set the current schedule ID."""
     st.session_state[KEY_SCHEDULE_ID] = schedule_id
 

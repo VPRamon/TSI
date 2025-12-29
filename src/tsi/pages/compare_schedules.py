@@ -11,6 +11,7 @@ from tsi import state
 from tsi.components.compare.compare_plots import render_comparison_plots
 from tsi.components.compare.compare_tables import render_comparison_tables
 from tsi.components.compare.compare_upload import render_file_upload
+import tsi_rust as api
 from tsi.services import database as db
 from tsi.theme import add_vertical_space
 
@@ -42,8 +43,8 @@ def render() -> None:
     try:
         with st.spinner("Computing comparison..."):
             compare_data = db.get_compare_data(
-                current_schedule_id=int(current_schedule_id),
-                comparison_schedule_id=int(comparison_schedule_id),
+                current_schedule_id=current_schedule_id,
+                comparison_schedule_id=api.ScheduleId(int(comparison_schedule_id)),
                 current_name=current_name,
                 comparison_name=comparison_name or "Comparison",
             )
@@ -83,7 +84,7 @@ def _display_comparison(compare_data: Any) -> None:
                         pd.DataFrame({"schedulingBlockId": sorted(compare_data.only_in_current)}),
                         hide_index=True,
                         height=200,
-                        use_container_width=True,
+                        width="stretch",
                     )
 
         with col2:
@@ -100,7 +101,7 @@ def _display_comparison(compare_data: Any) -> None:
                         ),
                         hide_index=True,
                         height=200,
-                        use_container_width=True,
+                        width="stretch",
                     )
 
         st.info(

@@ -1,6 +1,6 @@
 #![allow(clippy::redundant_closure)]
 
-use crate::db::models::{
+use crate::api::{
     EmpiricalRatePoint, HeatmapBin, InsightsBlock, SmoothedPoint, TrendsBlock, TrendsData,
     TrendsMetrics,
 };

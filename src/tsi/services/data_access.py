@@ -93,7 +93,7 @@ def _rust_call(method: str, *args: Any) -> Any:
 # =============================================================================
 
 
-def get_sky_map_data(schedule_id: int) -> SkyMapData:
+def get_sky_map_data(schedule_id: api.ScheduleId) -> SkyMapData:
     """
     Get sky map data from ETL analytics tables.
 
@@ -121,7 +121,7 @@ def get_sky_map_data(schedule_id: int) -> SkyMapData:
 
 
 def get_distribution_data(
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
 ) -> DistributionData:
     """
     Get distribution data from ETL analytics tables.
@@ -164,7 +164,7 @@ def get_distribution_data(
 # =============================================================================
 
 
-def get_schedule_timeline_data(schedule_id: int) -> ScheduleTimelineData:
+def get_schedule_timeline_data(schedule_id: api.ScheduleId) -> ScheduleTimelineData:
     """
     Get schedule timeline data.
 
@@ -186,7 +186,7 @@ def get_schedule_timeline_data(schedule_id: int) -> ScheduleTimelineData:
 
 
 def get_insights_data(
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
 ) -> InsightsData:
     """
     Get insights data with pre-computed analytics.
@@ -218,7 +218,7 @@ def get_insights_data(
 
 
 def get_trends_data(
-    schedule_id: int,
+    schedule_id: api.ScheduleId,
 ) -> TrendsData:
     """
     Get trends data with computed empirical rates and smoothed curves.
@@ -261,8 +261,8 @@ def get_trends_data(
 
 
 def get_compare_data(
-    current_schedule_id: int,
-    comparison_schedule_id: int,
+    current_schedule_id: api.ScheduleId,
+    comparison_schedule_id: api.ScheduleId,
     current_name: str,
     comparison_name: str,
 ) -> CompareData:
@@ -300,7 +300,7 @@ def get_compare_data(
 # =============================================================================
 
 
-def get_visibility_map_data(schedule_id: int) -> VisibilityMapData:
+def get_visibility_map_data(schedule_id: api.ScheduleId) -> VisibilityMapData:
     """
     Get visibility map data with block summaries.
 

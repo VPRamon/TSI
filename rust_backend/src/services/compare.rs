@@ -1,7 +1,7 @@
 #![allow(clippy::manual_is_multiple_of)]
 #![allow(clippy::redundant_closure)]
 
-use crate::db::models::{CompareBlock, CompareData, CompareStats, SchedulingChange};
+use crate::api::{CompareBlock, CompareData, CompareStats, SchedulingChange};
 use crate::db::operations;
 use pyo3::prelude::*;
 use std::collections::{HashMap, HashSet};
