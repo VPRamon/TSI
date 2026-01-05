@@ -50,6 +50,7 @@ macro_rules! define_id_type {
             }
         }
 
+        #[cfg(feature = "azure-repo")]
         impl<'a> ::tiberius::FromSql<'a> for $name {
             fn from_sql(
                 value: &'a ::tiberius::ColumnData<'static>,
@@ -61,12 +62,14 @@ macro_rules! define_id_type {
             }
         }
 
+        #[cfg(feature = "azure-repo")]
         impl<'a> ::tiberius::IntoSql<'a> for $name {
             fn into_sql(self) -> ::tiberius::ColumnData<'a> {
                 <$inner as ::tiberius::IntoSql<'a>>::into_sql(self.0)
             }
         }
 
+        #[cfg(feature = "azure-repo")]
         impl ::tiberius::ToSql for $name {
             fn to_sql(&self) -> ::tiberius::ColumnData<'_> {
                 <$inner as ::tiberius::ToSql>::to_sql(&self.0)

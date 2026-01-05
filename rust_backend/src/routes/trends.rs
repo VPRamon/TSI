@@ -12,8 +12,8 @@ pub struct TrendsBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
-    pub total_visibility_hours: qtty::Hours,
-    pub requested_hours: qtty::Hours,
+    pub total_visibility_hours: f64,
+    pub requested_hours: f64,
     pub scheduled: bool,
 }
 
@@ -40,8 +40,8 @@ pub struct SmoothedPoint {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeatmapBin {
-    pub visibility_mid: qtty::Hours,
-    pub time_mid: qtty::Hours,
+    pub visibility_mid: f64,
+    pub time_mid: f64,
     pub scheduled_rate: f64,
     pub count: usize,
 }
@@ -57,12 +57,12 @@ pub struct TrendsMetrics {
     pub priority_min: f64,
     pub priority_max: f64,
     pub priority_mean: f64,
-    pub visibility_min: qtty::Hours,
-    pub visibility_max: qtty::Hours,
-    pub visibility_mean: qtty::Hours,
-    pub time_min: qtty::Hours,
-    pub time_max: qtty::Hours,
-    pub time_mean: qtty::Hours,
+    pub visibility_min: f64,
+    pub visibility_max: f64,
+    pub visibility_mean: f64,
+    pub time_min: f64,
+    pub time_max: f64,
+    pub time_mean: f64,
 }
 
 /// Complete trends dataset.

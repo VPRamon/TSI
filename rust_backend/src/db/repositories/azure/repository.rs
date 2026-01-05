@@ -180,7 +180,7 @@ impl VisualizationRepository for AzureRepository {
         _priority_min: Option<i32>,
         _priority_max: Option<i32>,
         _block_ids: Option<Vec<i64>>,
-    ) -> RepositoryResult<Vec<crate::services::visibility::BlockHistogramData>> {
+    ) -> RepositoryResult<Vec<crate::db::models::BlockHistogramData>> {
         todo!("Azure placeholder: fetch_compare_blocks")
     }
 }

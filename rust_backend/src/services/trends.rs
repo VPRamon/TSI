@@ -17,7 +17,7 @@ fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
     let zero_visibility_count = blocks
         .iter()
-        .filter(|b| b.total_visibility_hours.value() == 0.0)
+        .filter(|b| b.total_visibility_hours == 0.0)
         .count();
     let scheduling_rate = if total_count > 0 {
         scheduled_count as f64 / total_count as f64
@@ -27,11 +27,8 @@ fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
 
     // Collect all values for stats (use primitive f64 values)
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
-    let visibilities: Vec<f64> = blocks
-        .iter()
-        .map(|b| b.total_visibility_hours.value())
-        .collect();
-    let times: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
+    let visibilities: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours).collect();
+    let times: Vec<f64> = blocks.iter().map(|b| b.requested_hours).collect();
 
     let priority_min = priorities.iter().copied().fold(f64::INFINITY, f64::min);
     let priority_max = priorities.iter().copied().fold(f64::NEG_INFINITY, f64::max);
@@ -68,12 +65,12 @@ fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
         priority_min,
         priority_max,
         priority_mean,
-        visibility_min: qtty::time::Hours::new(visibility_min),
-        visibility_max: qtty::time::Hours::new(visibility_max),
-        visibility_mean: qtty::time::Hours::new(visibility_mean),
-        time_min: qtty::time::Hours::new(time_min),
-        time_max: qtty::time::Hours::new(time_max),
-        time_mean: qtty::time::Hours::new(time_mean),
+        visibility_min,
+        visibility_max,
+        visibility_mean,
+        time_min,
+        time_max,
+        time_mean,
     }
 }
 
@@ -265,9 +262,9 @@ fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin
     // Find ranges (use primitive values)
     let vis_values: Vec<f64> = blocks
         .iter()
-        .map(|b| b.total_visibility_hours.value())
+        .map(|b| b.total_visibility_hours)
         .collect();
-    let time_values: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
+    let time_values: Vec<f64> = blocks.iter().map(|b| b.requested_hours).collect();
 
     let vis_min = vis_values.iter().copied().fold(f64::INFINITY, f64::min);
     let vis_max = vis_values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
@@ -288,8 +285,8 @@ fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin
     let mut bins: HashMap<(usize, usize), (usize, usize, f64, f64)> = HashMap::new();
 
     for block in blocks {
-        let vis_val = block.total_visibility_hours.value();
-        let time_val = block.requested_hours.value();
+        let vis_val = block.total_visibility_hours;
+        let time_val = block.requested_hours;
         let mut vis_idx = ((vis_val - vis_min) / vis_width).floor() as usize;
         let mut time_idx = ((time_val - time_min) / time_width).floor() as usize;
 
@@ -318,8 +315,8 @@ fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin
                 0.0
             };
             HeatmapBin {
-                visibility_mid: qtty::time::Hours::new(vis_sum / total as f64),
-                time_mid: qtty::time::Hours::new(time_sum / total as f64),
+                visibility_mid: vis_sum / total as f64,
+                time_mid: time_sum / total as f64,
                 scheduled_rate: rate,
                 count: total,
             }
@@ -345,22 +342,22 @@ pub fn compute_trends_data(
     let by_priority = compute_by_priority(&blocks);
     let by_visibility = compute_by_bins(
         &blocks,
-        |b| b.total_visibility_hours.value(),
+        |b| b.total_visibility_hours,
         n_bins,
         "Visibility",
     );
-    let by_time = compute_by_bins(&blocks, |b| b.requested_hours.value(), n_bins, "Time");
+    let by_time = compute_by_bins(&blocks, |b| b.requested_hours, n_bins, "Time");
 
     // Compute smoothed trends
     let smoothed_visibility = compute_smoothed_trend(
         &blocks,
-        |b| b.total_visibility_hours.value(),
+        |b| b.total_visibility_hours,
         bandwidth,
         n_smooth_points,
     );
     let smoothed_time = compute_smoothed_trend(
         &blocks,
-        |b| b.requested_hours.value(),
+        |b| b.requested_hours,
         bandwidth,
         n_smooth_points,
     );
@@ -419,8 +416,9 @@ pub async fn get_trends_data(
                 ..
             } = block;
 
-            let mut total_visibility_hours = total_visibility_hours;
-            if total_visibility_hours.value() == 0.0 && requested_hours.value() > 0.0 {
+            let mut total_visibility_hours = total_visibility_hours.value();
+            let requested_hours = requested_hours.value();
+            if total_visibility_hours == 0.0 && requested_hours > 0.0 {
                 total_visibility_hours = requested_hours;
             }
 
@@ -433,7 +431,7 @@ pub async fn get_trends_data(
                 scheduled,
             }
         })
-        .filter(|b| b.total_visibility_hours.value() > 0.0) // Filter out zero visibility
+        .filter(|b| b.total_visibility_hours > 0.0) // Filter out zero visibility
         .collect();
 
     if blocks.is_empty() {

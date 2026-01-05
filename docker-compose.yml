@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+  # PostgreSQL database for production
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -17,6 +18,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # Application service (optional - build with postgres-repo feature)
+  # app:
+  #   build:
+  #     context: .
+  #     args:
+  #       REPO_FEATURE: postgres-repo
+  #   environment:
+  #     DATABASE_URL: postgres://tsi:tsi@postgres:5432/tsi
+  #     REPOSITORY_TYPE: postgres
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   ports:
+  #     - "8000:8000"
 
 volumes:
   postgres_data:

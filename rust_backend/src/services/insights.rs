@@ -10,6 +10,7 @@ use tokio::runtime::Runtime;
 
 // Import the global repository accessor
 use crate::db::get_repository;
+#[allow(unused_imports)]
 use crate::db::repository::AnalyticsRepository;
 use qtty::time::Hours;
 
@@ -320,7 +321,7 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
 
     // Fetch insights-ready analytics blocks
     let mut blocks = repo
-        .fetch_analytics_blocks_for_insights(schedule_id)
+        .fetch_analytics_blocks_for_insights(crate::api::ScheduleId(schedule_id))
         .await
         .map_err(|e| format!("Failed to fetch insights blocks: {}", e))?;
 
@@ -345,7 +346,7 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 /// To see validation issues, use py_get_validation_report.
 // #[pyfunction] - removed, function now internal only
-pub fn py_get_insights_data(schedule_id: i64) -> PyResult<InsightsData> {
+pub fn py_get_insights_data(schedule_id: crate::api::ScheduleId) -> PyResult<InsightsData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
             "Failed to create async runtime: {}",
@@ -354,14 +355,14 @@ pub fn py_get_insights_data(schedule_id: i64) -> PyResult<InsightsData> {
     })?;
 
     runtime
-        .block_on(get_insights_data(schedule_id))
+        .block_on(get_insights_data(schedule_id.0))
         .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::siderust::astro::ModifiedJulianDate;
+    use crate::models::ModifiedJulianDate;
     use qtty::angular::Degrees;
 
     #[test]

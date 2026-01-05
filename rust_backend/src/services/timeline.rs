@@ -11,6 +11,7 @@ use tokio::runtime::Runtime;
 
 // Import the global repository accessor
 use crate::db::get_repository;
+#[allow(unused_imports)]
 use crate::db::repository::VisualizationRepository;
 
 /// Compute schedule timeline data with statistics and metadata.
@@ -69,7 +70,7 @@ pub fn compute_schedule_timeline_data(
     }
 
     let api_blocks: Vec<crate::api::ScheduleTimelineBlock> =
-        blocks.iter().map(|block| block.into()).collect();
+        blocks.iter().cloned().collect();
 
     Ok(crate::api::ScheduleTimelineData {
         blocks: api_blocks,
@@ -88,7 +89,7 @@ pub fn compute_schedule_timeline_data(
 ///
 /// Uses the analytics table for optimal performance when available.
 pub async fn get_schedule_timeline_data(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> Result<crate::api::ScheduleTimelineData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
@@ -111,7 +112,7 @@ pub async fn get_schedule_timeline_data(
 /// on the Rust side for maximum performance.
 // #[pyfunction] - removed, function now internal only
 pub fn py_get_schedule_timeline_data(
-    schedule_id: i64,
+    schedule_id: crate::api::ScheduleId,
 ) -> PyResult<crate::api::ScheduleTimelineData> {
     let runtime = Runtime::new().map_err(|e| {
         PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
@@ -144,8 +145,8 @@ mod tests {
                 scheduling_block_id: 1,
                 original_block_id: "SB001".to_string(),
                 priority: 5.0,
-                scheduled_start_mjd: crate::siderust::astro::ModifiedJulianDate::new(59000.0), // 2020-05-10
-                scheduled_stop_mjd: crate::siderust::astro::ModifiedJulianDate::new(59001.0),
+                scheduled_start_mjd: crate::models::ModifiedJulianDate::new(59000.0), // 2020-05-10
+                scheduled_stop_mjd: crate::models::ModifiedJulianDate::new(59001.0),
                 ra_deg: qtty::angular::Degrees::new(180.0),
                 dec_deg: qtty::angular::Degrees::new(45.0),
                 requested_hours: qtty::time::Hours::new(1.0),
@@ -156,8 +157,8 @@ mod tests {
                 scheduling_block_id: 2,
                 original_block_id: "SB002".to_string(),
                 priority: 8.0,
-                scheduled_start_mjd: crate::siderust::astro::ModifiedJulianDate::new(59030.0), // 2020-06-09
-                scheduled_stop_mjd: crate::siderust::astro::ModifiedJulianDate::new(59031.0),
+                scheduled_start_mjd: crate::models::ModifiedJulianDate::new(59030.0), // 2020-06-09
+                scheduled_stop_mjd: crate::models::ModifiedJulianDate::new(59031.0),
                 ra_deg: qtty::angular::Degrees::new(200.0),
                 dec_deg: qtty::angular::Degrees::new(-30.0),
                 requested_hours: qtty::time::Hours::new(2.0),

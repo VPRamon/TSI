@@ -1,9 +1,7 @@
-use pyo3::prelude::*;
-
 crate::define_id_type!(i64, SchedulingBlockId);
 
-/// Atomic observing request (mirrors scheduling_blocks).
-#[pyclass(module = "tsi_rust_api", get_all)]
+/// Internal scheduling block with quantity types for calculations.
+/// For Python-facing code, use `crate::api::SchedulingBlock` instead.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SchedulingBlock {
     pub id: SchedulingBlockId,

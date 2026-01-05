@@ -4,7 +4,7 @@ use pyo3::types::PyTuple;
 use serde::*;
 
 #[pyclass(module = "tsi_rust_api")]
-#[derive(Debug, Clone, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct ModifiedJulianDate(qtty::Days);
 
 impl ModifiedJulianDate {
@@ -90,8 +90,8 @@ impl Period {
     #[new]
     pub fn py_new(start: f64, stop: f64) -> Self {
         Self {
-            start: crate::api::ModifiedJulianDate::new(start),
-            stop: crate::api::ModifiedJulianDate::new(stop),
+            start: ModifiedJulianDate::new(start),
+            stop: ModifiedJulianDate::new(stop),
         }
     }
 
@@ -125,8 +125,8 @@ impl Period {
             let stop_mjd = to_mjd(&stop)?;
 
             Ok(Self {
-                start: crate::api::ModifiedJulianDate::new(start_mjd),
-                stop: crate::api::ModifiedJulianDate::new(stop_mjd),
+                start: ModifiedJulianDate::new(start_mjd),
+                stop: ModifiedJulianDate::new(stop_mjd),
             })
         })
     }
@@ -166,8 +166,8 @@ impl Period {
 
 impl Period {
     pub fn new(
-        start: crate::api::ModifiedJulianDate,
-        stop: crate::api::ModifiedJulianDate,
+        start: ModifiedJulianDate,
+        stop: ModifiedJulianDate,
     ) -> Option<Self> {
         if start.value() < stop.value() {
             Some(Self { start, stop })
@@ -182,7 +182,7 @@ impl Period {
     }
 
     /// Check if a given MJD instant lies inside this interval (inclusive start, exclusive end).
-    pub fn contains(&self, t_mjd: crate::api::ModifiedJulianDate) -> bool {
+    pub fn contains(&self, t_mjd: ModifiedJulianDate) -> bool {
         self.start.value() <= t_mjd.value() && t_mjd.value() < self.stop.value()
     }
 
