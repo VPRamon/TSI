@@ -63,6 +63,7 @@ use pyo3::prelude::*;
 pub mod algorithms;
 pub mod api;
 pub mod db;
+pub mod models;
 pub mod routes;
 pub mod services;
 pub mod siderust;

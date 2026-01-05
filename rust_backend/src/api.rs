@@ -39,7 +39,7 @@ pub use crate::routes::visibility::VisibilityMapData;
 use pyo3::prelude::*;
 
 #[pyo3::pyclass(module = "tsi_rust_api")]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub struct ScheduleId(pub i64);
 
 #[pyo3::pyclass(module = "tsi_rust_api")]
@@ -53,18 +53,46 @@ pub struct ConstraintsId(pub i64);
 #[pyo3::pyclass(module = "tsi_rust_api")]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct SchedulingBlockId(pub i64);
+impl std::fmt::Display for ScheduleId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl std::fmt::Display for TargetId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl std::fmt::Display for ConstraintsId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl std::fmt::Display for SchedulingBlockId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<ScheduleId> for i64 {
+    fn from(id: ScheduleId) -> Self {
+        id.0
+    }
+}
 // Python-facing Data Transfer Objects (DTOs) moved to the api root.
 use pyo3::types::PyTuple;
 use serde::{Deserialize, Serialize};
+
+pub use crate::models::ModifiedJulianDate;
 
 /// Time period in Modified Julian Date (MJD) format.
 #[pyclass(module = "tsi_rust_api")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Period {
     /// Start time in MJD
-    pub start: crate::siderust::astro::ModifiedJulianDate,
+    pub start: ModifiedJulianDate,
     /// End time in MJD
-    pub stop: crate::siderust::astro::ModifiedJulianDate,
+    pub stop: ModifiedJulianDate,
 }
 
 #[pymethods]
@@ -72,8 +100,8 @@ impl Period {
     #[new]
     pub fn py_new(start: f64, stop: f64) -> Self {
         Self {
-            start: crate::siderust::astro::ModifiedJulianDate::new(start),
-            stop: crate::siderust::astro::ModifiedJulianDate::new(stop),
+            start: ModifiedJulianDate::new(start),
+            stop: ModifiedJulianDate::new(stop),
         }
     }
 
@@ -107,8 +135,8 @@ impl Period {
             let stop_mjd = to_mjd(&stop)?;
 
             Ok(Self {
-                start: crate::siderust::astro::ModifiedJulianDate::new(start_mjd),
-                stop: crate::siderust::astro::ModifiedJulianDate::new(stop_mjd),
+                start: ModifiedJulianDate::new(start_mjd),
+                stop: ModifiedJulianDate::new(stop_mjd),
             })
         })
     }
@@ -146,10 +174,7 @@ impl Period {
 }
 
 impl Period {
-    pub fn new(
-        start: crate::siderust::astro::ModifiedJulianDate,
-        stop: crate::siderust::astro::ModifiedJulianDate,
-    ) -> Option<Self> {
+    pub fn new(start: ModifiedJulianDate, stop: ModifiedJulianDate) -> Option<Self> {
         if start.value() < stop.value() {
             Some(Self { start, stop })
         } else {
@@ -163,7 +188,7 @@ impl Period {
     }
 
     /// Check if a given MJD instant lies inside this interval (inclusive start, exclusive end).
-    pub fn contains(&self, t_mjd: crate::siderust::astro::ModifiedJulianDate) -> bool {
+    pub fn contains(&self, t_mjd: ModifiedJulianDate) -> bool {
         self.start.value() <= t_mjd.value() && t_mjd.value() < self.stop.value()
     }
 

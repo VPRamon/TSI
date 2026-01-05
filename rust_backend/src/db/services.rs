@@ -59,6 +59,8 @@ use log::{info, warn};
 
 use super::repository::{FullRepository, RepositoryResult};
 use crate::api::*;
+use crate::models::parse_schedule_json_str;
+
 // ==================== Health & Connection ====================
 
 /// Check if the database connection is healthy.

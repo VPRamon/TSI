@@ -11,7 +11,7 @@ pub struct CompareBlock {
     pub scheduling_block_id: String,
     pub priority: f64,
     pub scheduled: bool,
-    pub requested_hours: qtty::Hours,
+    pub requested_hours: f64,
 }
 
 #[pyclass(module = "tsi_rust_api", get_all)]
@@ -22,7 +22,7 @@ pub struct CompareStats {
     pub total_priority: f64,
     pub mean_priority: f64,
     pub median_priority: f64,
-    pub total_hours: qtty::Hours,
+    pub total_hours: f64,
 }
 
 #[pyclass(module = "tsi_rust_api", get_all)]

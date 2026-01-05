@@ -1,8 +1,7 @@
-use pyo3::prelude::*;
-
 crate::define_id_type!(i64, ConstraintsId);
 
-#[pyclass(module = "tsi_rust_api", get_all)]
+/// Internal constraints with quantity types for calculations.
+/// For Python-facing code, use `crate::api::Constraints` instead.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Constraints {
     #[serde(with = "qtty::serde_f64")]

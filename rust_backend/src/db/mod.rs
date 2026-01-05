@@ -74,6 +74,7 @@ compile_error!("Enable exactly one repository backend feature.");
 pub mod checksum;
 pub mod config;
 pub mod factory;
+pub mod models;
 pub mod repo_config;
 pub mod repositories;
 pub mod repository;
@@ -134,9 +135,7 @@ pub use repositories::azure::validation::{
 #[cfg(feature = "azure-repo")]
 pub use repositories::azure::pool::DbPool;
 
-use anyhow::Result;
-#[cfg(any(feature = "azure-repo", feature = "postgres-repo"))]
-use anyhow::Context;
+use anyhow::{Context, Result};
 use std::sync::{Arc, OnceLock};
 #[cfg(any(feature = "azure-repo", feature = "postgres-repo"))]
 use tokio::runtime::Runtime;

@@ -96,6 +96,10 @@ RUN cargo chef prepare --recipe-path recipe.json
 # Cargo Chef cook + Rust build (produces wheels via maturin)
 #############################
 FROM rust-base AS cargo-builder
+
+# Repository backend feature: local-repo (default), postgres-repo (production), azure-repo
+ARG REPO_FEATURE=postgres-repo
+
 WORKDIR /workspace
 COPY --from=cargo-planner /workspace/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
@@ -112,7 +116,9 @@ RUN maturin build \
         --release \
         --locked \
         --out /artifacts \
-        --skip-auditwheel
+        --skip-auditwheel \
+        --no-default-features \
+        --features ${REPO_FEATURE}
 
 #############################
 # Python dependency builder (creates reusable virtualenv)

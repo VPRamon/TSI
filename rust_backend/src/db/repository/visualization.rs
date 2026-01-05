@@ -55,5 +55,5 @@ pub trait VisualizationRepository: Send + Sync {
         priority_min: Option<i32>,
         priority_max: Option<i32>,
         block_ids: Option<Vec<i64>>,
-    ) -> RepositoryResult<Vec<crate::services::visibility::BlockHistogramData>>;
+    ) -> RepositoryResult<Vec<crate::db::models::BlockHistogramData>>;
 }

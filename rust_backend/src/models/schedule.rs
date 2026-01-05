@@ -1,12 +1,7 @@
-use pyo3::prelude::*;
-
 crate::define_id_type!(i64, ScheduleId);
 
-/// Top-level `Schedule` model redefined at the root of the `models` module.
-///
-/// Placing `Schedule` here simplifies imports for callers that want the
-/// primary domain type without referring to the `schedule` submodule.
-#[pyclass(module = "tsi_rust_api", get_all)]
+/// Internal Schedule model with quantity types for calculations.
+/// For Python-facing code, use `crate::api::Schedule` instead.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Schedule {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -81,7 +76,7 @@ pub fn parse_schedule_json_str(
 
             if let Some(map) = maybe_map {
                 for block in &mut schedule.blocks {
-                    if let Some(periods) = map.get(&block.id.0.to_string()) {
+                    if let Some(periods) = map.get(&block.id.to_string()) {
                         block.visibility_periods = periods.clone();
                     }
                 }
