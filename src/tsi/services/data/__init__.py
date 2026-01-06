@@ -1,29 +1,13 @@
-"""Data loading, preparation, and analytics modules."""
+"""Lightweight analytics helpers for the Streamlit frontend."""
 
 from tsi.services.data.analytics import (
     AnalyticsSnapshot,
-    compute_correlations,
-    find_conflicts,
+    generate_correlation_insights,
     generate_insights,
-    get_top_observations,
-)
-from tsi.services.data.loaders import (
-    get_filtered_dataframe,
-    load_schedule,
-    prepare_dataframe,
-    validate_dataframe,
 )
 
 __all__ = [
-    # loaders
-    "prepare_dataframe",
-    "get_filtered_dataframe",
-    "validate_dataframe",
-    "load_schedule",
-    # analytics
     "AnalyticsSnapshot",
-    "compute_correlations",
-    "get_top_observations",
-    "find_conflicts",
     "generate_insights",
+    "generate_correlation_insights",
 ]

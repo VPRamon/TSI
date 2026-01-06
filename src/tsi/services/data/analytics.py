@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
 import numpy as np
 import pandas as pd
 
-from tsi.config import CORRELATION_COLUMNS
 from tsi.models.schemas import AnalyticsMetrics
-from tsi.services.backend_service import backend
 
 
 @dataclass(frozen=True)
@@ -30,49 +27,6 @@ class AnalyticsSnapshot:
     mean_requested_hours: float
 
 
-def compute_correlations(df: pd.DataFrame, *, columns: Sequence[str] | None = None) -> pd.DataFrame:
-    """
-    Compute a Spearman correlation matrix for the selected columns.
-
-    Args:
-        df: DataFrame with scheduling data
-        columns: List of column names to analyze. If None, uses default CORRELATION_COLUMNS.
-
-    Returns:
-        Correlation matrix DataFrame
-    """
-    if columns is None:
-        columns = CORRELATION_COLUMNS
-
-    cols_to_analyze = [col for col in columns if col in df.columns]
-    if len(cols_to_analyze) < 2:
-        return pd.DataFrame()
-
-    return df[cols_to_analyze].dropna().corr(method="spearman")
-
-
-def get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) -> pd.DataFrame:
-    """Get top N observations by a specified metric (using Rust backend - 10x faster)."""
-    return cast(pd.DataFrame, backend._local_backend.get_top_observations(df, by=by, n=n))
-
-
-def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Find scheduling integrity issues (using Rust backend - 16x faster).
-
-    Note: Falls back to empty DataFrame if datetime conversion issues occur.
-    """
-    # Check if Rust backend can handle it
-    required_cols = {"scheduled_start_dt", "scheduled_stop_dt"}
-    if not required_cols.issubset(df.columns):
-        return pd.DataFrame()
-
-    try:
-        return cast(pd.DataFrame, backend._local_backend.find_conflicts(df))
-    except Exception:
-        return pd.DataFrame()
-
-
 def _snapshot_from_metrics(metrics: AnalyticsMetrics) -> AnalyticsSnapshot:
     """Convert the Pydantic schema into a dataclass used by the core layer."""
     return AnalyticsSnapshot(**metrics.model_dump())
@@ -85,12 +39,14 @@ def generate_insights(
     Generate automated insights from the data.
 
     Args:
-        blocks: List of InsightsBlock objects from Rust or DataFrame with scheduling data
+        blocks: List of InsightsBlock objects from Rust (unused but preserved for compatibility)
         metrics: Either AnalyticsMetrics (Pydantic/Rust) or AnalyticsSnapshot (dataclass)
 
     Returns:
         List of insight strings
     """
+    _ = blocks  # preserved for backwards compatibility with older call sites
+
     # Handle both Rust metrics and Pydantic metrics
     if hasattr(metrics, "model_dump"):
         # Pydantic model
@@ -133,30 +89,6 @@ def generate_insights(
         insights.append(
             f"**Total Visibility**: {snapshot.total_visibility_hours:,.0f} cumulative visibility hours."
         )
-
-    # If blocks is a list (Rust), we don't need to compute correlations here
-    # as they're already computed in the Rust backend
-    # If blocks is a DataFrame (legacy), compute correlations
-    if isinstance(blocks, pd.DataFrame):
-        corr_matrix = compute_correlations(
-            blocks,
-            columns=[
-                "priority",
-                "requested_hours",
-                "total_visibility_hours",
-                "elevation_range_deg",
-            ],
-        )
-        if not corr_matrix.empty and "priority" in corr_matrix:
-            for column in corr_matrix.columns:
-                if column == "priority":
-                    continue
-                corr_val = corr_matrix.loc["priority", column]
-                if isinstance(corr_val, (int, float)) and abs(float(corr_val)) > 0.3:
-                    direction = "positive" if float(corr_val) > 0 else "negative"
-                    insights.append(
-                        f"**Correlation**: Priority has {direction} correlation ({corr_val:.2f}) with {column}."
-                    )
 
     return insights
 

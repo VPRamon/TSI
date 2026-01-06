@@ -42,7 +42,6 @@ def load_schedule_from_backend(schedule: ScheduleSummary) -> None:
             state.set_schedule_ref(schedule.ref)
             state.set_schedule_name(schedule.name)
             state.set_data_filename(schedule.name)
-            st.session_state[state.KEY_DATA_SOURCE] = "backend"
 
             state.set_current_page("Validation")
             st.rerun()

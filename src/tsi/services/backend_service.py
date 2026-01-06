@@ -1,18 +1,14 @@
 """Unified backend service facade.
 
-This module provides a single entry point for all backend operations,
-combining both remote (backend_client) and local (TSIBackend) functionality.
-It eliminates the need for callers to choose between two separate backend
-interfaces and simplifies the import structure.
+This module provides a single entry point for all backend operations exposed by
+the Rust backend, keeping the Streamlit layer thin and presentation-focused.
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from numpy import int64
@@ -21,7 +17,6 @@ from app_config import get_settings
 from tsi.error_handling import log_error, with_retry
 from tsi.exceptions import ServerError
 import tsi_rust as api
-import tsi_rust_api
 
 if TYPE_CHECKING:
     from tsi_rust import (
@@ -35,14 +30,6 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
-
-
-# ============================================================================
-# Shared Backend Instance
-# ============================================================================
-
-# Single shared TSIBackend instance for DataFrame operations
-_BACKEND = tsi_rust_api.TSIBackend(use_pandas=True)
 
 
 # ============================================================================
@@ -67,28 +54,22 @@ class ScheduleSummary:
 
 class BackendService:
     """
-    Unified backend service combining remote and local operations.
+    Unified backend service that proxies Rust backend operations.
 
     This facade provides a single entry point for:
     - Remote backend calls (upload, list, get data from stored schedules)
-    - Local DataFrame operations (filter, validate, transform)
-    - Time conversions (MJD <-> datetime)
-    - Data loading (from files or file-like objects)
+    - Visualization data fetchers (sky map, distributions, timeline, insights, trends, compare)
+    - Supporting helpers for visibility histograms and time ranges
 
     Usage:
         >>> backend = BackendService()
         >>> # Upload schedule
         >>> summary = backend.upload_schedule("My Schedule", json_data)
-        >>> # Load and filter DataFrame
-        >>> df = backend.load_schedule("data/schedule.json")
-        >>> filtered = backend.filter_by_priority(df, min_priority=15.0)
-        >>> # Convert times
-        >>> dt = backend.mjd_to_datetime(59580.5)
     """
 
     def __init__(self):
         """Initialize the backend service."""
-        self._local_backend = _BACKEND
+        # No local state is required; all logic lives in the Rust backend.
 
     # ========================================================================
     # Remote Backend Operations (Schedule Management)
@@ -273,7 +254,6 @@ class BackendService:
         """Fetch possible/visibility periods for a schedule."""
         df_polars = self._rust_call("py_fetch_possible_periods", self._to_schedule_id(schedule_ref))
         return df_polars.to_pandas()  # type: ignore[no-any-return]
-
     def get_visibility_histogram(
         self,
         schedule_ref: ScheduleSummary | api.ScheduleId | int,
@@ -340,167 +320,6 @@ class BackendService:
         end_time = pd.Timestamp(end_unix, unit="s", tz="UTC")
 
         return start_time, end_time
-
-    # ========================================================================
-    # Local DataFrame Operations
-    # ========================================================================
-
-    @with_retry(max_attempts=2, backoff_factor=1.5)
-    def load_schedule(
-        self, source: str | Path | Any, format: Literal["auto", "json"] = "auto"
-    ) -> pd.DataFrame:
-        """
-        Load schedule data from a path or file-like object.
-
-        Args:
-            source: Path to schedule file or file-like object
-            format: File format ('auto' or 'json')
-
-        Returns:
-            DataFrame with schedule data
-
-        Raises:
-            ServerError: If loading fails
-        """
-        try:
-            if hasattr(source, "read"):
-                content = source.read()
-                if isinstance(content, bytes):
-                    content = content.decode("utf-8")
-                if hasattr(source, "seek"):
-                    source.seek(0)
-
-                if format == "auto":
-                    raise ValueError("Format must be specified when reading from a buffer")
-                if format == "json":
-                    return cast(
-                        pd.DataFrame,
-                        tsi_rust_api.load_schedule_from_string(
-                            content, format="json", use_pandas=True
-                        ),
-                    )
-                raise ValueError(f"Unsupported format: {format}")
-
-            return cast(
-                pd.DataFrame,
-                tsi_rust_api.load_schedule_file(Path(source), format=format, use_pandas=True),
-            )
-        except Exception as e:
-            raise ServerError(
-                f"Failed to load schedule from {source}",
-                details={"path": str(source), "format": format, "error": str(e)},
-            ) from e
-
-    def filter_by_priority(
-        self, df: pd.DataFrame, min_priority: float = 0.0, max_priority: float = 10.0
-    ) -> pd.DataFrame:
-        """Filter dataframe by priority range."""
-        return cast(pd.DataFrame, self._local_backend.filter_by_priority(df, min_priority, max_priority))
-
-    def filter_by_scheduled(self, df: pd.DataFrame, filter_type: str = "All") -> pd.DataFrame:
-        """Filter dataframe by scheduled status."""
-        return cast(pd.DataFrame, self._local_backend.filter_by_scheduled(df, filter_type))  # type: ignore[arg-type]
-
-    def filter_dataframe(
-        self,
-        df: pd.DataFrame,
-        priority_min: float = 0.0,
-        priority_max: float = 10.0,
-        scheduled_filter: str = "All",
-        priority_bins: list[str] | None = None,
-        block_ids: list[str | int] | None = None,
-    ) -> pd.DataFrame:
-        """
-        Filter DataFrame based on multiple criteria using Rust backend.
-
-        This is the canonical filtering function - all filtering should go through
-        this function which delegates to the Rust backend for performance.
-
-        Args:
-            df: DataFrame to filter
-            priority_min: Minimum priority
-            priority_max: Maximum priority
-            scheduled_filter: 'All', 'Scheduled', or 'Unscheduled'
-            priority_bins: Optional list of priority bin labels to include
-            block_ids: Optional list of scheduling block IDs to include
-
-        Returns:
-            Filtered DataFrame
-        """
-        # Convert block_ids to strings for Rust backend
-        block_ids_str = [str(bid) for bid in block_ids] if block_ids else None
-
-        return cast(
-            pd.DataFrame,
-            self._local_backend.filter_dataframe(
-                df,
-                priority_min=priority_min,
-                priority_max=priority_max,
-                scheduled_filter=scheduled_filter,  # type: ignore[arg-type]
-                priority_bins=priority_bins,
-                block_ids=block_ids_str,
-            ),
-        )
-
-    def validate_dataframe(self, df: pd.DataFrame) -> tuple[bool, list[str]]:
-        """
-        Validate DataFrame data quality (coordinates, priorities, etc.).
-
-        Uses Rust backend for 5x faster validation.
-
-        Args:
-            df: DataFrame to validate
-
-        Returns:
-            Tuple of (is_valid, list of issues)
-        """
-        try:
-            return self._local_backend.validate_dataframe(df)
-        except Exception as e:
-            return False, [f"Validation failed: {e}"]
-
-    # ========================================================================
-    # Time Conversions
-    # ========================================================================
-
-    @staticmethod
-    def mjd_to_datetime(mjd: float) -> datetime:
-        """
-        Convert Modified Julian Date to Python datetime object.
-
-        Args:
-            mjd: Modified Julian Date value
-
-        Returns:
-            Python datetime object with UTC timezone
-        """
-        return cast(datetime, tsi_rust_api.TSIBackend.mjd_to_datetime(mjd))
-
-    @staticmethod
-    def datetime_to_mjd(dt: datetime) -> float:
-        """
-        Convert Python datetime object to Modified Julian Date.
-
-        Args:
-            dt: Python datetime object (must have timezone info)
-
-        Returns:
-            Modified Julian Date value
-        """
-        return cast(float, tsi_rust_api.TSIBackend.datetime_to_mjd(dt))
-
-    @staticmethod
-    def parse_visibility_periods(visibility_str: str) -> list[tuple[Any, Any]]:
-        """
-        Parse visibility period string.
-
-        Args:
-            visibility_str: String representation of visibility periods
-
-        Returns:
-            List of (start_datetime, stop_datetime) tuples
-        """
-        return cast(list[tuple[Any, Any]], tsi_rust_api.TSIBackend.parse_visibility_periods(visibility_str))
 
 
 # ============================================================================

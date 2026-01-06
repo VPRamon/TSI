@@ -4,6 +4,7 @@
 //! including connection pooling, CRUD operations, analytics, and validation.
 
 pub mod analytics;
+#[cfg(any())]  // Disabled - non-functional stub with compilation errors
 pub mod operations;
 pub mod pool;
 pub mod repository;
