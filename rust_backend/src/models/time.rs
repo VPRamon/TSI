@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 
 use serde::*;
 
-#[pyclass(module = "tsi_rust_api")]
+#[pyclass(module = "tsi_rust")]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct ModifiedJulianDate(qtty::Days);
 

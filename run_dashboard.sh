@@ -7,43 +7,6 @@ echo "🔭 Telescope Scheduling Intelligence Dashboard"
 echo "=============================================="
 echo ""
 
-# Load database credentials if available and export as env vars
-if [ -f "scripts/db_credentials.py" ]; then
-    echo "🔧 Loading database credentials from scripts/db_credentials.py..."
-    eval "$(
-        python3 <<'PY'
-import importlib.util, pathlib, shlex
-
-path = pathlib.Path("scripts/db_credentials.py")
-spec = importlib.util.spec_from_file_location("db_credentials", path)
-mod = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(mod)
-
-def export(name, value):
-    print(f"export {name}={shlex.quote(str(value))}")
-
-export("DB_SERVER", getattr(mod, "server", ""))
-export("DB_DATABASE", getattr(mod, "database", ""))
-export("DB_USERNAME", getattr(mod, "username", ""))
-export("DB_PASSWORD", getattr(mod, "password", ""))
-export("DB_PORT", 1433)
-export("DB_TRUST_CERT", "true")
-# Check if auth_method is explicitly set in db_credentials.py, otherwise auto-detect
-auth_method = getattr(mod, "auth_method", None)
-if auth_method is None:
-    # Default to AAD password flow when username looks like a UPN
-    auth_method = "aad_password" if "@" in str(getattr(mod, "username", "")) else "sql_password"
-export("DB_AUTH_METHOD", auth_method)
-PY
-    )"
-    echo "   DB_SERVER=$DB_SERVER"
-    echo "   DB_DATABASE=$DB_DATABASE"
-    echo "   DB_USERNAME=$DB_USERNAME"
-    echo "   DB_PORT=$DB_PORT"
-    echo "   DB_AUTH_METHOD=$DB_AUTH_METHOD"
-    echo ""
-fi
-
 # Check if virtual environment exists
 if [ ! -d "venv" ]; then
     echo "📦 Creating virtual environment..."
@@ -56,6 +19,11 @@ if [ ! -d "venv" ]; then
     fi
     echo "✅ Virtual environment created successfully"
 fi
+
+# Compile Rust backend first (before venv activation to avoid interpreter detection issues)
+echo "🦀 Compiling Rust backend..."
+python3 -m pip install -q maturin 2>/dev/null || true
+python3 -m maturin develop --release
 
 # Activate virtual environment
 echo "🔌 Activating virtual environment..."
