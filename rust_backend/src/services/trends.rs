@@ -17,7 +17,7 @@ fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
     let zero_visibility_count = blocks
         .iter()
-        .filter(|b| b.total_visibility_hours == 0.0)
+        .filter(|b| b.total_visibility_hours.value() == 0.0)
         .count();
     let scheduling_rate = if total_count > 0 {
         scheduled_count as f64 / total_count as f64
@@ -27,8 +27,8 @@ fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
 
     // Collect all values for stats (use primitive f64 values)
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
-    let visibilities: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours).collect();
-    let times: Vec<f64> = blocks.iter().map(|b| b.requested_hours).collect();
+    let visibilities: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours.value()).collect();
+    let times: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
 
     let priority_min = priorities.iter().copied().fold(f64::INFINITY, f64::min);
     let priority_max = priorities.iter().copied().fold(f64::NEG_INFINITY, f64::max);
@@ -262,9 +262,9 @@ fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin
     // Find ranges (use primitive values)
     let vis_values: Vec<f64> = blocks
         .iter()
-        .map(|b| b.total_visibility_hours)
+        .map(|b| b.total_visibility_hours.value())
         .collect();
-    let time_values: Vec<f64> = blocks.iter().map(|b| b.requested_hours).collect();
+    let time_values: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
 
     let vis_min = vis_values.iter().copied().fold(f64::INFINITY, f64::min);
     let vis_max = vis_values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
@@ -285,8 +285,8 @@ fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin
     let mut bins: HashMap<(usize, usize), (usize, usize, f64, f64)> = HashMap::new();
 
     for block in blocks {
-        let vis_val = block.total_visibility_hours;
-        let time_val = block.requested_hours;
+        let vis_val = block.total_visibility_hours.value();
+        let time_val = block.requested_hours.value();
         let mut vis_idx = ((vis_val - vis_min) / vis_width).floor() as usize;
         let mut time_idx = ((time_val - time_min) / time_width).floor() as usize;
 
@@ -342,22 +342,22 @@ pub fn compute_trends_data(
     let by_priority = compute_by_priority(&blocks);
     let by_visibility = compute_by_bins(
         &blocks,
-        |b| b.total_visibility_hours,
+        |b| b.total_visibility_hours.value(),
         n_bins,
         "Visibility",
     );
-    let by_time = compute_by_bins(&blocks, |b| b.requested_hours, n_bins, "Time");
+    let by_time = compute_by_bins(&blocks, |b| b.requested_hours.value(), n_bins, "Time");
 
     // Compute smoothed trends
     let smoothed_visibility = compute_smoothed_trend(
         &blocks,
-        |b| b.total_visibility_hours,
+        |b| b.total_visibility_hours.value(),
         bandwidth,
         n_smooth_points,
     );
     let smoothed_time = compute_smoothed_trend(
         &blocks,
-        |b| b.requested_hours,
+        |b| b.requested_hours.value(),
         bandwidth,
         n_smooth_points,
     );
@@ -426,12 +426,12 @@ pub async fn get_trends_data(
                 scheduling_block_id,
                 original_block_id,
                 priority,
-                total_visibility_hours,
-                requested_hours,
+                total_visibility_hours: qtty::Hours::new(total_visibility_hours),
+                requested_hours: qtty::Hours::new(requested_hours),
                 scheduled,
             }
         })
-        .filter(|b| b.total_visibility_hours > 0.0) // Filter out zero visibility
+        .filter(|b| b.total_visibility_hours.value() > 0.0) // Filter out zero visibility
         .collect();
 
     if blocks.is_empty() {
@@ -490,16 +490,16 @@ mod tests {
                 scheduling_block_id: 1,
                 original_block_id: "SB001".to_string(),
                 priority: 5.0,
-                total_visibility_hours: qtty::time::Hours::new(10.0),
-                requested_hours: qtty::time::Hours::new(2.0),
+                total_visibility_hours: qtty::Hours::new(10.0),
+                requested_hours: qtty::Hours::new(2.0),
                 scheduled: true,
             },
             TrendsBlock {
                 scheduling_block_id: 2,
                 original_block_id: "SB002".to_string(),
                 priority: 3.0,
-                total_visibility_hours: qtty::time::Hours::new(5.0),
-                requested_hours: qtty::time::Hours::new(1.0),
+                total_visibility_hours: qtty::Hours::new(5.0),
+                requested_hours: qtty::Hours::new(1.0),
                 scheduled: false,
             },
         ];
@@ -517,24 +517,24 @@ mod tests {
                 scheduling_block_id: 1,
                 original_block_id: "SB001".to_string(),
                 priority: 5.0,
-                total_visibility_hours: qtty::time::Hours::new(10.0),
-                requested_hours: qtty::time::Hours::new(2.0),
+                total_visibility_hours: qtty::Hours::new(10.0),
+                requested_hours: qtty::Hours::new(2.0),
                 scheduled: true,
             },
             TrendsBlock {
                 scheduling_block_id: 2,
                 original_block_id: "SB002".to_string(),
                 priority: 5.0,
-                total_visibility_hours: qtty::time::Hours::new(8.0),
-                requested_hours: qtty::time::Hours::new(1.5),
+                total_visibility_hours: qtty::Hours::new(8.0),
+                requested_hours: qtty::Hours::new(1.5),
                 scheduled: true,
             },
             TrendsBlock {
                 scheduling_block_id: 3,
                 original_block_id: "SB003".to_string(),
                 priority: 3.0,
-                total_visibility_hours: qtty::time::Hours::new(5.0),
-                requested_hours: qtty::time::Hours::new(1.0),
+                total_visibility_hours: qtty::Hours::new(5.0),
+                requested_hours: qtty::Hours::new(1.0),
                 scheduled: false,
             },
         ];

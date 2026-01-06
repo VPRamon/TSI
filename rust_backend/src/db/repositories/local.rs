@@ -130,12 +130,12 @@ impl LocalRepository {
     }
 
     /// Check if a schedule exists.
-    pub fn has_schedule(&self, schedule_id: i64) -> bool {
+    pub fn has_schedule(&self, schedule_id: ScheduleId) -> bool {
         self.data
             .read()
             .unwrap()
             .schedules
-            .contains_key(&schedule_id)
+            .contains_key(&schedule_id.0)
     }
 
     /// Helper to check health and return error if unhealthy.
@@ -306,18 +306,18 @@ impl AnalyticsRepository for LocalRepository {
                     .fold(0.0_f64, |a, b| a.max(b));
                 crate::services::validation::BlockForValidation {
                     schedule_id,
-                    scheduling_block_id: b.id,
+                    scheduling_block_id: b.id.0,
                     priority: b.priority,
-                    requested_duration_sec: b.requested_duration as i32,
-                    min_observation_sec: b.min_observation as i32,
+                    requested_duration_sec: b.requested_duration.value() as i32,
+                    min_observation_sec: b.min_observation.value() as i32,
                     total_visibility_hours: b
                         .visibility_periods
                         .iter()
                         .map(|p| p.duration().value() * 24.0)
                         .sum(),
                     max_visibility_period_hours,
-                    min_alt_deg: Some(b.constraints.min_alt),
-                    max_alt_deg: Some(b.constraints.max_alt),
+                    min_alt_deg: Some(b.constraints.min_alt.value()),
+                    max_alt_deg: Some(b.constraints.max_alt.value()),
                     constraint_start_mjd: b
                         .constraints
                         .fixed_time
@@ -326,8 +326,8 @@ impl AnalyticsRepository for LocalRepository {
                     constraint_stop_mjd: b.constraints.fixed_time.as_ref().map(|p| p.stop.value()),
                     scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start.value()),
                     scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop.value()),
-                    target_ra_deg: b.target_ra,
-                    target_dec_deg: b.target_dec,
+                    target_ra_deg: b.target_ra.value(),
+                    target_dec_deg: b.target_dec.value(),
                 }
             })
             .collect();
@@ -428,22 +428,22 @@ impl AnalyticsRepository for LocalRepository {
             .blocks
             .iter()
             .map(|b| {
-                let total_visibility_hours_f64: f64 = b
+                let total_visibility_hours: f64 = b
                     .visibility_periods
                     .iter()
                     .map(|p| p.duration().value() * 24.0)
                     .sum();
 
-                let requested_hours_f64 = b.requested_duration / 3600.0;
+                let requested_hours = b.requested_duration.value() / 3600.0;
 
                 let elevation_range_deg =
-                    b.constraints.max_alt - b.constraints.min_alt;
+                    b.constraints.max_alt.value() - b.constraints.min_alt.value();
 
                 DistributionBlock {
                     priority: b.priority,
-                    total_visibility_hours: total_visibility_hours_f64,
-                    requested_hours: requested_hours_f64,
-                    elevation_range_deg,
+                    total_visibility_hours: qtty::Hours::new(total_visibility_hours),
+                    requested_hours: qtty::Hours::new(requested_hours),
+                    elevation_range_deg: qtty::Degrees::new(elevation_range_deg),
                     scheduled: b.scheduled_period.is_some(),
                 }
             })
@@ -469,16 +469,16 @@ impl AnalyticsRepository for LocalRepository {
                     .sum();
 
                 InsightsBlock {
-                    scheduling_block_id: b.id,
+                    scheduling_block_id: b.id.0,
                     original_block_id: b
                         .original_block_id
                         .clone()
-                        .unwrap_or_else(|| b.id.to_string()),
+                        .unwrap_or_else(|| b.id.0.to_string()),
                     priority: b.priority,
                     total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
-                    requested_hours: qtty::time::Hours::new(b.requested_duration / 3600.0),
+                    requested_hours: qtty::time::Hours::new(b.requested_duration.value() / 3600.0),
                     elevation_range_deg: qtty::angular::Degrees::new(
-                        b.constraints.max_alt - b.constraints.min_alt,
+                        b.constraints.max_alt.value() - b.constraints.min_alt.value(),
                     ),
                     scheduled: b.scheduled_period.is_some(),
                     scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start),
@@ -777,7 +777,7 @@ impl VisualizationRepository for LocalRepository {
                     .map(|p| p.duration().value() * 24.0)
                     .sum();
 
-                let requested_hours = b.requested_duration / 3600.0;
+                let requested_hours = b.requested_duration.value() / 3600.0;
 
                 // Use original_block_id if available, otherwise fallback to internal ID
                 let original_block_id = b
@@ -791,8 +791,8 @@ impl VisualizationRepository for LocalRepository {
                     priority: b.priority,
                     scheduled_start_mjd: scheduled_period.start,
                     scheduled_stop_mjd: scheduled_period.stop,
-                    ra_deg: qtty::angular::Degrees::new(b.target_ra),
-                    dec_deg: qtty::angular::Degrees::new(b.target_dec),
+                    ra_deg: b.target_ra,
+                    dec_deg: b.target_dec,
                     requested_hours: qtty::time::Hours::new(requested_hours),
                     total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
                     num_visibility_periods: b.visibility_periods.len(),
@@ -817,13 +817,13 @@ impl VisualizationRepository for LocalRepository {
             .iter()
             .enumerate()
             .map(|(idx, b)| {
-                let requested_hours_f64 = b.requested_duration / 3600.0;
+                let requested_hours = b.requested_duration.value() / 3600.0;
 
                 CompareBlock {
                     scheduling_block_id: format!("{}", idx + 1),
                     priority: b.priority,
                     scheduled: b.scheduled_period.is_some(),
-                    requested_hours: requested_hours_f64,
+                    requested_hours: qtty::Hours::new(requested_hours),
                 }
             })
             .collect();
@@ -858,10 +858,10 @@ mod tests {
         };
 
         let metadata = repo.store_schedule(&schedule).await.unwrap();
-        assert!(metadata.schedule_id.is_some());
+        assert!(metadata.schedule_id.0 > 0);
 
         let retrieved = repo
-            .get_schedule(metadata.schedule_id.unwrap())
+            .get_schedule(metadata.schedule_id)
             .await
             .unwrap();
         assert_eq!(retrieved.name, schedule.name);
@@ -898,7 +898,7 @@ mod tests {
     async fn test_not_found_error() {
         let repo = LocalRepository::new();
 
-        let result = repo.get_schedule(999).await;
+        let result = repo.get_schedule(ScheduleId(999)).await;
         assert!(matches!(result, Err(RepositoryError::NotFound(_))));
     }
 
@@ -915,7 +915,7 @@ mod tests {
         };
 
         let metadata = repo.store_schedule(&schedule).await.unwrap();
-        let schedule_id = metadata.schedule_id.unwrap();
+        let schedule_id = metadata.schedule_id;
 
         assert!(!repo.has_analytics_data(schedule_id).await.unwrap());
 

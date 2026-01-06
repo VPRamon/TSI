@@ -18,10 +18,10 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
             priority_bins: vec![],
             priority_min: 0.0,
             priority_max: 10.0,
-            ra_min: 0.0,
-            ra_max: 360.0,
-            dec_min: -90.0,
-            dec_max: 90.0,
+            ra_min: qtty::Degrees::new(0.0),
+            ra_max: qtty::Degrees::new(360.0),
+            dec_min: qtty::Degrees::new(-90.0),
+            dec_max: qtty::Degrees::new(90.0),
             total_count: 0,
             scheduled_count: 0,
             scheduled_time_min: None,
@@ -43,10 +43,10 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
     for block in &blocks {
         priority_min = priority_min.min(block.priority);
         priority_max = priority_max.max(block.priority);
-        ra_min = ra_min.min(block.target_ra_deg);
-        ra_max = ra_max.max(block.target_ra_deg);
-        dec_min = dec_min.min(block.target_dec_deg);
-        dec_max = dec_max.max(block.target_dec_deg);
+        ra_min = ra_min.min(block.target_ra_deg.value());
+        ra_max = ra_max.max(block.target_ra_deg.value());
+        dec_min = dec_min.min(block.target_dec_deg.value());
+        dec_max = dec_max.max(block.target_dec_deg.value());
 
         if let Some(period) = &block.scheduled_period {
             scheduled_count += 1;
@@ -116,10 +116,10 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
         priority_bins,
         priority_min,
         priority_max,
-        ra_min,
-        ra_max,
-        dec_min,
-        dec_max,
+        ra_min: qtty::Degrees::new(ra_min),
+        ra_max: qtty::Degrees::new(ra_max),
+        dec_min: qtty::Degrees::new(dec_min),
+        dec_max: qtty::Degrees::new(dec_max),
         total_count,
         scheduled_count,
         scheduled_time_min,

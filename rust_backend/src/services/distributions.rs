@@ -71,10 +71,10 @@ pub fn compute_distribution_data(
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
     let unscheduled_count = total_count - scheduled_count;
 
-    // Collect values for statistics
+    // Collect values for statistics (extract f64 from qtty types)
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
-    let visibility_hours: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours).collect();
-    let requested_hours: Vec<f64> = blocks.iter().map(|b| b.requested_hours).collect();
+    let visibility_hours: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours.value()).collect();
+    let requested_hours: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
 
     // Compute statistics
     let priority_stats = compute_stats(&priorities);
@@ -118,7 +118,7 @@ pub async fn get_distribution_data(
     }
 
     // Filter out impossible blocks (zero visibility)
-    blocks.retain(|b| b.total_visibility_hours > 0.0);
+    blocks.retain(|b| b.total_visibility_hours.value() > 0.0);
 
     // Attempt to fetch validation report; if unavailable, assume zero impossible
     let impossible_count = match repo.fetch_validation_results(schedule_id).await {
@@ -186,23 +186,23 @@ mod tests {
         let blocks = vec![
             DistributionBlock {
                 priority: 5.0,
-                total_visibility_hours: 10.0,
-                requested_hours: 2.0,
-                elevation_range_deg: 45.0,
+                total_visibility_hours: qtty::Hours::new(10.0),
+                requested_hours: qtty::Hours::new(2.0),
+                elevation_range_deg: qtty::Degrees::new(45.0),
                 scheduled: true,
             },
             DistributionBlock {
                 priority: 3.0,
-                total_visibility_hours: 0.0,
-                requested_hours: 1.0,
-                elevation_range_deg: 30.0,
+                total_visibility_hours: qtty::Hours::new(0.0),
+                requested_hours: qtty::Hours::new(1.0),
+                elevation_range_deg: qtty::Degrees::new(30.0),
                 scheduled: false,
             },
             DistributionBlock {
                 priority: 7.0,
-                total_visibility_hours: 15.0,
-                requested_hours: 3.0,
-                elevation_range_deg: 60.0,
+                total_visibility_hours: qtty::Hours::new(15.0),
+                requested_hours: qtty::Hours::new(3.0),
+                elevation_range_deg: qtty::Degrees::new(60.0),
                 scheduled: true,
             },
         ];

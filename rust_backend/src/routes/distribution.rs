@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionBlock {
     pub priority: f64,
-    pub total_visibility_hours: f64,
-    pub requested_hours: f64,
-    pub elevation_range_deg: f64,
+    pub total_visibility_hours: qtty::Hours,
+    pub requested_hours: qtty::Hours,
+    pub elevation_range_deg: qtty::Degrees,
     pub scheduled: bool,
 }
 

@@ -18,9 +18,9 @@ pub struct LightweightBlock {
     pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
     pub priority_bin: String,
-    pub requested_duration_seconds: f64,
-    pub target_ra_deg: f64,
-    pub target_dec_deg: f64,
+    pub requested_duration_seconds: qtty::Seconds,
+    pub target_ra_deg: qtty::Degrees,
+    pub target_dec_deg: qtty::Degrees,
     pub scheduled_period: Option<crate::api::Period>,
 }
 
@@ -32,10 +32,10 @@ pub struct SkyMapData {
     pub priority_bins: Vec<crate::api::PriorityBinInfo>,
     pub priority_min: f64,
     pub priority_max: f64,
-    pub ra_min: f64,
-    pub ra_max: f64,
-    pub dec_min: f64,
-    pub dec_max: f64,
+    pub ra_min: qtty::Degrees,
+    pub ra_max: qtty::Degrees,
+    pub dec_min: qtty::Degrees,
+    pub dec_max: qtty::Degrees,
     pub total_count: usize,
     pub scheduled_count: usize,
     pub scheduled_time_min: Option<f64>,
