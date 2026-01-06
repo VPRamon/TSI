@@ -26,7 +26,6 @@ class TestServicesImports:
 
         # Note: load_json was replaced by load_schedule_rust (Rust backend)
         assert hasattr(loaders, "load_schedule_rust")
-        assert hasattr(analytics, "compute_metrics")
 
     def test_filters_imports(self):
         """Test filter module imports."""
@@ -62,14 +61,12 @@ class TestServicesImports:
         # These should work because services/__init__.py re-exports everything
         # Note: load_json was removed during Rust backend migration
         from tsi.services import (
-            compute_metrics,
             filter_blocks,
             get_priority_range,
             mjd_to_datetime,
         )
 
         # All should be callable/usable
-        assert callable(compute_metrics)
         assert callable(filter_blocks)
         assert callable(mjd_to_datetime)
         assert callable(get_priority_range)

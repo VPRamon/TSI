@@ -7,8 +7,6 @@ and maintains backward compatibility with existing functionality.
 
 import pandas as pd
 import pytest
-
-from tsi.models.schemas import AnalyticsMetrics
 from tsi.services import (
     find_conflicts,
     get_top_observations,
@@ -19,10 +17,6 @@ from tsi.services.data.loaders import (
     load_schedule_rust,
 )
 from tsi.services.rust_backend import BACKEND
-
-
-def rust_compute_metrics(df: pd.DataFrame) -> AnalyticsMetrics:
-    return AnalyticsMetrics(**BACKEND.compute_metrics(df))
 
 
 def rust_get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) -> pd.DataFrame:
@@ -48,13 +42,6 @@ class TestRustIntegrationE2E:
         first_block = blocks[0]
         assert "id" in first_block
         assert "priority" in first_block
-
-    def test_compute_metrics_uses_rust(self):
-        """Test that compute_metrics uses Rust backend and returns Pydantic model."""
-        pytest.skip(
-            "API changed: compute_metrics now expects schedule_id for database-backed analytics. "
-            "Test needs migration to use database fixtures."
-        )
 
     def test_get_top_observations_uses_rust(self):
         """Test that get_top_observations uses Rust backend."""
@@ -112,13 +99,6 @@ class TestRustIntegrationE2E:
             "which is added during ETL, not raw JSON parsing. Test needs database fixtures."
         )
 
-    def test_rust_backend_consistency(self):
-        """Test that Rust backend produces consistent results."""
-        pytest.skip(
-            "API changed: rust_compute_metrics uses BACKEND.compute_metrics which "
-            "now expects schedule_id. Test needs database fixtures."
-        )
-
     def test_load_schedule_rust_json(self):
         """Test loading JSON schedule with Rust backend."""
         # This assumes data/schedule.json exists
@@ -147,17 +127,6 @@ class TestRustIntegrationE2E:
         assert "id" in blocks[0]
         assert "priority" in blocks[0]
 
-    @pytest.mark.skip(reason="Requires pytest-benchmark plugin")
-    def test_performance_comparison_metrics(self, benchmark):
-        """Benchmark metrics computation (optional - requires pytest-benchmark)."""
-        df = load_schedule_rust("data/schedule.json")
-
-        # Benchmark Rust implementation
-        result = benchmark(rust_compute_metrics, df)
-
-        assert result is not None
-        assert "total_observations" in result
-
     def test_top_observations_ordering(self):
         """Test that top observations maintain proper ordering."""
         pytest.skip(
@@ -185,13 +154,6 @@ class TestRustIntegrationE2E:
 
 class TestBackwardCompatibility:
     """Tests ensuring backward compatibility with existing code."""
-
-    def test_metrics_schema_compatibility(self):
-        """Test that metrics schema is compatible with existing code."""
-        pytest.skip(
-            "API changed: compute_metrics now expects schedule_id for database-backed analytics. "
-            "Test needs migration to use database fixtures."
-        )
 
     def test_dataframe_structure_unchanged(self):
         """Test that DataFrames have expected structure after loading."""

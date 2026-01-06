@@ -51,7 +51,7 @@ class TSIBackend:
     The class is organized into logical method groups:
     - Data Loading: load_schedule, load_schedule_from_string
     - Preprocessing: validate_schedule
-    - Analytics: compute_metrics, get_top_observations, find_conflicts, greedy_schedule
+    - Analytics: get_top_observations, find_conflicts
     - Transformations: filter_by_priority, filter_by_scheduled, filter_dataframe,
                        remove_duplicates, remove_missing_coordinates, validate_dataframe
     - Time Conversions: mjd_to_datetime, datetime_to_mjd, parse_visibility_periods
@@ -59,7 +59,6 @@ class TSIBackend:
     Example:
         >>> backend = TSIBackend()
         >>> df = backend.load_schedule("data/schedule.json")
-        >>> metrics = backend.compute_metrics(df)
     """
 
     def __init__(self, use_pandas: bool = True):
@@ -142,25 +141,6 @@ class TSIBackend:
     # ===== Analytics & Algorithms =====
     # Implemented in tsi.backend.analytics, delegated here for convenience
 
-    def compute_metrics(self, df: pd.DataFrame) -> dict[str, Any]:
-        """
-        Compute comprehensive scheduling metrics.
-
-        Args:
-            df: DataFrame with scheduling data
-
-        Returns:
-            Dictionary with metrics (total_observations, scheduled_count,
-            mean_priority, median_priority, etc.)
-
-        Example:
-            >>> metrics = backend.compute_metrics(df)
-            >>> print(f"Scheduled: {metrics['scheduled_percentage']:.1f}%")
-        """
-        from tsi.backend.analytics import compute_metrics
-
-        return compute_metrics(df)
-
     def get_top_observations(
         self, df: pd.DataFrame, n: int = 10, by: str = "priority"
     ) -> pd.DataFrame:
@@ -202,28 +182,6 @@ class TSIBackend:
 
         # find_conflicts already returns pandas DataFrame
         return find_conflicts(df)
-
-    def greedy_schedule(
-        self, df: pd.DataFrame, max_iterations: int = 1000
-    ) -> dict[str, Any]:
-        """
-        Run greedy scheduling optimization.
-
-        Args:
-            df: DataFrame with observations to schedule
-            max_iterations: Maximum optimization iterations
-
-        Returns:
-            Dictionary with optimization results (selected_observations,
-            total_duration, iterations_run, etc.)
-
-        Example:
-            >>> result = backend.greedy_schedule(df, max_iterations=500)
-            >>> print(f"Selected {len(result['selected_ids'])} observations")
-        """
-        from tsi.backend.analytics import greedy_schedule
-
-        return greedy_schedule(df, max_iterations=max_iterations)
 
     # ===== Transformations & Filtering =====
     # Implemented in tsi.backend.transformations, delegated here for convenience

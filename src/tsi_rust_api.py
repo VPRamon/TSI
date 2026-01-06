@@ -8,7 +8,7 @@ For new code, please import from tsi.backend directly:
     >>> from tsi.backend import TSIBackend
 
 Or using the functional API:
-    >>> from tsi.backend import load_schedule_file, compute_metrics
+    >>> from tsi.backend import load_schedule_file
 
 Example:
     >>> from tsi_rust_api import TSIBackend
@@ -19,10 +19,6 @@ Example:
     >>> # Load schedule data
     >>> df = backend.load_schedule("data/schedule.json")
     >>> print(f"Loaded {len(df)} observations")
-    >>>
-    >>> # Compute analytics
-    >>> metrics = backend.compute_metrics(df)
-    >>> print(f"Scheduled: {metrics['scheduled_count']}/{metrics['total_observations']}")
     >>>
     >>> # Filter data
     >>> high_priority = backend.filter_by_priority(df, min_priority=15.0)
@@ -36,9 +32,6 @@ from typing import Any, cast
 
 import pandas as pd
 
-from tsi.backend import (
-    compute_metrics as _compute_metrics,
-)
 from tsi.backend import (
     filter_by_priority as _filter_by_priority,
 )
@@ -95,15 +88,6 @@ def load_dark_periods(path: str | Path) -> pd.DataFrame:
     return _load_dark_periods(path)  # type: ignore[no-any-return]
 
 
-def compute_metrics(df: pd.DataFrame) -> dict[str, Any]:
-    """
-    Quick function to compute scheduling metrics.
-
-    Note: For new code, use tsi.backend.compute_metrics directly.
-    """
-    return _compute_metrics(df)  # type: ignore[no-any-return]
-
-
 def filter_by_priority(
     df: pd.DataFrame, min_priority: float = 0.0, max_priority: float = 100.0
 ) -> pd.DataFrame:
@@ -121,6 +105,5 @@ __all__ = [
     "TSIBackend",
     "load_schedule",
     "load_dark_periods",
-    "compute_metrics",
     "filter_by_priority",
 ]

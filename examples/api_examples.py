@@ -5,7 +5,7 @@ Demonstrates common use cases for the TSI Rust Backend Python API.
 """
 
 from pathlib import Path
-from tsi_rust_api import TSIBackend, load_schedule, compute_metrics
+from tsi_rust_api import TSIBackend, load_schedule
 
 # Setup
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -29,27 +29,6 @@ def example_1_basic_loading():
     # Quick stats
     print(f"\nScheduled: {df['scheduled_flag'].sum()} / {len(df)}")
     print(f"Priority range: {df['priority'].min():.1f} - {df['priority'].max():.1f}")
-
-
-def example_2_analytics():
-    """Example 2: Compute scheduling metrics"""
-    print("\n" + "=" * 60)
-    print("Example 2: Analytics & Metrics")
-    print("=" * 60)
-    
-    df = backend.load_schedule(DATA_DIR / "schedule.json")
-    
-    # Compute comprehensive metrics
-    metrics = backend.compute_metrics(df)
-    
-    print(f"\nScheduling Metrics:")
-    print(f"  Total observations: {metrics['total_observations']}")
-    print(f"  Scheduled: {metrics['scheduled_count']} ({metrics['scheduled_percentage']:.1f}%)")
-    print(f"  Unscheduled: {metrics['unscheduled_count']}")
-    print(f"  Mean priority: {metrics['mean_priority']:.2f}")
-    print(f"  Median priority: {metrics['median_priority']:.2f}")
-    print(f"  Mean duration: {metrics['mean_duration_hours']:.2f} hours")
-    print(f"  Total visibility: {metrics['total_visibility_hours']:.1f} hours")
 
 
 def example_3_filtering():
@@ -159,29 +138,6 @@ def example_7_time_conversions():
     print(f"\nRoundtrip error: {abs(mjd - mjd_back):.10f}")
 
 
-def example_8_optimization():
-    """Example 8: Greedy scheduling optimization"""
-    print("\n" + "=" * 60)
-    print("Example 8: Scheduling Optimization")
-    print("=" * 60)
-    
-    df = backend.load_schedule(DATA_DIR / "schedule.json")
-    
-    # Run greedy scheduler
-    result = backend.greedy_schedule(df, max_iterations=500)
-    
-    print(f"\nOptimization Results:")
-    print(f"  Selected: {len(result['selected_ids'])} observations")
-    print(f"  Total duration: {result['total_duration']:.1f} hours")
-    print(f"  Iterations: {result['iterations_run']}")
-    print(f"  Converged: {result['converged']}")
-    
-    # Show selected IDs
-    print(f"\nFirst 10 selected IDs:")
-    for i, obs_id in enumerate(result['selected_ids'][:10], 1):
-        print(f"  {i}. {obs_id}")
-
-
 def example_9_convenience_functions():
     """Example 9: Quick convenience functions"""
     print("\n" + "=" * 60)
@@ -191,10 +147,6 @@ def example_9_convenience_functions():
     # Load without creating backend instance
     df = load_schedule(DATA_DIR / "schedule.json")
     print(f"\nLoaded {len(df)} observations (convenience function)")
-    
-    # Compute metrics without instance
-    metrics = compute_metrics(df)
-    print(f"Scheduled: {metrics['scheduled_percentage']:.1f}%")
 
 
 def example_10_polars_mode():
@@ -209,23 +161,17 @@ def example_10_polars_mode():
     df_polars = backend_polars.load_schedule(DATA_DIR / "schedule.json")
     print(f"\nLoaded as Polars DataFrame: {len(df_polars)} rows")
     print(f"Type: {type(df_polars)}")
-    
-    # All operations work with Polars
-    metrics = backend_polars.compute_metrics(df_polars)
-    print(f"Metrics computed on Polars: {metrics['scheduled_percentage']:.1f}% scheduled")
 
 
 def run_all_examples():
     """Run all examples"""
     examples = [
         example_1_basic_loading,
-        example_2_analytics,
         example_3_filtering,
         example_4_top_observations,
         example_5_conflicts,
         example_6_data_cleaning,
         example_7_time_conversions,
-        example_8_optimization,
         example_9_convenience_functions,
         example_10_polars_mode,
     ]

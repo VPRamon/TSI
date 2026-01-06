@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from io import StringIO
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import pandas as pd
 
@@ -240,23 +240,3 @@ def datetime_to_mjd(dt: datetime) -> float:
         dt = dt.astimezone(timezone.utc)
     timestamp = dt.timestamp()
     return timestamp / 86400.0 + 40587.0
-
-
-def parse_visibility_periods(
-    periods: list[dict[str, Any]],
-) -> list[tuple[datetime, datetime]]:
-    """
-    Parse visibility periods from list of dicts to datetime tuples.
-
-    Args:
-        periods: List of dicts with 'start' and 'end' datetime strings
-
-    Returns:
-        List of (start_datetime, end_datetime) tuples
-
-    Example:
-        >>> periods = [{"start": "2022-01-01T00:00:00Z", "end": "2022-01-01T06:00:00Z"}]
-        >>> parsed = parse_visibility_periods(periods)
-        >>> print(parsed[0][0])  # datetime object
-    """
-    return cast(list[tuple[datetime, datetime]], _utils.parse_visibility_periods(periods))
