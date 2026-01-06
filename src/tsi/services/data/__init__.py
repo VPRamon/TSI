@@ -3,7 +3,6 @@
 from tsi.services.data.analytics import (
     AnalyticsSnapshot,
     compute_correlations,
-    compute_metrics,
     find_conflicts,
     generate_insights,
     get_top_observations,
@@ -23,7 +22,6 @@ __all__ = [
     "load_schedule_rust",
     # analytics
     "AnalyticsSnapshot",
-    "compute_metrics",
     "compute_correlations",
     "get_top_observations",
     "find_conflicts",

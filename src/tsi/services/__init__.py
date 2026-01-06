@@ -19,7 +19,6 @@ Core modules at the root level:
 from tsi.services.data import (
     AnalyticsSnapshot,
     compute_correlations,
-    compute_metrics,
     find_conflicts,
     generate_insights,
     get_filtered_dataframe,
@@ -118,7 +117,6 @@ __all__ = [
     "load_schedule_rust",
     "load_dark_periods",
     "AnalyticsSnapshot",
-    "compute_metrics",
     "compute_correlations",
     "get_top_observations",
     "find_conflicts",

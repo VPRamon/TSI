@@ -58,16 +58,6 @@ def prepared_dataframe(streamlit_mock: None) -> pd.DataFrame:
     return prepare_dataframe(df)
 
 
-def test_compute_metrics__with_balanced_dataset__returns_expected_counts(
-    prepared_dataframe: pd.DataFrame,
-) -> None:
-    """Metrics aggregation should capture basic scheduling statistics."""
-    pytest.skip(
-        "API changed: compute_metrics now expects schedule_id for database-backed analytics. "
-        "Test needs migration to use database fixtures."
-    )
-
-
 def test_compute_correlations__with_numeric_columns__returns_square_matrix(
     prepared_dataframe: pd.DataFrame,
 ) -> None:
@@ -142,13 +132,3 @@ def test_find_conflicts__unscheduled_rows__are_excluded_from_results(
             prepared_dataframe.loc[prepared_dataframe["scheduled_flag"], "schedulingBlockId"]
         )
         assert set(conflicts["schedulingBlockId"]) <= scheduled_ids
-
-
-def test_generate_insights__with_metrics__returns_explanations(
-    prepared_dataframe: pd.DataFrame,
-) -> None:
-    """Insight generator should produce human-readable insights."""
-    pytest.skip(
-        "API changed: compute_metrics now expects schedule_id for database-backed analytics. "
-        "Test needs migration to use database fixtures."
-    )
