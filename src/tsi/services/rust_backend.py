@@ -7,10 +7,10 @@ from typing import Any, Literal, cast
 
 import pandas as pd
 
-from tsi_rust_api import TSIBackend
+import tsi_rust_api
 
 # Single shared backend for the app
-BACKEND = TSIBackend(use_pandas=True)
+BACKEND = tsi_rust_api.TSIBackend(use_pandas=True)
 
 
 def load_schedule_from_any(
@@ -31,10 +31,13 @@ def load_schedule_from_any(
         if format == "auto":
             raise ValueError("Format must be specified when reading from a buffer")
         if format == "json":
-            return cast(pd.DataFrame, BACKEND.load_schedule_from_string(content, format="json"))
+            return cast(
+                pd.DataFrame,
+                tsi_rust_api.load_schedule_from_string(content, format="json", use_pandas=True),
+            )
         raise ValueError(f"Unsupported format: {format}")
 
-    return cast(pd.DataFrame, BACKEND.load_schedule(Path(source), format=format))
+    return cast(pd.DataFrame, tsi_rust_api.load_schedule_file(Path(source), format=format, use_pandas=True))
 
 
 __all__ = ["BACKEND", "load_schedule_from_any"]
