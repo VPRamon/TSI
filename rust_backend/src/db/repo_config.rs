@@ -10,8 +10,8 @@ use std::str::FromStr;
 
 use super::config::{DbAuthMethod, DbConfig};
 use super::factory::RepositoryType;
-use crate::db::PostgresConfig;
 use super::repository::RepositoryError;
+use crate::db::PostgresConfig;
 
 /// Repository configuration from file.
 #[derive(Debug, Clone, Serialize, Deserialize)]

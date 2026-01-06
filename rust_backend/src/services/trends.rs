@@ -27,7 +27,10 @@ fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
 
     // Collect all values for stats (use primitive f64 values)
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
-    let visibilities: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours.value()).collect();
+    let visibilities: Vec<f64> = blocks
+        .iter()
+        .map(|b| b.total_visibility_hours.value())
+        .collect();
     let times: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
 
     let priority_min = priorities.iter().copied().fold(f64::INFINITY, f64::min);

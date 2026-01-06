@@ -39,7 +39,9 @@ pub use crate::routes::visibility::VisibilityMapData;
 use pyo3::prelude::*;
 
 #[pyo3::pyclass(module = "tsi_rust_api")]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct ScheduleId(pub i64);
 
 #[pyo3::pyclass(module = "tsi_rust_api")]
@@ -294,7 +296,11 @@ impl Constraints {
     fn __repr__(&self) -> String {
         format!(
             "Constraints(alt=[{:.2}, {:.2}], az=[{:.2}, {:.2}], fixed={:?})",
-            self.min_alt.value(), self.max_alt.value(), self.min_az.value(), self.max_az.value(), self.fixed_time
+            self.min_alt.value(),
+            self.max_alt.value(),
+            self.min_az.value(),
+            self.max_az.value(),
+            self.fixed_time
         )
     }
 }
@@ -363,7 +369,10 @@ impl SchedulingBlock {
     fn __repr__(&self) -> String {
         format!(
             "SchedulingBlock(id={}, ra={:.2}, dec={:.2}, priority={:.1})",
-            self.id.0, self.target_ra.value(), self.target_dec.value(), self.priority
+            self.id.0,
+            self.target_ra.value(),
+            self.target_dec.value(),
+            self.priority
         )
     }
 }

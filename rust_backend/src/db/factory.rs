@@ -8,15 +8,15 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use super::repo_config::RepositoryConfig;
-use super::repositories::LocalRepository;
+#[cfg(feature = "azure-repo")]
+use super::repositories::azure::pool;
 #[cfg(feature = "azure-repo")]
 use super::repositories::AzureRepository;
+use super::repositories::LocalRepository;
 #[cfg(feature = "postgres-repo")]
 use super::repositories::PostgresRepository;
 use super::repository::{FullRepository, RepositoryError, RepositoryResult};
 use super::{config::DbConfig, PostgresConfig};
-#[cfg(feature = "azure-repo")]
-use super::repositories::azure::pool;
 
 /// Repository type configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -68,7 +68,11 @@ compile_error!("Enable only one repository backend feature at a time.");
 compile_error!("Enable only one repository backend feature at a time.");
 #[cfg(all(feature = "postgres-repo", feature = "local-repo"))]
 compile_error!("Enable only one repository backend feature at a time.");
-#[cfg(not(any(feature = "azure-repo", feature = "postgres-repo", feature = "local-repo")))]
+#[cfg(not(any(
+    feature = "azure-repo",
+    feature = "postgres-repo",
+    feature = "local-repo"
+)))]
 compile_error!("Enable exactly one repository backend feature.");
 
 pub mod checksum;
