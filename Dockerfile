@@ -84,13 +84,13 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
 #############################
 FROM rust-base AS cargo-planner
 WORKDIR /workspace
-COPY Cargo.toml Cargo.lock ./
 COPY rust_backend/Cargo.toml rust_backend/Cargo.toml
+COPY rust_backend/Cargo.lock rust_backend/Cargo.lock
 # Ensure local path crates referenced by the workspace are present for cargo metadata
 COPY rust_backend/qtty rust_backend/qtty
 # Create dummy lib.rs to satisfy cargo metadata
 RUN mkdir -p rust_backend/src && echo "// dummy" > rust_backend/src/lib.rs
-RUN cargo chef prepare --recipe-path recipe.json
+RUN cargo chef prepare --recipe-path recipe.json --manifest-path rust_backend/Cargo.toml
 
 #############################
 # Cargo Chef cook + Rust build (produces wheels via maturin)
@@ -102,9 +102,12 @@ ARG REPO_FEATURE=postgres-repo
 
 WORKDIR /workspace
 COPY --from=cargo-planner /workspace/recipe.json recipe.json
-RUN cargo chef cook --release --recipe-path recipe.json
+COPY rust_backend/Cargo.toml rust_backend/Cargo.toml
+COPY rust_backend/Cargo.lock rust_backend/Cargo.lock
+COPY rust_backend/qtty rust_backend/qtty
+RUN mkdir -p rust_backend/src && echo "// dummy" > rust_backend/src/lib.rs
+RUN cargo chef cook --release --recipe-path recipe.json --manifest-path rust_backend/Cargo.toml
 
-COPY Cargo.toml Cargo.lock ./
 COPY pyproject.toml README.md ./
 COPY requirements.base.txt requirements.base.txt
 COPY rust_backend rust_backend
