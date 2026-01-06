@@ -8,7 +8,11 @@ from tsi.components.timeline.timeline_figure import render_timeline_figure
 from tsi.components.timeline.timeline_observable_periods import render_observable_periods_info
 from tsi.components.timeline.timeline_observation_details import render_observation_details_table
 from tsi.components.timeline.timeline_summary import render_timeline_summary
-from tsi.services import backend_client
+from tsi.services import (
+    fetch_dark_periods,
+    fetch_possible_periods,
+    get_schedule_timeline_data,
+)
 
 
 def render() -> None:
@@ -24,7 +28,7 @@ def render() -> None:
     )
 
     schedule_ref = state.get_schedule_ref()
-    timeline_data = backend_client.get_schedule_timeline_data(schedule_ref)
+    timeline_data = get_schedule_timeline_data(schedule_ref)
 
     if timeline_data.total_count == 0:
         st.warning("There are no scheduled observations with valid dates.")

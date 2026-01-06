@@ -4,17 +4,20 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import pandas as pd
 
+import tsi_rust_api
 from tsi.config import REQUIRED_COLUMNS
 from tsi.error_handling import with_retry
 from tsi.exceptions import ServerError
 from tsi.services.data.preparation import PreparationResult
 from tsi.services.data.preparation import prepare_dataframe as core_prepare_dataframe
 from tsi.services.data.preparation import validate_schema as core_validate_schema
-from tsi.services.rust_backend import BACKEND, load_schedule_from_any
+
+# Import the shared backend instance for filtering/validation
+from tsi.services.backend_service import backend
 
 logger = logging.getLogger(__name__)
 
@@ -30,26 +33,58 @@ def emit_warning(message: str) -> None:
 
 
 @with_retry(max_attempts=2, backoff_factor=1.5)
-def load_schedule_rust(path: str | Path | Any, format: str = "auto") -> pd.DataFrame:
+def load_schedule(
+    source: str | Path | Any, format: Literal["auto", "json"] = "auto"
+) -> pd.DataFrame:
     """
     Load schedule data using the Rust backend (supports file-like objects).
 
+    This is the canonical function for loading schedules. It supports both
+    file paths and file-like objects (e.g., Streamlit UploadedFile).
+
     Args:
-        path: Path to schedule file or file-like object
-        format: File format ('auto', 'csv', or 'json')
+        source: Path to schedule file or file-like object
+        format: File format ('auto' or 'json')
 
     Returns:
         DataFrame with schedule data
 
     Raises:
         ServerError: If loading fails
+
+    Example:
+        >>> # Load from file path
+        >>> df = load_schedule("data/schedule.json")
+        >>> # Load from file-like object
+        >>> df = load_schedule(uploaded_file, format="json")
     """
     try:
-        return cast(pd.DataFrame, load_schedule_from_any(path, format=format))
+        if hasattr(source, "read"):
+            content = source.read()
+            if isinstance(content, bytes):
+                content = content.decode("utf-8")
+            if hasattr(source, "seek"):
+                source.seek(0)
+
+            if format == "auto":
+                raise ValueError("Format must be specified when reading from a buffer")
+            if format == "json":
+                return cast(
+                    pd.DataFrame,
+                    tsi_rust_api.load_schedule_from_string(
+                        content, format="json", use_pandas=True
+                    ),
+                )
+            raise ValueError(f"Unsupported format: {format}")
+
+        return cast(
+            pd.DataFrame,
+            tsi_rust_api.load_schedule_file(Path(source), format=format, use_pandas=True),
+        )
     except Exception as e:
         raise ServerError(
-            f"Failed to load schedule from {path}",
-            details={"path": str(path), "format": format, "error": str(e)},
+            f"Failed to load schedule from {source}",
+            details={"path": str(source), "format": format, "error": str(e)},
         ) from e
 
 
@@ -60,10 +95,10 @@ def filter_by_priority(
     Filter dataframe by priority range.
 
     Note:
-        This is a thin wrapper around BACKEND.filter_by_priority.
+        This is a thin wrapper around backend.filter_by_priority.
         For full filtering with multiple criteria, use get_filtered_dataframe().
     """
-    return cast(pd.DataFrame, BACKEND.filter_by_priority(df, min_priority, max_priority))
+    return backend.filter_by_priority(df, min_priority, max_priority)
 
 
 def filter_by_scheduled(df: pd.DataFrame, filter_type: str = "All") -> pd.DataFrame:
@@ -71,10 +106,10 @@ def filter_by_scheduled(df: pd.DataFrame, filter_type: str = "All") -> pd.DataFr
     Filter dataframe by scheduled status.
 
     Note:
-        This is a thin wrapper around BACKEND.filter_by_scheduled.
+        This is a thin wrapper around backend.filter_by_scheduled.
         For full filtering with multiple criteria, use get_filtered_dataframe().
     """
-    return cast(pd.DataFrame, BACKEND.filter_by_scheduled(df, filter_type))  # type: ignore[arg-type]
+    return backend.filter_by_scheduled(df, filter_type)
 
 
 def _prepare_dataframe_core(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
@@ -130,19 +165,13 @@ def get_filtered_dataframe(
     Note:
         Uses Rust backend (TSIBackend.filter_dataframe) for 10x faster filtering.
     """
-    # Convert block_ids to strings for Rust backend
-    block_ids_str = [str(bid) for bid in block_ids] if block_ids else None
-
-    return cast(
-        pd.DataFrame,
-        BACKEND.filter_dataframe(
-            df,
-            priority_min=priority_range[0],
-            priority_max=priority_range[1],
-            scheduled_filter=scheduled_filter,  # type: ignore[arg-type]
-            priority_bins=priority_bins,
-            block_ids=block_ids_str,
-        ),
+    return backend.filter_dataframe(
+        df,
+        priority_min=priority_range[0],
+        priority_max=priority_range[1],
+        scheduled_filter=scheduled_filter,
+        priority_bins=priority_bins,
+        block_ids=block_ids,
     )
 
 
@@ -173,7 +202,7 @@ def validate_dataframe(df: pd.DataFrame) -> tuple[bool, list[str]]:
 
     # Data validation (Rust - 5x speedup)
     try:
-        data_ok, data_errors = BACKEND.validate_dataframe(df)
+        data_ok, data_errors = backend.validate_dataframe(df)
     except Exception as e:
         data_ok, data_errors = False, [f"Validation failed: {e}"]
 

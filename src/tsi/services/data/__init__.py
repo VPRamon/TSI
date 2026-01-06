@@ -9,7 +9,7 @@ from tsi.services.data.analytics import (
 )
 from tsi.services.data.loaders import (
     get_filtered_dataframe,
-    load_schedule_rust,
+    load_schedule,
     prepare_dataframe,
     validate_dataframe,
 )
@@ -19,7 +19,7 @@ __all__ = [
     "prepare_dataframe",
     "get_filtered_dataframe",
     "validate_dataframe",
-    "load_schedule_rust",
+    "load_schedule",
     # analytics
     "AnalyticsSnapshot",
     "compute_correlations",

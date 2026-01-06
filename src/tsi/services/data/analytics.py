@@ -11,7 +11,7 @@ import pandas as pd
 
 from tsi.config import CORRELATION_COLUMNS
 from tsi.models.schemas import AnalyticsMetrics
-from tsi.services.rust_backend import BACKEND
+from tsi.services.backend_service import backend
 
 
 @dataclass(frozen=True)
@@ -53,7 +53,7 @@ def compute_correlations(df: pd.DataFrame, *, columns: Sequence[str] | None = No
 
 def get_top_observations(df: pd.DataFrame, by: str = "priority", n: int = 10) -> pd.DataFrame:
     """Get top N observations by a specified metric (using Rust backend - 10x faster)."""
-    return cast(pd.DataFrame, BACKEND.get_top_observations(df, by=by, n=n))
+    return cast(pd.DataFrame, backend._local_backend.get_top_observations(df, by=by, n=n))
 
 
 def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
@@ -68,7 +68,7 @@ def find_conflicts(df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
     try:
-        return cast(pd.DataFrame, BACKEND.find_conflicts(df))
+        return cast(pd.DataFrame, backend._local_backend.find_conflicts(df))
     except Exception:
         return pd.DataFrame()
 

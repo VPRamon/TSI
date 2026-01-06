@@ -9,13 +9,17 @@ This package provides high-level services organized into logical sub-packages:
 - `utils`: Utility modules for time conversion, visibility, and reporting
 
 Core modules at the root level:
-- `rust_backend`: Shared Rust backend instance
-- `backend_client`: High-level client for Rust backend operations
+- `backend_service`: Unified backend service facade combining remote and local operations
 """
 
 # ============================================================================
-# Core Backend Client & Data
+# Core Backend Service & Data
 # ============================================================================
+from tsi.services.backend_service import (
+    BackendService,
+    ScheduleSummary,
+    backend,
+)
 from tsi.services.data import (
     AnalyticsSnapshot,
     compute_correlations,
@@ -23,26 +27,9 @@ from tsi.services.data import (
     generate_insights,
     get_filtered_dataframe,
     get_top_observations,
-    load_schedule_rust,
+    load_schedule,
     prepare_dataframe,
     validate_dataframe,
-)
-from tsi.services.backend_client import (
-    ScheduleSummary,
-    fetch_dark_periods,
-    fetch_possible_periods,
-    get_compare_data,
-    get_distribution_data,
-    get_insights_data,
-    get_schedule_time_range,
-    get_schedule_timeline_data,
-    get_sky_map_data,
-    get_trends_data,
-    get_validation_report,
-    get_visibility_histogram,
-    get_visibility_map_data,
-    list_schedules,
-    upload_schedule,
 )
 
 # ============================================================================
@@ -73,7 +60,6 @@ from tsi.services.processors import (
     prepare_scheduled_data,
     validate_required_columns,
 )
-from tsi.services.rust_backend import BACKEND
 
 # ============================================================================
 # Utils: Time, Visibility, Reporting
@@ -92,12 +78,101 @@ from tsi.services.utils import (
 # Time conversions now use Rust backend (8x faster)
 from tsi_rust_api import load_dark_periods
 
+# ============================================================================
+# Backward Compatibility Wrappers
+# ============================================================================
+# These functions delegate to the unified backend service
+
+def upload_schedule(
+    schedule_name: str,
+    schedule_json: str,
+    visibility_json: str | None = None,
+) -> ScheduleSummary:
+    """Upload and store a schedule via the backend."""
+    return backend.upload_schedule(schedule_name, schedule_json, visibility_json)
+
+
+def list_schedules() -> list[ScheduleSummary]:
+    """List available schedules using the backend."""
+    return backend.list_schedules()
+
+
+def get_sky_map_data(schedule_ref):
+    """Get complete sky map data with computed bins and metadata."""
+    return backend.get_sky_map_data(schedule_ref)
+
+
+def get_visibility_map_data(schedule_ref):
+    """Fetch visibility map metadata and block summaries from the backend."""
+    return backend.get_visibility_map_data(schedule_ref)
+
+
+def get_distribution_data(schedule_ref):
+    """Get complete distribution data with computed statistics."""
+    return backend.get_distribution_data(schedule_ref)
+
+
+def get_schedule_timeline_data(schedule_ref):
+    """Get complete schedule timeline data with computed statistics and metadata."""
+    return backend.get_schedule_timeline_data(schedule_ref)
+
+
+def get_insights_data(schedule_ref):
+    """Get complete insights data with computed analytics and metadata."""
+    return backend.get_insights_data(schedule_ref)
+
+
+def get_trends_data(schedule_ref, n_bins: int = 10, bandwidth: float = 0.3, n_smooth_points: int = 100):
+    """Get complete trends data with computed statistics and smoothed curves."""
+    return backend.get_trends_data(schedule_ref, n_bins, bandwidth, n_smooth_points)
+
+
+def get_compare_data(schedule_a_ref, schedule_b_ref):
+    """Get comparison data between two schedules."""
+    return backend.get_compare_data(schedule_a_ref, schedule_b_ref)
+
+
+def get_validation_report(schedule_ref):
+    """Get validation report for a schedule."""
+    return backend.get_validation_report(schedule_ref)
+
+
+def fetch_dark_periods(schedule_ref):
+    """Fetch dark periods for a schedule (with global fallback)."""
+    return backend.fetch_dark_periods(schedule_ref)
+
+
+def fetch_possible_periods(schedule_ref):
+    """Fetch possible/visibility periods for a schedule."""
+    return backend.fetch_possible_periods(schedule_ref)
+
+
+def get_visibility_histogram(
+    schedule_ref,
+    start,
+    end,
+    bin_duration_minutes: int,
+    priority_range=None,
+    block_ids=None,
+):
+    """Compute visibility histogram from the backend."""
+    return backend.get_visibility_histogram(
+        schedule_ref, start, end, bin_duration_minutes, priority_range, block_ids
+    )
+
+
+def get_schedule_time_range(schedule_ref):
+    """Get the time range (min/max timestamps) for a schedule's visibility periods."""
+    return backend.get_schedule_time_range(schedule_ref)
+
 __all__ = [
-    # Core Backend Client
-    "BACKEND",
+    # Core Backend Service
+    "backend",
+    "BackendService",
+    "ScheduleSummary",
+    # Backend client compatibility functions
     "upload_schedule",
     "list_schedules",
-    "ScheduleSummary",
     "fetch_dark_periods",
     "fetch_possible_periods",
     "get_visibility_map_data",
@@ -114,7 +189,7 @@ __all__ = [
     "prepare_dataframe",
     "get_filtered_dataframe",
     "validate_dataframe",
-    "load_schedule_rust",
+    "load_schedule",
     "load_dark_periods",
     "AnalyticsSnapshot",
     "compute_correlations",
