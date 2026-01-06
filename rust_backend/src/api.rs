@@ -53,6 +53,59 @@ pub struct ConstraintsId(pub i64);
 #[pyo3::pyclass(module = "tsi_rust_api")]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct SchedulingBlockId(pub i64);
+
+#[pymethods]
+impl ScheduleId {
+    #[new]
+    pub fn new(value: i64) -> Self {
+        ScheduleId(value)
+    }
+
+    #[getter]
+    pub fn value(&self) -> i64 {
+        self.0
+    }
+}
+
+#[pymethods]
+impl TargetId {
+    #[new]
+    pub fn new(value: i64) -> Self {
+        TargetId(value)
+    }
+
+    #[getter]
+    pub fn value(&self) -> i64 {
+        self.0
+    }
+}
+
+#[pymethods]
+impl ConstraintsId {
+    #[new]
+    pub fn new(value: i64) -> Self {
+        ConstraintsId(value)
+    }
+
+    #[getter]
+    pub fn value(&self) -> i64 {
+        self.0
+    }
+}
+
+#[pymethods]
+impl SchedulingBlockId {
+    #[new]
+    pub fn new(value: i64) -> Self {
+        SchedulingBlockId(value)
+    }
+
+    #[getter]
+    pub fn value(&self) -> i64 {
+        self.0
+    }
+}
+
 impl std::fmt::Display for ScheduleId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -369,6 +422,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     crate::routes::register_route_functions(m)?;
 
     // Register all API classes
+    m.add_class::<ModifiedJulianDate>()?;
     m.add_class::<Period>()?;
     m.add_class::<Constraints>()?;
     m.add_class::<SchedulingBlock>()?;
