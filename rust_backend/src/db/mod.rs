@@ -42,12 +42,12 @@
 //! # Recommended Usage
 //!
 //! **For new code, use the service layer:**
-//! ```no_run
-//! use tsi_rust::db::{services, factory, DbConfig};
+//! ```ignore
+//! use tsi_rust::db::{services, factory, DbConfig, RepositoryType};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //!     let config = DbConfig::from_env()?;
-//!     let repo = factory::RepositoryFactory::create_azure(&config).await?;
+//!     let repo = factory::RepositoryFactory::create(RepositoryType::Azure, Some(&config), None).await?;
 //!     
 //!     // Use service layer functions
 //!     let schedules = services::list_schedules(repo.as_ref()).await?;

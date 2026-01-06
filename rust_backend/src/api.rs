@@ -203,13 +203,17 @@ impl Period {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Constraints {
     /// Minimum altitude in degrees
-    pub min_alt: f64,
+    #[serde(with = "qtty::serde_f64")]
+    pub min_alt: qtty::Degrees,
     /// Maximum altitude in degrees
-    pub max_alt: f64,
+    #[serde(with = "qtty::serde_f64")]
+    pub max_alt: qtty::Degrees,
     /// Minimum azimuth in degrees
-    pub min_az: f64,
+    #[serde(with = "qtty::serde_f64")]
+    pub min_az: qtty::Degrees,
     /// Maximum azimuth in degrees
-    pub max_az: f64,
+    #[serde(with = "qtty::serde_f64")]
+    pub max_az: qtty::Degrees,
     /// Fixed observation time window in MJD
     pub fixed_time: Option<Period>,
 }
@@ -219,10 +223,10 @@ impl Constraints {
     #[new]
     #[pyo3(signature = (min_alt, max_alt, min_az, max_az, fixed_time=None))]
     pub fn new(
-        min_alt: f64,
-        max_alt: f64,
-        min_az: f64,
-        max_az: f64,
+        min_alt: qtty::Degrees,
+        max_alt: qtty::Degrees,
+        min_az: qtty::Degrees,
+        max_az: qtty::Degrees,
         fixed_time: Option<Period>,
     ) -> Self {
         Self {
@@ -237,7 +241,7 @@ impl Constraints {
     fn __repr__(&self) -> String {
         format!(
             "Constraints(alt=[{:.2}, {:.2}], az=[{:.2}, {:.2}], fixed={:?})",
-            self.min_alt, self.max_alt, self.min_az, self.max_az, self.fixed_time
+            self.min_alt.value(), self.max_alt.value(), self.min_az.value(), self.max_az.value(), self.fixed_time
         )
     }
 }
@@ -247,22 +251,27 @@ impl Constraints {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulingBlock {
     /// Database ID for the block
-    pub id: i64,
+    pub id: SchedulingBlockId,
     /// Original ID from JSON (shown to user)
     pub original_block_id: Option<String>,
     /// Right Ascension in degrees (ICRS)
-    pub target_ra: f64,
+    #[serde(with = "qtty::serde_f64")]
+    pub target_ra: qtty::Degrees,
     /// Declination in degrees (ICRS)
-    pub target_dec: f64,
+    #[serde(with = "qtty::serde_f64")]
+    pub target_dec: qtty::Degrees,
     /// Observing constraints
     pub constraints: Constraints,
     /// Observation priority
     pub priority: f64,
     /// Minimum observation duration in seconds
-    pub min_observation: f64,
+    #[serde(with = "qtty::serde_f64")]
+    pub min_observation: qtty::Seconds,
     /// Requested observation duration in seconds
-    pub requested_duration: f64,
+    #[serde(with = "qtty::serde_f64")]
+    pub requested_duration: qtty::Seconds,
     /// Visibility periods in MJD
+    #[serde(default)]
     pub visibility_periods: Vec<Period>,
     /// Scheduled time window in MJD (if scheduled)
     pub scheduled_period: Option<Period>,
@@ -273,14 +282,14 @@ impl SchedulingBlock {
     #[new]
     #[pyo3(signature = (id, original_block_id, target_ra, target_dec, constraints, priority, min_observation, requested_duration, visibility_periods=None, scheduled_period=None))]
     pub fn new(
-        id: i64,
+        id: SchedulingBlockId,
         original_block_id: Option<String>,
-        target_ra: f64,
-        target_dec: f64,
+        target_ra: qtty::Degrees,
+        target_dec: qtty::Degrees,
         constraints: Constraints,
         priority: f64,
-        min_observation: f64,
-        requested_duration: f64,
+        min_observation: qtty::Seconds,
+        requested_duration: qtty::Seconds,
         visibility_periods: Option<Vec<Period>>,
         scheduled_period: Option<Period>,
     ) -> Self {
@@ -301,7 +310,7 @@ impl SchedulingBlock {
     fn __repr__(&self) -> String {
         format!(
             "SchedulingBlock(id={}, ra={:.2}, dec={:.2}, priority={:.1})",
-            self.id, self.target_ra, self.target_dec, self.priority
+            self.id.0, self.target_ra.value(), self.target_dec.value(), self.priority
         )
     }
 }
@@ -313,10 +322,13 @@ pub struct Schedule {
     /// Database ID
     pub id: Option<i64>,
     /// Schedule name
+    #[serde(default)]
     pub name: String,
     /// SHA256 checksum of schedule data
+    #[serde(default)]
     pub checksum: String,
     /// Dark periods (observing windows)
+    #[serde(default)]
     pub dark_periods: Vec<Period>,
     /// List of scheduling blocks
     pub blocks: Vec<SchedulingBlock>,

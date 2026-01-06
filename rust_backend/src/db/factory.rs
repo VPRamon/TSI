@@ -74,20 +74,17 @@ impl RepositoryType {
 /// with proper initialization and configuration.
 ///
 /// # Example
-/// ```no_run
+/// ```ignore
 /// use tsi_rust::db::{DbConfig, RepositoryFactory, RepositoryType};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     // Create Azure repository
+///     // Create Azure repository (requires azure-repo feature)
 ///     let config = DbConfig::from_env()?;
-///     let azure_repo = RepositoryFactory::create_azure(&config).await?;
+///     let azure_repo = RepositoryFactory::create(RepositoryType::Azure, Some(&config), None).await?;
 ///     
 ///     // Create local repository
 ///     let local_repo = RepositoryFactory::create_local();
-///     
-///     // Create from configuration
-///     let repo = RepositoryFactory::create(RepositoryType::Azure, Some(&config), None).await?;
 ///     
 ///     Ok(())
 /// }

@@ -12,8 +12,8 @@ pub struct TrendsBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
     pub priority: f64,
-    pub total_visibility_hours: f64,
-    pub requested_hours: f64,
+    pub total_visibility_hours: qtty::Hours,
+    pub requested_hours: qtty::Hours,
     pub scheduled: bool,
 }
 

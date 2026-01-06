@@ -1,20 +1,3 @@
-crate::define_id_type!(i64, ScheduleId);
-
-/// Internal Schedule model with quantity types for calculations.
-/// For Python-facing code, use `crate::api::Schedule` instead.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct Schedule {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<ScheduleId>,
-    #[serde(default)]
-    pub name: String,
-    #[serde(default)]
-    pub checksum: String,
-    #[serde(default)]
-    pub dark_periods: Vec<super::Period>,
-    pub blocks: Vec<super::SchedulingBlock>,
-}
-
 // ============================================================================
 // JSON Parsing Functions
 // ============================================================================
@@ -190,6 +173,7 @@ pub fn parse_schedule_json(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::Schedule;
     use std::path::PathBuf;
 
     const DATA_DIR: &str = "../data";
