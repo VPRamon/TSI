@@ -217,7 +217,10 @@ impl ScheduleRepository for LocalRepository {
         Ok(schedules)
     }
 
-    async fn get_schedule_time_range(&self, schedule_id: ScheduleId) -> RepositoryResult<Option<Period>> {
+    async fn get_schedule_time_range(
+        &self,
+        schedule_id: ScheduleId,
+    ) -> RepositoryResult<Option<Period>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Calculate time range from dark periods
@@ -275,7 +278,10 @@ impl ScheduleRepository for LocalRepository {
         Ok(schedule.dark_periods.clone())
     }
 
-    async fn fetch_possible_periods(&self, schedule_id: ScheduleId) -> RepositoryResult<Vec<Period>> {
+    async fn fetch_possible_periods(
+        &self,
+        schedule_id: ScheduleId,
+    ) -> RepositoryResult<Vec<Period>> {
         let data = self.data.read().unwrap();
 
         Ok(data
@@ -290,7 +296,10 @@ impl ScheduleRepository for LocalRepository {
 
 #[async_trait]
 impl AnalyticsRepository for LocalRepository {
-    async fn populate_schedule_analytics(&self, schedule_id: ScheduleId) -> RepositoryResult<usize> {
+    async fn populate_schedule_analytics(
+        &self,
+        schedule_id: ScheduleId,
+    ) -> RepositoryResult<usize> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Build validation input from schedule blocks
@@ -860,10 +869,7 @@ mod tests {
         let metadata = repo.store_schedule(&schedule).await.unwrap();
         assert!(metadata.schedule_id.0 > 0);
 
-        let retrieved = repo
-            .get_schedule(metadata.schedule_id)
-            .await
-            .unwrap();
+        let retrieved = repo.get_schedule(metadata.schedule_id).await.unwrap();
         assert_eq!(retrieved.name, schedule.name);
     }
 

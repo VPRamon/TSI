@@ -73,7 +73,10 @@ pub fn compute_distribution_data(
 
     // Collect values for statistics (extract f64 from qtty types)
     let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
-    let visibility_hours: Vec<f64> = blocks.iter().map(|b| b.total_visibility_hours.value()).collect();
+    let visibility_hours: Vec<f64> = blocks
+        .iter()
+        .map(|b| b.total_visibility_hours.value())
+        .collect();
     let requested_hours: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
 
     // Compute statistics

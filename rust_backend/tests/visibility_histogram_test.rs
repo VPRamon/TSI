@@ -4,8 +4,8 @@
 #[cfg(test)]
 mod visibility_histogram_tests {
     use tsi_rust::api::{ModifiedJulianDate, Period};
-    use tsi_rust::services::visibility::{compute_visibility_histogram_rust};
     use tsi_rust::db::models::BlockHistogramData;
+    use tsi_rust::services::visibility::compute_visibility_histogram_rust;
 
     /// Helper to create test block with visibility periods
     fn make_block_from_json(id: i64, priority: i32, vis_json: &str) -> BlockHistogramData {
