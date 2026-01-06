@@ -11,7 +11,7 @@ from tsi import state
 from tsi.components.compare.compare_plots import render_comparison_plots
 from tsi.components.compare.compare_tables import render_comparison_tables
 from tsi.components.compare.compare_upload import render_file_upload
-from tsi.services import backend_client
+from tsi.services import get_compare_data
 from tsi.theme import add_vertical_space
 
 
@@ -41,7 +41,7 @@ def render() -> None:
     # Get comparison data from Rust backend
     try:
         with st.spinner("Computing comparison..."):
-            compare_data = backend_client.get_compare_data(
+            compare_data = get_compare_data(
                 current_schedule_ref=current_schedule_ref,
                 comparison_schedule_ref=comparison_schedule_id,
                 current_name=current_name,

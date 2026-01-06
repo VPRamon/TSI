@@ -9,7 +9,11 @@ from tsi.components.visibility.visibility_controls import (
 )
 from tsi.components.visibility.visibility_map_figure import render_visibility_map_figure
 from tsi.components.visibility.visibility_stats import render_dataset_statistics
-from tsi.services import backend_client
+from tsi.services import (
+    get_schedule_time_range,
+    get_visibility_histogram,
+    get_visibility_map_data,
+)
 from tsi.services.utils.visibility_processing import (
     filter_visibility_blocks,
 )
@@ -28,7 +32,7 @@ def render() -> None:
     # Check for schedule reference first - this is now required
     schedule_ref = state.get_schedule_ref()
 
-    visibility_data = backend_client.get_visibility_map_data(schedule_ref)
+    visibility_data = get_visibility_map_data(schedule_ref)
 
     if visibility_data.total_count == 0:
         st.warning("No scheduling blocks were returned for this schedule.")

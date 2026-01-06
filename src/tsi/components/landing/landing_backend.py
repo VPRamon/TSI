@@ -5,7 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi import state
-from tsi.services import backend_client
+from tsi.services import ScheduleSummary, list_schedules
 
 
 def render_schedules_section() -> None:
@@ -14,7 +14,7 @@ def render_schedules_section() -> None:
     st.markdown("Select a previously uploaded schedule")
 
     try:
-        schedules = backend_client.list_schedules()
+        schedules = list_schedules()
 
         if not schedules:
             st.info("No schedules available. Upload a schedule first!")
@@ -35,7 +35,7 @@ def render_schedules_section() -> None:
         st.error(f"Failed to list schedules: {e}")
 
 
-def load_schedule_from_backend(schedule: backend_client.ScheduleSummary) -> None:
+def load_schedule_from_backend(schedule: ScheduleSummary) -> None:
     """Persist the selected backend schedule and navigate into the app."""
     try:
         with st.spinner("Loading schedule from backend..."):

@@ -5,7 +5,11 @@ from __future__ import annotations
 import streamlit as st
 
 from tsi import state
-from tsi.services import backend_client
+from tsi.services import (
+    ScheduleSummary,
+    list_schedules,
+    upload_schedule,
+)
 
 
 def render_file_upload() -> tuple[int | None, str | None, None]:
@@ -43,7 +47,7 @@ def _render_backend_selection() -> tuple[int | None, str | None]:
         Tuple of (schedule_id, schedule_name) if selected, (None, None) otherwise
     """
     try:
-        schedules = backend_client.list_schedules()
+        schedules = list_schedules()
 
         if not schedules:
             st.info("No schedules available in the backend.")
@@ -153,7 +157,7 @@ def _render_file_upload_section() -> tuple[int | None, str | None]:
 
             # Store in backend (preprocesses automatically)
             schedule_name = uploaded_json.name.replace(".json", "") + "_comparison"
-            schedule = backend_client.upload_schedule(
+            schedule = upload_schedule(
                 schedule_name=schedule_name,
                 schedule_json=schedule_content,
                 visibility_json=visibility_content,

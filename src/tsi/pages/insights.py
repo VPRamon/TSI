@@ -10,7 +10,7 @@ from tsi.components.insights.insights_analysis import (
 from tsi.components.insights.insights_metrics import render_key_metrics, render_priority_analysis
 from tsi.components.insights.insights_reports import render_report_downloads
 from tsi.components.insights.insights_tables import  render_top_observations
-from tsi.services import backend_client
+from tsi.services import get_insights_data
 from tsi.services.data.analytics import generate_insights
 
 
@@ -33,7 +33,7 @@ def render() -> None:
 
     try:
         with st.spinner("Loading insights data..."):
-            insights_data = backend_client.get_insights_data(
+            insights_data = get_insights_data(
                 schedule_ref,
             )
     except Exception as exc:

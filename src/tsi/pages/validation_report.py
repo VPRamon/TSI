@@ -10,7 +10,7 @@ from tsi.components.validation.validation_summary import (
     render_criticality_stats,
     render_summary_metrics,
 )
-from tsi.services import backend_client
+from tsi.services import get_validation_report
 
 
 def render() -> None:
@@ -28,7 +28,7 @@ def render() -> None:
 
     try:
         with st.spinner("Loading validation data..."):
-            validation_data = backend_client.get_validation_report(schedule_ref)
+            validation_data = get_validation_report(schedule_ref)
     except Exception as exc:
         st.error(f"Failed to load validation data from the backend: {exc}")
         st.exception(exc)

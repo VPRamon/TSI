@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pandas as pd
 
@@ -15,14 +15,27 @@ except ImportError as exc:  # pragma: no cover - enforced by build setup
         "Please compile the Rust backend with: maturin develop --release"
     ) from exc
 
-SECONDS_PER_DAY = 86400.0
+from tsi_rust_api import TSIBackend
 
 
-def _ensure_utc(dt: datetime) -> datetime:
-    """Ensure datetime objects are timezone-aware in UTC."""
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+def mjd_to_datetime(mjd: float | ModifiedJulianDate) -> pd.Timestamp:
+    """
+    Convert Modified Julian Date to a pandas Timestamp (UTC).
+
+    Delegates to the Rust backend for accurate, fast conversion.
+    """
+    mjd_val = _mjd_value(mjd)
+    dt = TSIBackend.mjd_to_datetime(mjd_val)
+    return pd.Timestamp(dt)
+
+
+def datetime_to_mjd(dt: datetime) -> float:
+    """
+    Convert a timezone-aware datetime to Modified Julian Date.
+
+    Delegates to the Rust backend for accurate, fast conversion.
+    """
+    return TSIBackend.datetime_to_mjd(dt)
 
 
 def _mjd_value(mjd: float | ModifiedJulianDate) -> float:
@@ -36,20 +49,6 @@ def _mjd_value(mjd: float | ModifiedJulianDate) -> float:
                 return float(value)
             raise
     return float(mjd)
-
-
-def mjd_to_datetime(mjd: float | ModifiedJulianDate) -> pd.Timestamp:
-    """Convert Modified Julian Date to a pandas Timestamp (UTC)."""
-    mjd_val = _mjd_value(mjd)
-    secs = (mjd_val - 40587.0) * SECONDS_PER_DAY
-    return pd.Timestamp(datetime.fromtimestamp(secs, timezone.utc))
-
-
-def datetime_to_mjd(dt: datetime) -> float:
-    """Convert a timezone-aware datetime to Modified Julian Date."""
-    dt_utc = _ensure_utc(dt)
-    timestamp = dt_utc.timestamp()
-    return timestamp / SECONDS_PER_DAY + 40587.0
 
 
 def parse_visibility_periods(visibility_str: str) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
