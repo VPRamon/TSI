@@ -9,10 +9,7 @@ from tsi_rust import ScheduleId
 logger = logging.getLogger(__name__)
 
 # State keys
-KEY_DATA_RAW = "data_raw"
-KEY_DATA_PREPARED = "data_prepared"
 KEY_CURRENT_PAGE = "current_page"
-KEY_DATA_SOURCE = "data_source"
 KEY_DATA_FILENAME = "data_filename"
 KEY_SCHEDULE_REF = "schedule_ref"
 KEY_SCHEDULE_NAME = "schedule_name"
@@ -30,17 +27,8 @@ KEY_DB_INITIALIZED = "db_initialized"
 
 def initialize_state() -> None:
     """Initialize session state with default values."""
-    if KEY_DATA_RAW not in st.session_state:
-        st.session_state[KEY_DATA_RAW] = None
-
-    if KEY_DATA_PREPARED not in st.session_state:
-        st.session_state[KEY_DATA_PREPARED] = None
-
     if KEY_CURRENT_PAGE not in st.session_state:
         st.session_state[KEY_CURRENT_PAGE] = None
-
-    if KEY_DATA_SOURCE not in st.session_state:
-        st.session_state[KEY_DATA_SOURCE] = None
 
     if KEY_DATA_FILENAME not in st.session_state:
         st.session_state[KEY_DATA_FILENAME] = None
@@ -83,23 +71,9 @@ def initialize_state() -> None:
 
 def has_data() -> bool:
     """Check if data has been loaded (either from backend or file upload)."""
-    # For backend loads: check if schedule_ref is set
     if st.session_state.get(KEY_SCHEDULE_REF) is not None:
         return True
-    # For file uploads: check if prepared DataFrame is set
-    if st.session_state.get(KEY_DATA_PREPARED) is not None:
-        return True
     return False
-
-
-def get_prepared_data() -> Any:
-    """Get the prepared DataFrame from session state."""
-    return st.session_state.get(KEY_DATA_PREPARED)
-
-
-def set_prepared_data(df: Any) -> None:
-    """Set the prepared DataFrame in session state."""
-    st.session_state[KEY_DATA_PREPARED] = df
 
 
 def get_current_page() -> str | None:

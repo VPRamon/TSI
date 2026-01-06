@@ -15,8 +15,6 @@ except ImportError as exc:  # pragma: no cover - enforced by build setup
         "Please compile the Rust backend with: maturin develop --release"
     ) from exc
 
-from tsi_rust_api import TSIBackend
-
 
 def mjd_to_datetime(mjd: float | ModifiedJulianDate) -> pd.Timestamp:
     """
@@ -25,7 +23,7 @@ def mjd_to_datetime(mjd: float | ModifiedJulianDate) -> pd.Timestamp:
     Delegates to the Rust backend for accurate, fast conversion.
     """
     mjd_val = _mjd_value(mjd)
-    dt = TSIBackend.mjd_to_datetime(mjd_val)
+    dt = ModifiedJulianDate(mjd_val).to_datetime()
     return pd.Timestamp(dt)
 
 
@@ -35,7 +33,7 @@ def datetime_to_mjd(dt: datetime) -> float:
 
     Delegates to the Rust backend for accurate, fast conversion.
     """
-    return TSIBackend.datetime_to_mjd(dt)
+    return float(ModifiedJulianDate.from_datetime(dt))
 
 
 def _mjd_value(mjd: float | ModifiedJulianDate) -> float:

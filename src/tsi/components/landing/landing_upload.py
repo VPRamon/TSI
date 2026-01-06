@@ -7,7 +7,7 @@ from typing import Any
 import streamlit as st
 
 from tsi.components.landing.landing_backend import load_schedule_from_backend
-from tsi.services import upload_schedule
+from tsi.services import upload_schedule as upload_schedule_to_backend
 
 
 def render_upload_section() -> None:
@@ -77,7 +77,7 @@ def upload_schedule(
                 if isinstance(visibility_content, bytes):
                     visibility_content = visibility_content.decode("utf-8")
 
-            created_schedule = upload_schedule(
+            created_schedule = upload_schedule_to_backend(
                 schedule_name=schedule_name,
                 schedule_json=schedule_content,
                 visibility_json=visibility_content,

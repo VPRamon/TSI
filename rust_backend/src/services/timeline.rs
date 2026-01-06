@@ -69,7 +69,7 @@ pub fn compute_schedule_timeline_data(
         priority_max = priority_min + 1.0;
     }
 
-    let api_blocks: Vec<crate::api::ScheduleTimelineBlock> = blocks.iter().cloned().collect();
+    let api_blocks: Vec<crate::api::ScheduleTimelineBlock> = blocks.to_vec();
 
     Ok(crate::api::ScheduleTimelineData {
         blocks: api_blocks,

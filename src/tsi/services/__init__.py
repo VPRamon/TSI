@@ -3,7 +3,7 @@ Services package for TSI application.
 
 This package provides high-level services organized into logical sub-packages:
 
-- `data`: Data loading, preparation, and analytics
+- `data`: Analytics helpers
 - `filters`: Filtering modules for observations and sky map blocks
 - `processors`: Processing modules for timeline, trends, sky map, and comparison views
 - `utils`: Utility modules for time conversion, visibility, and reporting
@@ -22,14 +22,8 @@ from tsi.services.backend_service import (
 )
 from tsi.services.data import (
     AnalyticsSnapshot,
-    compute_correlations,
-    find_conflicts,
     generate_insights,
-    get_filtered_dataframe,
-    get_top_observations,
-    load_schedule,
-    prepare_dataframe,
-    validate_dataframe,
+    generate_correlation_insights,
 )
 
 # ============================================================================
@@ -74,9 +68,6 @@ from tsi.services.utils import (
     parse_optional_mjd,
     parse_visibility_periods,
 )
-
-# Time conversions now use Rust backend (8x faster)
-from tsi_rust_api import load_dark_periods
 
 # ============================================================================
 # Backward Compatibility Wrappers
@@ -186,16 +177,26 @@ __all__ = [
     "get_compare_data",
     "get_validation_report",
     # Data
-    "prepare_dataframe",
-    "get_filtered_dataframe",
-    "validate_dataframe",
-    "load_schedule",
-    "load_dark_periods",
+    "backend",
+    "BackendService",
+    "ScheduleSummary",
+    "upload_schedule",
+    "list_schedules",
+    "fetch_dark_periods",
+    "fetch_possible_periods",
+    "get_visibility_map_data",
+    "get_distribution_data",
+    "get_sky_map_data",
+    "get_schedule_time_range",
+    "get_visibility_histogram",
+    "get_schedule_timeline_data",
+    "get_insights_data",
+    "get_trends_data",
+    "get_compare_data",
+    "get_validation_report",
     "AnalyticsSnapshot",
-    "compute_correlations",
-    "get_top_observations",
-    "find_conflicts",
     "generate_insights",
+    "generate_correlation_insights",
     # Filters
     "filter_impossible_observations",
     "compute_impossible_mask",

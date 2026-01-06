@@ -62,18 +62,14 @@
 //! - `validation`: Validation result storage
 //! - `pool`: Connection pooling
 
-#[cfg(all(feature = "azure-repo", feature = "postgres-repo"))]
-compile_error!("Enable only one repository backend feature at a time.");
-#[cfg(all(feature = "azure-repo", feature = "local-repo"))]
-compile_error!("Enable only one repository backend feature at a time.");
-#[cfg(all(feature = "postgres-repo", feature = "local-repo"))]
-compile_error!("Enable only one repository backend feature at a time.");
+// Feature flag priority: postgres > azure > local
+// When multiple features are enabled (e.g., --all-features), postgres takes precedence.
 #[cfg(not(any(
     feature = "azure-repo",
     feature = "postgres-repo",
     feature = "local-repo"
 )))]
-compile_error!("Enable exactly one repository backend feature.");
+compile_error!("Enable at least one repository backend feature.");
 
 pub mod checksum;
 pub mod config;
@@ -126,7 +122,9 @@ pub use repository::{
 
 // Re-export Azure module functions and types for compatibility
 #[cfg(feature = "azure-repo")]
-pub use repositories::azure::{analytics, operations, pool, validation};
+pub use repositories::azure::{analytics, pool, validation};
+#[cfg(all(feature = "azure-repo", any()))]  // Disabled - operations is a stub
+pub use repositories::azure::operations;
 
 // Validation
 #[cfg(feature = "azure-repo")]
@@ -147,13 +145,7 @@ use tokio::runtime::Runtime;
 /// Global repository instance initialized once per process.
 static REPOSITORY: OnceLock<Arc<dyn FullRepository>> = OnceLock::new();
 
-#[cfg(feature = "azure-repo")]
-async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
-    let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
-    let repo = RepositoryFactory::create_azure(&config).await?;
-    Ok(repo as Arc<dyn FullRepository>)
-}
-
+// Priority: postgres > azure > local (when --all-features is used)
 #[cfg(feature = "postgres-repo")]
 async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
     let config = PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
@@ -161,7 +153,14 @@ async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository
     Ok(repo as Arc<dyn FullRepository>)
 }
 
-#[cfg(feature = "local-repo")]
+#[cfg(all(feature = "azure-repo", not(feature = "postgres-repo")))]
+async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
+    let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
+    let repo = RepositoryFactory::create_azure(&config).await?;
+    Ok(repo as Arc<dyn FullRepository>)
+}
+
+#[cfg(all(feature = "local-repo", not(any(feature = "postgres-repo", feature = "azure-repo"))))]
 fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
     Ok(RepositoryFactory::create_local())
 }
@@ -182,13 +181,13 @@ pub fn init_repository() -> Result<()> {
 }
 
 /// Initialize the global repository singleton for the selected backend.
-#[cfg(feature = "local-repo")]
+#[cfg(all(feature = "local-repo", not(any(feature = "postgres-repo", feature = "azure-repo"))))]
 pub fn init_repository() -> Result<()> {
     if REPOSITORY.get().is_some() {
         return Ok(());
     }
 
-    let repo = create_selected_repository().map_err(|e| anyhow::Error::msg(e.to_string()))?;
+    let repo = create_selected_repository()?;
     let _ = REPOSITORY.set(repo);
     Ok(())
 }

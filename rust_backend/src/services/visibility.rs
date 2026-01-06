@@ -141,7 +141,6 @@ pub fn compute_visibility_histogram_rust(
 ///
 /// ## Returns
 /// Vector of parsed periods with Unix timestamps
-
 #[cfg(test)]
 mod tests {
     use super::*;

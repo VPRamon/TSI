@@ -94,28 +94,22 @@ pub fn filter_dataframe(
 
     // Apply priority bins filter if provided
     if let Some(bins) = priority_bins {
-        filtered = filtered
-            .into_iter()
-            .filter(|r| {
+        filtered.retain(|r| {
                 r.get("priority_bin")
                     .and_then(|v| v.as_str())
                     .map(|s| bins.contains(&s.to_string()))
                     .unwrap_or(false)
-            })
-            .collect();
+            });
     }
 
     // Apply block IDs filter if provided
     if let Some(ids) = block_ids {
-        filtered = filtered
-            .into_iter()
-            .filter(|r| {
+        filtered.retain(|r| {
                 r.get("schedulingBlockId")
                     .and_then(|v| v.as_str())
                     .map(|s| ids.contains(&s.to_string()))
                     .unwrap_or(false)
-            })
-            .collect();
+            });
     }
 
     Ok(filtered)
@@ -152,7 +146,7 @@ pub fn validate_dataframe(records: &[Value]) -> (bool, Vec<String>) {
         .filter(|r| {
             r.get("decInDeg")
                 .and_then(|v| v.as_f64())
-                .map(|val| val < -90.0 || val > 90.0)
+                .map(|val| !(-90.0..=90.0).contains(&val))
                 .unwrap_or(false)
         })
         .count();
@@ -169,7 +163,7 @@ pub fn validate_dataframe(records: &[Value]) -> (bool, Vec<String>) {
         .filter(|r| {
             r.get("raInDeg")
                 .and_then(|v| v.as_f64())
-                .map(|val| val < 0.0 || val >= 360.0)
+                .map(|val| !(0.0..360.0).contains(&val))
                 .unwrap_or(false)
         })
         .count();

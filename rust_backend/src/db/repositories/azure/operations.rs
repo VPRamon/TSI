@@ -1,9 +1,16 @@
 //! Database CRUD operations for schedules, dark periods, and visibility data (SQL Server).
-#![allow(clippy::explicit_auto_deref)]
-#![allow(clippy::needless_question_mark)]
-#![allow(clippy::match_like_matches_macro)]
+//!
+//! NOTE: This is a stub implementation. Azure backend has been removed.
+//! This module is disabled to prevent compilation errors.
 
-use crate::siderust::{astro::ModifiedJulianDate, coordinates::spherical::direction::ICRS};
+#![cfg(any())]  // Disable compilation - this is a non-functional stub
+#![allow(clippy::all)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unreachable_code)]
+
+use crate::models::ModifiedJulianDate;
+use crate::siderust::coordinates::spherical::direction::ICRS;
 use chrono::{DateTime, Utc};
 use log::{debug, info};
 use qtty::*;
@@ -146,7 +153,7 @@ impl<'a> ScheduleInserter<'a> {
             schedule.name, schedule_id
         );
         Ok(crate::api::ScheduleInfo {
-            schedule_id,
+            schedule_id: crate::api::ScheduleId(schedule_id),
             schedule_name: schedule.name.clone(),
         })
     }
@@ -866,10 +873,10 @@ pub async fn get_schedule(
     let db_schedule_id = metadata.schedule_id;
 
     // 2. Fetch dark periods
-    let dark_periods = fetch_dark_periods(&mut *conn, db_schedule_id).await?;
+    let dark_periods = fetch_dark_periods(&mut *conn, db_schedule_id.0).await?;
 
     // 3. Fetch all scheduling blocks for this schedule
-    let blocks = fetch_scheduling_blocks(&mut *conn, db_schedule_id).await?;
+    let blocks = fetch_scheduling_blocks(&mut *conn, db_schedule_id.0).await?;
 
     info!(
         "Loaded schedule '{}' (id {}) with {} blocks and {} dark periods",
@@ -880,7 +887,7 @@ pub async fn get_schedule(
     );
 
     Ok(Schedule {
-        id: Some(ScheduleId(db_schedule_id)),
+        id: Some(ScheduleId(db_schedule_id.0)),
         name: metadata.schedule_name,
         checksum,
         dark_periods,
@@ -954,7 +961,7 @@ fn parse_schedule_metadata_row(row: Row) -> Result<(crate::api::ScheduleInfo, St
 
     Ok((
         crate::api::ScheduleInfo {
-            schedule_id,
+            schedule_id: ScheduleId(schedule_id),
             schedule_name,
         },
         checksum,
@@ -1556,9 +1563,9 @@ pub async fn fetch_lightweight_blocks(
             original_block_id,
             priority,
             priority_bin: String::new(), // Will be computed by service layer
-            requested_duration_seconds: requested_duration as f64,
-            target_ra_deg: ra,
-            target_dec_deg: dec,
+            requested_duration_seconds: (requested_duration as f64).into(),
+            target_ra_deg: ra.into(),
+            target_dec_deg: dec.into(),
             scheduled_period,
         });
     }
@@ -1654,9 +1661,9 @@ pub async fn fetch_distribution_blocks(
 
         blocks.push(DistributionBlock {
             priority,
-            total_visibility_hours,
-            requested_hours,
-            elevation_range_deg,
+            total_visibility_hours: total_visibility_hours.into(),
+            requested_hours: requested_hours.into(),
+            elevation_range_deg: elevation_range_deg.into(),
             scheduled,
         });
     }

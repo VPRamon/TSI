@@ -16,7 +16,7 @@ use tokio::task;
 use crate::api::{
     CompareBlock, Constraints, DistributionBlock, InsightsBlock, LightweightBlock,
     ModifiedJulianDate, Period, Schedule, ScheduleId, ScheduleInfo, ScheduleTimelineBlock,
-    SchedulingBlock, VisibilityBlockSummary, VisibilityMapData,
+    SchedulingBlock, SchedulingBlockId, VisibilityBlockSummary, VisibilityMapData,
 };
 use crate::db::repository::{
     AnalyticsRepository, RepositoryError, RepositoryResult, ScheduleRepository,
@@ -125,7 +125,7 @@ fn periods_to_json(periods: &[Period]) -> Value {
 
 fn scheduled_period_to_json(period: &Option<Period>) -> Value {
     match period {
-        Some(p) => periods_to_json(&[p.clone()]),
+        Some(p) => periods_to_json(std::slice::from_ref(p)),
         None => json!([]),
     }
 }
@@ -163,10 +163,10 @@ fn priority_bucket(priority: f64) -> i16 {
 
 fn row_to_block(row: ScheduleBlockRow) -> RepositoryResult<SchedulingBlock> {
     let constraints = Constraints {
-        min_alt: row.min_altitude_deg.unwrap_or(0.0),
-        max_alt: row.max_altitude_deg.unwrap_or(0.0),
-        min_az: row.min_azimuth_deg.unwrap_or(0.0),
-        max_az: row.max_azimuth_deg.unwrap_or(0.0),
+        min_alt: row.min_altitude_deg.unwrap_or(0.0).into(),
+        max_alt: row.max_altitude_deg.unwrap_or(0.0).into(),
+        min_az: row.min_azimuth_deg.unwrap_or(0.0).into(),
+        max_az: row.max_azimuth_deg.unwrap_or(0.0).into(),
         fixed_time: match (row.constraint_start_mjd, row.constraint_stop_mjd) {
             (Some(start), Some(stop)) => Some(Period {
                 start: ModifiedJulianDate::new(start),
@@ -180,16 +180,16 @@ fn row_to_block(row: ScheduleBlockRow) -> RepositoryResult<SchedulingBlock> {
     let visibility_periods = value_to_periods(&row.visibility_periods_json)?;
 
     Ok(SchedulingBlock {
-        id: row.scheduling_block_id,
+        id: SchedulingBlockId(row.scheduling_block_id),
         original_block_id: row
             .original_block_id
             .or_else(|| Some(row.source_block_id.to_string())),
-        target_ra: row.target_ra_deg,
-        target_dec: row.target_dec_deg,
+        target_ra: row.target_ra_deg.into(),
+        target_dec: row.target_dec_deg.into(),
         constraints,
         priority: row.priority,
-        min_observation: row.min_observation_sec as f64,
-        requested_duration: row.requested_duration_sec as f64,
+        min_observation: (row.min_observation_sec as f64).into(),
+        requested_duration: (row.requested_duration_sec as f64).into(),
         visibility_periods,
         scheduled_period,
     })
@@ -246,7 +246,7 @@ fn compute_summary_metrics(
         let mut sorted = priorities.clone();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
         let mid = sorted.len() / 2;
-        let median = if sorted.len() % 2 == 0 {
+        let median = if sorted.len().is_multiple_of(2) {
             (sorted[mid - 1] + sorted[mid]) / 2.0
         } else {
             sorted[mid]
@@ -360,17 +360,17 @@ impl ScheduleRepository for PostgresRepository {
                     .iter()
                     .map(|b| NewScheduleBlockRow {
                         schedule_id: inserted.schedule_id,
-                        source_block_id: b.id,
+                        source_block_id: b.id.0,
                         original_block_id: b.original_block_id.clone(),
                         priority: b.priority,
-                        requested_duration_sec: b.requested_duration as i32,
-                        min_observation_sec: b.min_observation as i32,
-                        target_ra_deg: b.target_ra,
-                        target_dec_deg: b.target_dec,
-                        min_altitude_deg: Some(b.constraints.min_alt),
-                        max_altitude_deg: Some(b.constraints.max_alt),
-                        min_azimuth_deg: Some(b.constraints.min_az),
-                        max_azimuth_deg: Some(b.constraints.max_az),
+                        requested_duration_sec: b.requested_duration.value() as i32,
+                        min_observation_sec: b.min_observation.value() as i32,
+                        target_ra_deg: b.target_ra.value(),
+                        target_dec_deg: b.target_dec.value(),
+                        min_altitude_deg: Some(b.constraints.min_alt.value()),
+                        max_altitude_deg: Some(b.constraints.max_alt.value()),
+                        min_azimuth_deg: Some(b.constraints.min_az.value()),
+                        max_azimuth_deg: Some(b.constraints.max_az.value()),
                         constraint_start_mjd: b
                             .constraints
                             .fixed_time
@@ -790,9 +790,9 @@ impl AnalyticsRepository for PostgresRepository {
                                 .unwrap_or_else(|| source_block_id.to_string()),
                             priority,
                             priority_bin: String::new(),
-                            requested_duration_seconds: requested_duration_sec as f64,
-                            target_ra_deg: ra,
-                            target_dec_deg: dec,
+                            requested_duration_seconds: (requested_duration_sec as f64).into(),
+                            target_ra_deg: ra.into(),
+                            target_dec_deg: dec.into(),
                             scheduled_period,
                         }
                     },
@@ -831,9 +831,9 @@ impl AnalyticsRepository for PostgresRepository {
                 .map(
                     |(priority, total_vis, requested, elevation, scheduled)| DistributionBlock {
                         priority,
-                        total_visibility_hours: total_vis,
-                        requested_hours: requested,
-                        elevation_range_deg: elevation.unwrap_or(0.0),
+                        total_visibility_hours: total_vis.into(),
+                        requested_hours: requested.into(),
+                        elevation_range_deg: elevation.unwrap_or(0.0).into(),
                         scheduled,
                     },
                 )
@@ -1222,7 +1222,7 @@ impl VisualizationRepository for PostgresRepository {
                         scheduling_block_id: block_id.to_string(),
                         priority,
                         scheduled,
-                        requested_hours,
+                        requested_hours: requested_hours.into(),
                     },
                 )
                 .collect();

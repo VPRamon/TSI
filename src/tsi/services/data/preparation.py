@@ -107,8 +107,7 @@ def validate_schema(
 
     This is the canonical schema validation function. For full data validation
     including content checks (coordinate ranges, priority validity, etc.),
-    use `tsi.services.data.loaders.validate_dataframe()` which combines
-    schema validation with Rust-backed data validation.
+    use backend validation from the Rust service layer (e.g., validation reports).
 
     Args:
         df: DataFrame to validate

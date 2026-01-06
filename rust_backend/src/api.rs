@@ -168,7 +168,7 @@ impl Period {
 
             // Helper to convert a datetime object to MJD
             let to_mjd = |dt: &Py<PyAny>| -> PyResult<f64> {
-                let dt_obj = dt.as_ref();
+                let dt_obj = dt;
                 let tzinfo = dt_obj.getattr(py, "tzinfo")?;
 
                 let timestamp = if tzinfo.is_none(py) {
@@ -340,6 +340,7 @@ pub struct SchedulingBlock {
 impl SchedulingBlock {
     #[new]
     #[pyo3(signature = (id, original_block_id, target_ra, target_dec, constraints, priority, min_observation, requested_duration, visibility_periods=None, scheduled_period=None))]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: SchedulingBlockId,
         original_block_id: Option<String>,

@@ -42,10 +42,8 @@ pub fn find_conflicts(records: &[Value]) -> Result<Vec<SchedulingConflict>, Stri
             .and_then(|v| {
                 if let Some(s) = v.as_str() {
                     Some(s.to_string())
-                } else if let Some(i) = v.as_i64() {
-                    Some(i.to_string())
                 } else {
-                    None
+                    v.as_i64().map(|i| i.to_string())
                 }
             })
             .unwrap_or_else(|| "unknown".to_string());

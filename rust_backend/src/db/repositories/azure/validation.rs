@@ -1,5 +1,8 @@
 // Azure validation implementation removed — placeholder
-#![allow(dead_code, unused_variables)]
+#![allow(clippy::all)]
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unreachable_code)]
 
 use crate::api::{ScheduleId, ValidationReport};
 use crate::services::validation::ValidationResult;
