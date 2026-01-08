@@ -81,7 +81,7 @@ pub mod repository;
 pub mod services;
 // Postgres config is colocated with the repository implementation.
 #[cfg(feature = "postgres-repo")]
-pub use repositories::postgres::{PostgresConfig, PoolStats};
+pub use repositories::postgres::{PoolStats, PostgresConfig};
 #[cfg(not(feature = "postgres-repo"))]
 #[derive(Debug, Clone)]
 pub struct PostgresConfig {

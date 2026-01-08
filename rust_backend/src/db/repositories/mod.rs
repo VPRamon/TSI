@@ -15,4 +15,4 @@ pub mod postgres;
 pub use azure::AzureRepository;
 pub use local::LocalRepository;
 #[cfg(feature = "postgres-repo")]
-pub use postgres::{PostgresConfig, PostgresRepository, PoolStats};
+pub use postgres::{PoolStats, PostgresConfig, PostgresRepository};

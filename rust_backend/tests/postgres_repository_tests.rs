@@ -24,10 +24,10 @@ use tsi_rust::api::{
     Constraints, ModifiedJulianDate, Period, Schedule, ScheduleId, SchedulingBlock,
     SchedulingBlockId,
 };
-use tsi_rust::db::repositories::postgres::{PostgresConfig, PostgresRepository, PoolStats};
+use tsi_rust::db::repositories::postgres::{PostgresConfig, PostgresRepository};
 use tsi_rust::db::{
-    AnalyticsRepository, ErrorContext, FullRepository, RepositoryError, RepositoryResult,
-    ScheduleRepository, ValidationRepository, VisualizationRepository,
+    AnalyticsRepository, ErrorContext, RepositoryError, ScheduleRepository, ValidationRepository,
+    VisualizationRepository,
 };
 use tsi_rust::services::validation::{ValidationResult, ValidationStatus};
 
@@ -387,12 +387,10 @@ async fn test_postgres_analytics_lifecycle() {
     let schedule_id = metadata.schedule_id;
 
     // Initially no analytics
-    assert!(
-        !repo
-            .has_analytics_data(schedule_id)
-            .await
-            .expect("has_analytics_data should work")
-    );
+    assert!(!repo
+        .has_analytics_data(schedule_id)
+        .await
+        .expect("has_analytics_data should work"));
 
     // Populate analytics
     let rows = repo
@@ -402,11 +400,10 @@ async fn test_postgres_analytics_lifecycle() {
     assert_eq!(rows, 5, "Should have processed 5 blocks");
 
     // Now has analytics
-    assert!(
-        repo.has_analytics_data(schedule_id)
-            .await
-            .expect("has_analytics_data should work")
-    );
+    assert!(repo
+        .has_analytics_data(schedule_id)
+        .await
+        .expect("has_analytics_data should work"));
 
     // Delete analytics
     let deleted = repo
@@ -416,12 +413,10 @@ async fn test_postgres_analytics_lifecycle() {
     assert!(deleted > 0, "Should have deleted analytics entries");
 
     // No longer has analytics
-    assert!(
-        !repo
-            .has_analytics_data(schedule_id)
-            .await
-            .expect("has_analytics_data should work")
-    );
+    assert!(!repo
+        .has_analytics_data(schedule_id)
+        .await
+        .expect("has_analytics_data should work"));
 }
 
 #[tokio::test]
@@ -549,12 +544,10 @@ async fn test_postgres_validation_lifecycle() {
         .expect("Should get blocks");
 
     // Initially no validation results
-    assert!(
-        !repo
-            .has_validation_results(schedule_id)
-            .await
-            .expect("has_validation_results should work")
-    );
+    assert!(!repo
+        .has_validation_results(schedule_id)
+        .await
+        .expect("has_validation_results should work"));
 
     // Insert validation results
     let results: Vec<ValidationResult> = blocks
@@ -593,11 +586,10 @@ async fn test_postgres_validation_lifecycle() {
     assert_eq!(inserted, 3);
 
     // Now has validation results
-    assert!(
-        repo.has_validation_results(schedule_id)
-            .await
-            .expect("has_validation_results should work")
-    );
+    assert!(repo
+        .has_validation_results(schedule_id)
+        .await
+        .expect("has_validation_results should work"));
 
     // Fetch validation report
     let report = repo
@@ -617,12 +609,10 @@ async fn test_postgres_validation_lifecycle() {
     assert!(deleted > 0);
 
     // No longer has validation results
-    assert!(
-        !repo
-            .has_validation_results(schedule_id)
-            .await
-            .expect("has_validation_results should work")
-    );
+    assert!(!repo
+        .has_validation_results(schedule_id)
+        .await
+        .expect("has_validation_results should work"));
 }
 
 // ============================================================================
