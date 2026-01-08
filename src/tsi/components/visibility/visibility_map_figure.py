@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import streamlit as st
+import tsi_rust as api
 
 from tsi.plots.timeline import build_visibility_histogram_from_bins
-import tsi_rust as api
 from tsi.services import (
     ScheduleSummary,
     get_schedule_time_range,

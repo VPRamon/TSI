@@ -9,8 +9,6 @@ from tsi.components.timeline.timeline_observable_periods import render_observabl
 from tsi.components.timeline.timeline_observation_details import render_observation_details_table
 from tsi.components.timeline.timeline_summary import render_timeline_summary
 from tsi.services import (
-    fetch_dark_periods,
-    fetch_possible_periods,
     get_schedule_timeline_data,
 )
 

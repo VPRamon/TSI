@@ -22,7 +22,9 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from tsi.services import backend_client
 
-pytestmark = pytest.mark.skip(reason="Requires backend service to store schedules for performance measurements.")
+pytestmark = pytest.mark.skip(
+    reason="Requires backend service to store schedules for performance measurements."
+)
 
 
 def load_test_data():

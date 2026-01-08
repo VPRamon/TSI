@@ -12,17 +12,16 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+import tsi_rust as api
 from numpy import int64
 
 from app_config import get_settings
 from tsi.error_handling import log_error, with_retry
 from tsi.exceptions import ServerError
-import tsi_rust as api
 
 if TYPE_CHECKING:
     from tsi_rust import (
         CompareData,
-        DistributionData,
         InsightsData,
         ScheduleTimelineData,
         SkyMapData,
@@ -144,7 +143,11 @@ def list_schedules() -> list[ScheduleSummary]:
         summaries.append(
             ScheduleSummary(
                 id=_to_int(schedule_id),
-                name=str(schedule_name) if schedule_name is not None else f"Schedule {_to_int(schedule_id)}",
+                name=(
+                    str(schedule_name)
+                    if schedule_name is not None
+                    else f"Schedule {_to_int(schedule_id)}"
+                ),
             )
         )
 

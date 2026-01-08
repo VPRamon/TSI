@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import calendar
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Any
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -149,10 +150,10 @@ def _invert_dark_segments(
 
     light_segments: list[MonthSegment] = []
     for month_label in ordered_months:
-        month_segments = sorted(
-            segments_by_month.get(month_label, []), key=lambda seg: seg.start
+        month_segments = sorted(segments_by_month.get(month_label, []), key=lambda seg: seg.start)
+        month_start, month_end = _month_range(
+            month_label, month_segments[0].start.tzinfo if month_segments else "UTC"
         )
-        month_start, month_end = _month_range(month_label, month_segments[0].start.tzinfo if month_segments else "UTC")
 
         if not month_segments:
             light_segments.append(MonthSegment(month_label, month_start, month_end))
@@ -371,7 +372,9 @@ def _iter_month_labels(start_dt: pd.Timestamp, stop_dt: pd.Timestamp) -> set[str
     return labels
 
 
-def _month_range(month_label: str, tz) -> tuple[pd.Timestamp, pd.Timestamp]:
+def _month_range(
+    month_label: str, tz: Any
+) -> tuple[pd.Timestamp, pd.Timestamp]:
     year, month = map(int, month_label.split("-"))
     last_day = calendar.monthrange(year, month)[1]
     month_start = pd.Timestamp(year=year, month=month, day=1, tz=tz)

@@ -23,7 +23,6 @@ from tsi.components.trends.trends_model import (
 from tsi.components.trends.trends_smoothed import render_smoothed_trends
 from tsi.modeling.trends import fit_logistic_with_interactions
 from tsi.services import (
-    get_schedule_time_range,
     get_trends_data,
 )
 from tsi.utils.error_display import display_backend_error
@@ -108,7 +107,7 @@ def render() -> None:
 
     try:
         schedule_ref = state.get_schedule_ref()
-    except RuntimeError as exc:
+    except RuntimeError:
         st.info("Load a schedule from the backend to view trends.")
         return
     schedule_key = int(schedule_ref.value) if hasattr(schedule_ref, "value") else int(schedule_ref)

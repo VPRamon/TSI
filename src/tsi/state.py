@@ -68,7 +68,6 @@ def initialize_state() -> None:
         st.session_state[KEY_COMPARISON_SCHEDULE] = None
 
 
-
 def has_data() -> bool:
     """Check if data has been loaded (either from backend or file upload)."""
     if st.session_state.get(KEY_SCHEDULE_REF) is not None:

@@ -11,17 +11,16 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+import tsi_rust as api
 from numpy import int64
 
 from app_config import get_settings
 from tsi.error_handling import log_error, with_retry
 from tsi.exceptions import ServerError
-import tsi_rust as api
 
 if TYPE_CHECKING:
     from tsi_rust import (
         CompareData,
-        DistributionData,
         InsightsData,
         ScheduleTimelineData,
         SkyMapData,
@@ -35,6 +34,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # Schedule Reference Type
 # ============================================================================
+
 
 @dataclass
 class ScheduleSummary:
@@ -52,6 +52,7 @@ class ScheduleSummary:
 # Backend Service Facade
 # ============================================================================
 
+
 class BackendService:
     """
     Unified backend service that proxies Rust backend operations.
@@ -67,7 +68,7 @@ class BackendService:
         >>> summary = backend.upload_schedule("My Schedule", json_data)
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the backend service."""
         # No local state is required; all logic lives in the Rust backend.
 
@@ -113,7 +114,9 @@ class BackendService:
             )
             raise
 
-    def _to_schedule_id(self, schedule_ref: ScheduleSummary | api.ScheduleId | int | int64) -> api.ScheduleId:
+    def _to_schedule_id(
+        self, schedule_ref: ScheduleSummary | api.ScheduleId | int | int64
+    ) -> api.ScheduleId:
         """Normalize any schedule reference to the ScheduleId wrapper."""
         if isinstance(schedule_ref, ScheduleSummary):
             return schedule_ref.ref
@@ -158,7 +161,9 @@ class BackendService:
 
         for raw in raw_schedules:
             schedule_id = self._extract_field(raw, "schedule_id")
-            schedule_name = self._extract_field(raw, "schedule_name") or self._extract_field(raw, "name")
+            schedule_name = self._extract_field(raw, "schedule_name") or self._extract_field(
+                raw, "name"
+            )
 
             if schedule_id is None:
                 logger.warning("Skipping schedule entry with no id: %s", raw)
@@ -167,7 +172,11 @@ class BackendService:
             summaries.append(
                 ScheduleSummary(
                     id=self._to_int(schedule_id),
-                    name=str(schedule_name) if schedule_name is not None else f"Schedule {self._to_int(schedule_id)}",
+                    name=(
+                        str(schedule_name)
+                        if schedule_name is not None
+                        else f"Schedule {self._to_int(schedule_id)}"
+                    ),
                 )
             )
 
@@ -243,7 +252,9 @@ class BackendService:
         """Get validation report for a schedule."""
         return self._rust_call(api.GET_VALIDATION_REPORT, self._to_schedule_id(schedule_ref))
 
-    def fetch_dark_periods(self, schedule_ref: ScheduleSummary | api.ScheduleId | int) -> pd.DataFrame:
+    def fetch_dark_periods(
+        self, schedule_ref: ScheduleSummary | api.ScheduleId | int
+    ) -> pd.DataFrame:
         """Fetch dark periods for a schedule (with global fallback)."""
         df_polars = self._rust_call("py_fetch_dark_periods", self._to_schedule_id(schedule_ref))
         return df_polars.to_pandas()  # type: ignore[no-any-return]
@@ -254,6 +265,7 @@ class BackendService:
         """Fetch possible/visibility periods for a schedule."""
         df_polars = self._rust_call("py_fetch_possible_periods", self._to_schedule_id(schedule_ref))
         return df_polars.to_pandas()  # type: ignore[no-any-return]
+
     def get_visibility_histogram(
         self,
         schedule_ref: ScheduleSummary | api.ScheduleId | int,

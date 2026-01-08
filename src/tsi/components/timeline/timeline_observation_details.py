@@ -67,12 +67,8 @@ def _blocks_to_dataframe(blocks: list) -> pd.DataFrame:
             {
                 "Block ID": block.scheduling_block_id,
                 "Priority": block.priority,
-                "Scheduled Start": mjd_to_datetime(start_mjd).strftime(
-                    "%Y-%m-%d %H:%M UTC"
-                ),
-                "Scheduled Stop": mjd_to_datetime(stop_mjd).strftime(
-                    "%Y-%m-%d %H:%M UTC"
-                ),
+                "Scheduled Start": mjd_to_datetime(start_mjd).strftime("%Y-%m-%d %H:%M UTC"),
+                "Scheduled Stop": mjd_to_datetime(stop_mjd).strftime("%Y-%m-%d %H:%M UTC"),
                 "Duration (h)": (stop_mjd - start_mjd) * 24.0,
                 "RA (°)": block.ra_deg,
                 "Dec (°)": block.dec_deg,
