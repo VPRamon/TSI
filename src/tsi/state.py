@@ -18,11 +18,8 @@ KEY_SCHEDULED_FILTER = "scheduled_filter"
 KEY_SELECTED_BINS = "selected_bins"
 KEY_SELECTED_BLOCK_IDS = "selected_block_ids"
 KEY_SCHEDULE_WINDOW = "scheduled_time_window"
-KEY_DARK_PERIODS = "dark_periods"
 KEY_DIST_FILTER_MODE = "dist_filter_mode"
 KEY_INSIGHTS_FILTER_MODE = "insights_filter_mode"
-KEY_COMPARISON_SCHEDULE = "comparison_schedule"
-KEY_DB_INITIALIZED = "db_initialized"
 
 
 def initialize_state() -> None:
@@ -55,17 +52,11 @@ def initialize_state() -> None:
     if KEY_SCHEDULE_WINDOW not in st.session_state:
         st.session_state[KEY_SCHEDULE_WINDOW] = None
 
-    if KEY_DARK_PERIODS not in st.session_state:
-        st.session_state[KEY_DARK_PERIODS] = None
-
     if KEY_DIST_FILTER_MODE not in st.session_state:
         st.session_state[KEY_DIST_FILTER_MODE] = "all"
 
     if KEY_INSIGHTS_FILTER_MODE not in st.session_state:
         st.session_state[KEY_INSIGHTS_FILTER_MODE] = "all"
-
-    if KEY_COMPARISON_SCHEDULE not in st.session_state:
-        st.session_state[KEY_COMPARISON_SCHEDULE] = None
 
 
 def has_data() -> bool:
@@ -113,18 +104,6 @@ def reset_filters() -> None:
     st.session_state[KEY_INSIGHTS_FILTER_MODE] = "all"
 
 
-def get_dark_periods() -> Any:
-    """Return the loaded dark periods DataFrame, if any."""
-
-    return st.session_state.get(KEY_DARK_PERIODS)
-
-
-def set_dark_periods(df: Any | None) -> None:
-    """Store dark periods data in the session state."""
-
-    st.session_state[KEY_DARK_PERIODS] = df
-
-
 def get_schedule_window() -> Any:
     """Get selected scheduled time window."""
     return st.session_state.get(KEY_SCHEDULE_WINDOW)
@@ -143,16 +122,6 @@ def get_data_filename() -> str | None:
 def set_data_filename(filename: str) -> None:
     """Set the loaded dataset filename."""
     st.session_state[KEY_DATA_FILENAME] = filename
-
-
-def get_comparison_schedule() -> Any:
-    """Get the comparison schedule DataFrame from session state."""
-    return st.session_state.get(KEY_COMPARISON_SCHEDULE)
-
-
-def set_comparison_schedule(df: Any) -> None:
-    """Set the comparison schedule DataFrame in session state."""
-    st.session_state[KEY_COMPARISON_SCHEDULE] = df
 
 
 def get_schedule_ref() -> ScheduleId:

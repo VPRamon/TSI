@@ -13,7 +13,6 @@ from .compare.compare_validation import (
     compute_scheduling_changes,
     validate_and_display_discrepancies,
 )
-from .distributions.distributions_controls import render_filter_control
 from .distributions.distributions_layout import render_figure_layout
 from .distributions.distributions_stats import render_statistical_summary
 from .insights.insights_analysis import render_automated_insights, render_correlation_analysis

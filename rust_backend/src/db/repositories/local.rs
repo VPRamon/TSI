@@ -905,7 +905,7 @@ mod tests {
         let repo = LocalRepository::new();
 
         let result = repo.get_schedule(ScheduleId(999)).await;
-        assert!(matches!(result, Err(RepositoryError::NotFound(_))));
+        assert!(matches!(result, Err(RepositoryError::NotFound { .. })));
     }
 
     #[tokio::test]

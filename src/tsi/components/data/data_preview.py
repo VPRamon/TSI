@@ -33,24 +33,3 @@ def render_data_preview(
     )
 
     st.caption(f"Showing {len(display_df)} of {len(df)} rows")
-
-
-def render_conflicts_table(conflicts_df: pd.DataFrame) -> None:
-    """
-    Render a formatted conflicts table with highlighting.
-
-    Args:
-        conflicts_df: DataFrame with conflict information
-    """
-    if conflicts_df.empty:
-        st.success("✅ No scheduling conflicts detected!")
-        return
-
-    st.warning(f"⚠️ {len(conflicts_df)} scheduling conflicts detected")
-
-    st.dataframe(
-        conflicts_df,
-        width="stretch",
-        hide_index=True,
-        height=300,
-    )

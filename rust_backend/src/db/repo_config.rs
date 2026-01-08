@@ -252,6 +252,7 @@ impl RepositoryConfig {
         Ok(Some(PostgresConfig {
             database_url: self.postgres.database_url.clone(),
             max_pool_size: self.postgres.max_connections,
+            ..PostgresConfig::default()
         }))
     }
 

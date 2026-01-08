@@ -5,7 +5,6 @@ This package provides high-level services organized into logical sub-packages:
 
 - `data`: Analytics helpers
 - `filters`: Filtering modules for observations and sky map blocks
-- `processors`: Processing modules for timeline, trends, sky map, and comparison views
 - `utils`: Utility modules for time conversion, visibility, and reporting
 
 Core modules at the root level:
@@ -42,24 +41,6 @@ from tsi.services.filters import (
     compute_impossible_mask,
     filter_blocks,
     filter_impossible_observations,
-)
-
-# ============================================================================
-# Processors: Timeline, Trends, Sky Map, Compare
-# ============================================================================
-from tsi.services.processors import (
-    apply_search_filters,
-    apply_trends_filters,
-    calculate_observation_gaps,
-    compute_priority_range,
-    filter_dark_periods,
-    filter_scheduled_data,
-    get_priority_range,  # Backwards compatibility alias for compute_priority_range
-    get_scheduled_time_range,
-    prepare_display_dataframe,
-    prepare_priority_bins_from_blocks,
-    prepare_scheduled_data,
-    validate_required_columns,
 )
 
 # ============================================================================
@@ -192,23 +173,6 @@ __all__ = [
     "get_compare_data",
     "get_validation_report",
     # Data
-    "backend",
-    "BackendService",
-    "ScheduleSummary",
-    "upload_schedule",
-    "list_schedules",
-    "fetch_dark_periods",
-    "fetch_possible_periods",
-    "get_visibility_map_data",
-    "get_distribution_data",
-    "get_sky_map_data",
-    "get_schedule_time_range",
-    "get_visibility_histogram",
-    "get_schedule_timeline_data",
-    "get_insights_data",
-    "get_trends_data",
-    "get_compare_data",
-    "get_validation_report",
     "AnalyticsSnapshot",
     "generate_insights",
     "generate_correlation_insights",
@@ -218,19 +182,6 @@ __all__ = [
     "check_filter_support",
     "apply_insights_filter",
     "filter_blocks",
-    # Processors
-    "prepare_scheduled_data",
-    "filter_scheduled_data",
-    "filter_dark_periods",
-    "prepare_display_dataframe",
-    "apply_search_filters",
-    "validate_required_columns",
-    "apply_trends_filters",
-    "compute_priority_range",
-    "get_priority_range",  # Backwards compatibility alias
-    "prepare_priority_bins_from_blocks",
-    "get_scheduled_time_range",
-    "calculate_observation_gaps",
     # Utils
     "mjd_to_datetime",
     "datetime_to_mjd",

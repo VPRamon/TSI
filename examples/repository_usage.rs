@@ -179,7 +179,7 @@ mod tests {
         let repo = TestRepository::new();
 
         let result = repo.get_schedule(999).await;
-        assert!(matches!(result, Err(RepositoryError::NotFound(_))));
+        assert!(matches!(result, Err(RepositoryError::NotFound { .. })));
     }
 }
 
