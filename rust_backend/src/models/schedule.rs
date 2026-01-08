@@ -47,9 +47,10 @@ pub fn parse_schedule_json_str(
             let maybe_map: Option<HashMap<String, Vec<crate::api::Period>>> =
                 match serde_json::from_str::<BlocksWrapper>(trimmed) {
                     Ok(wrapper) => Some(wrapper.blocks),
-                    Err(_) => serde_json::from_str::<HashMap<String, Vec<crate::api::Period>>>(
-                            trimmed,
-                        ).ok(),
+                    Err(_) => {
+                        serde_json::from_str::<HashMap<String, Vec<crate::api::Period>>>(trimmed)
+                            .ok()
+                    }
                 };
 
             if let Some(map) = maybe_map {

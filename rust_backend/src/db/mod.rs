@@ -121,10 +121,10 @@ pub use repository::{
 // the Azure-specific modules.
 
 // Re-export Azure module functions and types for compatibility
+#[cfg(all(feature = "azure-repo", any()))] // Disabled - operations is a stub
+pub use repositories::azure::operations;
 #[cfg(feature = "azure-repo")]
 pub use repositories::azure::{analytics, pool, validation};
-#[cfg(all(feature = "azure-repo", any()))]  // Disabled - operations is a stub
-pub use repositories::azure::operations;
 
 // Validation
 #[cfg(feature = "azure-repo")]
@@ -160,7 +160,10 @@ async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository
     Ok(repo as Arc<dyn FullRepository>)
 }
 
-#[cfg(all(feature = "local-repo", not(any(feature = "postgres-repo", feature = "azure-repo"))))]
+#[cfg(all(
+    feature = "local-repo",
+    not(any(feature = "postgres-repo", feature = "azure-repo"))
+))]
 fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
     Ok(RepositoryFactory::create_local())
 }
@@ -181,7 +184,10 @@ pub fn init_repository() -> Result<()> {
 }
 
 /// Initialize the global repository singleton for the selected backend.
-#[cfg(all(feature = "local-repo", not(any(feature = "postgres-repo", feature = "azure-repo"))))]
+#[cfg(all(
+    feature = "local-repo",
+    not(any(feature = "postgres-repo", feature = "azure-repo"))
+))]
 pub fn init_repository() -> Result<()> {
     if REPOSITORY.get().is_some() {
         return Ok(());
