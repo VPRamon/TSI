@@ -95,21 +95,21 @@ pub fn filter_dataframe(
     // Apply priority bins filter if provided
     if let Some(bins) = priority_bins {
         filtered.retain(|r| {
-                r.get("priority_bin")
-                    .and_then(|v| v.as_str())
-                    .map(|s| bins.contains(&s.to_string()))
-                    .unwrap_or(false)
-            });
+            r.get("priority_bin")
+                .and_then(|v| v.as_str())
+                .map(|s| bins.contains(&s.to_string()))
+                .unwrap_or(false)
+        });
     }
 
     // Apply block IDs filter if provided
     if let Some(ids) = block_ids {
         filtered.retain(|r| {
-                r.get("schedulingBlockId")
-                    .and_then(|v| v.as_str())
-                    .map(|s| ids.contains(&s.to_string()))
-                    .unwrap_or(false)
-            });
+            r.get("schedulingBlockId")
+                .and_then(|v| v.as_str())
+                .map(|s| ids.contains(&s.to_string()))
+                .unwrap_or(false)
+        });
     }
 
     Ok(filtered)

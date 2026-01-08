@@ -3,7 +3,7 @@
 //! NOTE: This is a stub implementation. Azure backend has been removed.
 //! This module is disabled to prevent compilation errors.
 
-#![cfg(any())]  // Disable compilation - this is a non-functional stub
+#![cfg(any())] // Disable compilation - this is a non-functional stub
 #![allow(clippy::all)]
 #![allow(dead_code)]
 #![allow(unused_variables)]

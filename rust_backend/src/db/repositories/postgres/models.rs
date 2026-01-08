@@ -9,7 +9,7 @@ use super::schema::{
 
 #[derive(Debug, Clone, Queryable, Selectable)]
 #[diesel(table_name = schedules)]
-#[allow(dead_code)]  // Some fields used only for database operations
+#[allow(dead_code)] // Some fields used only for database operations
 pub struct ScheduleRow {
     pub schedule_id: i64,
     pub schedule_name: String,
@@ -32,7 +32,7 @@ pub struct NewScheduleRow {
 
 #[derive(Debug, Clone, Queryable, Selectable)]
 #[diesel(table_name = schedule_blocks)]
-#[allow(dead_code)]  // Some fields used only for database operations
+#[allow(dead_code)] // Some fields used only for database operations
 pub struct ScheduleBlockRow {
     pub scheduling_block_id: i64,
     pub schedule_id: i64,
@@ -149,7 +149,7 @@ pub struct NewScheduleSummaryAnalyticsRow {
 
 #[derive(Debug, Clone, Queryable, Selectable)]
 #[diesel(table_name = schedule_validation_results)]
-#[allow(dead_code)]  // Some fields used only for database operations
+#[allow(dead_code)] // Some fields used only for database operations
 pub struct ScheduleValidationResultRow {
     pub validation_id: i64,
     pub schedule_id: i64,
