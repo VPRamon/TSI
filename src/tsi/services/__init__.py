@@ -12,6 +12,13 @@ Core modules at the root level:
 - `backend_service`: Unified backend service facade combining remote and local operations
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import tsi_rust
+
 # ============================================================================
 # Core Backend Service & Data
 # ============================================================================
@@ -22,8 +29,8 @@ from tsi.services.backend_service import (
 )
 from tsi.services.data import (
     AnalyticsSnapshot,
-    generate_insights,
     generate_correlation_insights,
+    generate_insights,
 )
 
 # ============================================================================
@@ -74,6 +81,7 @@ from tsi.services.utils import (
 # ============================================================================
 # These functions delegate to the unified backend service
 
+
 def upload_schedule(
     schedule_name: str,
     schedule_json: str,
@@ -85,76 +93,82 @@ def upload_schedule(
 
 def list_schedules() -> list[ScheduleSummary]:
     """List available schedules using the backend."""
-    return backend.list_schedules()
+    return list(backend.list_schedules())
 
 
-def get_sky_map_data(schedule_ref):
+def get_sky_map_data(schedule_ref: str) -> tsi_rust.SkyMapData:
     """Get complete sky map data with computed bins and metadata."""
     return backend.get_sky_map_data(schedule_ref)
 
 
-def get_visibility_map_data(schedule_ref):
+def get_visibility_map_data(schedule_ref: str) -> tsi_rust.VisibilityMapData:
     """Fetch visibility map metadata and block summaries from the backend."""
     return backend.get_visibility_map_data(schedule_ref)
 
 
-def get_distribution_data(schedule_ref):
+def get_distribution_data(schedule_ref: str) -> Any:
     """Get complete distribution data with computed statistics."""
     return backend.get_distribution_data(schedule_ref)
 
 
-def get_schedule_timeline_data(schedule_ref):
+def get_schedule_timeline_data(schedule_ref: str) -> tsi_rust.ScheduleTimelineData:
     """Get complete schedule timeline data with computed statistics and metadata."""
     return backend.get_schedule_timeline_data(schedule_ref)
 
 
-def get_insights_data(schedule_ref):
+def get_insights_data(schedule_ref: str) -> tsi_rust.InsightsData:
     """Get complete insights data with computed analytics and metadata."""
     return backend.get_insights_data(schedule_ref)
 
 
-def get_trends_data(schedule_ref, n_bins: int = 10, bandwidth: float = 0.3, n_smooth_points: int = 100):
+def get_trends_data(
+    schedule_ref: str,
+    n_bins: int = 10,
+    bandwidth: float = 0.3,
+    n_smooth_points: int = 100,
+) -> Any:
     """Get complete trends data with computed statistics and smoothed curves."""
     return backend.get_trends_data(schedule_ref, n_bins, bandwidth, n_smooth_points)
 
 
-def get_compare_data(schedule_a_ref, schedule_b_ref):
+def get_compare_data(schedule_a_ref: str, schedule_b_ref: str) -> tsi_rust.CompareData:
     """Get comparison data between two schedules."""
     return backend.get_compare_data(schedule_a_ref, schedule_b_ref)
 
 
-def get_validation_report(schedule_ref):
+def get_validation_report(schedule_ref: str) -> Any:
     """Get validation report for a schedule."""
     return backend.get_validation_report(schedule_ref)
 
 
-def fetch_dark_periods(schedule_ref):
+def fetch_dark_periods(schedule_ref: str) -> list[Any]:
     """Fetch dark periods for a schedule (with global fallback)."""
     return backend.fetch_dark_periods(schedule_ref)
 
 
-def fetch_possible_periods(schedule_ref):
+def fetch_possible_periods(schedule_ref: str) -> list[Any]:
     """Fetch possible/visibility periods for a schedule."""
     return backend.fetch_possible_periods(schedule_ref)
 
 
 def get_visibility_histogram(
-    schedule_ref,
-    start,
-    end,
+    schedule_ref: str,
+    start: Any,
+    end: Any,
     bin_duration_minutes: int,
-    priority_range=None,
-    block_ids=None,
-):
+    priority_range: tuple[float, float] | None = None,
+    block_ids: list[str] | None = None,
+) -> Any:
     """Compute visibility histogram from the backend."""
     return backend.get_visibility_histogram(
         schedule_ref, start, end, bin_duration_minutes, priority_range, block_ids
     )
 
 
-def get_schedule_time_range(schedule_ref):
+def get_schedule_time_range(schedule_ref: str) -> tuple[Any, Any]:
     """Get the time range (min/max timestamps) for a schedule's visibility periods."""
     return backend.get_schedule_time_range(schedule_ref)
+
 
 __all__ = [
     # Core Backend Service

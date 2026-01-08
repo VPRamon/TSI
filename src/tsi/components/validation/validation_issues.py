@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import streamlit as st
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from tsi_rust import ValidationReport
@@ -83,16 +81,22 @@ def render_unified_validation_table(validation_data: ValidationReport) -> None:
     # Convert ValidationIssue objects to dicts for DataFrame
     issue_dicts = []
     for issue in all_issues:
-        issue_dicts.append({
-            "Block ID": issue.original_block_id if issue.original_block_id is not None else str(issue.block_id),
-            "Issue Type": issue.issue_type,
-            "Category": issue.category,
-            "Criticality": issue.criticality,
-            "Field": issue.field_name if issue.field_name is not None else "",
-            "Current Value": issue.current_value if issue.current_value is not None else "",
-            "Expected/Issue": issue.expected_value if issue.expected_value is not None else "",
-            "Description": issue.description,
-        })
+        issue_dicts.append(
+            {
+                "Block ID": (
+                    issue.original_block_id
+                    if issue.original_block_id is not None
+                    else str(issue.block_id)
+                ),
+                "Issue Type": issue.issue_type,
+                "Category": issue.category,
+                "Criticality": issue.criticality,
+                "Field": issue.field_name if issue.field_name is not None else "",
+                "Current Value": issue.current_value if issue.current_value is not None else "",
+                "Expected/Issue": issue.expected_value if issue.expected_value is not None else "",
+                "Description": issue.description,
+            }
+        )
     all_issues = issue_dicts
 
     # Create DataFrame

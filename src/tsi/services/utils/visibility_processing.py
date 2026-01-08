@@ -18,6 +18,7 @@ def get_all_block_ids(blocks: Sequence[Any]) -> list[str]:
     """
     return sorted(block.original_block_id for block in blocks)
 
+
 def filter_visibility_blocks(
     blocks: Iterable[Any],
     *,

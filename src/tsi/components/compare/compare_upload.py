@@ -6,7 +6,6 @@ import streamlit as st
 
 from tsi import state
 from tsi.services import (
-    ScheduleSummary,
     list_schedules,
     upload_schedule,
 )

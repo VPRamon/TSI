@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import pandas as pd
 import streamlit as st
 
-from tsi.components.data.data_preview import render_conflicts_table, render_data_preview
+from tsi.components.data.data_preview import render_data_preview
 
 if TYPE_CHECKING:
     from typing import Any

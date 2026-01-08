@@ -59,6 +59,7 @@ def filter_blocks(
 
     return filtered
 
+
 __all__ = [
     "filter_blocks",
 ]

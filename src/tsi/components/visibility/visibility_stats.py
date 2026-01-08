@@ -39,4 +39,3 @@ def render_dataset_statistics(all_blocks: Sequence[Any], filtered_blocks: Sequen
             st.metric("Avg Visibility Periods", f"{avg_vis_periods:.1f}")
         else:
             st.metric("Avg Visibility Periods", "N/A")
-

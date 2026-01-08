@@ -27,7 +27,9 @@ def render_schedules_section() -> None:
                 key="schedule_selector",
             )
 
-            if selected_option and st.button("Load Schedule", type="primary", key="load_backend_btn"):
+            if selected_option and st.button(
+                "Load Schedule", type="primary", key="load_backend_btn"
+            ):
                 selected_schedule = schedule_options[selected_option]
                 load_schedule_from_backend(selected_schedule)
 

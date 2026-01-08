@@ -5,13 +5,10 @@ import streamlit as st
 from tsi import state
 from tsi.components.visibility.visibility_controls import (
     render_histogram_settings,
-    render_sidebar_controls,
 )
 from tsi.components.visibility.visibility_map_figure import render_visibility_map_figure
 from tsi.components.visibility.visibility_stats import render_dataset_statistics
 from tsi.services import (
-    get_schedule_time_range,
-    get_visibility_histogram,
     get_visibility_map_data,
 )
 from tsi.services.utils.visibility_processing import (
@@ -48,7 +45,9 @@ def render() -> None:
     # Filter data to get count of blocks matching filters. Use the priority
     # range from the histogram settings if provided (so UI filter applies).
     filter_priority_range = (
-        settings.get("priority_filter_range") if settings.get("priority_filter_range") else priority_range
+        settings.get("priority_filter_range")
+        if settings.get("priority_filter_range")
+        else priority_range
     )
 
     filtered_blocks = filter_visibility_blocks(

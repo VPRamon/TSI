@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 import tsi_rust_api
 from tsi_rust_api import (
     TSIBackend,
@@ -237,7 +236,7 @@ class TestFunctionalAPI:
 class TestDataLoading:
     """Test various data loading scenarios."""
 
-    def test_load_json_with_schedulingBlocks_key(self, tmp_path: Path):
+    def test_load_json_with_scheduling_blocks_key(self, tmp_path: Path):
         """Test loading JSON with 'schedulingBlocks' key."""
         test_data = {
             "schedulingBlocks": [
@@ -252,7 +251,7 @@ class TestDataLoading:
 
         assert len(df) == 2
 
-    def test_load_json_with_SchedulingBlock_key(self, tmp_path: Path):
+    def test_load_json_with_scheduling_block_key(self, tmp_path: Path):
         """Test loading JSON with 'SchedulingBlock' key."""
         test_data = {
             "SchedulingBlock": [

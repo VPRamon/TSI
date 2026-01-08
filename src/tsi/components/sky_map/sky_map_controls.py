@@ -6,7 +6,6 @@ from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 import streamlit as st
-import tsi_rust
 from tsi_rust import Period
 
 from tsi import state
@@ -16,7 +15,7 @@ from tsi.components.toolbar.toolbar import (
     render_reset_filters_button,
     render_toggle,
 )
-from tsi.services.utils.time import ModifiedJulianDate, mjd_to_datetime
+from tsi.services.utils.time import mjd_to_datetime
 
 if TYPE_CHECKING:
     from tsi_rust import LightweightBlock
@@ -106,16 +105,16 @@ def _render_color_selector() -> str:
 def _render_schedule_window_control(blocks: list[LightweightBlock]) -> Period | None:
     """Render slider to filter by scheduled start datetime."""
 
-    scheduled_periods = [period for block in blocks if (period := block.scheduled_period) is not None]
+    scheduled_periods = [
+        period for block in blocks if (period := block.scheduled_period) is not None
+    ]
 
     if not scheduled_periods:
         st.caption("No observations include a scheduled date.")
         state.set_schedule_window(None)
         return None
 
-    start_datetimes, stop_datetimes = zip(
-        *(period.to_datetime() for period in scheduled_periods)
-    )
+    start_datetimes, stop_datetimes = zip(*(period.to_datetime() for period in scheduled_periods))
 
     min_dt = min(start_datetimes)
     max_dt = max(stop_datetimes)

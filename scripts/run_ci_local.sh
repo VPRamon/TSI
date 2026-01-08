@@ -264,7 +264,7 @@ if [[ "$RUN_RUST" == true ]]; then
     
     # Cargo fmt
     echo "Running cargo fmt..."
-    if run_cmd "cargo fmt --all --check"; then
+    if run_cmd "cd rust_backend && cargo fmt --all --check"; then
         print_success "Cargo fmt check passed"
     else
         print_error "Cargo fmt check failed"
@@ -273,7 +273,7 @@ if [[ "$RUN_RUST" == true ]]; then
     
     # Cargo clippy
     echo "Running cargo clippy..."
-    if run_cmd "cargo clippy --all-targets --all-features -- -D warnings"; then
+    if run_cmd "cd rust_backend && cargo clippy --all-targets --all-features -- -D warnings"; then
         print_success "Cargo clippy passed"
     else
         print_error "Cargo clippy failed"
@@ -282,7 +282,7 @@ if [[ "$RUN_RUST" == true ]]; then
     
     # Cargo test
     echo "Running cargo test..."
-    if run_cmd "cargo test --all-features"; then
+    if run_cmd "cd rust_backend && cargo test --all-features"; then
         print_success "Cargo tests passed"
     else
         print_error "Cargo tests failed"
