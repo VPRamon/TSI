@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import pandas as pd
 import streamlit as st
@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from tsi_rust import ValidationReport
 
 
-def _calculate_width_category(series: pd.Series) -> str:
+def _calculate_width_category(series: pd.Series) -> Literal["small", "medium", "large"]:
     """
     Heuristically pick a Streamlit column width bucket based on content length.
 
