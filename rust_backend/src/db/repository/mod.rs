@@ -43,7 +43,7 @@ pub mod validation;
 pub mod visualization;
 
 // Re-export error types
-pub use error::{RepositoryError, RepositoryResult};
+pub use error::{ErrorContext, RepositoryError, RepositoryResult};
 
 // Re-export all traits
 pub use analytics::AnalyticsRepository;

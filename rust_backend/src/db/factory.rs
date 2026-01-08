@@ -568,7 +568,7 @@ mod tests {
         let result = RepositoryFactory::create(RepositoryType::Azure, None, None).await;
         assert!(matches!(
             result,
-            Err(RepositoryError::ConfigurationError(_))
+            Err(RepositoryError::ConfigurationError { .. })
         ));
     }
 }

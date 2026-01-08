@@ -36,16 +36,6 @@ def _get_criticality_emoji(criticality: str) -> str:
     }.get(criticality, "⚪")
 
 
-def _get_criticality_color(criticality: str) -> str:
-    """Get color for criticality level."""
-    return {
-        "Critical": "#ff4444",
-        "High": "#ff8800",
-        "Medium": "#ffcc00",
-        "Low": "#44ff44",
-    }.get(criticality, "#999999")
-
-
 def render_unified_validation_table(validation_data: ValidationReport) -> None:
     """
     Render all validation issues in a unified table with criticality column.

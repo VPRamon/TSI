@@ -2,15 +2,35 @@
 //!
 //! This module implements the repository traits against a Postgres database
 //! following the schema defined in `docs/POSTGRES_ETL_DB_DESIGN.md`.
+//!
+//! ## Features
+//!
+//! - Connection pooling with r2d2
+//! - Automatic retry for transient failures
+//! - Connection health monitoring
+//! - Automatic migration execution
+//!
+//! ## Configuration
+//!
+//! Environment variables:
+//! - `DATABASE_URL` or `PG_DATABASE_URL`: Connection string (required)
+//! - `PG_POOL_MAX`: Maximum pool size (default: 10)
+//! - `PG_POOL_MIN`: Minimum pool size (default: 1)
+//! - `PG_CONN_TIMEOUT_SEC`: Connection timeout in seconds (default: 30)
+//! - `PG_IDLE_TIMEOUT_SEC`: Idle connection timeout in seconds (default: 600)
+//! - `PG_MAX_RETRIES`: Maximum retry attempts for transient failures (default: 3)
+//! - `PG_RETRY_DELAY_MS`: Initial retry delay in milliseconds (default: 100)
 
 use async_trait::async_trait;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::sql_query;
 use diesel::upsert::excluded;
 use diesel_migrations::{FileBasedMigrations, MigrationHarness};
 use serde_json::{json, Value};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 use tokio::task;
 
 use crate::api::{
@@ -19,7 +39,7 @@ use crate::api::{
     SchedulingBlock, SchedulingBlockId, VisibilityBlockSummary, VisibilityMapData,
 };
 use crate::db::repository::{
-    AnalyticsRepository, RepositoryError, RepositoryResult, ScheduleRepository,
+    AnalyticsRepository, ErrorContext, RepositoryError, RepositoryResult, ScheduleRepository,
     ValidationRepository, VisualizationRepository,
 };
 use crate::services::validation::{ValidationResult, ValidationStatus};
@@ -35,11 +55,47 @@ type PgPool = Pool<ConnectionManager<PgConnection>>;
 /// Configuration for connecting to Postgres.
 #[derive(Debug, Clone)]
 pub struct PostgresConfig {
+    /// Database connection URL
     pub database_url: String,
+    /// Maximum number of connections in the pool
     pub max_pool_size: u32,
+    /// Minimum number of connections in the pool
+    pub min_pool_size: u32,
+    /// Connection timeout in seconds
+    pub connection_timeout_sec: u64,
+    /// Idle connection timeout in seconds
+    pub idle_timeout_sec: u64,
+    /// Maximum number of retry attempts for transient failures
+    pub max_retries: u32,
+    /// Initial retry delay in milliseconds (doubles with each retry)
+    pub retry_delay_ms: u64,
+}
+
+impl Default for PostgresConfig {
+    fn default() -> Self {
+        Self {
+            database_url: String::new(),
+            max_pool_size: 10,
+            min_pool_size: 1,
+            connection_timeout_sec: 30,
+            idle_timeout_sec: 600,
+            max_retries: 3,
+            retry_delay_ms: 100,
+        }
+    }
 }
 
 impl PostgresConfig {
+    /// Create configuration from environment variables.
+    ///
+    /// # Environment Variables
+    /// - `DATABASE_URL` or `PG_DATABASE_URL`: Connection string (required)
+    /// - `PG_POOL_MAX`: Maximum pool size (default: 10)
+    /// - `PG_POOL_MIN`: Minimum pool size (default: 1)
+    /// - `PG_CONN_TIMEOUT_SEC`: Connection timeout in seconds (default: 30)
+    /// - `PG_IDLE_TIMEOUT_SEC`: Idle connection timeout in seconds (default: 600)
+    /// - `PG_MAX_RETRIES`: Maximum retry attempts (default: 3)
+    /// - `PG_RETRY_DELAY_MS`: Initial retry delay in milliseconds (default: 100)
     pub fn from_env() -> Result<Self, String> {
         let database_url = std::env::var("DATABASE_URL")
             .or_else(|_| std::env::var("PG_DATABASE_URL"))
@@ -50,72 +106,334 @@ impl PostgresConfig {
             .and_then(|v| v.parse::<u32>().ok())
             .unwrap_or(10);
 
+        let min_pool_size = std::env::var("PG_POOL_MIN")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(1);
+
+        let connection_timeout_sec = std::env::var("PG_CONN_TIMEOUT_SEC")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(30);
+
+        let idle_timeout_sec = std::env::var("PG_IDLE_TIMEOUT_SEC")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(600);
+
+        let max_retries = std::env::var("PG_MAX_RETRIES")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .unwrap_or(3);
+
+        let retry_delay_ms = std::env::var("PG_RETRY_DELAY_MS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(100);
+
         Ok(Self {
             database_url,
             max_pool_size,
+            min_pool_size,
+            connection_timeout_sec,
+            idle_timeout_sec,
+            max_retries,
+            retry_delay_ms,
         })
+    }
+
+    /// Create a new configuration with a database URL.
+    pub fn with_url(database_url: impl Into<String>) -> Self {
+        Self {
+            database_url: database_url.into(),
+            ..Default::default()
+        }
     }
 }
 
+/// Pool health statistics.
+#[derive(Debug, Clone, Default)]
+pub struct PoolStats {
+    /// Number of connections currently in use
+    pub connections_in_use: u32,
+    /// Number of idle connections
+    pub idle_connections: u32,
+    /// Total number of connections in the pool
+    pub total_connections: u32,
+    /// Maximum pool size
+    pub max_size: u32,
+    /// Total successful queries executed
+    pub total_queries: u64,
+    /// Total failed queries
+    pub failed_queries: u64,
+    /// Total retried operations
+    pub retried_operations: u64,
+}
+
 /// Diesel-backed repository for Postgres.
+///
+/// This repository implementation provides:
+/// - Connection pooling with configurable limits
+/// - Automatic retry for transient failures
+/// - Health monitoring and statistics
+/// - Automatic schema migrations
 #[derive(Clone)]
 pub struct PostgresRepository {
     pool: PgPool,
+    config: PostgresConfig,
+    // Metrics counters
+    total_queries: std::sync::Arc<AtomicU64>,
+    failed_queries: std::sync::Arc<AtomicU64>,
+    retried_operations: std::sync::Arc<AtomicU64>,
 }
 
 impl PostgresRepository {
     /// Create a new repository and run pending migrations.
+    ///
+    /// # Arguments
+    /// * `config` - Database configuration
+    ///
+    /// # Returns
+    /// * `Ok(PostgresRepository)` on success
+    /// * `Err(RepositoryError)` if connection or migration fails
     pub fn new(config: PostgresConfig) -> RepositoryResult<Self> {
-        let manager = ConnectionManager::<PgConnection>::new(config.database_url);
+        let manager = ConnectionManager::<PgConnection>::new(&config.database_url);
+        
         let pool = Pool::builder()
             .max_size(config.max_pool_size)
+            .min_idle(Some(config.min_pool_size))
+            .connection_timeout(Duration::from_secs(config.connection_timeout_sec))
+            .idle_timeout(Some(Duration::from_secs(config.idle_timeout_sec)))
+            .test_on_check_out(true) // Validate connections before use
             .build(manager)
-            .map_err(|e| RepositoryError::ConnectionError(e.to_string()))?;
+            .map_err(|e| {
+                RepositoryError::connection_with_context(
+                    e.to_string(),
+                    ErrorContext::new("create_pool")
+                        .with_details(format!("max_size={}", config.max_pool_size)),
+                )
+            })?;
 
-        // Run migrations once during initialization.
+        // Run migrations once during initialization
         {
-            let mut conn = pool
-                .get()
-                .map_err(|e| RepositoryError::ConnectionError(e.to_string()))?;
+            let mut conn = pool.get().map_err(|e| {
+                RepositoryError::connection_with_context(
+                    e.to_string(),
+                    ErrorContext::new("get_connection_for_migrations"),
+                )
+            })?;
             Self::run_migrations(&mut conn)?;
         }
 
-        Ok(Self { pool })
+        Ok(Self {
+            pool,
+            config,
+            total_queries: std::sync::Arc::new(AtomicU64::new(0)),
+            failed_queries: std::sync::Arc::new(AtomicU64::new(0)),
+            retried_operations: std::sync::Arc::new(AtomicU64::new(0)),
+        })
     }
 
+    /// Run pending database migrations.
     fn run_migrations(conn: &mut PgConnection) -> RepositoryResult<()> {
-        let migrations =
-            FileBasedMigrations::from_path(format!("{}/migrations", env!("CARGO_MANIFEST_DIR")))
-                .map_err(|e| {
-                    RepositoryError::InternalError(format!("Migrations not found: {e}"))
-                })?;
+        let migrations_path = format!("{}/migrations", env!("CARGO_MANIFEST_DIR"));
+        
+        let migrations = FileBasedMigrations::from_path(&migrations_path).map_err(|e| {
+            RepositoryError::configuration_with_context(
+                format!("Failed to load migrations: {}", e),
+                ErrorContext::new("run_migrations")
+                    .with_details(format!("path={}", migrations_path)),
+            )
+        })?;
 
-        conn.run_pending_migrations(migrations)
-            .map_err(|e| RepositoryError::InternalError(format!("Migration error: {e}")))?;
+        conn.run_pending_migrations(migrations).map_err(|e| {
+            RepositoryError::internal_with_context(
+                format!("Migration failed: {}", e),
+                ErrorContext::new("run_migrations"),
+            )
+        })?;
+        
         Ok(())
     }
 
+    /// Get a connection from the pool.
+    #[allow(dead_code)]
+    fn get_connection(&self) -> RepositoryResult<PooledConnection<ConnectionManager<PgConnection>>> {
+        self.pool.get().map_err(|e| {
+            self.failed_queries.fetch_add(1, Ordering::Relaxed);
+            RepositoryError::connection_with_context(
+                e.to_string(),
+                ErrorContext::new("get_connection")
+                    .with_details(format!(
+                        "pool_state={{size={}, idle={}}}",
+                        self.pool.state().connections,
+                        self.pool.state().idle_connections
+                    ))
+                    .retryable(),
+            )
+        })
+    }
+
+    /// Execute a database operation with automatic retry for transient failures.
+    ///
+    /// This method will retry the operation up to `max_retries` times if a
+    /// retryable error occurs (connection errors, timeouts, serialization failures).
     async fn with_conn<T, F>(&self, f: F) -> RepositoryResult<T>
+    where
+        T: Send + 'static,
+        F: FnOnce(&mut PgConnection) -> RepositoryResult<T> + Send + 'static + Clone,
+    {
+        let pool = self.pool.clone();
+        let max_retries = self.config.max_retries;
+        let retry_delay_ms = self.config.retry_delay_ms;
+        let total_queries = self.total_queries.clone();
+        let failed_queries = self.failed_queries.clone();
+        let retried_operations = self.retried_operations.clone();
+
+        task::spawn_blocking(move || {
+            let mut last_error = None;
+            let mut retry_delay = Duration::from_millis(retry_delay_ms);
+
+            for attempt in 0..=max_retries {
+                if attempt > 0 {
+                    retried_operations.fetch_add(1, Ordering::Relaxed);
+                    std::thread::sleep(retry_delay);
+                    retry_delay *= 2; // Exponential backoff
+                }
+
+                // Get connection
+                let mut conn = match pool.get() {
+                    Ok(c) => c,
+                    Err(e) => {
+                        let err = RepositoryError::connection_with_context(
+                            e.to_string(),
+                            ErrorContext::new("get_connection")
+                                .with_details(format!("attempt={}", attempt + 1))
+                                .retryable(),
+                        );
+                        if attempt < max_retries {
+                            last_error = Some(err);
+                            continue;
+                        }
+                        failed_queries.fetch_add(1, Ordering::Relaxed);
+                        return Err(err);
+                    }
+                };
+
+                // Execute the operation
+                total_queries.fetch_add(1, Ordering::Relaxed);
+                match f.clone()(&mut conn) {
+                    Ok(result) => return Ok(result),
+                    Err(e) if e.is_retryable() && attempt < max_retries => {
+                        last_error = Some(e);
+                        continue;
+                    }
+                    Err(e) => {
+                        failed_queries.fetch_add(1, Ordering::Relaxed);
+                        return Err(e);
+                    }
+                }
+            }
+
+            failed_queries.fetch_add(1, Ordering::Relaxed);
+            Err(last_error.unwrap_or_else(|| {
+                RepositoryError::internal("Max retries exceeded with no error captured")
+            }))
+        })
+        .await
+        .map_err(|e| {
+            RepositoryError::internal_with_context(
+                format!("Task join error: {}", e),
+                ErrorContext::new("spawn_blocking"),
+            )
+        })?
+    }
+
+    /// Execute a database operation without retry (for non-idempotent operations).
+    #[allow(dead_code)]
+    async fn with_conn_no_retry<T, F>(&self, f: F) -> RepositoryResult<T>
     where
         T: Send + 'static,
         F: FnOnce(&mut PgConnection) -> RepositoryResult<T> + Send + 'static,
     {
         let pool = self.pool.clone();
+        let total_queries = self.total_queries.clone();
+        let failed_queries = self.failed_queries.clone();
+
         task::spawn_blocking(move || {
-            let mut conn = pool
-                .get()
-                .map_err(|e| RepositoryError::ConnectionError(e.to_string()))?;
-            f(&mut conn)
+            let mut conn = pool.get().map_err(|e| {
+                failed_queries.fetch_add(1, Ordering::Relaxed);
+                RepositoryError::connection(e.to_string())
+            })?;
+            
+            total_queries.fetch_add(1, Ordering::Relaxed);
+            f(&mut conn).map_err(|e| {
+                failed_queries.fetch_add(1, Ordering::Relaxed);
+                e
+            })
         })
         .await
-        .map_err(|e| RepositoryError::InternalError(e.to_string()))?
+        .map_err(|e| RepositoryError::internal(format!("Task join error: {}", e)))?
+    }
+
+    /// Get pool health statistics.
+    ///
+    /// Returns current pool state and query statistics for monitoring.
+    pub fn get_pool_stats(&self) -> PoolStats {
+        let state = self.pool.state();
+        PoolStats {
+            connections_in_use: state.connections - state.idle_connections,
+            idle_connections: state.idle_connections,
+            total_connections: state.connections,
+            max_size: self.config.max_pool_size,
+            total_queries: self.total_queries.load(Ordering::Relaxed),
+            failed_queries: self.failed_queries.load(Ordering::Relaxed),
+            retried_operations: self.retried_operations.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Check if the database connection is healthy.
+    ///
+    /// Performs a simple query to verify connectivity.
+    pub async fn is_healthy(&self) -> bool {
+        self.health_check().await.unwrap_or(false)
+    }
+
+    /// Get detailed health information.
+    ///
+    /// Returns a tuple of (is_healthy, latency_ms, error_message).
+    pub async fn health_check_detailed(&self) -> (bool, Option<u64>, Option<String>) {
+        let start = Instant::now();
+        match self.health_check().await {
+            Ok(true) => (true, Some(start.elapsed().as_millis() as u64), None),
+            Ok(false) => (false, Some(start.elapsed().as_millis() as u64), Some("Health check returned false".to_string())),
+            Err(e) => (false, Some(start.elapsed().as_millis() as u64), Some(e.to_string())),
+        }
     }
 }
 
 fn map_diesel_error(err: diesel::result::Error) -> RepositoryError {
+    RepositoryError::from(err)
+}
+
+#[allow(dead_code)]
+fn map_diesel_error_with_context(err: diesel::result::Error, ctx: ErrorContext) -> RepositoryError {
     match err {
-        diesel::result::Error::NotFound => RepositoryError::NotFound("Record not found".into()),
-        other => RepositoryError::QueryError(other.to_string()),
+        diesel::result::Error::NotFound => RepositoryError::not_found_with_context("Record not found", ctx),
+        diesel::result::Error::DatabaseError(kind, info) => {
+            let message = info.message().to_string();
+            let ctx = ctx.with_details(format!("db_error_kind={:?}", kind));
+            
+            // Serialization failures are retryable
+            let ctx = if matches!(kind, diesel::result::DatabaseErrorKind::SerializationFailure) {
+                ctx.retryable()
+            } else {
+                ctx
+            };
+            
+            RepositoryError::query_with_context(message, ctx)
+        }
+        other => RepositoryError::query_with_context(other.to_string(), ctx),
     }
 }
 

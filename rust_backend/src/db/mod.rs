@@ -81,10 +81,15 @@ pub mod repository;
 pub mod services;
 // Postgres config is colocated with the repository implementation.
 #[cfg(feature = "postgres-repo")]
-pub use repositories::postgres::PostgresConfig;
+pub use repositories::postgres::{PostgresConfig, PoolStats};
 #[cfg(not(feature = "postgres-repo"))]
 #[derive(Debug, Clone)]
 pub struct PostgresConfig {
+    _private: (),
+}
+#[cfg(not(feature = "postgres-repo"))]
+#[derive(Debug, Clone, Default)]
+pub struct PoolStats {
     _private: (),
 }
 
@@ -112,8 +117,8 @@ pub use repositories::LocalRepository;
 #[cfg(feature = "postgres-repo")]
 pub use repositories::PostgresRepository;
 pub use repository::{
-    AnalyticsRepository, FullRepository, RepositoryError, RepositoryResult, ScheduleRepository,
-    ValidationRepository, VisualizationRepository,
+    AnalyticsRepository, ErrorContext, FullRepository, RepositoryError, RepositoryResult,
+    ScheduleRepository, ValidationRepository, VisualizationRepository,
 };
 
 // ==================== Backward Compatibility ====================

@@ -68,7 +68,7 @@ async fn test_not_found_error() {
 
     let result = repo.get_schedule(ScheduleId(99999)).await;
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), RepositoryError::NotFound(_)));
+    assert!(matches!(result.unwrap_err(), RepositoryError::NotFound { .. }));
 }
 
 #[tokio::test]
@@ -211,6 +211,6 @@ async fn test_connection_unhealthy() {
     assert!(result.is_err());
     assert!(matches!(
         result.unwrap_err(),
-        RepositoryError::ConnectionError(_)
+        RepositoryError::ConnectionError { .. }
     ));
 }
