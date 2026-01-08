@@ -48,6 +48,9 @@
 //! print(f"Scheduling rate: {summary.scheduling_rate:.2%}")
 //! ```
 //!
+
+// Allow large error types - RepositoryError contains rich context for debugging
+#![allow(clippy::result_large_err)]
 //! ## Performance
 //!
 //! This Rust backend is designed for high-performance batch processing of large

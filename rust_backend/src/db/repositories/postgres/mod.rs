@@ -198,7 +198,7 @@ impl PostgresRepository {
     /// * `Err(RepositoryError)` if connection or migration fails
     pub fn new(config: PostgresConfig) -> RepositoryResult<Self> {
         let manager = ConnectionManager::<PgConnection>::new(&config.database_url);
-        
+
         let pool = Pool::builder()
             .max_size(config.max_pool_size)
             .min_idle(Some(config.min_pool_size))
@@ -237,7 +237,7 @@ impl PostgresRepository {
     /// Run pending database migrations.
     fn run_migrations(conn: &mut PgConnection) -> RepositoryResult<()> {
         let migrations_path = format!("{}/migrations", env!("CARGO_MANIFEST_DIR"));
-        
+
         let migrations = FileBasedMigrations::from_path(&migrations_path).map_err(|e| {
             RepositoryError::configuration_with_context(
                 format!("Failed to load migrations: {}", e),
@@ -252,13 +252,15 @@ impl PostgresRepository {
                 ErrorContext::new("run_migrations"),
             )
         })?;
-        
+
         Ok(())
     }
 
     /// Get a connection from the pool.
     #[allow(dead_code)]
-    fn get_connection(&self) -> RepositoryResult<PooledConnection<ConnectionManager<PgConnection>>> {
+    fn get_connection(
+        &self,
+    ) -> RepositoryResult<PooledConnection<ConnectionManager<PgConnection>>> {
         self.pool.get().map_err(|e| {
             self.failed_queries.fetch_add(1, Ordering::Relaxed);
             RepositoryError::connection_with_context(
@@ -365,11 +367,10 @@ impl PostgresRepository {
                 failed_queries.fetch_add(1, Ordering::Relaxed);
                 RepositoryError::connection(e.to_string())
             })?;
-            
+
             total_queries.fetch_add(1, Ordering::Relaxed);
-            f(&mut conn).map_err(|e| {
+            f(&mut conn).inspect_err(|_| {
                 failed_queries.fetch_add(1, Ordering::Relaxed);
-                e
             })
         })
         .await
@@ -406,8 +407,16 @@ impl PostgresRepository {
         let start = Instant::now();
         match self.health_check().await {
             Ok(true) => (true, Some(start.elapsed().as_millis() as u64), None),
-            Ok(false) => (false, Some(start.elapsed().as_millis() as u64), Some("Health check returned false".to_string())),
-            Err(e) => (false, Some(start.elapsed().as_millis() as u64), Some(e.to_string())),
+            Ok(false) => (
+                false,
+                Some(start.elapsed().as_millis() as u64),
+                Some("Health check returned false".to_string()),
+            ),
+            Err(e) => (
+                false,
+                Some(start.elapsed().as_millis() as u64),
+                Some(e.to_string()),
+            ),
         }
     }
 }
@@ -419,18 +428,23 @@ fn map_diesel_error(err: diesel::result::Error) -> RepositoryError {
 #[allow(dead_code)]
 fn map_diesel_error_with_context(err: diesel::result::Error, ctx: ErrorContext) -> RepositoryError {
     match err {
-        diesel::result::Error::NotFound => RepositoryError::not_found_with_context("Record not found", ctx),
+        diesel::result::Error::NotFound => {
+            RepositoryError::not_found_with_context("Record not found", ctx)
+        }
         diesel::result::Error::DatabaseError(kind, info) => {
             let message = info.message().to_string();
             let ctx = ctx.with_details(format!("db_error_kind={:?}", kind));
-            
+
             // Serialization failures are retryable
-            let ctx = if matches!(kind, diesel::result::DatabaseErrorKind::SerializationFailure) {
+            let ctx = if matches!(
+                kind,
+                diesel::result::DatabaseErrorKind::SerializationFailure
+            ) {
                 ctx.retryable()
             } else {
                 ctx
             };
-            
+
             RepositoryError::query_with_context(message, ctx)
         }
         other => RepositoryError::query_with_context(other.to_string(), ctx),

@@ -83,6 +83,7 @@ impl fmt::Display for ErrorContext {
 
 /// Error type for repository operations
 #[derive(Debug, thiserror::Error)]
+#[allow(clippy::result_large_err)]
 pub enum RepositoryError {
     /// Connection pool or database connection errors.
     /// These are typically transient and may be retried.
@@ -358,21 +359,21 @@ impl From<diesel::result::Error> for RepositoryError {
             diesel::result::Error::NotFound => RepositoryError::not_found("Record not found"),
             diesel::result::Error::DatabaseError(kind, info) => {
                 let message = info.message().to_string();
-                let context = ErrorContext::default()
-                    .with_details(format!("db_error_kind={:?}", kind));
-                
+                let context =
+                    ErrorContext::default().with_details(format!("db_error_kind={:?}", kind));
+
                 // Some database errors are retryable (deadlocks, serialization failures)
                 let is_retryable = matches!(
                     kind,
                     diesel::result::DatabaseErrorKind::SerializationFailure
                 );
-                
+
                 let context = if is_retryable {
                     context.retryable()
                 } else {
                     context
                 };
-                
+
                 RepositoryError::QueryError { message, context }
             }
             diesel::result::Error::QueryBuilderError(e) => {
