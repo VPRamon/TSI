@@ -372,9 +372,7 @@ def _iter_month_labels(start_dt: pd.Timestamp, stop_dt: pd.Timestamp) -> set[str
     return labels
 
 
-def _month_range(
-    month_label: str, tz: Any
-) -> tuple[pd.Timestamp, pd.Timestamp]:
+def _month_range(month_label: str, tz: Any) -> tuple[pd.Timestamp, pd.Timestamp]:
     year, month = map(int, month_label.split("-"))
     last_day = calendar.monthrange(year, month)[1]
     month_start = pd.Timestamp(year=year, month=month, day=1, tz=tz)

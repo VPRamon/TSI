@@ -143,12 +143,12 @@ def get_validation_report(schedule_ref: str) -> Any:
 
 def fetch_dark_periods(schedule_ref: str) -> list[Any]:
     """Fetch dark periods for a schedule (with global fallback)."""
-    return backend.fetch_dark_periods(schedule_ref)
+    return list(backend.fetch_dark_periods(schedule_ref))
 
 
 def fetch_possible_periods(schedule_ref: str) -> list[Any]:
     """Fetch possible/visibility periods for a schedule."""
-    return backend.fetch_possible_periods(schedule_ref)
+    return list(backend.fetch_possible_periods(schedule_ref))
 
 
 def get_visibility_histogram(
@@ -167,7 +167,8 @@ def get_visibility_histogram(
 
 def get_schedule_time_range(schedule_ref: str) -> tuple[Any, Any]:
     """Get the time range (min/max timestamps) for a schedule's visibility periods."""
-    return backend.get_schedule_time_range(schedule_ref)
+    result = backend.get_schedule_time_range(schedule_ref)
+    return (result[0], result[1])
 
 
 __all__ = [
