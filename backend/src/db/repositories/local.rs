@@ -204,10 +204,13 @@ impl ScheduleRepository for LocalRepository {
     }
 
     async fn get_schedule(&self, schedule_id: ScheduleId) -> RepositoryResult<Schedule> {
+        self.check_health()?;
         self.get_schedule_impl(schedule_id)
     }
 
     async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
+        self.check_health()?;
+        
         let data = self.data.read().unwrap();
 
         let mut schedules: Vec<crate::api::ScheduleInfo> =
