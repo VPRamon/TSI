@@ -9,7 +9,7 @@ Complete guide to run the TSI (Telescope Scheduling Intelligence) application lo
 Use Docker Compose (recommended):
 
 ```bash
-docker compose up -d postgres
+docker compose -f docker/docker-compose.yml up -d postgres
 ```
 
 Defaults: user `tsi`, password `tsi`, db `tsi`, port `5432`.

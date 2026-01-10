@@ -22,8 +22,8 @@ services:
 
   app:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-tsi}:${POSTGRES_PASSWORD:-tsi}@postgres:5432/${POSTGRES_DB:-tsi}
@@ -40,7 +40,7 @@ services:
     ports:
       - "${TSI_PORT:-8501}:8501"
     volumes:
-      - ./data:/app/data
+      - ../data:/app/data
 
 volumes:
   postgres_data:
