@@ -17,8 +17,8 @@ Environment Variables:
 Note:
     Database configuration is handled by the Rust backend. Set the following
     environment variables for database access:
-    - DB_SERVER, DB_DATABASE, DB_USERNAME, DB_PASSWORD
-    See backend/src/db/config.rs for full database configuration options.
+    - DATABASE_URL or PG_DATABASE_URL
+    - PG_POOL_MAX, PG_POOL_MIN, PG_CONN_TIMEOUT_SEC (optional)
 
 Example:
     >>> from app_config import get_settings
