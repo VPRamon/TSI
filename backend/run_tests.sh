@@ -37,14 +37,6 @@ done
 
 echo -e "${GREEN}=== TSI Rust Backend Test Suite ===${NC}\n"
 
-# Check if tempfile dependency is added
-if ! grep -q "tempfile" Cargo.toml; then
-    echo -e "${RED}Error: tempfile dependency not found in Cargo.toml${NC}"
-    echo "Please add to [dev-dependencies]:"
-    echo "  tempfile = \"3.8\""
-    exit 1
-fi
-
 # Run tests
 if [ -n "$MODULE" ]; then
     echo -e "${YELLOW}Running tests for module: $MODULE${NC}"
