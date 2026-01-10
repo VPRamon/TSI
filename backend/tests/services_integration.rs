@@ -1,6 +1,9 @@
-use tsi_rust::api::{Schedule, SchedulingBlock, ScheduleId, SchedulingBlockId, Constraints};
+use tsi_rust::api::{Constraints, Schedule, ScheduleId, SchedulingBlock, SchedulingBlockId};
 use tsi_rust::db::repositories::LocalRepository;
-use tsi_rust::db::services::{health_check, store_schedule, store_schedule_with_options, list_schedules, get_schedule, get_schedule_time_range, get_blocks_for_schedule};
+use tsi_rust::db::services::{
+    get_blocks_for_schedule, get_schedule, get_schedule_time_range, health_check, list_schedules,
+    store_schedule, store_schedule_with_options,
+};
 
 fn create_minimal_schedule(name: &str) -> Schedule {
     Schedule {
@@ -178,5 +181,5 @@ async fn test_idempotent_store() {
 
     let schedules = list_schedules(&repo).await.unwrap();
     // LocalRepository doesn't dedupe by checksum, so we have 2 schedules
-    assert!(schedules.len() >= 1);
+    assert!(!schedules.is_empty());
 }

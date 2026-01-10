@@ -193,12 +193,7 @@ mod tests {
     use super::{compute_compare_data, compute_stats};
     use crate::api::CompareBlock;
 
-    fn create_test_block(
-        id: &str,
-        priority: f64,
-        scheduled: bool,
-        hours: f64,
-    ) -> CompareBlock {
+    fn create_test_block(id: &str, priority: f64, scheduled: bool, hours: f64) -> CompareBlock {
         CompareBlock {
             scheduling_block_id: id.to_string(),
             priority,
@@ -362,10 +357,7 @@ mod tests {
         let data = result.unwrap();
 
         assert_eq!(data.scheduling_changes.len(), 1);
-        assert_eq!(
-            data.scheduling_changes[0].change_type,
-            "newly_unscheduled"
-        );
+        assert_eq!(data.scheduling_changes[0].change_type, "newly_unscheduled");
         assert_eq!(data.scheduling_changes[0].priority, 8.0);
     }
 

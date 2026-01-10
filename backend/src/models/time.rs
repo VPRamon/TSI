@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn test_mjd_clone() {
         let mjd1 = ModifiedJulianDate::new(51544.0);
-        let mjd2 = mjd1.clone();
+        let mjd2 = mjd1;
         assert_eq!(mjd1.value(), mjd2.value());
     }
 

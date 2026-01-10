@@ -20,7 +20,7 @@ async fn test_landing_list_schedules() {
     let _ = services::store_schedule(&repo, &schedule).await;
 
     let schedules = services::list_schedules(&repo).await.unwrap();
-    assert!(schedules.len() > 0);
+    assert!(!schedules.is_empty());
 }
 
 // =========================================================
@@ -31,12 +31,21 @@ async fn test_landing_list_schedules() {
 fn test_routes_module_exists() {
     // Ensure routes module compiles and exports expected constants
     assert_eq!(routes::compare::GET_COMPARE_DATA, "get_compare_data");
-    assert_eq!(routes::distribution::GET_DISTRIBUTION_DATA, "get_distribution_data");
+    assert_eq!(
+        routes::distribution::GET_DISTRIBUTION_DATA,
+        "get_distribution_data"
+    );
     assert_eq!(routes::insights::GET_INSIGHTS_DATA, "get_insights_data");
     assert_eq!(routes::skymap::GET_SKY_MAP_DATA, "get_sky_map_data");
-    assert_eq!(routes::timeline::GET_SCHEDULE_TIMELINE_DATA, "get_schedule_timeline_data");
+    assert_eq!(
+        routes::timeline::GET_SCHEDULE_TIMELINE_DATA,
+        "get_schedule_timeline_data"
+    );
     assert_eq!(routes::trends::GET_TRENDS_DATA, "get_trends_data");
-    assert_eq!(routes::validation::GET_VALIDATION_REPORT, "get_validation_report");
+    assert_eq!(
+        routes::validation::GET_VALIDATION_REPORT,
+        "get_validation_report"
+    );
     assert_eq!(routes::landing::LIST_SCHEDULES, "list_schedules");
     assert_eq!(routes::landing::POST_SCHEDULE, "store_schedule");
 }
@@ -544,9 +553,18 @@ fn test_visibility_map_data_creation() {
 
 #[test]
 fn test_visibility_constants() {
-    assert_eq!(routes::visibility::GET_VISIBILITY_MAP_DATA, "get_visibility_map_data");
-    assert_eq!(routes::visibility::GET_SCHEDULE_TIME_RANGE, "get_schedule_time_range");
-    assert_eq!(routes::visibility::GET_VISIBILITY_HISTOGRAM, "get_visibility_histogram");
+    assert_eq!(
+        routes::visibility::GET_VISIBILITY_MAP_DATA,
+        "get_visibility_map_data"
+    );
+    assert_eq!(
+        routes::visibility::GET_SCHEDULE_TIME_RANGE,
+        "get_schedule_time_range"
+    );
+    assert_eq!(
+        routes::visibility::GET_VISIBILITY_HISTOGRAM,
+        "get_visibility_histogram"
+    );
 }
 
 #[test]

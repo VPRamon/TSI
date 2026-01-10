@@ -43,7 +43,7 @@ fn test_error_context_chaining() {
         .with_entity_id(42)
         .with_details("timeout occurred")
         .retryable();
-    
+
     assert_eq!(ctx.operation, Some("store_schedule".to_string()));
     assert_eq!(ctx.entity, Some("schedule".to_string()));
     assert_eq!(ctx.entity_id, Some("42".to_string()));
@@ -56,7 +56,7 @@ fn test_error_context_display() {
     let ctx = ErrorContext::new("test_op")
         .with_entity("test_entity")
         .with_entity_id("123");
-    
+
     let display = format!("{}", ctx);
     assert!(display.contains("operation=test_op"));
     assert!(display.contains("entity=test_entity"));
@@ -211,7 +211,7 @@ fn test_repository_result_ok() {
     use tsi_rust::db::repository::RepositoryResult;
     let result: RepositoryResult<i32> = Ok(42);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), 42);
+    assert_eq!(*result.as_ref().unwrap(), 42);
 }
 
 #[test]

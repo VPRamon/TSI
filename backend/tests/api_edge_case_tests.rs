@@ -3,7 +3,9 @@
 //! These tests cover boundary conditions, invalid constraints, extreme values,
 //! and other edge cases in Period, Constraints, and other API types.
 
-use tsi_rust::api::{Constraints, Period, ScheduleId, SchedulingBlock, SchedulingBlockId, TargetId, ConstraintsId};
+use tsi_rust::api::{
+    Constraints, ConstraintsId, Period, ScheduleId, SchedulingBlock, SchedulingBlockId, TargetId,
+};
 use tsi_rust::models::ModifiedJulianDate;
 
 // =========================================================
@@ -17,7 +19,7 @@ fn test_period_boundary_start_equals_stop() {
         start: ModifiedJulianDate::new(59580.0),
         stop: ModifiedJulianDate::new(59580.0),
     };
-    
+
     let duration = period.duration();
     assert_eq!(duration.value(), 0.0);
 }
@@ -29,7 +31,7 @@ fn test_period_inverted_start_after_stop() {
         start: ModifiedJulianDate::new(59582.0),
         stop: ModifiedJulianDate::new(59580.0),
     };
-    
+
     let duration = period.duration();
     assert!(duration.value() < 0.0);
     assert_eq!(duration.value(), -2.0);
@@ -43,7 +45,7 @@ fn test_period_new_validates_ordering() {
         ModifiedJulianDate::new(59582.0),
     );
     assert!(valid.is_some());
-    
+
     let invalid = Period::new(
         ModifiedJulianDate::new(59582.0),
         ModifiedJulianDate::new(59580.0),
@@ -58,7 +60,7 @@ fn test_period_very_small_duration() {
         start: ModifiedJulianDate::new(59580.0),
         stop: ModifiedJulianDate::new(59580.0 + 1e-9), // ~86 nanoseconds
     };
-    
+
     let duration = period.duration();
     assert!(duration.value() > 0.0);
     assert!(duration.value() < 1e-8);
@@ -71,7 +73,7 @@ fn test_period_very_large_duration() {
         start: ModifiedJulianDate::new(50000.0),
         stop: ModifiedJulianDate::new(60000.0),
     };
-    
+
     let duration = period.duration();
     assert_eq!(duration.value(), 10000.0);
 }
@@ -82,7 +84,7 @@ fn test_period_contains_boundary_inclusive_start() {
         start: ModifiedJulianDate::new(59580.0),
         stop: ModifiedJulianDate::new(59582.0),
     };
-    
+
     // Start is inclusive
     assert!(period.contains(ModifiedJulianDate::new(59580.0)));
 }
@@ -93,7 +95,7 @@ fn test_period_contains_boundary_exclusive_end() {
         start: ModifiedJulianDate::new(59580.0),
         stop: ModifiedJulianDate::new(59582.0),
     };
-    
+
     // End is exclusive
     assert!(!period.contains(ModifiedJulianDate::new(59582.0)));
 }
@@ -104,7 +106,7 @@ fn test_period_contains_just_before_end() {
         start: ModifiedJulianDate::new(59580.0),
         stop: ModifiedJulianDate::new(59582.0),
     };
-    
+
     // Just before end should be included
     assert!(period.contains(ModifiedJulianDate::new(59581.9999)));
 }
@@ -116,12 +118,12 @@ fn test_period_overlaps_exact_boundaries() {
         start: ModifiedJulianDate::new(59580.0),
         stop: ModifiedJulianDate::new(59582.0),
     };
-    
+
     let period2 = Period {
         start: ModifiedJulianDate::new(59582.0),
         stop: ModifiedJulianDate::new(59584.0),
     };
-    
+
     // Should not overlap (period1 ends where period2 starts)
     assert!(!period1.overlaps(&period2));
     assert!(!period2.overlaps(&period1));
@@ -133,12 +135,12 @@ fn test_period_overlaps_partial() {
         start: ModifiedJulianDate::new(59580.0),
         stop: ModifiedJulianDate::new(59582.0),
     };
-    
+
     let period2 = Period {
         start: ModifiedJulianDate::new(59581.0),
         stop: ModifiedJulianDate::new(59583.0),
     };
-    
+
     assert!(period1.overlaps(&period2));
     assert!(period2.overlaps(&period1));
 }
@@ -149,12 +151,12 @@ fn test_period_overlaps_complete_containment() {
         start: ModifiedJulianDate::new(59580.0),
         stop: ModifiedJulianDate::new(59585.0),
     };
-    
+
     let period2 = Period {
         start: ModifiedJulianDate::new(59581.0),
         stop: ModifiedJulianDate::new(59582.0),
     };
-    
+
     // period2 is completely inside period1
     assert!(period1.overlaps(&period2));
     assert!(period2.overlaps(&period1));
@@ -167,7 +169,7 @@ fn test_period_negative_mjd() {
         start: ModifiedJulianDate::new(-1000.0),
         stop: ModifiedJulianDate::new(-500.0),
     };
-    
+
     let duration = period.duration();
     assert_eq!(duration.value(), 500.0);
 }
@@ -179,7 +181,7 @@ fn test_period_extreme_mjd_values() {
         start: ModifiedJulianDate::new(100000.0),
         stop: ModifiedJulianDate::new(100001.0),
     };
-    
+
     assert!(period.contains(ModifiedJulianDate::new(100000.5)));
 }
 
@@ -197,7 +199,7 @@ fn test_constraints_altitude_minimum_range() {
         max_az: qtty::Degrees::new(360.0),
         fixed_time: None,
     };
-    
+
     assert_eq!(c.min_alt.value(), c.max_alt.value());
 }
 
@@ -211,7 +213,7 @@ fn test_constraints_altitude_full_range() {
         max_az: qtty::Degrees::new(360.0),
         fixed_time: None,
     };
-    
+
     assert_eq!(c.max_alt.value() - c.min_alt.value(), 90.0);
 }
 
@@ -225,7 +227,7 @@ fn test_constraints_altitude_inverted() {
         max_az: qtty::Degrees::new(360.0),
         fixed_time: None,
     };
-    
+
     // Should construct but be invalid
     assert!(c.min_alt.value() > c.max_alt.value());
 }
@@ -240,7 +242,7 @@ fn test_constraints_altitude_negative() {
         max_az: qtty::Degrees::new(360.0),
         fixed_time: None,
     };
-    
+
     assert!(c.min_alt.value() < 0.0);
 }
 
@@ -254,7 +256,7 @@ fn test_constraints_altitude_above_90() {
         max_az: qtty::Degrees::new(360.0),
         fixed_time: None,
     };
-    
+
     assert!(c.max_alt.value() > 90.0);
 }
 
@@ -268,7 +270,7 @@ fn test_constraints_azimuth_full_circle() {
         max_az: qtty::Degrees::new(360.0),
         fixed_time: None,
     };
-    
+
     assert_eq!(c.max_az.value() - c.min_az.value(), 360.0);
 }
 
@@ -282,7 +284,7 @@ fn test_constraints_azimuth_narrow_range() {
         max_az: qtty::Degrees::new(181.0),
         fixed_time: None,
     };
-    
+
     assert_eq!(c.max_az.value() - c.min_az.value(), 1.0);
 }
 
@@ -296,7 +298,7 @@ fn test_constraints_azimuth_wrapping() {
         max_az: qtty::Degrees::new(10.0),
         fixed_time: None,
     };
-    
+
     // This represents a valid wrapping constraint
     assert!(c.min_az.value() > c.max_az.value());
 }
@@ -311,7 +313,7 @@ fn test_constraints_azimuth_negative() {
         max_az: qtty::Degrees::new(10.0),
         fixed_time: None,
     };
-    
+
     assert!(c.min_az.value() < 0.0);
 }
 
@@ -325,7 +327,7 @@ fn test_constraints_azimuth_above_360() {
         max_az: qtty::Degrees::new(370.0),
         fixed_time: None,
     };
-    
+
     assert!(c.max_az.value() > 360.0);
 }
 
@@ -336,7 +338,7 @@ fn test_constraints_with_fixed_time_zero_duration() {
         start: ModifiedJulianDate::new(59580.0),
         stop: ModifiedJulianDate::new(59580.0),
     };
-    
+
     let c = Constraints {
         min_alt: qtty::Degrees::new(30.0),
         max_alt: qtty::Degrees::new(85.0),
@@ -344,7 +346,7 @@ fn test_constraints_with_fixed_time_zero_duration() {
         max_az: qtty::Degrees::new(360.0),
         fixed_time: Some(fixed),
     };
-    
+
     assert!(c.fixed_time.is_some());
     let ft = c.fixed_time.unwrap();
     assert_eq!(ft.duration().value(), 0.0);
@@ -360,7 +362,7 @@ fn test_constraints_all_zero_values() {
         max_az: qtty::Degrees::new(0.0),
         fixed_time: None,
     };
-    
+
     assert_eq!(c.min_alt.value(), 0.0);
     assert_eq!(c.max_alt.value(), 0.0);
     assert_eq!(c.min_az.value(), 0.0);
@@ -377,7 +379,7 @@ fn test_constraints_extreme_values() {
         max_az: qtty::Degrees::new(720.0),
         fixed_time: None,
     };
-    
+
     assert!(c.min_alt.value() < -90.0);
     assert!(c.max_alt.value() > 90.0);
     assert!(c.min_az.value() < 0.0);
@@ -408,7 +410,7 @@ fn test_scheduling_block_zero_priority() {
         visibility_periods: vec![],
         scheduled_period: None,
     };
-    
+
     assert_eq!(block.priority, 0.0);
 }
 
@@ -432,7 +434,7 @@ fn test_scheduling_block_negative_priority() {
         visibility_periods: vec![],
         scheduled_period: None,
     };
-    
+
     assert!(block.priority < 0.0);
 }
 
@@ -456,7 +458,7 @@ fn test_scheduling_block_very_high_priority() {
         visibility_periods: vec![],
         scheduled_period: None,
     };
-    
+
     assert!(block.priority > 100000.0);
 }
 
@@ -481,7 +483,7 @@ fn test_scheduling_block_ra_boundaries() {
         visibility_periods: vec![],
         scheduled_period: None,
     };
-    
+
     // RA at 360 degrees (equivalent to 0)
     let block2 = SchedulingBlock {
         id: SchedulingBlockId::new(2),
@@ -501,7 +503,7 @@ fn test_scheduling_block_ra_boundaries() {
         visibility_periods: vec![],
         scheduled_period: None,
     };
-    
+
     assert_eq!(block1.target_ra.value(), 0.0);
     assert_eq!(block2.target_ra.value(), 360.0);
 }
@@ -527,7 +529,7 @@ fn test_scheduling_block_dec_boundaries() {
         visibility_periods: vec![],
         scheduled_period: None,
     };
-    
+
     // Dec at +90 degrees (north pole)
     let block2 = SchedulingBlock {
         id: SchedulingBlockId::new(2),
@@ -547,7 +549,7 @@ fn test_scheduling_block_dec_boundaries() {
         visibility_periods: vec![],
         scheduled_period: None,
     };
-    
+
     assert_eq!(block1.target_dec.value(), -90.0);
     assert_eq!(block2.target_dec.value(), 90.0);
 }
@@ -572,7 +574,7 @@ fn test_scheduling_block_zero_observation_time() {
         visibility_periods: vec![],
         scheduled_period: None,
     };
-    
+
     assert_eq!(block.min_observation.value(), 0.0);
     assert_eq!(block.requested_duration.value(), 0.0);
 }
@@ -597,7 +599,7 @@ fn test_scheduling_block_very_long_observation() {
         visibility_periods: vec![],
         scheduled_period: None,
     };
-    
+
     assert_eq!(block.requested_duration.value(), 86400.0 * 30.0);
 }
 
@@ -610,7 +612,7 @@ fn test_scheduling_block_many_visibility_periods() {
             stop: ModifiedJulianDate::new(59580.5 + i as f64),
         })
         .collect();
-    
+
     let block = SchedulingBlock {
         id: SchedulingBlockId::new(1),
         original_block_id: Some("many_periods".to_string()),
@@ -629,7 +631,7 @@ fn test_scheduling_block_many_visibility_periods() {
         visibility_periods,
         scheduled_period: None,
     };
-    
+
     assert_eq!(block.visibility_periods.len(), 500);
 }
 

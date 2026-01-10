@@ -71,12 +71,20 @@ pub use visualization::VisualizationRepository;
 /// }
 /// ```
 pub trait FullRepository:
-    ScheduleRepository + AnalyticsRepository + ValidationRepository + VisualizationRepository
+    ScheduleRepository
+    + AnalyticsRepository
+    + ValidationRepository
+    + VisualizationRepository
+    + std::fmt::Debug
 {
 }
 
 // Blanket implementation: any type implementing all four traits automatically implements FullRepository
 impl<T> FullRepository for T where
-    T: ScheduleRepository + AnalyticsRepository + ValidationRepository + VisualizationRepository
+    T: ScheduleRepository
+        + AnalyticsRepository
+        + ValidationRepository
+        + VisualizationRepository
+        + std::fmt::Debug
 {
 }

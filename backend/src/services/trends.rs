@@ -484,10 +484,18 @@ pub fn py_get_trends_data(
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_by_priority, compute_metrics, compute_by_bins, compute_smoothed_trend, compute_heatmap_bins};
+    use super::{
+        compute_by_bins, compute_by_priority, compute_heatmap_bins, compute_metrics,
+        compute_smoothed_trend,
+    };
     use crate::api::TrendsBlock;
 
-    fn create_test_block(priority: f64, scheduled: bool, visibility_hours: f64, requested_hours: f64) -> TrendsBlock {
+    fn create_test_block(
+        priority: f64,
+        scheduled: bool,
+        visibility_hours: f64,
+        requested_hours: f64,
+    ) -> TrendsBlock {
         TrendsBlock {
             scheduling_block_id: priority as i64,
             original_block_id: format!("block_{}", priority),
@@ -676,7 +684,7 @@ mod tests {
             create_test_block(9.0, false, 30.0, 5.0),
         ];
         let rates = compute_by_bins(&blocks, |b| b.priority, 3, "Priority");
-        assert!(rates.len() > 0);
+        assert!(!rates.is_empty());
         assert!(rates.iter().all(|r| r.count > 0));
     }
 
@@ -707,7 +715,9 @@ mod tests {
         ];
         let smoothed = compute_smoothed_trend(&blocks, |b| b.priority, 0.3, 5);
         assert_eq!(smoothed.len(), 5);
-        assert!(smoothed.iter().all(|p| p.y_smoothed >= 0.0 && p.y_smoothed <= 1.0));
+        assert!(smoothed
+            .iter()
+            .all(|p| p.y_smoothed >= 0.0 && p.y_smoothed <= 1.0));
     }
 
     #[test]
@@ -737,7 +747,7 @@ mod tests {
             create_test_block(8.0, true, 20.0, 4.0),
         ];
         let bins = compute_heatmap_bins(&blocks, 2);
-        assert!(bins.len() > 0);
+        assert!(!bins.is_empty());
         assert!(bins.iter().all(|b| b.count > 0));
     }
 }
