@@ -1,7 +1,7 @@
 """Centralized application configuration using pydantic-settings.
 
 This module provides a comprehensive configuration system for the TSI application,
-supporting environment variables, .env files, and sensible defaults.
+supporting environment variables, docker/.env files, and sensible defaults.
 
 Configuration Categories:
 - Data Paths: Base directories and sample data locations
@@ -43,8 +43,8 @@ class Settings(BaseSettings):
     """
     Centralized application configuration.
 
-    All settings can be overridden via environment variables or a .env file.
-    Environment variables take precedence over .env file values.
+    All settings can be overridden via environment variables or docker/.env.
+    Environment variables take precedence over docker/.env values.
     """
 
     # ===== Data Paths =====
@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     # ===== Feature Flags =====
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file="docker/.env",
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -148,7 +148,7 @@ def get_settings() -> Settings:
     Return a cached Settings instance.
 
     This function caches the settings to avoid re-reading environment variables
-    and .env files on every call.
+    and docker/.env on every call.
 
     Returns:
         Cached Settings instance

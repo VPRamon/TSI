@@ -9,7 +9,7 @@ Complete guide to run the TSI (Telescope Scheduling Intelligence) application lo
 Use Docker Compose (recommended):
 
 ```bash
-docker compose -f docker/docker-compose.yml up -d postgres
+./scripts/docker_setup.sh up -d postgres
 ```
 
 Defaults: user `tsi`, password `tsi`, db `tsi`, port `5432`.
@@ -52,7 +52,7 @@ pip install -r requirements.txt
 
 ## Step 1: Database Configuration
 
-Create a `.env` file in the project root:
+Edit `docker/.env` (used by Docker Compose and the app config). For local runs outside Docker, either export these variables in your shell or add them to `docker/.env` and source it:
 
 ```bash
 DATABASE_URL=postgres://tsi:tsi@localhost:5432/tsi
