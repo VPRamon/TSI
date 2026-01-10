@@ -13,7 +13,7 @@ use crate::db::get_repository;
 use qtty::time::Hours;
 
 /// Compute analytics metrics from insights blocks.
-fn compute_metrics(blocks: &[InsightsBlock]) -> AnalyticsMetrics {
+pub(crate) fn compute_metrics(blocks: &[InsightsBlock]) -> AnalyticsMetrics {
     let total_observations = blocks.len();
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
     let unscheduled_count = total_observations - scheduled_count;
@@ -98,7 +98,7 @@ fn compute_metrics(blocks: &[InsightsBlock]) -> AnalyticsMetrics {
 
 /// Compute Spearman rank correlation between two variables.
 /// Uses a simple implementation of Spearman's rank correlation coefficient.
-fn compute_spearman_correlation(x: &[f64], y: &[f64]) -> f64 {
+pub(crate) fn compute_spearman_correlation(x: &[f64], y: &[f64]) -> f64 {
     if x.len() != y.len() || x.is_empty() {
         return 0.0;
     }
@@ -146,7 +146,7 @@ fn compute_spearman_correlation(x: &[f64], y: &[f64]) -> f64 {
 }
 
 /// Compute correlations between key variables.
-fn compute_correlations(blocks: &[InsightsBlock]) -> Vec<CorrelationEntry> {
+pub(crate) fn compute_correlations(blocks: &[InsightsBlock]) -> Vec<CorrelationEntry> {
     if blocks.len() < 2 {
         return vec![];
     }

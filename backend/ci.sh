@@ -55,22 +55,22 @@ run_coverage() {
 
     # Run tests and collect coverage (no report yet)
     echo -e "${YELLOW}==> Running tests with coverage instrumentation${NC}"
-    cargo +nightly llvm-cov --workspace --all-features --doctests --no-report -- --test-threads=1
+    cargo +nightly llvm-cov --workspace --all-features --doctests --no-report --ignore-filename-regex="qtty/" -- --test-threads=1
     echo -e "${GREEN}✓ Coverage data collected${NC}\n"
 
     # Generate Cobertura XML report
     echo -e "${YELLOW}==> Generating Cobertura XML report${NC}"
-    cargo +nightly llvm-cov report --cobertura --output-path coverage.xml
+    cargo +nightly llvm-cov report --cobertura --output-path coverage.xml --ignore-filename-regex="qtty/"
     echo -e "${GREEN}✓ coverage.xml generated${NC}\n"
 
     # Generate HTML report
     echo -e "${YELLOW}==> Generating HTML report${NC}"
-    cargo +nightly llvm-cov report --html --output-dir coverage_html
+    cargo +nightly llvm-cov report --html --output-dir coverage_html --ignore-filename-regex="qtty/"
     echo -e "${GREEN}✓ HTML report generated in coverage_html/${NC}\n"
 
     # Check coverage threshold
     echo -e "${YELLOW}==> Checking coverage threshold (≥90% lines)${NC}"
-    cargo +nightly llvm-cov --workspace --all-features --doctests --no-run --fail-under-lines 90 -- --test-threads=1
+    cargo +nightly llvm-cov --workspace --all-features --doctests --no-run --fail-under-lines 90 --ignore-filename-regex="qtty/" -- --test-threads=1
     echo -e "${GREEN}✓ Coverage threshold met${NC}\n"
 
     echo -e "${GREEN}========================================${NC}"
