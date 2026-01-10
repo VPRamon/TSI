@@ -39,7 +39,6 @@ This project can run against either the in-memory `LocalRepository` (default for
    database_url = "postgres://user:pass@host:5432/dbname"
    max_connections = 10
    ```
-   (Leave `[database]` for Azure untouched.)
 2) Start the repo with:
    ```bash
    export REPOSITORY_TYPE=postgres  # optional; file is used if env var absent

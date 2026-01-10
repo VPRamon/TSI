@@ -125,11 +125,6 @@ async fn example_switching_implementations() -> Result<(), Box<dyn std::error::E
     let test_count = count_schedules(&*test_repo).await?;
     println!("Test repository schedule count: {}", test_count);
 
-    // Same function works with Azure repository (if configured)
-    // let azure_repo = RepositoryFactory::from_env().await?;
-    // let azure_count = count_schedules(&*azure_repo).await?;
-    // println!("Azure repository schedule count: {}", azure_count);
-
     Ok(())
 }
 
@@ -187,14 +182,10 @@ mod tests {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Repository Pattern Examples\n");
 
-    // Run examples that don't require Azure
     example_builder_pattern().await?;
     example_dependency_injection().await?;
     example_error_handling().await?;
     example_switching_implementations().await?;
-
-    // Uncomment to run Azure examples (requires configuration)
-    // example_basic_usage().await?;
 
     println!("\n✓ All examples completed successfully!");
     Ok(())
