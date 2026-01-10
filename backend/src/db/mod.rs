@@ -68,6 +68,10 @@ pub mod repo_config;
 pub mod repositories;
 pub mod repository;
 pub mod services;
+
+#[cfg(test)]
+#[path = "services_tests.rs"]
+mod services_tests;
 // Postgres config is colocated with the repository implementation.
 #[cfg(feature = "postgres-repo")]
 pub use repositories::postgres::{PoolStats, PostgresConfig};

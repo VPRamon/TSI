@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use tokio::runtime::Runtime;
 
 /// Compute statistics for a set of blocks.
-fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
+pub(crate) fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
     let scheduled_blocks: Vec<&CompareBlock> = blocks.iter().filter(|b| b.scheduled).collect();
 
     let scheduled_count = scheduled_blocks.len();

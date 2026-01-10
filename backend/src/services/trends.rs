@@ -12,7 +12,7 @@ use tokio::runtime::Runtime;
 use crate::db::{get_repository, services as db_services};
 
 /// Compute overview metrics from trends blocks.
-fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
+pub(crate) fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
     let total_count = blocks.len();
     let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
     let zero_visibility_count = blocks
@@ -78,7 +78,7 @@ fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
 }
 
 /// Compute empirical scheduling rates by priority.
-fn compute_by_priority(blocks: &[TrendsBlock]) -> Vec<EmpiricalRatePoint> {
+pub(crate) fn compute_by_priority(blocks: &[TrendsBlock]) -> Vec<EmpiricalRatePoint> {
     // Group by priority value
     let mut priority_groups: HashMap<i32, (usize, usize)> = HashMap::new();
 
@@ -118,7 +118,7 @@ fn compute_by_priority(blocks: &[TrendsBlock]) -> Vec<EmpiricalRatePoint> {
 }
 
 /// Compute empirical scheduling rates by binning a continuous variable.
-fn compute_by_bins(
+pub(crate) fn compute_by_bins(
     blocks: &[TrendsBlock],
     get_value: impl Fn(&TrendsBlock) -> f64,
     n_bins: usize,
@@ -186,7 +186,7 @@ fn compute_by_bins(
 }
 
 /// Compute smoothed trend using Gaussian kernel weighted average.
-fn compute_smoothed_trend(
+pub(crate) fn compute_smoothed_trend(
     blocks: &[TrendsBlock],
     get_x: impl Fn(&TrendsBlock) -> f64,
     bandwidth: f64,
@@ -257,7 +257,7 @@ fn compute_smoothed_trend(
 }
 
 /// Compute 2D heatmap bins for visibility vs requested time.
-fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin> {
+pub(crate) fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin> {
     if blocks.is_empty() {
         return vec![];
     }

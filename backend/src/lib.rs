@@ -61,9 +61,18 @@
 use pyo3::prelude::*;
 
 pub mod api;
+#[cfg(test)]
+#[path = "api_tests.rs"]
+mod api_tests;
+
 pub mod db;
 pub mod models;
+
 pub mod routes;
+#[cfg(test)]
+#[path = "routes_tests.rs"]
+mod routes_tests;
+
 pub mod services;
 
 /// Python module entry point for the new TSI Rust API.
