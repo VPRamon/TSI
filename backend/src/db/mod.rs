@@ -23,19 +23,17 @@
 //! │  Repository Trait (repository.rs) - Abstract Interface  │
 //! └───────────────────┬─────────────────────────────────────┘
 //!                     │
-//!     ┌───────────────┴────────────────┐
-//!     │                                 │
-//! ┌───▼──────────────┐     ┌──────────▼──────────────┐
-//! │ Azure Repository │     │  Local Repository       │
-//! │ (SQL queries)    │     │  (in-memory)            │
-//! └──────────────────┘     └─────────────────────────┘
+//!     ┌──────────────────────────────────────────────┐
+//!     │             Local Repository                  │
+//!     │               (in-memory)                     │
+//!     └──────────────────────────────────────────────┘
 //! ```
 //!
 //! # Repository Pattern
 //! The module includes:
 //! - `services`: High-level business logic functions (use these in your application!)
 //! - `repository`: Trait definition for database operations
-//! - `repositories::azure`: Azure SQL Server implementation (with operations, analytics, validation)
+//! - `repositories::postgres`: Postgres implementation with Diesel ORM
 //! - `repositories::local`: In-memory implementation for unit testing and local development
 //! - `factory`: Factory for creating repository instances
 //!
@@ -43,11 +41,11 @@
 //!
 //! **For new code, use the service layer:**
 //! ```ignore
-//! use tsi_rust::db::{services, factory, DbConfig, RepositoryType};
+//! use tsi_rust::db::{services, factory, PostgresConfig, RepositoryType};
 //!
 //! async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//!     let config = DbConfig::from_env()?;
-//!     let repo = factory::RepositoryFactory::create(RepositoryType::Azure, Some(&config), None).await?;
+//!     let config = PostgresConfig::from_env()?;
+//!     let repo = factory::RepositoryFactory::create(RepositoryType::Postgres, Some(&config)).await?;
 //!     
 //!     // Use service layer functions
 //!     let schedules = services::list_schedules(repo.as_ref()).await?;
@@ -55,24 +53,15 @@
 //! }
 //! ```
 //!
-//! # Azure Implementation
-//! Azure SQL Server specific code is in `repositories::azure`:
-//! - `operations`: Direct database CRUD operations (low-level, Azure-specific)
-//! - `analytics`: Analytics ETL operations
-//! - `validation`: Validation result storage
-//! - `pool`: Connection pooling
+//! # Postgres Implementation
+//! PostgreSQL-specific code is in `repositories::postgres`.
 
-// Feature flag priority: postgres > azure > local
+// Feature flag priority: postgres > local
 // When multiple features are enabled (e.g., --all-features), postgres takes precedence.
-#[cfg(not(any(
-    feature = "azure-repo",
-    feature = "postgres-repo",
-    feature = "local-repo"
-)))]
+#[cfg(not(any(feature = "postgres-repo", feature = "local-repo")))]
 compile_error!("Enable at least one repository backend feature.");
 
 pub mod checksum;
-pub mod config;
 pub mod factory;
 pub mod models;
 pub mod repo_config;
@@ -105,14 +94,11 @@ pub use services::{
 // ==================== Repository Pattern Exports ====================
 
 pub use checksum::calculate_checksum;
-pub use config::{DbAuthMethod, DbConfig};
 // `ScheduleMetadata` removed; use `crate::api::ScheduleInfo` for lightweight listings.
 pub use repo_config::RepositoryConfig;
 
 // Repository trait and implementations
 pub use factory::{RepositoryBuilder, RepositoryFactory, RepositoryType};
-#[cfg(feature = "azure-repo")]
-pub use repositories::AzureRepository;
 pub use repositories::LocalRepository;
 #[cfg(feature = "postgres-repo")]
 pub use repositories::PostgresRepository;
@@ -121,36 +107,15 @@ pub use repository::{
     ScheduleRepository, ValidationRepository, VisualizationRepository,
 };
 
-// ==================== Backward Compatibility ====================
-// These exports are kept for existing code paths that still depend on
-// the Azure-specific modules.
-
-// Re-export Azure module functions and types for compatibility
-#[cfg(all(feature = "azure-repo", any()))] // Disabled - operations is a stub
-pub use repositories::azure::operations;
-#[cfg(feature = "azure-repo")]
-pub use repositories::azure::{analytics, pool, validation};
-
-// Validation
-#[cfg(feature = "azure-repo")]
-pub use repositories::azure::validation::{
-    delete_validation_results, fetch_validation_results, has_validation_results,
-    insert_validation_results,
-};
-
-// Database pool type
-#[cfg(feature = "azure-repo")]
-pub use repositories::azure::pool::DbPool;
-
 use anyhow::{Context, Result};
 use std::sync::{Arc, OnceLock};
-#[cfg(any(feature = "azure-repo", feature = "postgres-repo"))]
+#[cfg(feature = "postgres-repo")]
 use tokio::runtime::Runtime;
 
 /// Global repository instance initialized once per process.
 static REPOSITORY: OnceLock<Arc<dyn FullRepository>> = OnceLock::new();
 
-// Priority: postgres > azure > local (when --all-features is used)
+// Priority: postgres > local (when --all-features is used)
 #[cfg(feature = "postgres-repo")]
 async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
     let config = PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
@@ -158,23 +123,13 @@ async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository
     Ok(repo as Arc<dyn FullRepository>)
 }
 
-#[cfg(all(feature = "azure-repo", not(feature = "postgres-repo")))]
-async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
-    let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
-    let repo = RepositoryFactory::create_azure(&config).await?;
-    Ok(repo as Arc<dyn FullRepository>)
-}
-
-#[cfg(all(
-    feature = "local-repo",
-    not(any(feature = "postgres-repo", feature = "azure-repo"))
-))]
+#[cfg(all(feature = "local-repo", not(feature = "postgres-repo")))]
 fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
     Ok(RepositoryFactory::create_local())
 }
 
 /// Initialize the global repository singleton for the selected backend.
-#[cfg(any(feature = "azure-repo", feature = "postgres-repo"))]
+#[cfg(feature = "postgres-repo")]
 pub fn init_repository() -> Result<()> {
     if REPOSITORY.get().is_some() {
         return Ok(());
@@ -189,10 +144,7 @@ pub fn init_repository() -> Result<()> {
 }
 
 /// Initialize the global repository singleton for the selected backend.
-#[cfg(all(
-    feature = "local-repo",
-    not(any(feature = "postgres-repo", feature = "azure-repo"))
-))]
+#[cfg(all(feature = "local-repo", not(feature = "postgres-repo")))]
 pub fn init_repository() -> Result<()> {
     if REPOSITORY.get().is_some() {
         return Ok(());
