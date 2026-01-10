@@ -114,3 +114,140 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("GET_TRENDS_DATA", GET_TRENDS_DATA)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_trends_block_clone() {
+        let block = TrendsBlock {
+            scheduling_block_id: 5,
+            original_block_id: "trend-1".to_string(),
+            priority: 4.5,
+            total_visibility_hours: qtty::Hours::new(18.0),
+            requested_hours: qtty::Hours::new(2.0),
+            scheduled: false,
+        };
+        let cloned = block.clone();
+        assert_eq!(cloned.priority, 4.5);
+    }
+
+    #[test]
+    fn test_trends_block_debug() {
+        let block = TrendsBlock {
+            scheduling_block_id: 5,
+            original_block_id: "trend-1".to_string(),
+            priority: 4.5,
+            total_visibility_hours: qtty::Hours::new(18.0),
+            requested_hours: qtty::Hours::new(2.0),
+            scheduled: false,
+        };
+        let debug_str = format!("{:?}", block);
+        assert!(debug_str.contains("TrendsBlock"));
+    }
+
+    #[test]
+    fn test_empirical_rate_point_clone() {
+        let point = EmpiricalRatePoint {
+            bin_label: "5.0-7.5".to_string(),
+            mid_value: 6.25,
+            scheduled_rate: 0.75,
+            count: 20,
+        };
+        let cloned = point.clone();
+        assert_eq!(cloned.scheduled_rate, 0.75);
+    }
+
+    #[test]
+    fn test_empirical_rate_point_debug() {
+        let point = EmpiricalRatePoint {
+            bin_label: "5.0-7.5".to_string(),
+            mid_value: 6.25,
+            scheduled_rate: 0.75,
+            count: 20,
+        };
+        let debug_str = format!("{:?}", point);
+        assert!(debug_str.contains("EmpiricalRatePoint"));
+    }
+
+    #[test]
+    fn test_smoothed_point_debug() {
+        let point = SmoothedPoint {
+            x: 5.0,
+            y_smoothed: 0.8,
+            n_samples: 15,
+        };
+        let debug_str = format!("{:?}", point);
+        assert!(debug_str.contains("SmoothedPoint"));
+    }
+
+    #[test]
+    fn test_heatmap_bin_debug() {
+        let bin = HeatmapBin {
+            visibility_mid: 10.0,
+            time_mid: 2.5,
+            scheduled_rate: 0.65,
+            count: 30,
+        };
+        let debug_str = format!("{:?}", bin);
+        assert!(debug_str.contains("HeatmapBin"));
+    }
+
+    #[test]
+    fn test_trends_metrics_debug() {
+        let metrics = TrendsMetrics {
+            total_count: 200,
+            scheduled_count: 120,
+            scheduling_rate: 0.6,
+            zero_visibility_count: 10,
+            priority_min: 0.0,
+            priority_max: 10.0,
+            priority_mean: 5.5,
+            visibility_min: 0.0,
+            visibility_max: 100.0,
+            visibility_mean: 25.0,
+            time_min: 0.0,
+            time_max: 10.0,
+            time_mean: 5.0,
+        };
+        let debug_str = format!("{:?}", metrics);
+        assert!(debug_str.contains("TrendsMetrics"));
+    }
+
+    #[test]
+    fn test_trends_data_debug() {
+        let data = TrendsData {
+            blocks: vec![],
+            metrics: TrendsMetrics {
+                total_count: 0,
+                scheduled_count: 0,
+                scheduling_rate: 0.0,
+                zero_visibility_count: 0,
+                priority_min: 0.0,
+                priority_max: 0.0,
+                priority_mean: 0.0,
+                visibility_min: 0.0,
+                visibility_max: 0.0,
+                visibility_mean: 0.0,
+                time_min: 0.0,
+                time_max: 0.0,
+                time_mean: 0.0,
+            },
+            by_priority: vec![],
+            by_visibility: vec![],
+            by_time: vec![],
+            smoothed_visibility: vec![],
+            smoothed_time: vec![],
+            heatmap_bins: vec![],
+            priority_values: vec![],
+        };
+        let debug_str = format!("{:?}", data);
+        assert!(debug_str.contains("TrendsData"));
+    }
+
+    #[test]
+    fn test_const_value() {
+        assert_eq!(GET_TRENDS_DATA, "get_trends_data");
+    }
+}

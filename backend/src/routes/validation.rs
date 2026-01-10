@@ -47,3 +47,75 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("GET_VALIDATION_REPORT", GET_VALIDATION_REPORT)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validation_issue_clone() {
+        let issue = ValidationIssue {
+            block_id: 99,
+            original_block_id: Some("val-1".to_string()),
+            issue_type: "invalid_coordinates".to_string(),
+            category: "error".to_string(),
+            criticality: "high".to_string(),
+            field_name: Some("ra".to_string()),
+            current_value: Some("400.0".to_string()),
+            expected_value: Some("0-360".to_string()),
+            description: "RA out of range".to_string(),
+        };
+        let cloned = issue.clone();
+        assert_eq!(cloned.issue_type, "invalid_coordinates");
+    }
+
+    #[test]
+    fn test_validation_issue_debug() {
+        let issue = ValidationIssue {
+            block_id: 99,
+            original_block_id: Some("val-1".to_string()),
+            issue_type: "invalid_coordinates".to_string(),
+            category: "error".to_string(),
+            criticality: "high".to_string(),
+            field_name: Some("ra".to_string()),
+            current_value: Some("400.0".to_string()),
+            expected_value: Some("0-360".to_string()),
+            description: "RA out of range".to_string(),
+        };
+        let debug_str = format!("{:?}", issue);
+        assert!(debug_str.contains("ValidationIssue"));
+    }
+
+    #[test]
+    fn test_validation_report_clone() {
+        let report = ValidationReport {
+            schedule_id: crate::api::ScheduleId::new(1),
+            total_blocks: 100,
+            valid_blocks: 95,
+            impossible_blocks: vec![],
+            validation_errors: vec![],
+            validation_warnings: vec![],
+        };
+        let cloned = report.clone();
+        assert_eq!(cloned.total_blocks, 100);
+    }
+
+    #[test]
+    fn test_validation_report_debug() {
+        let report = ValidationReport {
+            schedule_id: crate::api::ScheduleId::new(1),
+            total_blocks: 100,
+            valid_blocks: 95,
+            impossible_blocks: vec![],
+            validation_errors: vec![],
+            validation_warnings: vec![],
+        };
+        let debug_str = format!("{:?}", report);
+        assert!(debug_str.contains("ValidationReport"));
+    }
+
+    #[test]
+    fn test_const_value() {
+        assert_eq!(GET_VALIDATION_REPORT, "get_validation_report");
+    }
+}

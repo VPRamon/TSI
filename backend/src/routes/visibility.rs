@@ -175,3 +175,67 @@ fn get_visibility_histogram(
 
     Ok(list.into())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_visibility_block_summary_clone() {
+        let summary = VisibilityBlockSummary {
+            scheduling_block_id: 25,
+            original_block_id: "vis-1".to_string(),
+            priority: 8.5,
+            num_visibility_periods: 10,
+            scheduled: true,
+        };
+        let cloned = summary.clone();
+        assert_eq!(cloned.priority, 8.5);
+    }
+
+    #[test]
+    fn test_visibility_block_summary_debug() {
+        let summary = VisibilityBlockSummary {
+            scheduling_block_id: 25,
+            original_block_id: "vis-1".to_string(),
+            priority: 8.5,
+            num_visibility_periods: 10,
+            scheduled: true,
+        };
+        let debug_str = format!("{:?}", summary);
+        assert!(debug_str.contains("VisibilityBlockSummary"));
+    }
+
+    #[test]
+    fn test_visibility_map_data_clone() {
+        let data = VisibilityMapData {
+            blocks: vec![],
+            priority_min: 0.0,
+            priority_max: 10.0,
+            total_count: 0,
+            scheduled_count: 0,
+        };
+        let cloned = data.clone();
+        assert_eq!(cloned.total_count, 0);
+    }
+
+    #[test]
+    fn test_visibility_map_data_debug() {
+        let data = VisibilityMapData {
+            blocks: vec![],
+            priority_min: 0.0,
+            priority_max: 10.0,
+            total_count: 0,
+            scheduled_count: 0,
+        };
+        let debug_str = format!("{:?}", data);
+        assert!(debug_str.contains("VisibilityMapData"));
+    }
+
+    #[test]
+    fn test_const_values() {
+        assert_eq!(GET_VISIBILITY_MAP_DATA, "get_visibility_map_data");
+        assert_eq!(GET_SCHEDULE_TIME_RANGE, "get_schedule_time_range");
+        assert_eq!(GET_VISIBILITY_HISTOGRAM, "get_visibility_histogram");
+    }
+}
