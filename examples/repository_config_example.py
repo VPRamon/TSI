@@ -178,9 +178,9 @@ def main():
     
     print("=" * 60)
     print("For more information, see:")
-    print("  - rust_backend/REPOSITORY_CONFIG.md")
-    print("  - rust_backend/repository.toml (example)")
-    print("  - rust_backend/repository.azure.toml.example")
+    print("  - backend/REPOSITORY_CONFIG.md")
+    print("  - backend/repository.toml (example)")
+    print("  - backend/repository.azure.toml.example")
     print("=" * 60)
 
 

@@ -105,7 +105,7 @@ jobs:
                   pytest -m "not unit and not integration and not e2e" --no-cov
                   ;;
                 bindings)
-                  pytest rust_backend/tests --no-cov
+                  pytest backend/tests --no-cov
                   ;;
                 *)
                   echo "error: unknown subset ${TEST_SUBSET}" >&2

@@ -5,7 +5,7 @@ This document proposes a revised ETL process and a new **Postgres** schema (mana
 ## Requirements (from request)
 
 - Use Postgres and Diesel.
-- Follow the repository traits/pattern already present in `rust_backend/src/db/repository/`.
+- Follow the repository traits/pattern already present in `backend/src/db/repository/`.
 - **All period collections** (e.g., dark periods, visibility periods) are stored as **JSON arrays in a single column**.
 - **Do not store histogram products** (e.g., visibility map / histogram bins) in the database.
 
@@ -40,7 +40,7 @@ This design stores (1)–(4). Histogram-like products are recomputed at query ti
 ### Phase A — Extract
 
 1. Receive `schedule_json` (+ optional `possible_periods_json`; dark periods may come from upload or local config).
-2. Parse into domain models (`Schedule`, `SchedulingBlock`, `Period`) using existing Serde parsing (`rust_backend/src/models/schedule.rs`).
+2. Parse into domain models (`Schedule`, `SchedulingBlock`, `Period`) using existing Serde parsing (`backend/src/models/schedule.rs`).
 3. Compute schedule checksum (SHA-256) for idempotency.
 
 ### Phase B — Transform
@@ -255,7 +255,7 @@ CREATE INDEX schedule_validation_results_status_idx ON schedule_validation_resul
 
 ## 4) Mapping to Repository Traits
 
-This schema is designed to implement the current trait surface in `rust_backend/src/db/repository/`.
+This schema is designed to implement the current trait surface in `backend/src/db/repository/`.
 
 ### `ScheduleRepository`
 

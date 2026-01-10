@@ -124,7 +124,7 @@ DB_PASSWORD=<your-password>
 # Auth and app settings
 USE_AAD_AUTH=false
 USE_ANALYTICS_TABLE=true
-ENABLE_RUST_BACKEND=true
+ENABLE_backend=true
 
 # Optional: Connection tuning
 DATABASE_CONNECTION_TIMEOUT=30
@@ -264,7 +264,7 @@ The analytics table is automatically populated when schedules are uploaded.
 ### Application Errors
 
 **"Rust backend not found"**
-- Rebuild: `cd rust_backend && maturin develop --release`
+- Rebuild: `cd backend && maturin develop --release`
 - Check Python version matches (3.11+)
 
 **"No analytics data"**
@@ -343,7 +343,7 @@ Update `.env` to use this user for the application.
 | `DB_PASSWORD` | Cond. | - | Password (used if no `DATABASE_URL`) |
 | `USE_AAD_AUTH` | No | `false` | Use Azure AD (sets trusted connection) |
 | `USE_ANALYTICS_TABLE` | No | `true` | Use pre-computed analytics tables |
-| `ENABLE_RUST_BACKEND` | No | `true` | Enable Rust-backed DB operations |
+| `ENABLE_backend` | No | `true` | Enable Rust-backed DB operations |
 | `DATABASE_CONNECTION_TIMEOUT` | No | `30` | Connection timeout (seconds) |
 | `DATABASE_MAX_RETRIES` | No | `3` | Retries for transient DB errors |
 
@@ -360,7 +360,7 @@ streamlit run src/tsi/app.py
 pytest tests/ -v
 
 # Run Rust tests
-(cd rust_backend && cargo test)
+(cd backend && cargo test)
 
 # Check database connection
 python -c "from tsi.services import db_health_check; print(db_health_check())"

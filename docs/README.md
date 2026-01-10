@@ -13,7 +13,7 @@ The index below reflects the current repository state and avoids links to non-ex
 
 ## What’s Here
 - Streamlit dashboard in `src/tsi/`
-- Rust backend crate `rust_backend/` producing the `tsi_rust` Python module via PyO3/Maturin
+- Rust backend crate `backend/` producing the `tsi_rust` Python module via PyO3/Maturin
 - Helper scripts in `scripts/` for DB setup, uploads, and verification
 
 ## Getting Started

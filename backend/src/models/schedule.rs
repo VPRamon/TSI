@@ -102,7 +102,7 @@ pub fn parse_schedule_direct(json_str: &str) -> Result<crate::api::Schedule> {
 }
 
 // (Legacy adapters removed) The codebase now expects schedule JSON to match the
-// snake_case schema in `rust_backend/docs/schedule.schema.json`. Legacy
+// snake_case schema in `backend/docs/schedule.schema.json`. Legacy
 // camelCase adapters were removed to simplify parsing and reduce maintenance.
 
 /// Compute a checksum for the schedule JSON

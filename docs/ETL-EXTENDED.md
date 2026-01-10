@@ -47,7 +47,7 @@ Todo comienza cuando un operador sube un fichero `schedule.json` a través de la
 }
 ```
 
-El primer guardián en este viaje es el **backend Rust**, específicamente las funciones de parsing que viven en `rust_backend/src/db/repositories/`. Rust no perdona: si el JSON está malformado, si falta un campo obligatorio, si un valor numérico no puede parsearse, el sistema rechaza el upload antes de que toque la base de datos.
+El primer guardián en este viaje es el **backend Rust**, específicamente las funciones de parsing que viven en `backend/src/db/repositories/`. Rust no perdona: si el JSON está malformado, si falta un campo obligatorio, si un valor numérico no puede parsearse, el sistema rechaza el upload antes de que toque la base de datos.
 
 ### 1.2 El Sello de Identidad: SHA-256 Checksum
 

@@ -25,6 +25,6 @@ notebooks/
 
 # Rust build artifacts
 target/
-rust_backend/target/
-rust_backend/qtty/target/
+backend/target/
+backend/qtty/target/
 **/target/

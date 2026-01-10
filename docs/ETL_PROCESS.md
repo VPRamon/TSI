@@ -87,7 +87,7 @@ flowchart TB
 
 ### 2.1 Carga de Archivos JSON
 
-**Módulo:** `rust_backend/src/parsing/json_parser.rs`
+**Módulo:** `backend/src/parsing/json_parser.rs`
 
 El sistema soporta múltiples formatos de entrada JSON con detección automática de estructura:
 
@@ -371,7 +371,7 @@ DateTime = datetime.fromtimestamp(Unix_Timestamp, tz=UTC)
 
 #### Parseo de Periodos de Visibilidad
 
-**Módulo:** `rust_backend/src/transformations/visibility.rs` (conceptual)
+**Módulo:** `backend/src/transformations/visibility.rs` (conceptual)
 
 ```python
 def parse_visibility_for_rows(df: pd.DataFrame) -> pd.Series:
@@ -426,7 +426,7 @@ fn parse_visibility_periods(json: Option<&str>) -> (f64, i32) {
 
 #### Bins de Prioridad
 
-**Módulo:** `rust_backend/src/db/analytics.rs`
+**Módulo:** `backend/src/db/analytics.rs`
 
 ```rust
 fn compute_priority_bucket(priority: f64, min: f64, range: Option<f64>) -> i32 {
@@ -587,7 +587,7 @@ CREATE INDEX idx_analytics_scheduled ON analytics.schedule_blocks_analytics(is_s
 
 ### 4.2 Proceso de Inserción Bulk
 
-**Módulo:** `rust_backend/src/db/operations.rs`
+**Módulo:** `backend/src/db/operations.rs`
 
 #### Estrategia Get-or-Create con Caché
 
@@ -697,7 +697,7 @@ async fn bulk_insert_scheduling_blocks(
 
 ### 4.3 Población de Tablas Analíticas (ETL Post-Load)
 
-**Módulo:** `rust_backend/src/db/analytics.rs`
+**Módulo:** `backend/src/db/analytics.rs`
 
 ```rust
 pub async fn populate_schedule_analytics(schedule_id: i64) -> Result<usize, String>
@@ -807,12 +807,13 @@ SCHEDULE_FILE="${1:-data/schedule.json}"
 VISIBILITY_FILE="${2:-data/possible_periods.json}"
 
 # Build Rust binary
-cargo build --release --manifest-path rust_backend/Cargo.toml
+
+cargo build --release --manifest-path backend/Cargo.toml
 
 # Execute upload
-rust_backend/target/release/tsi_uploader \
-    --schedule "$SCHEDULE_FILE" \
-    --visibility "$VISIBILITY_FILE" \
+backend/target/release/tsi_uploader \\
+    --schedule "$SCHEDULE_FILE" \\
+    --visibility "$VISIBILITY_FILE" \\
     --connection-string "Server=tcp:yourserver.database.windows.net,1433;Database=tsi;User ID=admin;Password=$DB_PASSWORD;..."
 ```
 
@@ -835,7 +836,7 @@ rust_backend/target/release/tsi_uploader \
 ```python
 import streamlit as st
 from tsi.services.data import loaders
-from tsi.backend import rust_backend
+from tsi.backend import backend
 
 # Upload JSON via UI
 uploaded_file = st.file_uploader("Upload Schedule JSON", type=["json"])
@@ -852,8 +853,8 @@ if uploaded_file:
         df = loaders.prepare_dataframe(df)
         
         # Store to database (via Rust backend)
-        schedule = rust_backend.create_schedule_from_dataframe(df)
-        metadata = rust_backend.store_schedule(schedule)
+        schedule = backend.create_schedule_from_dataframe(df)
+        metadata = backend.store_schedule(schedule)
         
         st.success(f"Uploaded schedule ID: {metadata.schedule_id}")
 ```
@@ -930,7 +931,7 @@ WHERE schedule_id = 42;
 
 ### 6.2 Fallback Automático
 
-**Módulo:** `rust_backend/src/services/trends.rs`
+**Módulo:** `backend/src/services/trends.rs`
 
 ```rust
 pub async fn get_trends_data(schedule_id: i64, ...) -> Result<TrendsData, String> {
