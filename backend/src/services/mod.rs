@@ -2,7 +2,7 @@
 //!
 //! This module contains the service layer that sits between the database operations
 //! and the Python bindings. Services orchestrate database calls and implement
-//! business logic, data processing, and transformations.
+//! business logic and data processing.
 
 pub mod compare;
 pub mod distributions;

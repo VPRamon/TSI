@@ -15,9 +15,7 @@ backend/src/
 ├── io/
 │   └── loaders_tests.rs               # 21 tests - File loaders & auto-detection
 ├── preprocessing/                      # TODO: Phase 2
-├── algorithms/                         # TODO: Phase 3
-├── transformations/                    # TODO: Phase 4
-└── python/                             # TODO: Phase 5 (pytest)
+└── python/                             # TODO: Phase 3 (pytest)
 ```
 
 ## Current Status
@@ -29,14 +27,12 @@ backend/src/
 - **Dark Periods Parser**: 8+ JSON shapes, 6+ timestamp formats, timezone handling
 - **IO Loaders**: Extension auto-detection, error propagation, DataFrame validation
 
-### 🚧 Phase 2-6 In Progress
+### 🚧 Phase 2-5 In Progress
 
 See `TEST_IMPLEMENTATION_GUIDE.md` for templates and patterns to complete:
 - Phase 2: Preprocessing & Validation (~40 tests)
-- Phase 3: Algorithms (~35 tests)
-- Phase 4: Transformations (~30 tests)
-- Phase 5: Python Bindings (~50 pytest tests)
-- Phase 6: Integration & CI (~10 tests + tooling)
+- Phase 3: Python Bindings (~50 pytest tests)
+- Phase 4: Integration & CI (~10 tests + tooling)
 
 ## Running Tests
 
@@ -126,17 +122,6 @@ DataFrame tests verify computed columns:
 - `total_visibility_hours`: Sum of visibility period durations
 - `elevation_range_deg`: Max - Min elevation angles
 
-## Dependencies
-
-### Dev Dependencies
-
-```toml
-[dev-dependencies]
-tempfile = "3.8"      # Temporary file creation for filesystem tests
-criterion = "0.7"     # Benchmarking (existing)
-proptest = "1.4"      # Property-based testing (existing)
-```
-
 ## Code Coverage Targets
 
 | Module | Target | Current (Phase 1) |
@@ -148,39 +133,8 @@ proptest = "1.4"      # Property-based testing (existing)
 | `preprocessing/pipeline.rs` | 80% | 0% 🚧 |
 | `preprocessing/enricher.rs` | 80% | ~40% 🚧 |
 | `preprocessing/validator.rs` | 80% | ~50% 🚧 |
-| `algorithms/analysis.rs` | 75% | ~20% 🚧 |
-| `algorithms/conflicts.rs` | 70% | ~15% 🚧 |
-| `algorithms/optimization.rs` | 75% | ~30% 🚧 |
-| `transformations/cleaning.rs` | 80% | ~25% 🚧 |
-| `transformations/filtering.rs` | 80% | ~30% 🚧 |
 
 **Overall Target:** 80% line coverage across all production code
-
-## Known Issues
-
-### Bug Fixed ✓
-
-**File:** `transformations/cleaning.rs` (line ~60)
-**Issue:** Median imputation strategy was incorrectly using `FillNullStrategy::Mean`
-
-**Status:** FIXED - Median strategy now correctly computes the median value and fills nulls with it.
-
-**Implementation:** Since Polars doesn't provide a built-in `FillNullStrategy::Median`, the fix manually computes the median and uses `zip_with` to replace null values.
-
-```rust
-// Fixed implementation
-"median" => {
-    let float_series = series.cast(&DataType::Float64)?;
-    if let Some(median_val) = float_series.median() {
-        let mask = float_series.is_null();
-        let median_series = Series::from_vec(float_series.name().clone(), vec![median_val; float_series.len()]);
-        let filled = float_series.zip_with(&mask, &median_series)?;
-        Ok(filled)
-    } else {
-        Ok(series.clone())
-    }
-}
-```
 
 ## Documentation
 
@@ -238,7 +192,7 @@ chmod +x .git/hooks/pre-commit
 
 - [ ] Tests use descriptive names (`test_parse_string_ids` not `test1`)
 - [ ] Error messages are asserted (not just `is_err()`)
-- [ ] Tempfiles are used for filesystem tests
+- [ ] Filesystem tests use temporary directories where needed
 - [ ] Realistic fixtures over handcrafted data
 - [ ] Both success and failure paths covered
 - [ ] No hardcoded paths or assumptions about environment
@@ -246,14 +200,6 @@ chmod +x .git/hooks/pre-commit
 - [ ] Documentation updated if needed
 
 ## Troubleshooting
-
-### "cannot find module tempfile"
-
-Add to `Cargo.toml`:
-```toml
-[dev-dependencies]
-tempfile = "3.8"
-```
 
 ### "test result: FAILED" with no details
 
@@ -297,8 +243,6 @@ Coverage generation: ~30-60 seconds (includes recompilation)
 
 - [Rust Testing Guide](https://doc.rust-lang.org/book/ch11-00-testing.html)
 - [cargo-tarpaulin Documentation](https://github.com/xd009642/tarpaulin)
-- [Proptest Book](https://proptest-rs.github.io/proptest/)
-- [tempfile crate](https://docs.rs/tempfile/)
 
 ## Questions?
 
