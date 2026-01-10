@@ -77,9 +77,10 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
             }];
 
             let scheduled_period = if i % 2 == 0 {
+                // Scheduled period should match requested duration (1 hour = 1/24 days ≈ 0.0417 days)
                 Some(Period {
                     start: ModifiedJulianDate::new(60000.1 + (i as f64 * 0.1)),
-                    stop: ModifiedJulianDate::new(60000.2 + (i as f64 * 0.1)),
+                    stop: ModifiedJulianDate::new(60000.1 + (i as f64 * 0.1) + (3600.0 / 86400.0)), // 1 hour in days
                 })
             } else {
                 None
@@ -550,13 +551,18 @@ async fn test_postgres_validation_lifecycle() {
         .await
         .expect("Should populate analytics");
 
+    // Delete validation results created by populate_schedule_analytics to test manual insertion
+    repo.delete_validation_results(schedule_id)
+        .await
+        .expect("Should delete validation results");
+
     // Get blocks to get valid block IDs
     let blocks = repo
         .get_blocks_for_schedule(schedule_id)
         .await
         .expect("Should get blocks");
 
-    // Initially no validation results
+    // Initially no validation results (after deletion)
     assert!(!repo
         .has_validation_results(schedule_id)
         .await
