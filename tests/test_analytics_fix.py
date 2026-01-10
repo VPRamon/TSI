@@ -16,7 +16,7 @@ import tsi_rust
 def test_analytics_population():
     """Test that analytics are populated after schedule upload."""
     pytest.skip(
-        "API changed: use backend_client.upload_schedule; this test requires backend database access."
+        "API changed: use tsi.services.upload_schedule; this test requires backend database access."
     )
 
     # No explicit database init required; Rust backend lazy-initializes repository

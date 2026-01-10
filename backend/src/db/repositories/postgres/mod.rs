@@ -24,7 +24,7 @@
 use async_trait::async_trait;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
-use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
+use diesel::r2d2::{ConnectionManager, Pool};
 use diesel::sql_query;
 use diesel::upsert::excluded;
 use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};

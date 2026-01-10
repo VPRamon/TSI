@@ -20,7 +20,7 @@ import pytest
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from tsi.services import backend_client
+from tsi.services import upload_schedule
 
 pytestmark = pytest.mark.skip(
     reason="Requires backend service to store schedules for performance measurements."
@@ -64,7 +64,7 @@ def test_fast_mode():
 
     start = time.time()
     try:
-        metadata = backend_client.upload_schedule(
+        metadata = upload_schedule(
             schedule_name="test_fast_mode",
             schedule_json=schedule_data,
             visibility_json=visibility_data,
@@ -102,7 +102,7 @@ def test_full_mode():
 
     start = time.time()
     try:
-        metadata = backend_client.upload_schedule(
+        metadata = upload_schedule(
             schedule_name="test_full_mode",
             schedule_json=schedule_data,
             visibility_json=visibility_data,
@@ -134,7 +134,7 @@ def test_no_analytics():
 
     start = time.time()
     try:
-        metadata = backend_client.upload_schedule(
+        metadata = upload_schedule(
             schedule_name="test_no_analytics",
             schedule_json=schedule_data,
             visibility_json=visibility_data,
