@@ -2,7 +2,7 @@
 
 This module provides access to centralized configuration and defines
 application-wide constants. Configuration values come from app_config.settings
-which supports environment variables and .env files.
+which supports environment variables and docker/.env files.
 """
 
 from pathlib import Path

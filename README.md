@@ -81,9 +81,10 @@ Dark periods: if `data/dark_periods.json` exists, it is auto‑loaded; you can a
 
 Bring up Postgres + the Streamlit app (Rust backend compiled with Postgres support):
 
+Edit `docker/.env` if you need custom ports or Postgres credentials.
+
 ```bash
-cp .env.example .env
-docker compose -f docker/docker-compose.yml up --build
+./scripts/docker_setup.sh
 ```
 
 Guide: `docker/docker-compose.md`
@@ -182,14 +183,14 @@ Notes
 
 ## Configuration
 
-Runtime settings are managed via `pydantic-settings` in `src/app_config/settings.py` and can be overridden with environment variables or a `.env` file at repo root.
+Runtime settings are managed via `pydantic-settings` in `src/app_config/settings.py` and can be overridden with environment variables or `docker/.env`.
 
 Key variables
 - DATA_ROOT: base data directory (default: data)
 - SAMPLE_DATASET: path to the sample CSV (default: data/schedule.json)
 - CACHE_TTL_SECONDS: cache TTL for loaders (default: 600)
 
-Example `.env`
+Example `docker/.env`
 ```
 SAMPLE_DATASET=data/schedule.json
 DATA_ROOT=data

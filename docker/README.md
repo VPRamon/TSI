@@ -8,9 +8,10 @@ This setup runs the TSI Streamlit app plus a Postgres database, and builds the R
 
 ## Quickstart
 
+Edit `docker/.env` if you need custom ports or Postgres credentials.
+
 ```bash
-cp .env.example .env
-docker compose -f docker/docker-compose.yml up --build
+./scripts/docker_setup.sh
 ```
 
 - Streamlit UI: `http://localhost:8501` (or `$TSI_PORT`)
@@ -20,22 +21,22 @@ docker compose -f docker/docker-compose.yml up --build
 
 ```bash
 # Start (in background)
-docker compose -f docker/docker-compose.yml up -d --build
+./scripts/docker_setup.sh up -d --build
 
 # Logs
-docker compose -f docker/docker-compose.yml logs -f app
+./scripts/docker_setup.sh logs -f app
 
 # Stop
-docker compose -f docker/docker-compose.yml down
+./scripts/docker_setup.sh down
 
 # Stop + delete DB volume (DANGER: deletes persisted data)
-docker compose -f docker/docker-compose.yml down -v
+./scripts/docker_setup.sh down -v
 ```
 
 ## Connecting to Postgres
 
 ```bash
-docker compose -f docker/docker-compose.yml exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+./scripts/docker_setup.sh exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
 
 From your host (if you published the port):
