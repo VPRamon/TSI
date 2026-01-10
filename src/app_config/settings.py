@@ -18,7 +18,7 @@ Note:
     Database configuration is handled by the Rust backend. Set the following
     environment variables for database access:
     - DB_SERVER, DB_DATABASE, DB_USERNAME, DB_PASSWORD
-    See rust_backend/src/db/config.rs for full database configuration options.
+    See backend/src/db/config.rs for full database configuration options.
 
 Example:
     >>> from app_config import get_settings
@@ -103,7 +103,7 @@ class Settings(BaseSettings):
         description="Maximum worker threads/processes for parallel operations",
         ge=1,
     )
-    enable_rust_backend: bool = Field(
+    enable_backend: bool = Field(
         default=True,
         description="Use high-performance Rust backend for data operations",
     )
@@ -174,7 +174,7 @@ def get_settings() -> Settings:
     # Log configuration status
     logger.info(f"Data root: {settings.data_root}")
     logger.info(f"Cache TTL: {settings.cache_ttl}s")
-    logger.info(f"Rust backend enabled: {settings.enable_rust_backend}")
+    logger.info(f"Rust backend enabled: {settings.enable_backend}")
     logger.info("Note: Database configuration is managed by Rust backend via environment variables")
 
     return settings

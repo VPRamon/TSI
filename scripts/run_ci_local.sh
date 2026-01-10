@@ -243,7 +243,7 @@ if [[ "$RUN_PYTHON_TESTS" == true ]]; then
             bindings)
                 # Run Python bindings tests; exit code 5 means no tests collected which is OK
                 set +e
-                run_cmd "pytest rust_backend/tests --no-cov"
+                run_cmd "pytest backend/tests --no-cov"
                 PYTEST_EXIT=$?
                 set -e
                 if [[ $PYTEST_EXIT -eq 0 || $PYTEST_EXIT -eq 5 ]]; then
@@ -269,7 +269,7 @@ if [[ "$RUN_RUST" == true ]]; then
     
     # Cargo fmt
     echo "Running cargo fmt..."
-    if run_cmd "cd rust_backend && cargo fmt --all --check"; then
+    if run_cmd "cd backend && cargo fmt --all --check"; then
         print_success "Cargo fmt check passed"
     else
         print_error "Cargo fmt check failed"
@@ -278,7 +278,7 @@ if [[ "$RUN_RUST" == true ]]; then
     
     # Cargo clippy
     echo "Running cargo clippy..."
-    if run_cmd "cd rust_backend && cargo clippy --all-targets --all-features -- -D warnings"; then
+    if run_cmd "cd backend && cargo clippy --all-targets --all-features -- -D warnings"; then
         print_success "Cargo clippy passed"
     else
         print_error "Cargo clippy failed"
@@ -287,7 +287,7 @@ if [[ "$RUN_RUST" == true ]]; then
     
     # Cargo test
     echo "Running cargo test..."
-    if run_cmd "cd rust_backend && cargo test --no-default-features --features local-repo"; then
+    if run_cmd "cd backend && cargo test --no-default-features --features local-repo"; then
         print_success "Cargo tests passed"
     else
         print_error "Cargo tests failed"

@@ -49,7 +49,7 @@ class TestSettingsDefaults:
 
         assert settings.cache_ttl == 3600
         assert settings.max_workers == 4
-        assert settings.enable_rust_backend is True
+        assert settings.enable_backend is True
 
     def test_plot_defaults(self):
         """Test plot configuration defaults."""

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Schedule",
-  "description": "JSON schema describing a Schedule that maps directly to the domain models in `rust_backend/src/db/models/schedule.rs`. Uses snake_case to match Rust conventions.",
+  "description": "JSON schema describing a Schedule that maps directly to the domain models in `backend/src/db/models/schedule.rs`. Uses snake_case to match Rust conventions.",
   "type": "object",
   "properties": {
     "name": { "type": "string" },

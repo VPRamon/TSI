@@ -100,7 +100,7 @@ SB001,5.0
 
 
 @pytest.fixture(autouse=True)
-def stub_rust_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+def stub_backend(monkeypatch: pytest.MonkeyPatch) -> None:
     """Stub the tsi_rust backend so tests can run without compiled Rust."""
 
     from core.loaders import schedule_loader

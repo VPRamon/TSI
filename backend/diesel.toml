@@ -2,4 +2,4 @@
 file = "src/db/repositories/postgres/schema.rs"
 
 [migrations_directory]
-dir = "rust_backend/src/db/repositories/postgres/migrations"
+dir = "backend/src/db/repositories/postgres/migrations"

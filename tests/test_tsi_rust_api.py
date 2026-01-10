@@ -321,7 +321,7 @@ class TestServicesIntegration:
 
     def test_services_backend_is_tsi_rust_api_backend(self):
         """Test that services BACKEND is a TSIBackend instance."""
-        from tsi.services.rust_backend import BACKEND
+        from tsi.services.backend import BACKEND
 
         assert type(BACKEND).__name__ == "TSIBackend"
         assert type(BACKEND).__module__ == "tsi_rust_api"

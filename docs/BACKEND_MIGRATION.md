@@ -28,7 +28,7 @@ from tsi_rust_api import filter_by_priority
 
 # Or use the services layer (RECOMMENDED)
 from tsi.services import BACKEND
-from tsi.services.rust_backend import load_schedule_from_any
+from tsi.services.backend import load_schedule_from_any
 ```
 
 ## Migration Steps
@@ -70,7 +70,7 @@ conflicts = BACKEND.find_conflicts(df)
 For handling file uploads (e.g., Streamlit):
 
 ```python
-from tsi.services.rust_backend import load_schedule_from_any
+from tsi.services.backend import load_schedule_from_any
 
 # Works with file paths
 df = load_schedule_from_any("data/schedule.json")

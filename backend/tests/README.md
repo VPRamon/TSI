@@ -7,7 +7,7 @@ This directory contains comprehensive unit tests for the Telescope Scheduling In
 ## Test Structure
 
 ```
-rust_backend/src/
+backend/src/
 ├── parsing/
 │   ├── json_parser_tests.rs          # 15 tests - JSON parsing & validation
 │   ├── csv_parser_tests.rs           # 18 tests - CSV parsing & derived columns

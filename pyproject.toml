@@ -37,7 +37,7 @@ build-backend = "maturin"
 
 [tool.maturin]
 module-name = "tsi_rust"
-manifest-path = "rust_backend/Cargo.toml"
+manifest-path = "backend/Cargo.toml"
 bindings = "pyo3"
 compatibility = "linux"
 features = ["pyo3/extension-module"]

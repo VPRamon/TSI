@@ -30,7 +30,7 @@ This project can run against either the in-memory `LocalRepository` (default for
 2) Run the app/tests. Data lives only in memory per process.
 
 ## Using repository.toml instead
-1) Edit `rust_backend/repository.toml`:
+1) Edit `backend/repository.toml`:
    ```toml
    [repository]
    type = "postgres" # or "local"

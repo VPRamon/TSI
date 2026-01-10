@@ -29,12 +29,12 @@ print_error() {
 }
 
 # Check if running from correct directory
-if [ ! -f "Cargo.toml" ] && [ ! -f "rust_backend/Cargo.toml" ]; then
-    print_error "Must run from project root or rust_backend directory"
+if [ ! -f "Cargo.toml" ] && [ ! -f "backend/Cargo.toml" ]; then
+    print_error "Must run from project root or backend directory"
     exit 1
 fi
 
-# Move to project root if in rust_backend directory
+# Move to project root if in backend directory
 if [ -f "Cargo.toml" ] && [ -f "../pyproject.toml" ]; then
     cd ..
 fi
@@ -126,7 +126,7 @@ echo ""
 # Run tests if requested
 if [ "$RUN_TESTS" = true ]; then
     print_info "Running Rust tests..."
-    cd rust_backend
+    cd backend
     cargo test --release 2>&1 | grep -E "(test result:|running|PASSED|FAILED)" || true
     cd ..
     echo ""
@@ -137,9 +137,9 @@ print_info "Building Rust backend in $MODE mode..."
 echo ""
 
 if [ "$MODE" = "release" ]; then
-    maturin develop --release --manifest-path rust_backend/Cargo.toml
+    maturin develop --release --manifest-path backend/Cargo.toml
 else
-    maturin develop --manifest-path rust_backend/Cargo.toml
+    maturin develop --manifest-path backend/Cargo.toml
 fi
 
 BUILD_EXIT_CODE=$?

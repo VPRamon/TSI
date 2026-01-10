@@ -42,7 +42,7 @@ The TSI application employs a hybrid architecture with strict separation of conc
 -   **Configuration**: All database configuration is owned by the Rust backend, read from environment variables:
     - `DB_SERVER`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
     - `DB_AUTH_METHOD` (sql_password | aad_password | aad_token)
-    - See `rust_backend/src/db/config.rs` for complete options
+    - See `backend/src/db/config.rs` for complete options
   
 -   **Infrastructure**: The application is containerized using Docker multi-stage builds and deployed on **Azure Container Apps** for horizontal scalability.
 
@@ -140,7 +140,7 @@ graph TB
 
 ## 2. Rust Backend Deep Dive: The "Trends" Service
 
-The core of the statistical analysis resides in `rust_backend/src/services/trends.rs`. This module is designed to offload computationally expensive operations from Python to keep the UI responsive, especially when processing thousands of scheduling blocks.
+The core of the statistical analysis resides in `backend/src/services/trends.rs`. This module is designed to offload computationally expensive operations from Python to keep the UI responsive, especially when processing thousands of scheduling blocks.
 
 ### Module Purpose
 
@@ -568,7 +568,7 @@ maturin develop  # No --release flag
 ```
 
 **What Happens:**
-1. Cargo builds `rust_backend` crate with PyO3 bindings
+1. Cargo builds `backend` crate with PyO3 bindings
 2. Maturin packages it as a Python wheel (`tsi_rust-*.whl`)
 3. Installs wheel into current virtualenv
 4. Python can now `import tsi_rust`
@@ -622,7 +622,7 @@ streamlit run src/tsi/app.py
 
 **Iterating on Rust Code:**
 ```bash
-# Edit rust_backend/src/**/*.rs files
+# Edit backend/src/**/*.rs files
 # Rebuild and reinstall
 maturin develop --release
 
@@ -633,7 +633,7 @@ streamlit run src/tsi/app.py
 **Running Tests:**
 ```bash
 # Rust tests
-cd rust_backend && cargo test
+cd backend && cargo test
 
 # Python tests
 pytest tests/

@@ -114,7 +114,7 @@ impl RepositoryConfig {
     ///
     /// Searches for `repository.toml` in:
     /// 1. Current directory
-    /// 2. `rust_backend/` directory
+    /// 2. `backend/` directory
     /// 3. Parent directory
     ///
     /// # Returns
@@ -123,7 +123,7 @@ impl RepositoryConfig {
     pub fn from_default_location() -> Result<Self, RepositoryError> {
         let search_paths = vec![
             PathBuf::from("repository.toml"),
-            PathBuf::from("rust_backend/repository.toml"),
+            PathBuf::from("backend/repository.toml"),
             PathBuf::from("../repository.toml"),
             PathBuf::from("./repository.toml"),
         ];

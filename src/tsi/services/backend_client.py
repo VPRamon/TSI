@@ -48,9 +48,9 @@ def _import_rust() -> Any:
     """Import the Rust backend module, respecting configuration flags."""
     settings = get_settings()
 
-    if not settings.enable_rust_backend:
+    if not settings.enable_backend:
         raise ServerError(
-            "Rust backend is disabled in configuration", details={"enable_rust_backend": False}
+            "Rust backend is disabled in configuration", details={"enable_backend": False}
         )
 
     try:

@@ -55,10 +55,10 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 
 RUN pip install --no-cache-dir "maturin>=1.0,<2.0"
 
-COPY rust_backend/ ./rust_backend/
+COPY backend/ ./backend/
 RUN maturin build \
         --release \
-        --manifest-path rust_backend/Cargo.toml \
+        --manifest-path backend/Cargo.toml \
         --features postgres-repo \
         -o /tmp/wheels
 

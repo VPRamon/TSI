@@ -756,7 +756,7 @@ ORDER BY priority_bucket DESC;
 Run the setup script to create all tables:
 
 ```bash
-sqlcmd -S <server>.database.windows.net -d <database> -U <user> -P <password> -i rust_backend/src/db/repositories/azure/azure-setup.sql
+sqlcmd -S <server>.database.windows.net -d <database> -U <user> -P <password> -i backend/src/db/repositories/azure/azure-setup.sql
 ```
 
 Or use Azure Data Studio / SSMS / Azure Portal Query Editor to execute the script.

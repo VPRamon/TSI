@@ -309,6 +309,6 @@ WHERE c.object_id = OBJECT_ID('analytics.schedule_blocks_analytics')
 
 ## Referencias
 
-- **Archivo de Schema**: `rust_backend/src/db/repositories/azure/azure-setup.sql`
+- **Archivo de Schema**: `backend/src/db/repositories/azure/azure-setup.sql`
 - **Documentación SQL Server**: [Computed Columns](https://learn.microsoft.com/en-us/sql/relational-databases/tables/specify-computed-columns-in-a-table)
-- **Módulo Rust Analytics**: `rust_backend/src/db/repositories/azure/analytics.rs`
+- **Módulo Rust Analytics**: `backend/src/db/repositories/azure/analytics.rs`
