@@ -56,10 +56,6 @@ class Settings(BaseSettings):
         default=Path("data") / "schedule.json",
         description="Default sample schedule dataset path",
     )
-    artifacts_dir: Path = Field(
-        default=Path("src/tsi/modeling/artifacts"),
-        description="Directory for ML model artifacts",
-    )
 
     # ===== UI Configuration =====
     app_title: str = Field(
@@ -120,18 +116,6 @@ class Settings(BaseSettings):
     plot_margin_bottom: int = Field(default=80, ge=0)
 
     # ===== Feature Flags =====
-    enable_file_upload: bool = Field(
-        default=True,
-        description="Enable file upload functionality",
-    )
-    enable_comparison: bool = Field(
-        default=True,
-        description="Enable schedule comparison feature",
-    )
-    use_analytics_table: bool = Field(
-        default=True,
-        description="Use pre-computed analytics table for improved query performance (ETL)",
-    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -140,7 +124,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    @field_validator("data_root", "sample_dataset", "artifacts_dir", mode="before")
+    @field_validator("data_root", "sample_dataset", mode="before")
     @classmethod
     def convert_to_path(cls, v: str | Path) -> Path:
         """Convert string paths to Path objects."""

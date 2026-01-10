@@ -26,6 +26,5 @@ __all__ = [
     "get_all_block_ids",
 ]
 
-# Note: visibility_cache and report modules are available for direct import
-# e.g., from tsi.services.utils.visibility_cache import ...
-# but not re-exported here to avoid circular import issues
+# Note: report utilities are available for direct import but not re-exported
+# here to avoid circular import issues.

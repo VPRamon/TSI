@@ -31,8 +31,7 @@ def initialize_state() -> None:
         st.session_state[KEY_DATA_FILENAME] = None
 
     if KEY_SCHEDULE_REF not in st.session_state:
-        legacy_id = st.session_state.pop("schedule_id", None)
-        st.session_state[KEY_SCHEDULE_REF] = legacy_id
+        st.session_state[KEY_SCHEDULE_REF] = None
 
     if KEY_SCHEDULE_NAME not in st.session_state:
         st.session_state[KEY_SCHEDULE_NAME] = None

@@ -29,7 +29,6 @@ class TestSettingsDefaults:
 
         assert settings.data_root == Path("data")
         assert settings.sample_dataset == Path("data") / "schedule.json"
-        assert settings.artifacts_dir == Path("src/tsi/modeling/artifacts")
 
     def test_ui_defaults(self):
         """Test UI configuration defaults."""
@@ -60,14 +59,6 @@ class TestSettingsDefaults:
         assert settings.plot_margin_right == 80
         assert settings.plot_margin_top == 80
         assert settings.plot_margin_bottom == 80
-
-    def test_feature_flags_defaults(self):
-        """Test feature flag defaults."""
-        settings = Settings()
-
-        assert settings.enable_file_upload is True
-        assert settings.enable_comparison is True
-
 
 class TestEnvironmentVariableOverrides:
     """Test environment variable overrides."""

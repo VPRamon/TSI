@@ -69,6 +69,7 @@ run_cmd() {
 RUN_LINTERS=true
 RUN_PYTHON_TESTS=true
 RUN_RUST=true
+RUN_RUST_COVERAGE=false
 TEST_SUBSET=""
 SHOW_HELP=false
 
@@ -87,6 +88,10 @@ while [[ $# -gt 0 ]]; do
         --rust-only)
             RUN_LINTERS=false
             RUN_PYTHON_TESTS=false
+            shift
+            ;;
+        --rust-coverage)
+            RUN_RUST_COVERAGE=true
             shift
             ;;
         --subset)
@@ -123,6 +128,7 @@ OPTIONS:
     --linters-only      Run only Python linters and type checks
     --tests-only        Run only Python tests
     --rust-only         Run only Rust checks
+    --rust-coverage     Run Rust code coverage (requires nightly toolchain)
     --subset SUBSET     Run specific test subset (unit|integration|e2e|unmarked|bindings)
     --docker            Force Docker execution
     --no-docker         Force native execution
@@ -133,6 +139,7 @@ EXAMPLES:
     $0 --linters-only                   # Run only linters
     $0 --subset unit                    # Run only unit tests
     $0 --no-docker --subset integration # Run integration tests natively
+    $0 --rust-only --rust-coverage      # Run Rust checks with coverage
 
 ENVIRONMENT VARIABLES:
     DEV_IMAGE_TAG       Docker image tag (default: tsi-dev:ci)
@@ -287,11 +294,78 @@ if [[ "$RUN_RUST" == true ]]; then
     
     # Cargo test
     echo "Running cargo test..."
-    if run_cmd "cd backend && cargo test --no-default-features --features local-repo"; then
+    if run_cmd "cd backend && cargo test --all-features"; then
         print_success "Cargo tests passed"
     else
         print_error "Cargo tests failed"
         FAILED_STEPS+=("cargo-test")
+    fi
+fi
+
+# ============================================
+# Rust Coverage
+# ============================================
+if [[ "$RUN_RUST_COVERAGE" == true ]]; then
+    print_header "Rust Coverage"
+    
+    # Check if cargo-llvm-cov is installed
+    echo "Checking for cargo-llvm-cov..."
+    if ! run_cmd "command -v cargo-llvm-cov &>/dev/null && cargo +nightly llvm-cov --version &>/dev/null"; then
+        print_error "cargo-llvm-cov is not installed or nightly toolchain is missing"
+        echo ""
+        echo "To install cargo-llvm-cov, run:"
+        echo "  cargo install cargo-llvm-cov"
+        echo ""
+        echo "To install nightly toolchain with llvm-tools-preview:"
+        echo "  rustup toolchain install nightly --component llvm-tools-preview"
+        echo ""
+        FAILED_STEPS+=("cargo-llvm-cov-missing")
+    else
+        print_success "cargo-llvm-cov is available"
+        
+        # Clean previous coverage data
+        echo "Cleaning previous coverage data..."
+        if run_cmd "cd backend && cargo +nightly llvm-cov clean --workspace"; then
+            print_success "Coverage data cleaned"
+        else
+            print_error "Failed to clean coverage data"
+            FAILED_STEPS+=("cargo-coverage-clean")
+        fi
+    
+    # Collect coverage data
+    echo "Running tests with coverage instrumentation..."
+    if run_cmd "cd backend && cargo +nightly llvm-cov --workspace --all-features --doctests --no-report"; then
+        print_success "Coverage data collected"
+    else
+        print_error "Failed to collect coverage data"
+        FAILED_STEPS+=("cargo-coverage-collect")
+    fi
+    
+    # Generate Cobertura XML report
+    echo "Generating Cobertura XML report..."
+    if run_cmd "cd backend && cargo +nightly llvm-cov report --cobertura --output-path ../coverage_rust.xml"; then
+        print_success "coverage_rust.xml generated"
+    else
+        print_error "Failed to generate Cobertura XML report"
+        FAILED_STEPS+=("cargo-coverage-xml")
+    fi
+    
+    # Generate HTML report
+    echo "Generating HTML coverage report..."
+    if run_cmd "cd backend && cargo +nightly llvm-cov report --html --output-dir ../coverage_rust_html"; then
+        print_success "HTML report generated in coverage_rust_html/"
+    else
+        print_error "Failed to generate HTML coverage report"
+        FAILED_STEPS+=("cargo-coverage-html")
+    fi
+    
+        # Display coverage summary (informational, does not fail build)
+        echo "Displaying coverage summary..."
+        if run_cmd "cd backend && cargo +nightly llvm-cov --workspace --all-features --doctests --no-run"; then
+            print_success "Coverage summary displayed"
+        else
+            print_warning "Could not display coverage summary (non-fatal)"
+        fi
     fi
 fi
 
