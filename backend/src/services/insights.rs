@@ -10,8 +10,6 @@ use tokio::runtime::Runtime;
 
 // Import the global repository accessor
 use crate::db::get_repository;
-#[allow(unused_imports)]
-use crate::db::repository::AnalyticsRepository;
 use qtty::time::Hours;
 
 /// Compute analytics metrics from insights blocks.

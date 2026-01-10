@@ -251,26 +251,6 @@ impl PostgresRepository {
         Ok(())
     }
 
-    /// Get a connection from the pool.
-    #[allow(dead_code)]
-    fn get_connection(
-        &self,
-    ) -> RepositoryResult<PooledConnection<ConnectionManager<PgConnection>>> {
-        self.pool.get().map_err(|e| {
-            self.failed_queries.fetch_add(1, Ordering::Relaxed);
-            RepositoryError::connection_with_context(
-                e.to_string(),
-                ErrorContext::new("get_connection")
-                    .with_details(format!(
-                        "pool_state={{size={}, idle={}}}",
-                        self.pool.state().connections,
-                        self.pool.state().idle_connections
-                    ))
-                    .retryable(),
-            )
-        })
-    }
-
     /// Execute a database operation with automatic retry for transient failures.
     ///
     /// This method will retry the operation up to `max_retries` times if a
@@ -346,32 +326,6 @@ impl PostgresRepository {
         })?
     }
 
-    /// Execute a database operation without retry (for non-idempotent operations).
-    #[allow(dead_code)]
-    async fn with_conn_no_retry<T, F>(&self, f: F) -> RepositoryResult<T>
-    where
-        T: Send + 'static,
-        F: FnOnce(&mut PgConnection) -> RepositoryResult<T> + Send + 'static,
-    {
-        let pool = self.pool.clone();
-        let total_queries = self.total_queries.clone();
-        let failed_queries = self.failed_queries.clone();
-
-        task::spawn_blocking(move || {
-            let mut conn = pool.get().map_err(|e| {
-                failed_queries.fetch_add(1, Ordering::Relaxed);
-                RepositoryError::connection(e.to_string())
-            })?;
-
-            total_queries.fetch_add(1, Ordering::Relaxed);
-            f(&mut conn).inspect_err(|_| {
-                failed_queries.fetch_add(1, Ordering::Relaxed);
-            })
-        })
-        .await
-        .map_err(|e| RepositoryError::internal(format!("Task join error: {}", e)))?
-    }
-
     /// Get pool health statistics.
     ///
     /// Returns current pool state and query statistics for monitoring.
@@ -418,32 +372,6 @@ impl PostgresRepository {
 
 fn map_diesel_error(err: diesel::result::Error) -> RepositoryError {
     RepositoryError::from(err)
-}
-
-#[allow(dead_code)]
-fn map_diesel_error_with_context(err: diesel::result::Error, ctx: ErrorContext) -> RepositoryError {
-    match err {
-        diesel::result::Error::NotFound => {
-            RepositoryError::not_found_with_context("Record not found", ctx)
-        }
-        diesel::result::Error::DatabaseError(kind, info) => {
-            let message = info.message().to_string();
-            let ctx = ctx.with_details(format!("db_error_kind={:?}", kind));
-
-            // Serialization failures are retryable
-            let ctx = if matches!(
-                kind,
-                diesel::result::DatabaseErrorKind::SerializationFailure
-            ) {
-                ctx.retryable()
-            } else {
-                ctx
-            };
-
-            RepositoryError::query_with_context(message, ctx)
-        }
-        other => RepositoryError::query_with_context(other.to_string(), ctx),
-    }
 }
 
 fn periods_to_json(periods: &[Period]) -> Value {

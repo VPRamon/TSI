@@ -11,8 +11,6 @@ use tokio::runtime::Runtime;
 
 // Import the global repository accessor
 use crate::db::get_repository;
-#[allow(unused_imports)]
-use crate::db::repository::VisualizationRepository;
 
 /// Compute schedule timeline data with statistics and metadata.
 /// This function takes the raw blocks and computes everything needed for visualization.
