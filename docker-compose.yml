@@ -1,38 +1,46 @@
-version: "3.9"
-
 services:
-  # PostgreSQL database for production
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: tsi
-      POSTGRES_PASSWORD: tsi
-      POSTGRES_DB: tsi
+      POSTGRES_USER: ${POSTGRES_USER:-tsi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tsi}
+      POSTGRES_DB: ${POSTGRES_DB:-tsi}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U tsi"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h 127.0.0.1 -p 5432",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
 
-  # Application service (optional - build with postgres-repo feature)
-  # app:
-  #   build:
-  #     context: .
-  #     args:
-  #       REPO_FEATURE: postgres-repo
-  #   environment:
-  #     DATABASE_URL: postgres://tsi:tsi@postgres:5432/tsi
-  #     REPOSITORY_TYPE: postgres
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #   ports:
-  #     - "8000:8000"
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-tsi}:${POSTGRES_PASSWORD:-tsi}@postgres:5432/${POSTGRES_DB:-tsi}
+      PG_POOL_MAX: ${PG_POOL_MAX:-10}
+      PG_POOL_MIN: ${PG_POOL_MIN:-1}
+      PG_CONN_TIMEOUT_SEC: ${PG_CONN_TIMEOUT_SEC:-30}
+      PG_IDLE_TIMEOUT_SEC: ${PG_IDLE_TIMEOUT_SEC:-600}
+      PG_MAX_RETRIES: ${PG_MAX_RETRIES:-3}
+      PG_RETRY_DELAY_MS: ${PG_RETRY_DELAY_MS:-100}
+      RUST_LOG: ${RUST_LOG:-info}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${TSI_PORT:-8501}:8501"
+    volumes:
+      - ./data:/app/data
 
 volumes:
   postgres_data:

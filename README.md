@@ -94,7 +94,7 @@ pip install -r requirements.txt
 streamlit run src/tsi/app.py
 
 # Or use the helper
-./run_dashboard.sh
+./scripts/run_dashboard.sh
 ```
 
 The app opens at http://localhost:8501. On the landing page you can:
@@ -103,6 +103,17 @@ The app opens at http://localhost:8501. On the landing page you can:
 - Load the bundled sample dataset at `data/schedule.json`.
 
 Dark periods: if `data/dark_periods.json` exists, it is auto‑loaded; you can also upload it later on the landing page. The Scheduled Timeline page then shades nighttime (observable) vs daytime (non‑observable) periods.
+
+## Docker Compose (Postgres)
+
+Bring up Postgres + the Streamlit app (Rust backend compiled with Postgres support):
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Guide: `docs/docker-compose.md`
 
 ## Preprocess JSON → CSV (recommended for performance)
 
