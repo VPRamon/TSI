@@ -27,8 +27,9 @@ use diesel::prelude::*;
 use diesel::r2d2::{ConnectionManager, Pool, PooledConnection};
 use diesel::sql_query;
 use diesel::upsert::excluded;
-use diesel_migrations::{FileBasedMigrations, MigrationHarness};
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 use tokio::task;
@@ -42,7 +43,9 @@ use crate::db::repository::{
     AnalyticsRepository, ErrorContext, RepositoryError, RepositoryResult, ScheduleRepository,
     ValidationRepository, VisualizationRepository,
 };
-use crate::services::validation::{ValidationResult, ValidationStatus};
+use crate::services::validation::{
+    validate_blocks, BlockForValidation, ValidationResult, ValidationStatus,
+};
 
 mod models;
 mod schema;
@@ -51,6 +54,9 @@ use models::*;
 use schema::*;
 
 type PgPool = Pool<ConnectionManager<PgConnection>>;
+
+const MIGRATIONS: EmbeddedMigrations =
+    embed_migrations!("src/db/repositories/postgres/migrations");
 
 /// Configuration for connecting to Postgres.
 #[derive(Debug, Clone)]
@@ -236,17 +242,7 @@ impl PostgresRepository {
 
     /// Run pending database migrations.
     fn run_migrations(conn: &mut PgConnection) -> RepositoryResult<()> {
-        let migrations_path = format!("{}/migrations", env!("CARGO_MANIFEST_DIR"));
-
-        let migrations = FileBasedMigrations::from_path(&migrations_path).map_err(|e| {
-            RepositoryError::configuration_with_context(
-                format!("Failed to load migrations: {}", e),
-                ErrorContext::new("run_migrations")
-                    .with_details(format!("path={}", migrations_path)),
-            )
-        })?;
-
-        conn.run_pending_migrations(migrations).map_err(|e| {
+        conn.run_pending_migrations(MIGRATIONS).map_err(|e| {
             RepositoryError::internal_with_context(
                 format!("Migration failed: {}", e),
                 ErrorContext::new("run_migrations"),
@@ -904,10 +900,19 @@ impl AnalyticsRepository for PostgresRepository {
                     .map_err(map_diesel_error)?;
 
                 if block_rows.is_empty() {
+                    // Keep derived tables consistent even for empty schedules.
+                    diesel::delete(
+                        schedule_validation_results::table
+                            .filter(schedule_validation_results::schedule_id.eq(schedule_id.0)),
+                    )
+                    .execute(tx)
+                    .map_err(map_diesel_error)?;
                     return Ok(0);
                 }
 
                 let mut analytics_rows: Vec<NewScheduleBlockAnalyticsRow> =
+                    Vec::with_capacity(block_rows.len());
+                let mut blocks_for_validation: Vec<BlockForValidation> =
                     Vec::with_capacity(block_rows.len());
 
                 for row in &block_rows {
@@ -916,6 +921,10 @@ impl AnalyticsRepository for PostgresRepository {
                         .iter()
                         .map(|p| p.duration().value() * 24.0)
                         .sum();
+                    let max_visibility_period_hours: f64 = visibility_periods
+                        .iter()
+                        .map(|p| p.duration().value() * 24.0)
+                        .fold(0.0_f64, |a, b| a.max(b));
 
                     let scheduled_period = value_to_single_period(&row.scheduled_periods_json)?;
                     let (scheduled, scheduled_start, scheduled_stop) =
@@ -930,6 +939,24 @@ impl AnalyticsRepository for PostgresRepository {
                         _ => None,
                     };
 
+                    blocks_for_validation.push(BlockForValidation {
+                        schedule_id,
+                        scheduling_block_id: row.scheduling_block_id,
+                        priority: row.priority,
+                        requested_duration_sec: row.requested_duration_sec,
+                        min_observation_sec: row.min_observation_sec,
+                        total_visibility_hours,
+                        max_visibility_period_hours,
+                        min_alt_deg: row.min_altitude_deg,
+                        max_alt_deg: row.max_altitude_deg,
+                        constraint_start_mjd: row.constraint_start_mjd,
+                        constraint_stop_mjd: row.constraint_stop_mjd,
+                        scheduled_start_mjd: scheduled_start,
+                        scheduled_stop_mjd: scheduled_stop,
+                        target_ra_deg: row.target_ra_deg,
+                        target_dec_deg: row.target_dec_deg,
+                    });
+
                     analytics_rows.push(NewScheduleBlockAnalyticsRow {
                         schedule_id: schedule_id.0,
                         scheduling_block_id: row.scheduling_block_id,
@@ -943,6 +970,18 @@ impl AnalyticsRepository for PostgresRepository {
                         scheduled_stop_mjd: scheduled_stop,
                         validation_impossible: false,
                     });
+                }
+
+                // Run validation as part of ETL so the dashboard can show the Validation Report.
+                let validation_results: Vec<ValidationResult> = validate_blocks(&blocks_for_validation);
+                let impossible_block_ids: HashSet<i64> = validation_results
+                    .iter()
+                    .filter(|r| matches!(r.status, ValidationStatus::Impossible))
+                    .map(|r| r.scheduling_block_id)
+                    .collect();
+
+                for row in &mut analytics_rows {
+                    row.validation_impossible = impossible_block_ids.contains(&row.scheduling_block_id);
                 }
 
                 diesel::insert_into(schedule_block_analytics::table)
@@ -974,6 +1013,37 @@ impl AnalyticsRepository for PostgresRepository {
                     ))
                     .execute(tx)
                     .map_err(map_diesel_error)?;
+
+                // Persist validation results (one-or-more per block, including "valid").
+                diesel::delete(
+                    schedule_validation_results::table
+                        .filter(schedule_validation_results::schedule_id.eq(schedule_id.0)),
+                )
+                .execute(tx)
+                .map_err(map_diesel_error)?;
+
+                let new_validation_rows: Vec<NewScheduleValidationResultRow> = validation_results
+                    .iter()
+                    .map(|r| NewScheduleValidationResultRow {
+                        schedule_id: r.schedule_id.0,
+                        scheduling_block_id: r.scheduling_block_id,
+                        status: r.status.as_str().to_string(),
+                        issue_type: r.issue_type.clone(),
+                        issue_category: r.issue_category.map(|c| c.as_str().to_string()),
+                        criticality: r.criticality.map(|c| c.as_str().to_string()),
+                        field_name: r.field_name.clone(),
+                        current_value: r.current_value.clone(),
+                        expected_value: r.expected_value.clone(),
+                        description: r.description.clone(),
+                    })
+                    .collect();
+
+                if !new_validation_rows.is_empty() {
+                    diesel::insert_into(schedule_validation_results::table)
+                        .values(&new_validation_rows)
+                        .execute(tx)
+                        .map_err(map_diesel_error)?;
+                }
 
                 let summary_row =
                     compute_summary_metrics(schedule_id.0, &block_rows, &analytics_rows);
@@ -1331,20 +1401,6 @@ impl ValidationRepository for PostgresRepository {
         schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<crate::api::ValidationReport> {
         self.with_conn(move |conn| {
-            let mut rows = schedule_validation_results::table
-                .filter(schedule_validation_results::schedule_id.eq(schedule_id.0))
-                .select(ScheduleValidationResultRow::as_select())
-                .order(schedule_validation_results::validation_id.asc())
-                .load::<ScheduleValidationResultRow>(conn)
-                .map_err(map_diesel_error)?;
-
-            if rows.is_empty() {
-                return Err(RepositoryError::NotFound(format!(
-                    "No validation results for schedule {}",
-                    schedule_id
-                )));
-            }
-
             let block_id_map: std::collections::HashMap<i64, Option<String>> =
                 schedule_blocks::table
                     .filter(schedule_blocks::schedule_id.eq(schedule_id.0))
@@ -1356,6 +1412,27 @@ impl ValidationRepository for PostgresRepository {
                     .map_err(map_diesel_error)?
                     .into_iter()
                     .collect();
+
+            let mut rows = schedule_validation_results::table
+                .filter(schedule_validation_results::schedule_id.eq(schedule_id.0))
+                .select(ScheduleValidationResultRow::as_select())
+                .order(schedule_validation_results::validation_id.asc())
+                .load::<ScheduleValidationResultRow>(conn)
+                .map_err(map_diesel_error)?;
+
+            if rows.is_empty() {
+                // If validation hasn't been populated yet, return an "all valid" empty report
+                // instead of hard failing the UI.
+                let total_blocks = block_id_map.len();
+                return Ok(crate::api::ValidationReport {
+                    schedule_id,
+                    total_blocks,
+                    valid_blocks: total_blocks,
+                    impossible_blocks: Vec::new(),
+                    validation_errors: Vec::new(),
+                    validation_warnings: Vec::new(),
+                });
+            }
 
             let mut impossible_blocks = Vec::new();
             let mut validation_errors = Vec::new();

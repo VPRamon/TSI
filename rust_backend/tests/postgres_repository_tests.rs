@@ -399,6 +399,19 @@ async fn test_postgres_analytics_lifecycle() {
         .expect("Should populate analytics");
     assert_eq!(rows, 5, "Should have processed 5 blocks");
 
+    // Validation results should be generated as part of ETL analytics population
+    assert!(repo
+        .has_validation_results(schedule_id)
+        .await
+        .expect("has_validation_results should work"));
+
+    let report = repo
+        .fetch_validation_results(schedule_id)
+        .await
+        .expect("Should fetch validation results");
+    assert_eq!(report.total_blocks, 5);
+    assert_eq!(report.valid_blocks, 5);
+
     // Now has analytics
     assert!(repo
         .has_analytics_data(schedule_id)
