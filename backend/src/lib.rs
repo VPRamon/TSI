@@ -11,7 +11,6 @@
 //! - **Data Loading**: Parse observation schedules from JSON format
 //! - **Preprocessing**: Validate, enrich, and transform scheduling data
 //! - **Analysis**: Compute metrics, correlations, and identify scheduling conflicts
-//! - **Optimization**: Greedy scheduling algorithms for observation planning
 //! - **Time Handling**: Modified Julian Date (MJD) conversions and time period management
 //! - **Visibility Computation**: Integration with visibility period data
 //!
@@ -19,11 +18,9 @@
 //!
 //! The crate is organized into several logical modules:
 //!
-//! - [`algorithms`]: Analytics, conflict detection, and optimization routines
 //! - [`api`]: PyO3 bindings exposing Rust functionality to Python (DTOs, conversions, exports)
 //! - [`db`]: Database operations, repository pattern, and persistence layer
 //! - [`services`]: High-level business logic and visualization services
-//! - [`transformations`]: Data transformation utilities
 //!
 //! ## Python API Example
 //!
@@ -63,14 +60,11 @@
 
 use pyo3::prelude::*;
 
-pub mod algorithms;
 pub mod api;
 pub mod db;
 pub mod models;
 pub mod routes;
 pub mod services;
-pub mod siderust;
-pub mod transformations;
 
 /// Python module entry point for the new TSI Rust API.
 ///
