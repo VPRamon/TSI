@@ -1,4 +1,4 @@
-use tsi_rust::api::{Schedule, SchedulingBlock, ScheduleId, SchedulingBlockId, Constraints, Period};
+use tsi_rust::api::{Schedule, SchedulingBlock, ScheduleId, SchedulingBlockId, Constraints};
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::services::{health_check, store_schedule, store_schedule_with_options, list_schedules, get_schedule, get_schedule_time_range, get_blocks_for_schedule};
 
