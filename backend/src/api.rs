@@ -461,7 +461,7 @@ pub fn register_transformation_functions(_m: &Bound<'_, PyModule>) -> PyResult<(
 
 #[cfg(test)]
 mod tests {
-    use super::{ScheduleId, TargetId, ConstraintsId, SchedulingBlockId};
+    use super::{ConstraintsId, ScheduleId, SchedulingBlockId, TargetId};
 
     #[test]
     fn test_schedule_id_new() {
@@ -491,7 +491,7 @@ mod tests {
     #[test]
     fn test_schedule_id_clone() {
         let id1 = ScheduleId::new(123);
-        let id2 = id1.clone();
+        let id2 = id1;
         assert_eq!(id1, id2);
     }
 

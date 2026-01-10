@@ -347,11 +347,7 @@ mod tests {
         let data = result.unwrap();
 
         // Block with max priority should be in the last bin
-        let max_priority_block = data
-            .blocks
-            .iter()
-            .find(|b| b.priority == 10.0)
-            .unwrap();
+        let max_priority_block = data.blocks.iter().find(|b| b.priority == 10.0).unwrap();
         assert!(max_priority_block.priority_bin.contains("Bin 4"));
     }
 

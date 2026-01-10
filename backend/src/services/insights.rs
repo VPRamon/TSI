@@ -359,10 +359,15 @@ pub fn py_get_insights_data(schedule_id: crate::api::ScheduleId) -> PyResult<Ins
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_metrics, compute_spearman_correlation, compute_correlations};
+    use super::{compute_correlations, compute_metrics, compute_spearman_correlation};
     use crate::api::InsightsBlock;
 
-    fn create_test_block(priority: f64, scheduled: bool, visibility: f64, requested: f64) -> InsightsBlock {
+    fn create_test_block(
+        priority: f64,
+        scheduled: bool,
+        visibility: f64,
+        requested: f64,
+    ) -> InsightsBlock {
         InsightsBlock {
             scheduling_block_id: 1,
             original_block_id: "test".to_string(),
@@ -398,7 +403,7 @@ mod tests {
         assert_eq!(metrics.total_observations, 3);
         assert_eq!(metrics.scheduled_count, 2);
         assert_eq!(metrics.unscheduled_count, 1);
-        assert!((metrics.scheduling_rate - 2.0/3.0).abs() < 1e-6);
+        assert!((metrics.scheduling_rate - 2.0 / 3.0).abs() < 1e-6);
         assert_eq!(metrics.mean_priority, 7.0);
         assert_eq!(metrics.median_priority, 7.0);
     }
@@ -445,7 +450,7 @@ mod tests {
         let corr = compute_spearman_correlation(&x, &y);
         // When one variable is constant, Spearman will assign tied ranks
         // Result may vary but should be valid
-        assert!(corr >= -1.0 && corr <= 1.0);
+        assert!((-1.0..=1.0).contains(&corr));
     }
 
     #[test]
@@ -479,7 +484,9 @@ mod tests {
         ];
         let corrs = compute_correlations(&blocks);
         // Should have some correlations computed
-        assert!(corrs.len() > 0);
-        assert!(corrs.iter().all(|c| c.correlation >= -1.0 && c.correlation <= 1.0));
+        assert!(!corrs.is_empty());
+        assert!(corrs
+            .iter()
+            .all(|c| c.correlation >= -1.0 && c.correlation <= 1.0));
     }
 }

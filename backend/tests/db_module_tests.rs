@@ -29,7 +29,7 @@ fn test_db_module_has_service_functions() {
 fn test_repository_config_can_be_created() {
     // Test that RepositoryConfig type is exported and is accessible
     use tsi_rust::db::RepositoryConfig;
-    
+
     // RepositoryConfig is an enum that can be created
     let _: Option<RepositoryConfig> = None;
 }
@@ -39,7 +39,7 @@ fn test_repository_config_can_be_created() {
 fn test_postgres_config_type_is_exported() {
     // Verify PostgresConfig is exported when feature is enabled
     use tsi_rust::db::PostgresConfig;
-    
+
     // This is a compile-time check
     let _: Option<PostgresConfig> = None;
 }
@@ -49,7 +49,7 @@ fn test_postgres_config_type_is_exported() {
 fn test_pool_stats_type_is_exported() {
     // Verify PoolStats is exported when feature is enabled
     use tsi_rust::db::PoolStats;
-    
+
     // This is a compile-time check
     let _: Option<PoolStats> = None;
 }
@@ -59,7 +59,7 @@ fn test_pool_stats_type_is_exported() {
 fn test_postgres_config_fallback_exists() {
     // Verify PostgresConfig fallback type exists when feature is disabled
     use tsi_rust::db::PostgresConfig;
-    
+
     // This is a compile-time check
     let _: Option<PostgresConfig> = None;
 }
@@ -69,7 +69,7 @@ fn test_postgres_config_fallback_exists() {
 fn test_pool_stats_fallback_exists() {
     // Verify PoolStats fallback type exists when feature is disabled
     use tsi_rust::db::PoolStats;
-    
+
     let stats = PoolStats::default();
     // Just verify it can be created
     let _ = format!("{:?}", stats);

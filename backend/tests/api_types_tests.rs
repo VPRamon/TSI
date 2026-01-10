@@ -7,10 +7,10 @@ use tsi_rust::models::ModifiedJulianDate;
 fn test_period_creation() {
     let start = ModifiedJulianDate::new(59000.0);
     let stop = ModifiedJulianDate::new(59001.0);
-    
+
     let period = Period::new(start, stop);
     assert!(period.is_some());
-    
+
     let period = period.unwrap();
     assert_eq!(period.start.value(), 59000.0);
     assert_eq!(period.stop.value(), 59001.0);
@@ -20,7 +20,7 @@ fn test_period_creation() {
 fn test_period_invalid_order() {
     let start = ModifiedJulianDate::new(59001.0);
     let stop = ModifiedJulianDate::new(59000.0);
-    
+
     let period = Period::new(start, stop);
     assert!(period.is_none());
 }
@@ -29,7 +29,7 @@ fn test_period_invalid_order() {
 fn test_period_duration() {
     let start = ModifiedJulianDate::new(59000.0);
     let stop = ModifiedJulianDate::new(59003.5);
-    
+
     let period = Period::new(start, stop).unwrap();
     let duration = period.duration();
     assert_eq!(duration.value(), 3.5);
@@ -40,7 +40,7 @@ fn test_period_contains() {
     let start = ModifiedJulianDate::new(59000.0);
     let stop = ModifiedJulianDate::new(59001.0);
     let period = Period::new(start, stop).unwrap();
-    
+
     assert!(period.contains(ModifiedJulianDate::new(59000.0)));
     assert!(period.contains(ModifiedJulianDate::new(59000.5)));
     assert!(!period.contains(ModifiedJulianDate::new(59001.0))); // Exclusive end
@@ -50,7 +50,7 @@ fn test_period_contains() {
 #[test]
 fn test_period_contains_mjd() {
     let period = Period::py_new(59000.0, 59001.0);
-    
+
     assert!(period.contains_mjd(59000.0));
     assert!(period.contains_mjd(59000.5));
     assert!(period.contains_mjd(59001.0)); // Python version is inclusive
@@ -63,21 +63,24 @@ fn test_period_overlaps() {
     let period1 = Period::new(
         ModifiedJulianDate::new(59000.0),
         ModifiedJulianDate::new(59002.0),
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     let period2 = Period::new(
         ModifiedJulianDate::new(59001.0),
         ModifiedJulianDate::new(59003.0),
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     assert!(period1.overlaps(&period2));
     assert!(period2.overlaps(&period1));
-    
+
     let period3 = Period::new(
         ModifiedJulianDate::new(59005.0),
         ModifiedJulianDate::new(59006.0),
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     assert!(!period1.overlaps(&period3));
     assert!(!period3.overlaps(&period1));
 }
@@ -98,7 +101,7 @@ fn test_constraints_creation() {
         qtty::Degrees::new(360.0),
         None,
     );
-    
+
     assert_eq!(constraints.min_alt.value(), 20.0);
     assert_eq!(constraints.max_alt.value(), 80.0);
     assert_eq!(constraints.min_az.value(), 0.0);
@@ -116,7 +119,7 @@ fn test_constraints_with_fixed_time() {
         qtty::Degrees::new(360.0),
         Some(period),
     );
-    
+
     assert!(constraints.fixed_time.is_some());
     let fixed_time = constraints.fixed_time.unwrap();
     assert_eq!(fixed_time.start_mjd(), 59000.0);
@@ -131,7 +134,7 @@ fn test_constraints_debug() {
         qtty::Degrees::new(360.0),
         None,
     );
-    
+
     let debug = format!("{:?}", constraints);
     assert!(debug.contains("Constraints"));
 }
@@ -173,7 +176,7 @@ fn test_all_id_types_value_getter() {
     let target_id = TargetId::new(2);
     let constraints_id = ConstraintsId::new(3);
     let block_id = SchedulingBlockId::new(4);
-    
+
     assert_eq!(schedule_id.value(), 1);
     assert_eq!(target_id.value(), 2);
     assert_eq!(constraints_id.value(), 3);
@@ -205,7 +208,7 @@ fn test_constraints_serialization() {
         qtty::Degrees::new(360.0),
         None,
     );
-    
+
     let json = serde_json::to_string(&constraints).unwrap();
     assert!(json.contains("20"));
     assert!(json.contains("80"));
@@ -217,4 +220,3 @@ fn test_schedule_id_serialization() {
     let json = serde_json::to_string(&id).unwrap();
     assert!(json.contains("42"));
 }
-

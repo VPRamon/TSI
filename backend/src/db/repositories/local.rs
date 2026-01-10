@@ -35,12 +35,12 @@ use crate::services::validation::ValidationResult;
 ///     assert_eq!(schedules.len(), 1);
 /// }
 /// ```
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LocalRepository {
     data: Arc<RwLock<LocalData>>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct LocalData {
     schedules: HashMap<i64, Schedule>,
     schedule_metadata: HashMap<i64, crate::api::ScheduleInfo>,
@@ -210,7 +210,7 @@ impl ScheduleRepository for LocalRepository {
 
     async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
         self.check_health()?;
-        
+
         let data = self.data.read().unwrap();
 
         let mut schedules: Vec<crate::api::ScheduleInfo> =
