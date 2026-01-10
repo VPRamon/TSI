@@ -10,7 +10,7 @@ This setup runs the TSI Streamlit app plus a Postgres database, and builds the R
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose -f docker/docker-compose.yml up --build
 ```
 
 - Streamlit UI: `http://localhost:8501` (or `$TSI_PORT`)
@@ -20,22 +20,22 @@ docker compose up --build
 
 ```bash
 # Start (in background)
-docker compose up -d --build
+docker compose -f docker/docker-compose.yml up -d --build
 
 # Logs
-docker compose logs -f app
+docker compose -f docker/docker-compose.yml logs -f app
 
 # Stop
-docker compose down
+docker compose -f docker/docker-compose.yml down
 
 # Stop + delete DB volume (DANGER: deletes persisted data)
-docker compose down -v
+docker compose -f docker/docker-compose.yml down -v
 ```
 
 ## Connecting to Postgres
 
 ```bash
-docker compose exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+docker compose -f docker/docker-compose.yml exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
 
 From your host (if you published the port):
@@ -47,5 +47,4 @@ psql "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:$POSTGRES_PORT/$POS
 ## Notes
 
 - The Rust backend reads `DATABASE_URL` and will create/update tables via Diesel migrations automatically when it first initializes.
-- App data files are mounted from `./data` into the container at `/app/data` (see `docker-compose.yml`).
-
+- App data files are mounted from `data` (repo root) into the container at `/app/data` (see `docker/docker-compose.yml`).

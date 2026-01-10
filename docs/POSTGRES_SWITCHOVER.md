@@ -10,7 +10,7 @@ This project can run against either the in-memory `LocalRepository` (default for
 ## Postgres setup
 1) Start a database (local example):
    ```bash
-   docker compose up -d postgres
+   docker compose -f docker/docker-compose.yml up -d postgres
    ```
    Defaults: user `tsi`, password `tsi`, db `tsi`, port `5432`.
 2) Export connection info:

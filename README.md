@@ -44,7 +44,10 @@ Analyze and visualize astronomical scheduling outputs with an interactive Stream
 │       └── assets/styles.css
 ├── run_dashboard.sh              # Local launcher (venv + streamlit)
 ├── streamlit_app.py              # Streamlit Cloud entry (imports tsi.app.main)
-├── Dockerfile
+├── docker/
+│   ├── Dockerfile
+│   ├── docker-compose.md
+│   └── docker-compose.yml
 ├── pyproject.toml
 ├── requirements.txt
 └── tests/
@@ -80,10 +83,10 @@ Bring up Postgres + the Streamlit app (Rust backend compiled with Postgres suppo
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose -f docker/docker-compose.yml up --build
 ```
 
-Guide: `docs/docker-compose.md`
+Guide: `docker/docker-compose.md`
 
 ## Preprocess JSON → CSV (recommended for performance)
 
@@ -130,7 +133,7 @@ The repository ships with a Debian 12 multi-stage `Dockerfile` tailored for repr
 
 ```bash
 # Build (produces the slim runtime image by default)
-docker build -t tsi-app .
+docker build -f docker/Dockerfile -t tsi-app .
 
 # Run Streamlit (mount local data if you want live edits)
 docker run --rm -p 8501:8501 \
@@ -142,7 +145,7 @@ docker run --rm -p 8501:8501 \
 
 ```bash
 # Build the dev image (carries rustup, cargo, pip, pytest, etc.)
-docker build -t tsi-dev --target dev .
+docker build -f docker/Dockerfile -t tsi-dev --target dev .
 
 # Drop into a shell with source + venv + cargo
 docker run --rm -it \
