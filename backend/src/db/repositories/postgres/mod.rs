@@ -55,8 +55,7 @@ use schema::*;
 
 type PgPool = Pool<ConnectionManager<PgConnection>>;
 
-const MIGRATIONS: EmbeddedMigrations =
-    embed_migrations!("src/db/repositories/postgres/migrations");
+const MIGRATIONS: EmbeddedMigrations = embed_migrations!("src/db/repositories/postgres/migrations");
 
 /// Configuration for connecting to Postgres.
 #[derive(Debug, Clone)]
@@ -973,7 +972,8 @@ impl AnalyticsRepository for PostgresRepository {
                 }
 
                 // Run validation as part of ETL so the dashboard can show the Validation Report.
-                let validation_results: Vec<ValidationResult> = validate_blocks(&blocks_for_validation);
+                let validation_results: Vec<ValidationResult> =
+                    validate_blocks(&blocks_for_validation);
                 let impossible_block_ids: HashSet<i64> = validation_results
                     .iter()
                     .filter(|r| matches!(r.status, ValidationStatus::Impossible))
@@ -981,7 +981,8 @@ impl AnalyticsRepository for PostgresRepository {
                     .collect();
 
                 for row in &mut analytics_rows {
-                    row.validation_impossible = impossible_block_ids.contains(&row.scheduling_block_id);
+                    row.validation_impossible =
+                        impossible_block_ids.contains(&row.scheduling_block_id);
                 }
 
                 diesel::insert_into(schedule_block_analytics::table)

@@ -8,21 +8,15 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use super::repo_config::RepositoryConfig;
-#[cfg(feature = "azure-repo")]
-use super::repositories::azure::pool;
-#[cfg(feature = "azure-repo")]
-use super::repositories::AzureRepository;
 use super::repositories::LocalRepository;
 #[cfg(feature = "postgres-repo")]
 use super::repositories::PostgresRepository;
 use super::repository::{FullRepository, RepositoryError, RepositoryResult};
-use super::{config::DbConfig, PostgresConfig};
+use super::PostgresConfig;
 
 /// Repository type configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RepositoryType {
-    /// Azure SQL Server (production)
-    Azure,
     /// Postgres + Diesel implementation
     Postgres,
     /// In-memory local repository
@@ -35,14 +29,13 @@ impl FromStr for RepositoryType {
     /// Parse repository type from string.
     ///
     /// # Arguments
-    /// * `s` - String representation ("azure", "local")
+    /// * `s` - String representation ("postgres", "local")
     ///
     /// # Returns
     /// * `Ok(RepositoryType)` if valid
     /// * `Err` if invalid
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "azure" => Ok(Self::Azure),
             "postgres" | "pg" => Ok(Self::Postgres),
             "local" => Ok(Self::Local),
             _ => Err(format!("Unknown repository type: {}", s)),
@@ -75,14 +68,14 @@ impl RepositoryType {
 ///
 /// # Example
 /// ```ignore
-/// use tsi_rust::db::{DbConfig, RepositoryFactory, RepositoryType};
+/// use tsi_rust::db::{PostgresConfig, RepositoryFactory, RepositoryType};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     // Create Azure repository (requires azure-repo feature)
-///     let config = DbConfig::from_env()?;
-///     let azure_repo = RepositoryFactory::create(RepositoryType::Azure, Some(&config), None).await?;
-///     
+///     // Create Postgres repository
+///     let config = PostgresConfig::from_env()?;
+///     let _pg_repo = RepositoryFactory::create(RepositoryType::Postgres, Some(&config)).await?;
+///
 ///     // Create local repository
 ///     let local_repo = RepositoryFactory::create_local();
 ///     
@@ -96,36 +89,16 @@ impl RepositoryFactory {
     ///
     /// # Arguments
     /// * `repo_type` - Type of repository to create
-    /// * `config` - Optional database configuration (required for Azure)
+    /// * `postgres_config` - Optional database configuration (required for Postgres)
     ///
     /// # Returns
     /// * `Ok(Arc<dyn FullRepository>)` - Boxed repository instance
     /// * `Err(RepositoryError)` - If creation fails
     pub async fn create(
         repo_type: RepositoryType,
-        azure_config: Option<&DbConfig>,
         postgres_config: Option<&PostgresConfig>,
     ) -> RepositoryResult<Arc<dyn FullRepository>> {
         match repo_type {
-            RepositoryType::Azure => {
-                #[cfg(feature = "azure-repo")]
-                {
-                    let config = azure_config.ok_or_else(|| {
-                        RepositoryError::ConfigurationError(
-                            "Azure repository requires DbConfig".to_string(),
-                        )
-                    })?;
-                    let azure = Self::create_azure(config).await?;
-                    Ok(azure as Arc<dyn FullRepository>)
-                }
-                #[cfg(not(feature = "azure-repo"))]
-                {
-                    let _ = azure_config;
-                    Err(RepositoryError::ConfigurationError(
-                        "Azure repository feature not enabled".to_string(),
-                    ))
-                }
-            }
             RepositoryType::Postgres => {
                 #[cfg(feature = "postgres-repo")]
                 {
@@ -147,26 +120,6 @@ impl RepositoryFactory {
             }
             RepositoryType::Local => Ok(Self::create_local()),
         }
-    }
-
-    /// Create an Azure SQL Server repository.
-    ///
-    /// This initializes the global connection pool if not already initialized.
-    ///
-    /// # Arguments
-    /// * `config` - Database configuration
-    ///
-    /// # Returns
-    /// * `Ok(Arc<AzureRepository>)` - Azure repository instance
-    /// * `Err(RepositoryError)` - If pool initialization fails
-    #[cfg(feature = "azure-repo")]
-    pub async fn create_azure(config: &DbConfig) -> RepositoryResult<Arc<AzureRepository>> {
-        // Initialize pool if not already done
-        pool::init_pool(config)
-            .await
-            .map_err(RepositoryError::ConnectionError)?;
-
-        Ok(Arc::new(AzureRepository::new()))
     }
 
     /// Create a Postgres repository.
@@ -196,7 +149,8 @@ impl RepositoryFactory {
     /// Create repository from environment configuration.
     ///
     /// Reads `REPOSITORY_TYPE` environment variable to determine which
-    /// repository to create. Defaults to Azure if not set.
+    /// repository to create. Defaults to Postgres if a database URL is set,
+    /// otherwise Local.
     ///
     /// # Returns
     /// * `Ok(Arc<dyn ScheduleRepository>)` - Repository instance
@@ -205,21 +159,6 @@ impl RepositoryFactory {
         let repo_type = RepositoryType::from_env();
 
         match repo_type {
-            RepositoryType::Azure => {
-                #[cfg(feature = "azure-repo")]
-                {
-                    let config =
-                        DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
-                    let azure = Self::create_azure(&config).await?;
-                    Ok(azure as Arc<dyn FullRepository>)
-                }
-                #[cfg(not(feature = "azure-repo"))]
-                {
-                    Err(RepositoryError::ConfigurationError(
-                        "Azure repository feature not enabled".to_string(),
-                    ))
-                }
-            }
             RepositoryType::Postgres => {
                 #[cfg(feature = "postgres-repo")]
                 {
@@ -283,24 +222,6 @@ impl RepositoryFactory {
         })?;
 
         match repo_type {
-            RepositoryType::Azure => {
-                #[cfg(feature = "azure-repo")]
-                {
-                    let db_config = config.to_db_config()?.ok_or_else(|| {
-                        RepositoryError::ConfigurationError(
-                            "Azure repository requires database configuration".to_string(),
-                        )
-                    })?;
-                    let azure = Self::create_azure(&db_config).await?;
-                    Ok(azure as Arc<dyn FullRepository>)
-                }
-                #[cfg(not(feature = "azure-repo"))]
-                {
-                    Err(RepositoryError::ConfigurationError(
-                        "Azure repository feature not enabled".to_string(),
-                    ))
-                }
-            }
             RepositoryType::Postgres => {
                 #[cfg(feature = "postgres-repo")]
                 {
@@ -329,16 +250,17 @@ impl RepositoryFactory {
 /// This provides a fluent API for configuring and creating repository instances.
 ///
 /// # Example
-/// ```no_run
-/// use tsi_rust::db::{DbConfig, RepositoryBuilder, RepositoryType};
+/// ```ignore
+/// use tsi_rust::db::{PostgresConfig, RepositoryBuilder, RepositoryType};
 ///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     let config = DbConfig::from_env()?;
+///     // Requires the `postgres-repo` feature.
+///     let config = PostgresConfig::from_env()?;
 ///     
 ///     let repo = RepositoryBuilder::new()
-///         .repository_type(RepositoryType::Azure)
-///         .config(config)
+///         .repository_type(RepositoryType::Postgres)
+///         .postgres_config(config)
 ///         .build()
 ///         .await?;
 ///     
@@ -347,7 +269,6 @@ impl RepositoryFactory {
 /// ```
 pub struct RepositoryBuilder {
     repo_type: RepositoryType,
-    azure_config: Option<DbConfig>,
     #[cfg(feature = "postgres-repo")]
     postgres_config: Option<PostgresConfig>,
 }
@@ -355,11 +276,10 @@ pub struct RepositoryBuilder {
 impl RepositoryBuilder {
     /// Create a new repository builder with default settings.
     ///
-    /// Defaults to Azure repository type.
+    /// Defaults to Postgres if configured, otherwise Local.
     pub fn new() -> Self {
         Self {
-            repo_type: RepositoryType::Azure,
-            azure_config: None,
+            repo_type: RepositoryType::from_env(),
             #[cfg(feature = "postgres-repo")]
             postgres_config: None,
         }
@@ -368,12 +288,6 @@ impl RepositoryBuilder {
     /// Set the repository type.
     pub fn repository_type(mut self, repo_type: RepositoryType) -> Self {
         self.repo_type = repo_type;
-        self
-    }
-
-    /// Set the database configuration.
-    pub fn config(mut self, config: DbConfig) -> Self {
-        self.azure_config = Some(config);
         self
     }
 
@@ -388,10 +302,7 @@ impl RepositoryBuilder {
     pub fn from_env(mut self) -> Result<Self, RepositoryError> {
         self.repo_type = RepositoryType::from_env();
 
-        if self.repo_type == RepositoryType::Azure {
-            let config = DbConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
-            self.azure_config = Some(config);
-        } else if self.repo_type == RepositoryType::Postgres {
+        if self.repo_type == RepositoryType::Postgres {
             #[cfg(feature = "postgres-repo")]
             {
                 let config =
@@ -427,14 +338,7 @@ impl RepositoryBuilder {
             RepositoryError::ConfigurationError(format!("Invalid repository type: {}", e))
         })?;
 
-        if self.repo_type == RepositoryType::Azure {
-            let config = repo_config.to_db_config()?.ok_or_else(|| {
-                RepositoryError::ConfigurationError(
-                    "Azure repository requires database configuration".to_string(),
-                )
-            })?;
-            self.azure_config = Some(config);
-        } else if self.repo_type == RepositoryType::Postgres {
+        if self.repo_type == RepositoryType::Postgres {
             #[cfg(feature = "postgres-repo")]
             {
                 let config = repo_config.to_postgres_config()?.ok_or_else(|| {
@@ -469,14 +373,7 @@ impl RepositoryBuilder {
             RepositoryError::ConfigurationError(format!("Invalid repository type: {}", e))
         })?;
 
-        if self.repo_type == RepositoryType::Azure {
-            let config = repo_config.to_db_config()?.ok_or_else(|| {
-                RepositoryError::ConfigurationError(
-                    "Azure repository requires database configuration".to_string(),
-                )
-            })?;
-            self.azure_config = Some(config);
-        } else if self.repo_type == RepositoryType::Postgres {
+        if self.repo_type == RepositoryType::Postgres {
             #[cfg(feature = "postgres-repo")]
             {
                 let config = repo_config.to_postgres_config()?.ok_or_else(|| {
@@ -503,15 +400,12 @@ impl RepositoryBuilder {
     /// * `Ok(Arc<dyn FullRepository>)` - Configured repository
     /// * `Err(RepositoryError)` - If build fails
     pub async fn build(self) -> RepositoryResult<Arc<dyn FullRepository>> {
-        RepositoryFactory::create(
-            self.repo_type,
-            self.azure_config.as_ref(),
-            #[cfg(feature = "postgres-repo")]
-            self.postgres_config.as_ref(),
-            #[cfg(not(feature = "postgres-repo"))]
-            None,
-        )
-        .await
+        #[cfg(feature = "postgres-repo")]
+        let pg_config = self.postgres_config.as_ref();
+        #[cfg(not(feature = "postgres-repo"))]
+        let pg_config = None;
+
+        RepositoryFactory::create(self.repo_type, pg_config).await
     }
 }
 
@@ -528,10 +422,6 @@ mod tests {
     #[test]
     fn test_repository_type_from_str() {
         assert_eq!(
-            RepositoryType::from_str("azure").unwrap(),
-            RepositoryType::Azure
-        );
-        assert_eq!(
             RepositoryType::from_str("local").unwrap(),
             RepositoryType::Local
         );
@@ -540,8 +430,8 @@ mod tests {
             RepositoryType::Postgres
         );
         assert_eq!(
-            RepositoryType::from_str("Azure").unwrap(),
-            RepositoryType::Azure
+            RepositoryType::from_str("Pg").unwrap(),
+            RepositoryType::Postgres
         );
         assert!(RepositoryType::from_str("invalid").is_err());
     }
@@ -561,14 +451,5 @@ mod tests {
             .unwrap();
 
         assert!(repo.health_check().await.unwrap());
-    }
-
-    #[tokio::test]
-    async fn test_azure_requires_config() {
-        let result = RepositoryFactory::create(RepositoryType::Azure, None, None).await;
-        assert!(matches!(
-            result,
-            Err(RepositoryError::ConfigurationError { .. })
-        ));
     }
 }
