@@ -64,3 +64,109 @@ pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("GET_DISTRIBUTION_DATA", GET_DISTRIBUTION_DATA)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_distribution_block_clone() {
+        let block = DistributionBlock {
+            priority: 7.0,
+            total_visibility_hours: qtty::Hours::new(15.0),
+            requested_hours: qtty::Hours::new(3.0),
+            elevation_range_deg: qtty::Degrees::new(45.0),
+            scheduled: false,
+        };
+        let cloned = block.clone();
+        assert_eq!(cloned.priority, 7.0);
+    }
+
+    #[test]
+    fn test_distribution_block_debug() {
+        let block = DistributionBlock {
+            priority: 7.0,
+            total_visibility_hours: qtty::Hours::new(15.0),
+            requested_hours: qtty::Hours::new(3.0),
+            elevation_range_deg: qtty::Degrees::new(45.0),
+            scheduled: false,
+        };
+        let debug_str = format!("{:?}", block);
+        assert!(debug_str.contains("DistributionBlock"));
+    }
+
+    #[test]
+    fn test_distribution_stats_clone() {
+        let stats = DistributionStats {
+            count: 50,
+            mean: 5.5,
+            median: 5.0,
+            std_dev: 1.2,
+            min: 2.0,
+            max: 10.0,
+            sum: 275.0,
+        };
+        let cloned = stats.clone();
+        assert_eq!(cloned.count, 50);
+    }
+
+    #[test]
+    fn test_distribution_stats_debug() {
+        let stats = DistributionStats {
+            count: 50,
+            mean: 5.5,
+            median: 5.0,
+            std_dev: 1.2,
+            min: 2.0,
+            max: 10.0,
+            sum: 275.0,
+        };
+        let debug_str = format!("{:?}", stats);
+        assert!(debug_str.contains("DistributionStats"));
+    }
+
+    #[test]
+    fn test_distribution_data_debug() {
+        let data = DistributionData {
+            blocks: vec![],
+            priority_stats: DistributionStats {
+                count: 0,
+                mean: 0.0,
+                median: 0.0,
+                std_dev: 0.0,
+                min: 0.0,
+                max: 0.0,
+                sum: 0.0,
+            },
+            visibility_stats: DistributionStats {
+                count: 0,
+                mean: 0.0,
+                median: 0.0,
+                std_dev: 0.0,
+                min: 0.0,
+                max: 0.0,
+                sum: 0.0,
+            },
+            requested_hours_stats: DistributionStats {
+                count: 0,
+                mean: 0.0,
+                median: 0.0,
+                std_dev: 0.0,
+                min: 0.0,
+                max: 0.0,
+                sum: 0.0,
+            },
+            total_count: 0,
+            scheduled_count: 0,
+            unscheduled_count: 0,
+            impossible_count: 0,
+        };
+        let debug_str = format!("{:?}", data);
+        assert!(debug_str.contains("DistributionData"));
+    }
+
+    #[test]
+    fn test_const_value() {
+        assert_eq!(GET_DISTRIBUTION_DATA, "get_distribution_data");
+    }
+}
