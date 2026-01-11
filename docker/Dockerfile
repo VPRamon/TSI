@@ -30,6 +30,7 @@ RUN printf '%s\n' \
     'export PATH="$VIRTUAL_ENV/bin:$PATH"' \
     > /etc/profile.d/venv.sh
 RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir "maturin>=1.0,<2.0"
+RUN pip install --no-cache-dir ruff black mypy pandas-stubs types-PyYAML types-Markdown
 
 USER app
 ENV RUSTUP_HOME=/home/app/.rustup \
