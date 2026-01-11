@@ -9,6 +9,8 @@ use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::repository::{ErrorContext, RepositoryError};
 use tsi_rust::db::services;
 
+mod support;
+
 // =========================================================
 // Factory Error Tests
 // =========================================================
@@ -87,26 +89,26 @@ fn test_factory_repository_type_from_str() {
 
 #[test]
 fn test_factory_repository_type_from_env_default() {
-    // Clear environment variables
-    std::env::remove_var("REPOSITORY_TYPE");
-    std::env::remove_var("DATABASE_URL");
-    std::env::remove_var("PG_DATABASE_URL");
-
-    // Should default to Local when no DB URL is set
-    let repo_type = RepositoryType::from_env();
-    assert_eq!(repo_type, RepositoryType::Local);
+    support::with_scoped_env(
+        &[
+            ("REPOSITORY_TYPE", None),
+            ("DATABASE_URL", None),
+            ("PG_DATABASE_URL", None),
+        ],
+        || {
+            // Should default to Local when no DB URL is set
+            let repo_type = RepositoryType::from_env();
+            assert_eq!(repo_type, RepositoryType::Local);
+        },
+    );
 }
 
 #[test]
 fn test_factory_repository_type_from_env_explicit() {
-    // Set explicit repository type
-    std::env::set_var("REPOSITORY_TYPE", "local");
-
-    let repo_type = RepositoryType::from_env();
-    assert_eq!(repo_type, RepositoryType::Local);
-
-    // Clean up
-    std::env::remove_var("REPOSITORY_TYPE");
+    support::with_scoped_env(&[("REPOSITORY_TYPE", Some("local"))], || {
+        let repo_type = RepositoryType::from_env();
+        assert_eq!(repo_type, RepositoryType::Local);
+    });
 }
 
 // =========================================================
