@@ -37,6 +37,7 @@ jobs:
             --env CI=1 \
             --volume "${{ github.workspace }}":/workspace \
             --workdir /workspace \
+            --user $(id -u):$(id -g) \
             "${DEV_IMAGE_TAG}" \
             bash -lc '
               set -euo pipefail
