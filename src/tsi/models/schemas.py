@@ -2,11 +2,13 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SchedulingBlock(BaseModel):
     """Schema for a single scheduling block observation."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     schedulingBlockId: int = Field(..., description="Unique identifier")
     priority: float = Field(..., ge=0, le=10, description="Observation priority (0-10)")
@@ -30,11 +32,6 @@ class SchedulingBlock(BaseModel):
     num_visibility_periods: int = Field(..., ge=0)
     total_visibility_hours: float = Field(..., ge=0)
     priority_bin: str = Field(..., description="Priority category")
-
-    class Config:
-        """Pydantic config."""
-
-        populate_by_name = True
 
 
 class AnalyticsMetrics(BaseModel):

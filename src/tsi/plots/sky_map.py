@@ -1,36 +1,40 @@
 """Sky map plotting functionality."""
 
 from collections.abc import Sequence
+from typing import Any
 
-import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from tsi.config import PLOT_HEIGHT, PLOT_MARGIN
+from tsi.config import CACHE_TTL, PLOT_HEIGHT, PLOT_MARGIN
 
 
-@st.cache_data(show_spinner=False, ttl=3600)
+@st.cache_data(show_spinner=False, ttl=CACHE_TTL)
 def build_figure(
-    df: pd.DataFrame,
+    _blocks: list[Any],
     color_by: str = "priority_bin",
     size_by: str = "requested_hours",
     flip_ra: bool = True,
     category_palette: dict | None = None,
+    cache_key: str | None = None,
 ) -> go.Figure:
     """
     Build an interactive sky map scatter plot with RA and Dec.
 
     Args:
-        df: Prepared DataFrame with celestial coordinates
-        color_by: Column to use for color coding
+        _blocks: List of SchedulingBlock PyO3 objects (not hashed for caching)
+        color_by: Column to use for color coding ("priority_bin" or "scheduled_flag")
         size_by: Column to use for marker size
         flip_ra: If True, reverse RA axis (astronomy convention)
         category_palette: Optional dict mapping category -> color
+        cache_key: Optional key for cache invalidation based on filtered data
 
     Returns:
         Plotly Figure object
     """
-    if len(df) == 0:
+    blocks = list(_blocks)
+
+    if len(blocks) == 0:
         # Return empty figure
         fig = go.Figure()
         fig.update_layout(
@@ -39,6 +43,30 @@ def build_figure(
             yaxis_title="Declination (deg)",
         )
         return fig
+
+    # Extract data from blocks
+    block_ids = []
+    priorities = []
+    requested_hours = []
+    ra_values = []
+    dec_values = []
+    scheduled_flags = []
+    priority_bins = []
+
+    for block in blocks:
+        block_ids.append(block.original_block_id)
+
+        priorities.append(float(block.priority))
+        requested_hours.append(float(block.requested_duration_seconds) / 3600.0)
+        ra_values.append(float(block.target_ra_deg))
+        dec_values.append(float(block.target_dec_deg))
+
+        scheduled_period = getattr(block, "scheduled_period", None)
+        is_scheduled = scheduled_period is not None
+        scheduled_flags.append(is_scheduled)
+
+        priority_bin = str(getattr(block, "priority_bin", ""))
+        priority_bins.append(priority_bin)
 
     # Prepare hover text
     hover_template = (
@@ -51,91 +79,76 @@ def build_figure(
         "<extra></extra>"
     )
 
-    customdata = df[
-        [
-            "schedulingBlockId",
-            "priority",
-            "requested_hours",
-            "scheduled_flag",
-        ]
-    ].values
-
-    # Determine color mapping
-    if color_by == "scheduled_flag":
-        color_discrete_map: dict[bool, str] = {True: "#1f77b4", False: "#ff7f0e"}
-        color_column = df["scheduled_flag"].map({True: "Scheduled", False: "Unscheduled"})
-    else:
-        # Generic categorical coloring
-        color_column = (
-            df[color_by].fillna("Sin dato").astype(str)
-            if color_by in df.columns
-            else pd.Series(["Sin dato"] * len(df))
-        )
+    customdata = list(zip(block_ids, priorities, requested_hours, scheduled_flags))
 
     # Normalize size
-    if size_by in df.columns:
-        size_values = df[size_by].fillna(0)
-    else:
-        size_values = pd.Series([0] * len(df), index=df.index)
-
-    max_size = size_values.max()
+    max_size = max(requested_hours) if requested_hours else 0
     if max_size > 0:
-        size_normalized = 5 + (size_values / max_size) * 30
+        size_normalized = [5 + (h / max_size) * 30 for h in requested_hours]
     else:
-        size_normalized = pd.Series([10] * len(df), index=df.index)
+        size_normalized = [10] * len(blocks)
 
     # Create scatter plot
     fig = go.Figure()
 
     if color_by == "scheduled_flag":
         # Split by scheduled status for better legend
-        # Ensure color_discrete_map is a dict with bool keys
-        color_map_bool: dict[bool, str] = color_discrete_map  # type: ignore[assignment]
+        color_discrete_map: dict[bool, str] = {True: "#1f77b4", False: "#ff7f0e"}
 
         for status, status_label in [(True, "Scheduled"), (False, "Unscheduled")]:
-            mask = df["scheduled_flag"] == status
-            if mask.sum() == 0:
+            indices = [i for i, flag in enumerate(scheduled_flags) if flag == status]
+            if not indices:
                 continue
+
+            x_data = [ra_values[i] for i in indices]
+            y_data = [dec_values[i] for i in indices]
+            sizes = [size_normalized[i] for i in indices]
+            custom = [customdata[i] for i in indices]
 
             fig.add_trace(
                 go.Scatter(
-                    x=df.loc[mask, "raInDeg"],
-                    y=df.loc[mask, "decInDeg"],
+                    x=x_data,
+                    y=y_data,
                     mode="markers",
                     name=status_label,
                     marker=dict(
-                        size=size_normalized[mask],
-                        color=color_map_bool.get(status, "#999999"),
+                        size=sizes,
+                        color=color_discrete_map.get(status, "#999999"),
                         opacity=0.7,
                         line=dict(width=0.5, color="white"),
                     ),
-                    customdata=customdata[mask],
+                    customdata=custom,
                     hovertemplate=hover_template,
                 )
             )
     else:
-        categories = color_column.unique()
-        categories_list: list[str] = [str(cat) for cat in categories]
-        palette: dict[str, str] = category_palette or _default_palette(categories_list)
+        # Group by priority bin
+        unique_bins = sorted(set(priority_bins))
+        palette: dict[str, str] = category_palette or _default_palette(unique_bins)
 
-        for category in sorted(categories):
-            mask = color_column == category
-            if mask.sum() == 0:
+        for bin_value in unique_bins:
+            indices = [i for i, pb in enumerate(priority_bins) if pb == bin_value]
+            if not indices:
                 continue
+
+            x_data = [ra_values[i] for i in indices]
+            y_data = [dec_values[i] for i in indices]
+            sizes = [size_normalized[i] for i in indices]
+            custom = [customdata[i] for i in indices]
 
             fig.add_trace(
                 go.Scatter(
-                    x=df.loc[mask, "raInDeg"],
-                    y=df.loc[mask, "decInDeg"],
+                    x=x_data,
+                    y=y_data,
                     mode="markers",
-                    name=category,
+                    name=bin_value,
                     marker=dict(
-                        size=size_normalized[mask],
-                        color=palette.get(category, "#999"),
+                        size=sizes,
+                        color=palette.get(bin_value, "#999"),
                         opacity=0.7,
                         line=dict(width=0.5, color="white"),
                     ),
-                    customdata=customdata[mask],
+                    customdata=custom,
                     hovertemplate=hover_template,
                 )
             )
@@ -143,7 +156,7 @@ def build_figure(
     # Update layout
     fig.update_layout(
         title=dict(
-            text=f"Sky Map: Celestial Coordinates ({len(df)} observations)",
+            text=f"Sky Map: Celestial Coordinates ({len(blocks)} observations)",
             x=0.5,
             xanchor="center",
         ),

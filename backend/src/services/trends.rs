@@ -1,0 +1,753 @@
+#![allow(clippy::redundant_closure)]
+
+use crate::api::{
+    EmpiricalRatePoint, HeatmapBin, InsightsBlock, SmoothedPoint, TrendsBlock, TrendsData,
+    TrendsMetrics,
+};
+use pyo3::prelude::*;
+use std::collections::HashMap;
+use tokio::runtime::Runtime;
+
+// Import the global repository accessor
+use crate::db::{get_repository, services as db_services};
+
+/// Compute overview metrics from trends blocks.
+pub(crate) fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
+    let total_count = blocks.len();
+    let scheduled_count = blocks.iter().filter(|b| b.scheduled).count();
+    let zero_visibility_count = blocks
+        .iter()
+        .filter(|b| b.total_visibility_hours.value() == 0.0)
+        .count();
+    let scheduling_rate = if total_count > 0 {
+        scheduled_count as f64 / total_count as f64
+    } else {
+        0.0
+    };
+
+    // Collect all values for stats (use primitive f64 values)
+    let priorities: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
+    let visibilities: Vec<f64> = blocks
+        .iter()
+        .map(|b| b.total_visibility_hours.value())
+        .collect();
+    let times: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
+
+    let priority_min = priorities.iter().copied().fold(f64::INFINITY, f64::min);
+    let priority_max = priorities.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let priority_mean = if !priorities.is_empty() {
+        priorities.iter().sum::<f64>() / priorities.len() as f64
+    } else {
+        0.0
+    };
+
+    let visibility_min = visibilities.iter().copied().fold(f64::INFINITY, f64::min);
+    let visibility_max = visibilities
+        .iter()
+        .copied()
+        .fold(f64::NEG_INFINITY, f64::max);
+    let visibility_mean = if !visibilities.is_empty() {
+        visibilities.iter().sum::<f64>() / visibilities.len() as f64
+    } else {
+        0.0
+    };
+
+    let time_min = times.iter().copied().fold(f64::INFINITY, f64::min);
+    let time_max = times.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let time_mean = if !times.is_empty() {
+        times.iter().sum::<f64>() / times.len() as f64
+    } else {
+        0.0
+    };
+
+    TrendsMetrics {
+        total_count,
+        scheduled_count,
+        scheduling_rate,
+        zero_visibility_count,
+        priority_min,
+        priority_max,
+        priority_mean,
+        visibility_min,
+        visibility_max,
+        visibility_mean,
+        time_min,
+        time_max,
+        time_mean,
+    }
+}
+
+/// Compute empirical scheduling rates by priority.
+pub(crate) fn compute_by_priority(blocks: &[TrendsBlock]) -> Vec<EmpiricalRatePoint> {
+    // Group by priority value
+    let mut priority_groups: HashMap<i32, (usize, usize)> = HashMap::new();
+
+    for block in blocks {
+        let priority_int = block.priority.round() as i32;
+        let entry = priority_groups.entry(priority_int).or_insert((0, 0));
+        entry.0 += 1; // total count
+        if block.scheduled {
+            entry.1 += 1; // scheduled count
+        }
+    }
+
+    let mut rates: Vec<EmpiricalRatePoint> = priority_groups
+        .into_iter()
+        .map(|(priority, (total, scheduled))| {
+            let rate = if total > 0 {
+                scheduled as f64 / total as f64
+            } else {
+                0.0
+            };
+            EmpiricalRatePoint {
+                bin_label: format!("Priority {}", priority),
+                mid_value: priority as f64,
+                scheduled_rate: rate,
+                count: total,
+            }
+        })
+        .collect();
+
+    rates.sort_by(|a, b| {
+        a.mid_value
+            .partial_cmp(&b.mid_value)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    rates
+}
+
+/// Compute empirical scheduling rates by binning a continuous variable.
+pub(crate) fn compute_by_bins(
+    blocks: &[TrendsBlock],
+    get_value: impl Fn(&TrendsBlock) -> f64,
+    n_bins: usize,
+    label_prefix: &str,
+) -> Vec<EmpiricalRatePoint> {
+    if blocks.is_empty() {
+        return vec![];
+    }
+
+    // Find min and max
+    let values: Vec<f64> = blocks.iter().map(|b| get_value(b)).collect();
+    let min_val = values.iter().copied().fold(f64::INFINITY, f64::min);
+    let max_val = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+
+    if min_val == max_val {
+        // All values are the same
+        let scheduled = blocks.iter().filter(|b| b.scheduled).count();
+        return vec![EmpiricalRatePoint {
+            bin_label: format!("{} [{:.1}]", label_prefix, min_val),
+            mid_value: min_val,
+            scheduled_rate: scheduled as f64 / blocks.len() as f64,
+            count: blocks.len(),
+        }];
+    }
+
+    let bin_width = (max_val - min_val) / n_bins as f64;
+
+    // Create bins
+    let mut bins: Vec<(usize, usize, f64)> = vec![(0, 0, 0.0); n_bins];
+
+    for block in blocks {
+        let value = get_value(block);
+        let mut bin_idx = ((value - min_val) / bin_width).floor() as usize;
+        if bin_idx >= n_bins {
+            bin_idx = n_bins - 1;
+        }
+
+        bins[bin_idx].0 += 1; // total count
+        if block.scheduled {
+            bins[bin_idx].1 += 1; // scheduled count
+        }
+        bins[bin_idx].2 += value; // sum for mean
+    }
+
+    bins.into_iter()
+        .enumerate()
+        .filter(|(_, (total, _, _))| *total > 0)
+        .map(|(idx, (total, scheduled, sum))| {
+            let rate = if total > 0 {
+                scheduled as f64 / total as f64
+            } else {
+                0.0
+            };
+            let mid_value = sum / total as f64;
+            let bin_start = min_val + (idx as f64 * bin_width);
+            let bin_end = min_val + ((idx + 1) as f64 * bin_width);
+            EmpiricalRatePoint {
+                bin_label: format!("{} [{:.1}-{:.1}]", label_prefix, bin_start, bin_end),
+                mid_value,
+                scheduled_rate: rate,
+                count: total,
+            }
+        })
+        .collect()
+}
+
+/// Compute smoothed trend using Gaussian kernel weighted average.
+pub(crate) fn compute_smoothed_trend(
+    blocks: &[TrendsBlock],
+    get_x: impl Fn(&TrendsBlock) -> f64,
+    bandwidth: f64,
+    n_points: usize,
+) -> Vec<SmoothedPoint> {
+    if blocks.is_empty() {
+        return vec![];
+    }
+
+    let x_values: Vec<f64> = blocks.iter().map(|b| get_x(b)).collect();
+    let y_values: Vec<f64> = blocks
+        .iter()
+        .map(|b| if b.scheduled { 1.0 } else { 0.0 })
+        .collect();
+
+    let x_min = x_values.iter().copied().fold(f64::INFINITY, f64::min);
+    let x_max = x_values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+
+    if x_min == x_max {
+        // All values are the same
+        let scheduled = blocks.iter().filter(|b| b.scheduled).count();
+        return vec![SmoothedPoint {
+            x: x_min,
+            y_smoothed: scheduled as f64 / blocks.len() as f64,
+            n_samples: blocks.len(),
+        }];
+    }
+
+    let x_range = x_max - x_min;
+    let bw = bandwidth * x_range;
+
+    let mut smoothed = Vec::with_capacity(n_points);
+
+    for i in 0..n_points {
+        let x_point = x_min + (i as f64 / (n_points - 1) as f64) * x_range;
+
+        // Compute Gaussian weights
+        let mut weighted_sum = 0.0;
+        let mut weight_sum = 0.0;
+        let mut n_significant = 0;
+
+        for (j, &x_val) in x_values.iter().enumerate() {
+            let distance = (x_val - x_point).abs();
+            let weight = (-0.5 * (distance / bw).powi(2)).exp();
+
+            weighted_sum += weight * y_values[j];
+            weight_sum += weight;
+
+            if weight > 0.01 {
+                n_significant += 1;
+            }
+        }
+
+        let y_smoothed = if weight_sum > 0.0 {
+            weighted_sum / weight_sum
+        } else {
+            0.0
+        };
+
+        smoothed.push(SmoothedPoint {
+            x: x_point,
+            y_smoothed,
+            n_samples: n_significant,
+        });
+    }
+
+    smoothed
+}
+
+/// Compute 2D heatmap bins for visibility vs requested time.
+pub(crate) fn compute_heatmap_bins(blocks: &[TrendsBlock], n_bins: usize) -> Vec<HeatmapBin> {
+    if blocks.is_empty() {
+        return vec![];
+    }
+
+    // Find ranges (use primitive values)
+    let vis_values: Vec<f64> = blocks
+        .iter()
+        .map(|b| b.total_visibility_hours.value())
+        .collect();
+    let time_values: Vec<f64> = blocks.iter().map(|b| b.requested_hours.value()).collect();
+
+    let vis_min = vis_values.iter().copied().fold(f64::INFINITY, f64::min);
+    let vis_max = vis_values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let time_min = time_values.iter().copied().fold(f64::INFINITY, f64::min);
+    let time_max = time_values
+        .iter()
+        .copied()
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    if vis_min == vis_max || time_min == time_max {
+        return vec![];
+    }
+
+    let vis_width = (vis_max - vis_min) / n_bins as f64;
+    let time_width = (time_max - time_min) / n_bins as f64;
+
+    // Create 2D bins
+    let mut bins: HashMap<(usize, usize), (usize, usize, f64, f64)> = HashMap::new();
+
+    for block in blocks {
+        let vis_val = block.total_visibility_hours.value();
+        let time_val = block.requested_hours.value();
+        let mut vis_idx = ((vis_val - vis_min) / vis_width).floor() as usize;
+        let mut time_idx = ((time_val - time_min) / time_width).floor() as usize;
+
+        if vis_idx >= n_bins {
+            vis_idx = n_bins - 1;
+        }
+        if time_idx >= n_bins {
+            time_idx = n_bins - 1;
+        }
+
+        let entry = bins.entry((vis_idx, time_idx)).or_insert((0, 0, 0.0, 0.0));
+        entry.0 += 1; // total count
+        if block.scheduled {
+            entry.1 += 1; // scheduled count
+        }
+        entry.2 += vis_val; // sum for mean
+        entry.3 += time_val; // sum for mean
+    }
+
+    bins.into_iter()
+        .filter(|(_, (total, _, _, _))| *total > 0)
+        .map(|(_, (total, scheduled, vis_sum, time_sum))| {
+            let rate = if total > 0 {
+                scheduled as f64 / total as f64
+            } else {
+                0.0
+            };
+            HeatmapBin {
+                visibility_mid: vis_sum / total as f64,
+                time_mid: time_sum / total as f64,
+                scheduled_rate: rate,
+                count: total,
+            }
+        })
+        .collect()
+}
+
+/// Compute trends data with empirical rates, smoothed curves, and heatmap bins.
+pub fn compute_trends_data(
+    blocks: Vec<TrendsBlock>,
+    n_bins: usize,
+    bandwidth: f64,
+    n_smooth_points: usize,
+) -> Result<TrendsData, String> {
+    if blocks.is_empty() {
+        return Err("No blocks provided for trends analysis".to_string());
+    }
+
+    // Compute metrics
+    let metrics = compute_metrics(&blocks);
+
+    // Compute empirical rates
+    let by_priority = compute_by_priority(&blocks);
+    let by_visibility = compute_by_bins(
+        &blocks,
+        |b| b.total_visibility_hours.value(),
+        n_bins,
+        "Visibility",
+    );
+    let by_time = compute_by_bins(&blocks, |b| b.requested_hours.value(), n_bins, "Time");
+
+    // Compute smoothed trends
+    let smoothed_visibility = compute_smoothed_trend(
+        &blocks,
+        |b| b.total_visibility_hours.value(),
+        bandwidth,
+        n_smooth_points,
+    );
+    let smoothed_time = compute_smoothed_trend(
+        &blocks,
+        |b| b.requested_hours.value(),
+        bandwidth,
+        n_smooth_points,
+    );
+
+    // Compute heatmap bins
+    let heatmap_bins = compute_heatmap_bins(&blocks, n_bins);
+
+    // Get unique priority values for filtering
+    let mut priority_values: Vec<f64> = blocks.iter().map(|b| b.priority).collect();
+    priority_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    priority_values.dedup();
+
+    Ok(TrendsData {
+        blocks,
+        metrics,
+        by_priority,
+        by_visibility,
+        by_time,
+        smoothed_visibility,
+        smoothed_time,
+        heatmap_bins,
+        priority_values,
+    })
+}
+
+/// Get complete trends data with computed analytics.
+/// Uses pre-computed analytics table when available for ~10-100x faster performance.
+///
+/// **Note**: Impossible blocks (zero visibility) are automatically excluded.
+pub async fn get_trends_data(
+    schedule_id: crate::api::ScheduleId,
+    n_bins: usize,
+    bandwidth: f64,
+    n_smooth_points: usize,
+) -> Result<TrendsData, String> {
+    // Get the initialized repository
+    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
+
+    // Fetch analytics-ready blocks with visibility and requested hours.
+    let insight_blocks = repo
+        .fetch_analytics_blocks_for_insights(schedule_id)
+        .await
+        .map_err(|e| format!("Failed to fetch analytics blocks: {}", e))?;
+
+    // Convert InsightsBlock to TrendsBlock.
+    let blocks: Vec<TrendsBlock> = insight_blocks
+        .into_iter()
+        .map(|block| {
+            let InsightsBlock {
+                scheduling_block_id,
+                original_block_id,
+                priority,
+                total_visibility_hours,
+                requested_hours,
+                scheduled,
+                ..
+            } = block;
+
+            let mut total_visibility_hours = total_visibility_hours.value();
+            let requested_hours = requested_hours.value();
+            if total_visibility_hours == 0.0 && requested_hours > 0.0 {
+                total_visibility_hours = requested_hours;
+            }
+
+            TrendsBlock {
+                scheduling_block_id,
+                original_block_id,
+                priority,
+                total_visibility_hours: qtty::Hours::new(total_visibility_hours),
+                requested_hours: qtty::Hours::new(requested_hours),
+                scheduled,
+            }
+        })
+        .filter(|b| b.total_visibility_hours.value() > 0.0) // Filter out zero visibility
+        .collect();
+
+    if blocks.is_empty() {
+        return Err(format!(
+            "No analytics data available for schedule_id={}. Run populate_schedule_analytics() first.",
+            schedule_id
+        ));
+    }
+
+    compute_trends_data(blocks, n_bins, bandwidth, n_smooth_points)
+}
+
+/// Get complete trends data with computed analytics and metadata.
+///
+/// **Note**: Impossible blocks are automatically excluded.
+// #[pyfunction] - removed, function now internal only
+pub fn py_get_trends_data(
+    schedule_id: crate::api::ScheduleId,
+    n_bins: usize,
+    bandwidth: f64,
+    n_smooth_points: usize,
+) -> PyResult<TrendsData> {
+    let runtime = Runtime::new().map_err(|e| {
+        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
+            "Failed to create async runtime: {}",
+            e
+        ))
+    })?;
+
+    // Ensure analytics are populated (if missing) before computing trends.
+    let repo = crate::db::get_repository()
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+
+    runtime
+        .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+
+    runtime
+        .block_on(get_trends_data(
+            schedule_id,
+            n_bins,
+            bandwidth,
+            n_smooth_points,
+        ))
+        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        compute_by_bins, compute_by_priority, compute_heatmap_bins, compute_metrics,
+        compute_smoothed_trend,
+    };
+    use crate::api::TrendsBlock;
+
+    fn create_test_block(
+        priority: f64,
+        scheduled: bool,
+        visibility_hours: f64,
+        requested_hours: f64,
+    ) -> TrendsBlock {
+        TrendsBlock {
+            scheduling_block_id: priority as i64,
+            original_block_id: format!("block_{}", priority),
+            priority,
+            scheduled,
+            total_visibility_hours: qtty::Hours::new(visibility_hours),
+            requested_hours: qtty::Hours::new(requested_hours),
+        }
+    }
+
+    #[test]
+    fn test_compute_metrics_empty() {
+        let blocks = vec![];
+        let metrics = compute_metrics(&blocks);
+
+        assert_eq!(metrics.total_count, 0);
+        assert_eq!(metrics.scheduled_count, 0);
+        assert_eq!(metrics.scheduling_rate, 0.0);
+        assert_eq!(metrics.zero_visibility_count, 0);
+    }
+
+    #[test]
+    fn test_compute_metrics_basic() {
+        let blocks = vec![
+            create_test_block(5.0, true, 10.0, 2.0),
+            create_test_block(7.0, false, 15.0, 3.0),
+            create_test_block(9.0, true, 20.0, 4.0),
+        ];
+        let metrics = compute_metrics(&blocks);
+
+        assert_eq!(metrics.total_count, 3);
+        assert_eq!(metrics.scheduled_count, 2);
+        assert!((metrics.scheduling_rate - 2.0 / 3.0).abs() < 1e-6);
+        assert_eq!(metrics.zero_visibility_count, 0);
+        assert_eq!(metrics.priority_min, 5.0);
+        assert_eq!(metrics.priority_max, 9.0);
+        assert!((metrics.priority_mean - 7.0).abs() < 1e-6);
+        assert_eq!(metrics.visibility_min, 10.0);
+        assert_eq!(metrics.visibility_max, 20.0);
+    }
+
+    #[test]
+    fn test_compute_metrics_zero_visibility() {
+        let blocks = vec![
+            create_test_block(5.0, false, 0.0, 1.0),
+            create_test_block(7.0, true, 10.0, 2.0),
+            create_test_block(9.0, false, 0.0, 3.0),
+        ];
+        let metrics = compute_metrics(&blocks);
+
+        assert_eq!(metrics.zero_visibility_count, 2);
+    }
+
+    #[test]
+    fn test_compute_by_priority_empty() {
+        let blocks = vec![];
+        let rates = compute_by_priority(&blocks);
+
+        assert_eq!(rates.len(), 0);
+    }
+
+    #[test]
+    fn test_compute_by_priority_single_priority() {
+        let blocks = vec![
+            create_test_block(5.0, true, 10.0, 1.0),
+            create_test_block(5.1, false, 15.0, 2.0),
+            create_test_block(4.9, true, 20.0, 3.0),
+        ];
+        let rates = compute_by_priority(&blocks);
+
+        // All should round to priority 5
+        assert_eq!(rates.len(), 1);
+        assert_eq!(rates[0].mid_value, 5.0);
+        assert_eq!(rates[0].count, 3);
+        assert!((rates[0].scheduled_rate - 2.0 / 3.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_compute_by_priority_multiple() {
+        let blocks = vec![
+            create_test_block(3.0, true, 10.0, 1.0),
+            create_test_block(3.4, false, 15.0, 2.0),
+            create_test_block(5.0, true, 20.0, 3.0),
+            create_test_block(5.2, true, 25.0, 4.0),
+            create_test_block(7.8, false, 30.0, 5.0),
+        ];
+        let rates = compute_by_priority(&blocks);
+
+        // Should have 3 bins: 3, 5, 8
+        assert_eq!(rates.len(), 3);
+
+        // Check they're sorted by priority
+        assert!(rates[0].mid_value < rates[1].mid_value);
+        assert!(rates[1].mid_value < rates[2].mid_value);
+
+        // Check priority 5 bin
+        let priority_5 = rates.iter().find(|r| r.mid_value == 5.0).unwrap();
+        assert_eq!(priority_5.count, 2);
+        assert_eq!(priority_5.scheduled_rate, 1.0); // Both scheduled
+    }
+
+    #[test]
+    fn test_compute_by_priority_all_scheduled() {
+        let blocks = vec![
+            create_test_block(5.0, true, 10.0, 1.0),
+            create_test_block(7.0, true, 15.0, 2.0),
+        ];
+        let rates = compute_by_priority(&blocks);
+
+        assert!(rates.iter().all(|r| r.scheduled_rate == 1.0));
+    }
+
+    #[test]
+    fn test_compute_by_priority_none_scheduled() {
+        let blocks = vec![
+            create_test_block(5.0, false, 10.0, 1.0),
+            create_test_block(7.0, false, 15.0, 2.0),
+        ];
+        let rates = compute_by_priority(&blocks);
+
+        assert!(rates.iter().all(|r| r.scheduled_rate == 0.0));
+    }
+
+    #[test]
+    fn test_compute_metrics_all_scheduled() {
+        let blocks = vec![
+            create_test_block(5.0, true, 10.0, 1.0),
+            create_test_block(7.0, true, 15.0, 2.0),
+        ];
+        let metrics = compute_metrics(&blocks);
+
+        assert_eq!(metrics.scheduling_rate, 1.0);
+        assert_eq!(metrics.scheduled_count, 2);
+    }
+
+    #[test]
+    fn test_compute_metrics_none_scheduled() {
+        let blocks = vec![
+            create_test_block(5.0, false, 10.0, 1.0),
+            create_test_block(7.0, false, 15.0, 2.0),
+        ];
+        let metrics = compute_metrics(&blocks);
+
+        assert_eq!(metrics.scheduling_rate, 0.0);
+        assert_eq!(metrics.scheduled_count, 0);
+    }
+
+    #[test]
+    fn test_compute_metrics_single_block() {
+        let blocks = vec![create_test_block(5.0, true, 10.0, 2.0)];
+        let metrics = compute_metrics(&blocks);
+
+        assert_eq!(metrics.total_count, 1);
+        assert_eq!(metrics.scheduled_count, 1);
+        assert_eq!(metrics.scheduling_rate, 1.0);
+        assert_eq!(metrics.priority_min, 5.0);
+        assert_eq!(metrics.priority_max, 5.0);
+        assert_eq!(metrics.priority_mean, 5.0);
+    }
+
+    #[test]
+    fn test_compute_by_bins_empty() {
+        let blocks = vec![];
+        let rates = compute_by_bins(&blocks, |b| b.priority, 5, "Priority");
+        assert_eq!(rates.len(), 0);
+    }
+
+    #[test]
+    fn test_compute_by_bins_single_value() {
+        let blocks = vec![
+            create_test_block(5.0, true, 10.0, 1.0),
+            create_test_block(5.0, false, 15.0, 2.0),
+        ];
+        let rates = compute_by_bins(&blocks, |b| b.priority, 5, "Priority");
+        assert_eq!(rates.len(), 1);
+        assert!((rates[0].scheduled_rate - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_compute_by_bins_multiple() {
+        let blocks = vec![
+            create_test_block(1.0, true, 10.0, 1.0),
+            create_test_block(3.0, false, 15.0, 2.0),
+            create_test_block(5.0, true, 20.0, 3.0),
+            create_test_block(7.0, true, 25.0, 4.0),
+            create_test_block(9.0, false, 30.0, 5.0),
+        ];
+        let rates = compute_by_bins(&blocks, |b| b.priority, 3, "Priority");
+        assert!(!rates.is_empty());
+        assert!(rates.iter().all(|r| r.count > 0));
+    }
+
+    #[test]
+    fn test_compute_smoothed_trend_empty() {
+        let blocks = vec![];
+        let smoothed = compute_smoothed_trend(&blocks, |b| b.priority, 0.5, 10);
+        assert_eq!(smoothed.len(), 0);
+    }
+
+    #[test]
+    fn test_compute_smoothed_trend_single_value() {
+        let blocks = vec![
+            create_test_block(5.0, true, 10.0, 1.0),
+            create_test_block(5.0, false, 15.0, 2.0),
+        ];
+        let smoothed = compute_smoothed_trend(&blocks, |b| b.priority, 0.5, 5);
+        assert_eq!(smoothed.len(), 1);
+        assert!((smoothed[0].y_smoothed - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_compute_smoothed_trend_multiple() {
+        let blocks = vec![
+            create_test_block(1.0, false, 10.0, 1.0),
+            create_test_block(5.0, true, 20.0, 3.0),
+            create_test_block(9.0, true, 30.0, 5.0),
+        ];
+        let smoothed = compute_smoothed_trend(&blocks, |b| b.priority, 0.3, 5);
+        assert_eq!(smoothed.len(), 5);
+        assert!(smoothed
+            .iter()
+            .all(|p| p.y_smoothed >= 0.0 && p.y_smoothed <= 1.0));
+    }
+
+    #[test]
+    fn test_compute_heatmap_bins_empty() {
+        let blocks = vec![];
+        let bins = compute_heatmap_bins(&blocks, 3);
+        assert_eq!(bins.len(), 0);
+    }
+
+    #[test]
+    fn test_compute_heatmap_bins_single_value() {
+        let blocks = vec![
+            create_test_block(5.0, true, 10.0, 2.0),
+            create_test_block(7.0, false, 10.0, 2.0),
+        ];
+        let bins = compute_heatmap_bins(&blocks, 3);
+        // Both blocks have same visibility and time, so no bins
+        assert_eq!(bins.len(), 0);
+    }
+
+    #[test]
+    fn test_compute_heatmap_bins_multiple() {
+        let blocks = vec![
+            create_test_block(5.0, true, 5.0, 1.0),
+            create_test_block(6.0, false, 10.0, 2.0),
+            create_test_block(7.0, true, 15.0, 3.0),
+            create_test_block(8.0, true, 20.0, 4.0),
+        ];
+        let bins = compute_heatmap_bins(&blocks, 2);
+        assert!(!bins.is_empty());
+        assert!(bins.iter().all(|b| b.count > 0));
+    }
+}
