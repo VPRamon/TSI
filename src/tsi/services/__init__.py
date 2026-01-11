@@ -153,9 +153,11 @@ def get_visibility_histogram(
     )
 
 
-def get_schedule_time_range(schedule_ref: str) -> tuple[Any, Any]:
+def get_schedule_time_range(schedule_ref: str) -> tuple[Any, Any] | None:
     """Get the time range (min/max timestamps) for a schedule's visibility periods."""
     result = backend.get_schedule_time_range(schedule_ref)
+    if result is None:
+        return None
     return (result[0], result[1])
 
 
