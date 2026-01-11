@@ -60,6 +60,7 @@ class TestSettingsDefaults:
         assert settings.plot_margin_top == 80
         assert settings.plot_margin_bottom == 80
 
+
 class TestEnvironmentVariableOverrides:
     """Test environment variable overrides."""
 
