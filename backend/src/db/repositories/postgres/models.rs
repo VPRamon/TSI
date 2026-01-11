@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use diesel::prelude::*;
+use qtty::{Degrees, Hours};
 use serde_json::Value;
 
 use super::schema::{
@@ -32,6 +33,7 @@ pub struct NewScheduleRow {
 
 #[derive(Debug, Clone, Queryable, Selectable)]
 #[diesel(table_name = schedule_blocks)]
+#[diesel(check_for_backend(diesel::pg::Pg))]
 #[allow(dead_code)] // Some fields used only for database operations
 pub struct ScheduleBlockRow {
     pub scheduling_block_id: i64,
@@ -41,12 +43,12 @@ pub struct ScheduleBlockRow {
     pub priority: f64,
     pub requested_duration_sec: i32,
     pub min_observation_sec: i32,
-    pub target_ra_deg: f64,
-    pub target_dec_deg: f64,
-    pub min_altitude_deg: Option<f64>,
-    pub max_altitude_deg: Option<f64>,
-    pub min_azimuth_deg: Option<f64>,
-    pub max_azimuth_deg: Option<f64>,
+    pub target_ra_deg: Degrees,
+    pub target_dec_deg: Degrees,
+    pub min_altitude_deg: Option<Degrees>,
+    pub max_altitude_deg: Option<Degrees>,
+    pub min_azimuth_deg: Option<Degrees>,
+    pub max_azimuth_deg: Option<Degrees>,
     pub constraint_start_mjd: Option<f64>,
     pub constraint_stop_mjd: Option<f64>,
     pub visibility_periods_json: Value,
@@ -63,12 +65,12 @@ pub struct NewScheduleBlockRow {
     pub priority: f64,
     pub requested_duration_sec: i32,
     pub min_observation_sec: i32,
-    pub target_ra_deg: f64,
-    pub target_dec_deg: f64,
-    pub min_altitude_deg: Option<f64>,
-    pub max_altitude_deg: Option<f64>,
-    pub min_azimuth_deg: Option<f64>,
-    pub max_azimuth_deg: Option<f64>,
+    pub target_ra_deg: Degrees,
+    pub target_dec_deg: Degrees,
+    pub min_altitude_deg: Option<Degrees>,
+    pub max_altitude_deg: Option<Degrees>,
+    pub min_azimuth_deg: Option<Degrees>,
+    pub max_azimuth_deg: Option<Degrees>,
     pub constraint_start_mjd: Option<f64>,
     pub constraint_stop_mjd: Option<f64>,
     pub visibility_periods_json: Value,
@@ -83,10 +85,10 @@ pub struct ScheduleBlockAnalyticsRow {
     pub schedule_id: i64,
     pub scheduling_block_id: i64,
     pub priority_bucket: i16,
-    pub requested_hours: f64,
-    pub total_visibility_hours: f64,
+    pub requested_hours: Hours,
+    pub total_visibility_hours: Hours,
     pub num_visibility_periods: i32,
-    pub elevation_range_deg: Option<f64>,
+    pub elevation_range_deg: Option<Degrees>,
     pub scheduled: bool,
     pub scheduled_start_mjd: Option<f64>,
     pub scheduled_stop_mjd: Option<f64>,
@@ -100,10 +102,10 @@ pub struct NewScheduleBlockAnalyticsRow {
     pub schedule_id: i64,
     pub scheduling_block_id: i64,
     pub priority_bucket: i16,
-    pub requested_hours: f64,
-    pub total_visibility_hours: f64,
+    pub requested_hours: Hours,
+    pub total_visibility_hours: Hours,
     pub num_visibility_periods: i32,
-    pub elevation_range_deg: Option<f64>,
+    pub elevation_range_deg: Option<Degrees>,
     pub scheduled: bool,
     pub scheduled_start_mjd: Option<f64>,
     pub scheduled_stop_mjd: Option<f64>,
@@ -125,8 +127,8 @@ pub struct ScheduleSummaryAnalyticsRow {
     pub priority_median: Option<f64>,
     pub priority_scheduled_mean: Option<f64>,
     pub priority_unscheduled_mean: Option<f64>,
-    pub visibility_total_hours: f64,
-    pub requested_mean_hours: Option<f64>,
+    pub visibility_total_hours: Hours,
+    pub requested_mean_hours: Option<Hours>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -143,8 +145,8 @@ pub struct NewScheduleSummaryAnalyticsRow {
     pub priority_median: Option<f64>,
     pub priority_scheduled_mean: Option<f64>,
     pub priority_unscheduled_mean: Option<f64>,
-    pub visibility_total_hours: f64,
-    pub requested_mean_hours: Option<f64>,
+    pub visibility_total_hours: Hours,
+    pub requested_mean_hours: Option<Hours>,
 }
 
 #[derive(Debug, Clone, Queryable, Selectable)]
