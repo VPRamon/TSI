@@ -16,6 +16,7 @@ use tsi_rust::db::services;
 #[cfg(feature = "postgres-repo")]
 #[tokio::test]
 async fn test_factory_postgres_without_config() {
+    use tsi_rust::db::RepositoryFactory;
     // Attempting to create Postgres repository without config should fail
     let result = RepositoryFactory::create(RepositoryType::Postgres, None).await;
 
@@ -35,6 +36,7 @@ async fn test_factory_postgres_without_config() {
 #[tokio::test]
 async fn test_factory_invalid_database_url() {
     use tsi_rust::db::PostgresConfig;
+    use tsi_rust::db::RepositoryFactory;
 
     // Create config with invalid database URL
     let invalid_config = PostgresConfig {

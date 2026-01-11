@@ -31,20 +31,10 @@ jobs:
           dev-image-tag: ${{ env.DEV_IMAGE_TAG }}
           dev-cache-scope: ${{ env.DEV_CACHE_SCOPE }}
 
-      - name: Run linters and type checks inside container
+      - name: Run linters and type checks (via scripts)
         run: |
-          docker run --rm \
-            --env CI=1 \
-            --volume "${{ github.workspace }}":/workspace \
-            --workdir /workspace \
-            --user $(id -u):$(id -g) \
-            "${DEV_IMAGE_TAG}" \
-            bash -lc '
-              set -euo pipefail
-              ruff check src/ tests/
-              black --check src/ tests/
-              mypy src/
-            '
+          chmod +x scripts/*.sh
+          ./scripts/ci_frontend.sh --docker --linters-only
 
   python-tests:
     name: Python tests (${{ matrix.subset }}) (Docker)
@@ -74,56 +64,28 @@ jobs:
           dev-image-tag: ${{ env.DEV_IMAGE_TAG }}
           dev-cache-scope: ${{ env.DEV_CACHE_SCOPE }}
 
-      - name: Run pytest subset inside container
+      - name: Run test subset (via scripts)
         env:
           SUBSET: ${{ matrix.subset }}
         run: |
-          CONTAINER="${SUBSET}-tests"
-          docker run \
-            --name "${CONTAINER}" \
-            --env CI=1 \
-            --env TEST_SUBSET="${SUBSET}" \
-            "${DEV_IMAGE_TAG}" \
-            bash -lc '
-              set -euo pipefail
-              case "${TEST_SUBSET}" in
-                unit)
-                  pytest -m unit --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing:skip-covered
-                  ;;
-                integration)
-                  pytest -m integration --no-cov
-                  ;;
-                e2e)
-                  pytest -m e2e --no-cov
-                  ;;
-                unmarked)
-                  pytest -m "not unit and not integration and not e2e" --no-cov
-                  ;;
-                bindings)
-                  pytest backend/tests --no-cov
-                  ;;
-                *)
-                  echo "error: unknown subset ${TEST_SUBSET}" >&2
-                  exit 1
-                  ;;
-              esac
-            '
-          echo "${CONTAINER}" > container_name.txt
+          set -euo pipefail
+          chmod +x scripts/*.sh
 
-      - name: Copy coverage artifacts
-        if: matrix.subset == 'unit'
-        run: |
-          CONTAINER="$(cat container_name.txt)"
-          docker cp "${CONTAINER}":/workspace/coverage.xml coverage.xml 2>/dev/null || true
-          docker cp "${CONTAINER}":/workspace/htmlcov htmlcov 2>/dev/null || true
-
-      - name: Remove test container
-        if: always()
-        run: |
-          if [[ -f container_name.txt ]]; then
-            CONTAINER="$(cat container_name.txt)"
-            docker rm "${CONTAINER}" || true
-          fi
+          case "${SUBSET}" in
+            unit|integration|unmarked)
+              ./scripts/ci_frontend.sh --docker --tests-only --subset "${SUBSET}"
+              ;;
+            e2e)
+              ./scripts/ci_e2e.sh --docker
+              ;;
+            bindings)
+              ./scripts/ci_backend.sh standard --docker --bindings-only
+              ;;
+            *)
+              echo "error: unknown subset ${SUBSET}" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Upload unit coverage
         if: matrix.subset == 'unit' && hashFiles('coverage.xml') != ''
@@ -153,14 +115,7 @@ jobs:
           dev-image-tag: ${{ env.DEV_IMAGE_TAG }}
           dev-cache-scope: ${{ env.DEV_CACHE_SCOPE }}
 
-      - name: Run cargo fmt/clippy/test inside container
+      - name: Run backend checks (via scripts)
         run: |
-          docker run --rm \
-            --env CI=1 \
-            "${DEV_IMAGE_TAG}" \
-            bash -lc '
-              set -euo pipefail
-              cargo fmt --all --check
-              cargo clippy --all-targets --all-features -- -D warnings
-              cargo test --all-features
-            '
+          chmod +x scripts/*.sh
+          ./scripts/ci_backend.sh standard --docker --no-bindings
