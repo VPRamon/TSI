@@ -25,10 +25,6 @@ jobs:
           lfs: true
           submodules: recursive
 
-      - name: Free disk space
-        run: ./scripts/ci-free-disk.sh
-        shell: bash
-
       - name: Setup Docker environment
         uses: ./.github/actions/setup-docker
         with:
@@ -68,10 +64,6 @@ jobs:
         with:
           lfs: true
           submodules: recursive
-
-      - name: Free disk space
-        run: ./scripts/ci-free-disk.sh
-        shell: bash
 
       - name: Setup Docker environment
         uses: ./.github/actions/setup-docker
@@ -151,10 +143,6 @@ jobs:
         with:
           lfs: true
           submodules: recursive
-
-      - name: Free disk space
-        run: ./scripts/ci-free-disk.sh
-        shell: bash
 
       - name: Setup Docker environment
         uses: ./.github/actions/setup-docker
