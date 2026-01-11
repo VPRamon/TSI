@@ -1,0 +1,35 @@
+# Exclude VCS
+.git
+
+# Python artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.tox/
+
+# Build artifacts
+target/
+backend/target/
+dist/
+build/
+*.egg-info
+
+# Coverage / docs
+htmlcov/
+docs/_build/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+
+# Large or unnecessary data during image build
+data/
+
+# Editor / OS files
+.DS_Store
+.vscode/

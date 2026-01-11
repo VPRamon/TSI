@@ -155,7 +155,7 @@ docker run --rm -it \
   tsi-dev
 ```
 
-Inside the dev container the working directory is `/workspace`, the Python virtual environment is already active (`/opt/venv`), and `PYTHONPATH` points at `src`. Rebuilding the Rust extension is as simple as `pip install -e .` or `maturin develop --release`.
+Inside the dev container the working directory is `/workspace`, Python dependencies are installed globally in the image (no venv), and `PYTHONPATH` points at `src`. Rebuilding the Rust extension is as simple as running `maturin develop --release`.
 
 ## Data schema (CSV expected by the app)
 
