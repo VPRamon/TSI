@@ -8,7 +8,7 @@ services:
     user: app
     working_dir: /workspace
     volumes:
-      - .:/workspace:cached
+      - ..:/workspace:cached
     command: sleep infinity
     environment:
       PYTHONPATH: /workspace/src

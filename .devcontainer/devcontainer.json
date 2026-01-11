@@ -1,7 +1,7 @@
 {
   "name": "TSI Dev Container",
   "dockerComposeFile": [
-    "../docker-compose.yml",
+    "../docker/docker-compose.yml",
     "docker-compose.devcontainer.yml"
   ],
   "service": "app",
@@ -11,6 +11,7 @@
   "remoteUser": "app",
   "updateRemoteUserUID": false,
   "workspaceFolder": "/workspace",
+  "workspaceMountPoint": "/workspace",
   "shutdownAction": "stopCompose",
   "forwardPorts": [
     8501,
@@ -34,7 +35,6 @@
       ]
     }
   },
-  "postCreateCommand": "pip install -r requirements.base.txt && maturin develop --release --manifest-path backend/Cargo.toml --features postgres-repo",
   "containerEnv": {
     "STREAMLIT_SERVER_ADDRESS": "0.0.0.0",
     "STREAMLIT_SERVER_PORT": "8501",

@@ -49,7 +49,7 @@ def render_status_filter(
         key=key,
         horizontal=horizontal,
     )
-    return cast(Literal['All', 'Scheduled', 'Unscheduled'], selected)
+    return cast(Literal["All", "Scheduled", "Unscheduled"], selected)
 
 
 __all__ = [
