@@ -85,6 +85,8 @@ ci_run() {
     if [[ "${USE_DOCKER:-false}" == true ]]; then
         docker run --rm \
             --env CI=1 \
+            --env HOME=/tmp \
+            --env CARGO_HOME=/tmp/cargo \
             --user "$(id -u):$(id -g)" \
             -v "${root}":/workspace \
             -w /workspace \
