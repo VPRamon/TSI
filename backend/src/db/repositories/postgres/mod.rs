@@ -420,20 +420,16 @@ fn row_to_block(row: ScheduleBlockRow) -> RepositoryResult<SchedulingBlock> {
     let constraints = Constraints {
         min_alt: row
             .min_altitude_deg
-            .unwrap_or_else(|| qtty::Degrees::new(0.0))
-            .into(),
+            .unwrap_or_else(|| qtty::Degrees::new(0.0)),
         max_alt: row
             .max_altitude_deg
-            .unwrap_or_else(|| qtty::Degrees::new(0.0))
-            .into(),
+            .unwrap_or_else(|| qtty::Degrees::new(0.0)),
         min_az: row
             .min_azimuth_deg
-            .unwrap_or_else(|| qtty::Degrees::new(0.0))
-            .into(),
+            .unwrap_or_else(|| qtty::Degrees::new(0.0)),
         max_az: row
             .max_azimuth_deg
-            .unwrap_or_else(|| qtty::Degrees::new(0.0))
-            .into(),
+            .unwrap_or_else(|| qtty::Degrees::new(0.0)),
         fixed_time: match (row.constraint_start_mjd, row.constraint_stop_mjd) {
             (Some(start), Some(stop)) => Some(Period {
                 start: ModifiedJulianDate::new(start),
@@ -451,8 +447,8 @@ fn row_to_block(row: ScheduleBlockRow) -> RepositoryResult<SchedulingBlock> {
         original_block_id: row
             .original_block_id
             .or_else(|| Some(row.source_block_id.to_string())),
-        target_ra: row.target_ra_deg.into(),
-        target_dec: row.target_dec_deg.into(),
+        target_ra: row.target_ra_deg,
+        target_dec: row.target_dec_deg,
         constraints,
         priority: row.priority,
         min_observation: (row.min_observation_sec as f64).into(),
@@ -634,12 +630,12 @@ impl ScheduleRepository for PostgresRepository {
                         priority: b.priority,
                         requested_duration_sec: b.requested_duration.value() as i32,
                         min_observation_sec: b.min_observation.value() as i32,
-                        target_ra_deg: b.target_ra.into(),
-                        target_dec_deg: b.target_dec.into(),
-                        min_altitude_deg: Some(b.constraints.min_alt.into()),
-                        max_altitude_deg: Some(b.constraints.max_alt.into()),
-                        min_azimuth_deg: Some(b.constraints.min_az.into()),
-                        max_azimuth_deg: Some(b.constraints.max_az.into()),
+                        target_ra_deg: b.target_ra,
+                        target_dec_deg: b.target_dec,
+                        min_altitude_deg: Some(b.constraints.min_alt),
+                        max_altitude_deg: Some(b.constraints.max_alt),
+                        min_azimuth_deg: Some(b.constraints.min_az),
+                        max_azimuth_deg: Some(b.constraints.max_az),
                         constraint_start_mjd: b
                             .constraints
                             .fixed_time
