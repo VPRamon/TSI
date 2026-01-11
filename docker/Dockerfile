@@ -39,6 +39,7 @@ ENV PATH="/opt/venv/bin:/home/app/.cargo/bin:${PATH}"
 RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
 WORKDIR /workspace
 ENV PYTHONPATH=/workspace/src
+RUN rustup component add rustfmt clippy || true
 
 
 FROM base AS rust-wheel-builder
@@ -55,6 +56,8 @@ RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 RUN pip install --no-cache-dir "maturin>=1.0,<2.0"
+
+RUN rustup component add rustfmt clippy || true
 
 COPY backend/ ./backend/
 RUN maturin build \

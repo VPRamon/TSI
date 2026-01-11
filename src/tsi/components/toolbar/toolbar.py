@@ -57,7 +57,7 @@ def render_priority_filter(
         key=key,
         help="Filter observations by priority range",
     )
-    return priority_range
+    return cast(tuple[float, float], priority_range)
 
 
 def render_priority_range_control(
@@ -164,7 +164,7 @@ def render_toggle(label: str, default: bool = True, key: str | None = None) -> b
     Returns:
         Toggle value
     """
-    return st.checkbox(label, value=default, key=key)
+    return cast(bool, st.checkbox(label, value=default, key=key))
 
 
 def render_number_input(
@@ -187,13 +187,16 @@ def render_number_input(
     Returns:
         Input value
     """
-    return st.number_input(
-        label,
-        min_value=min_value,
-        max_value=max_value,
-        value=default,
-        step=1,
-        key=key,
+    return cast(
+        int,
+        st.number_input(
+            label,
+            min_value=min_value,
+            max_value=max_value,
+            value=default,
+            step=1,
+            key=key,
+        ),
     )
 
 
@@ -204,4 +207,4 @@ def render_reset_filters_button() -> bool:
     Returns:
         True if button was clicked
     """
-    return st.button("Reset Filters", type="secondary")
+    return cast(bool, st.button("Reset Filters", type="secondary"))
