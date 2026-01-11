@@ -85,6 +85,7 @@ ci_run() {
     if [[ "${USE_DOCKER:-false}" == true ]]; then
         docker run --rm \
             --env CI=1 \
+            --user "$(id -u):$(id -g)" \
             -v "${root}":/workspace \
             -w /workspace \
             "${DEV_IMAGE_TAG}" \
