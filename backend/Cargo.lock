@@ -624,6 +624,7 @@ dependencies = [
 name = "qtty-core"
 version = "0.2.1"
 dependencies = [
+ "diesel",
  "libm",
  "pyo3",
  "qtty-derive 0.1.0",

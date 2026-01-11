@@ -418,10 +418,22 @@ fn priority_bucket(priority: f64) -> i16 {
 
 fn row_to_block(row: ScheduleBlockRow) -> RepositoryResult<SchedulingBlock> {
     let constraints = Constraints {
-        min_alt: row.min_altitude_deg.unwrap_or(0.0).into(),
-        max_alt: row.max_altitude_deg.unwrap_or(0.0).into(),
-        min_az: row.min_azimuth_deg.unwrap_or(0.0).into(),
-        max_az: row.max_azimuth_deg.unwrap_or(0.0).into(),
+        min_alt: row
+            .min_altitude_deg
+            .unwrap_or_else(|| qtty::Degrees::new(0.0))
+            .into(),
+        max_alt: row
+            .max_altitude_deg
+            .unwrap_or_else(|| qtty::Degrees::new(0.0))
+            .into(),
+        min_az: row
+            .min_azimuth_deg
+            .unwrap_or_else(|| qtty::Degrees::new(0.0))
+            .into(),
+        max_az: row
+            .max_azimuth_deg
+            .unwrap_or_else(|| qtty::Degrees::new(0.0))
+            .into(),
         fixed_time: match (row.constraint_start_mjd, row.constraint_stop_mjd) {
             (Some(start), Some(stop)) => Some(Period {
                 start: ModifiedJulianDate::new(start),
@@ -533,20 +545,22 @@ fn compute_summary_metrics(
         Some(unscheduled_priorities.iter().sum::<f64>() / unscheduled_priorities.len() as f64)
     };
 
-    let visibility_total_hours = analytics_rows
-        .iter()
-        .map(|r| r.total_visibility_hours)
-        .sum::<f64>();
+    let visibility_total_hours = qtty::Hours::new(
+        analytics_rows
+            .iter()
+            .map(|r| r.total_visibility_hours.value())
+            .sum::<f64>(),
+    );
     let requested_mean_hours = if analytics_rows.is_empty() {
         None
     } else {
-        Some(
+        Some(qtty::Hours::new(
             analytics_rows
                 .iter()
-                .map(|r| r.requested_hours)
+                .map(|r| r.requested_hours.value())
                 .sum::<f64>()
                 / analytics_rows.len() as f64,
-        )
+        ))
     };
 
     NewScheduleSummaryAnalyticsRow {
@@ -620,12 +634,12 @@ impl ScheduleRepository for PostgresRepository {
                         priority: b.priority,
                         requested_duration_sec: b.requested_duration.value() as i32,
                         min_observation_sec: b.min_observation.value() as i32,
-                        target_ra_deg: b.target_ra.value(),
-                        target_dec_deg: b.target_dec.value(),
-                        min_altitude_deg: Some(b.constraints.min_alt.value()),
-                        max_altitude_deg: Some(b.constraints.max_alt.value()),
-                        min_azimuth_deg: Some(b.constraints.min_az.value()),
-                        max_azimuth_deg: Some(b.constraints.max_az.value()),
+                        target_ra_deg: b.target_ra.into(),
+                        target_dec_deg: b.target_dec.into(),
+                        min_altitude_deg: Some(b.constraints.min_alt.into()),
+                        max_altitude_deg: Some(b.constraints.max_alt.into()),
+                        min_azimuth_deg: Some(b.constraints.min_az.into()),
+                        max_azimuth_deg: Some(b.constraints.max_az.into()),
                         constraint_start_mjd: b
                             .constraints
                             .fixed_time
@@ -874,22 +888,24 @@ impl AnalyticsRepository for PostgresRepository {
                         min_observation_sec: row.min_observation_sec,
                         total_visibility_hours,
                         max_visibility_period_hours,
-                        min_alt_deg: row.min_altitude_deg,
-                        max_alt_deg: row.max_altitude_deg,
+                        min_alt_deg: row.min_altitude_deg.map(|d| d.value()),
+                        max_alt_deg: row.max_altitude_deg.map(|d| d.value()),
                         constraint_start_mjd: row.constraint_start_mjd,
                         constraint_stop_mjd: row.constraint_stop_mjd,
                         scheduled_start_mjd: scheduled_start,
                         scheduled_stop_mjd: scheduled_stop,
-                        target_ra_deg: row.target_ra_deg,
-                        target_dec_deg: row.target_dec_deg,
+                        target_ra_deg: row.target_ra_deg.value(),
+                        target_dec_deg: row.target_dec_deg.value(),
                     });
 
                     analytics_rows.push(NewScheduleBlockAnalyticsRow {
                         schedule_id: schedule_id.0,
                         scheduling_block_id: row.scheduling_block_id,
                         priority_bucket: priority_bucket(row.priority),
-                        requested_hours: row.requested_duration_sec as f64 / 3600.0,
-                        total_visibility_hours,
+                        requested_hours: qtty::Hours::new(
+                            row.requested_duration_sec as f64 / 3600.0,
+                        ),
+                        total_visibility_hours: qtty::Hours::new(total_visibility_hours),
                         num_visibility_periods: visibility_periods.len() as i32,
                         elevation_range_deg: elevation_range,
                         scheduled,
