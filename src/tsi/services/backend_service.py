@@ -236,14 +236,18 @@ class BackendService:
 
     def get_compare_data(
         self,
-        schedule_a_ref: ScheduleSummary | api.ScheduleId | int,
-        schedule_b_ref: ScheduleSummary | api.ScheduleId | int,
+        current_schedule_ref: ScheduleSummary | api.ScheduleId | int,
+        comparison_schedule_ref: ScheduleSummary | api.ScheduleId | int,
+        current_name: str | None = None,
+        comparison_name: str | None = None,
     ) -> CompareData:
         """Get comparison data between two schedules."""
         return self._rust_call(
             api.GET_COMPARE_DATA,
-            self._to_schedule_id(schedule_a_ref),
-            self._to_schedule_id(schedule_b_ref),
+            self._to_schedule_id(current_schedule_ref),
+            self._to_schedule_id(comparison_schedule_ref),
+            current_name,
+            comparison_name,
         )
 
     def get_validation_report(

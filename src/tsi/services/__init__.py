@@ -112,9 +112,16 @@ def get_trends_data(
     return backend.get_trends_data(schedule_ref, n_bins, bandwidth, n_smooth_points)
 
 
-def get_compare_data(schedule_a_ref: str, schedule_b_ref: str) -> tsi_rust.CompareData:
+def get_compare_data(
+    current_schedule_ref: str,
+    comparison_schedule_ref: str,
+    current_name: str | None = None,
+    comparison_name: str | None = None,
+) -> tsi_rust.CompareData:
     """Get comparison data between two schedules."""
-    return backend.get_compare_data(schedule_a_ref, schedule_b_ref)
+    return backend.get_compare_data(
+        current_schedule_ref, comparison_schedule_ref, current_name, comparison_name
+    )
 
 
 def get_validation_report(schedule_ref: str) -> Any:
