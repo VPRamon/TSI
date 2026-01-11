@@ -1,5 +1,7 @@
 """Toolbar components for filters and controls."""
 
+from typing import cast
+
 import pandas as pd
 import streamlit as st
 
@@ -91,7 +93,7 @@ def render_priority_range_control(
             min(max_value, stored_range[1]),
         )
 
-    return st.slider(
+    result = st.slider(
         "Priority Range",
         min_value=min_value,
         max_value=max_value,
@@ -100,6 +102,7 @@ def render_priority_range_control(
         key=key,
         help="Filter observations by priority range",
     )
+    return cast(tuple[float, float], result)
 
 
 def render_impossible_filter_control(
@@ -138,7 +141,7 @@ def render_impossible_filter_control(
 
     st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
 
-    return st.radio(
+    result = st.radio(
         "Filtrar:",
         options=filter_options,
         format_func=lambda x: filter_labels[x],
@@ -146,6 +149,7 @@ def render_impossible_filter_control(
         horizontal=False,
         label_visibility="collapsed" if not label_visible else "visible",
     )
+    return cast(str, result)
 
 
 def render_toggle(label: str, default: bool = True, key: str | None = None) -> bool:

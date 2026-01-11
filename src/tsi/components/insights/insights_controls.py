@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import streamlit as st
 
 from tsi import state
@@ -32,7 +34,7 @@ def render_filter_controls(filter_supported: bool) -> str:
         "exclude_impossible": "✅ Filter invalid requests",
     }
 
-    return st.radio(
+    result = st.radio(
         "Filtrar:",
         options=filter_options,
         format_func=lambda x: filter_labels[x],
@@ -40,3 +42,4 @@ def render_filter_controls(filter_supported: bool) -> str:
         horizontal=False,
         label_visibility="collapsed",
     )
+    return cast(str, result)

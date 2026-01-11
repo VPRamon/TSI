@@ -1,7 +1,7 @@
 """Session state management utilities."""
 
 import logging
-from typing import Any
+from typing import Any, cast
 
 import streamlit as st
 from tsi_rust import ScheduleId
@@ -67,7 +67,7 @@ def has_data() -> bool:
 
 def get_current_page() -> str | None:
     """Get the current page name."""
-    return st.session_state.get(KEY_CURRENT_PAGE)
+    return cast(str | None, st.session_state.get(KEY_CURRENT_PAGE))
 
 
 def set_current_page(page: str) -> None:
@@ -78,7 +78,7 @@ def set_current_page(page: str) -> None:
 def get_priority_range() -> tuple[float, float]:
     """Get the priority filter range."""
     result = st.session_state.get(KEY_PRIORITY_RANGE, (0.0, 10.0))
-    return result  # type: ignore[return-value,no-any-return]
+    return cast(tuple[float, float], result)
 
 
 def set_priority_range(range_vals: tuple[float, float]) -> None:
@@ -115,7 +115,7 @@ def set_schedule_window(window: Any) -> None:
 
 def get_data_filename() -> str | None:
     """Get the loaded dataset filename."""
-    return st.session_state.get(KEY_DATA_FILENAME)
+    return cast(str | None, st.session_state.get(KEY_DATA_FILENAME))
 
 
 def set_data_filename(filename: str) -> None:
@@ -142,7 +142,7 @@ def set_schedule_ref(schedule_ref: int | ScheduleId) -> None:
 
 def get_schedule_name() -> str | None:
     """Get the current schedule name."""
-    return st.session_state.get(KEY_SCHEDULE_NAME)
+    return cast(str | None, st.session_state.get(KEY_SCHEDULE_NAME))
 
 
 def set_schedule_name(schedule_name: str | None) -> None:
