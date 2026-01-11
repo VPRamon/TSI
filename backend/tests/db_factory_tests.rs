@@ -1,5 +1,7 @@
 //! Tests for db::factory module - repository creation and configuration.
 
+mod support;
+
 use std::str::FromStr;
 use std::sync::Arc;
 use tsi_rust::db::factory::{RepositoryFactory, RepositoryType};
@@ -34,68 +36,77 @@ fn test_repository_type_from_str_invalid() {
 
 #[test]
 fn test_repository_type_from_env_default() {
-    // Clear relevant environment variables for consistent testing
-    std::env::remove_var("REPOSITORY_TYPE");
-    std::env::remove_var("DATABASE_URL");
-    std::env::remove_var("PG_DATABASE_URL");
-
-    let rt = RepositoryType::from_env();
-    assert_eq!(rt, RepositoryType::Local);
+    support::with_scoped_env(
+        &[
+            ("REPOSITORY_TYPE", None),
+            ("DATABASE_URL", None),
+            ("PG_DATABASE_URL", None),
+        ],
+        || {
+            let rt = RepositoryType::from_env();
+            assert_eq!(rt, RepositoryType::Local);
+        },
+    );
 }
 
 #[test]
 fn test_repository_type_from_env_with_database_url() {
-    std::env::remove_var("REPOSITORY_TYPE");
-    std::env::set_var("DATABASE_URL", "postgres://localhost/test");
-
-    let rt = RepositoryType::from_env();
-    assert_eq!(rt, RepositoryType::Postgres);
-
-    std::env::remove_var("DATABASE_URL");
+    support::with_scoped_env(
+        &[
+            ("REPOSITORY_TYPE", None),
+            ("DATABASE_URL", Some("postgres://localhost/test")),
+        ],
+        || {
+            let rt = RepositoryType::from_env();
+            assert_eq!(rt, RepositoryType::Postgres);
+        },
+    );
 }
 
 #[test]
 fn test_repository_type_from_env_with_pg_database_url() {
-    std::env::remove_var("REPOSITORY_TYPE");
-    std::env::remove_var("DATABASE_URL");
-    std::env::set_var("PG_DATABASE_URL", "postgres://localhost/test");
-
-    let rt = RepositoryType::from_env();
-    assert_eq!(rt, RepositoryType::Postgres);
-
-    std::env::remove_var("PG_DATABASE_URL");
+    support::with_scoped_env(
+        &[
+            ("REPOSITORY_TYPE", None),
+            ("DATABASE_URL", None),
+            ("PG_DATABASE_URL", Some("postgres://localhost/test")),
+        ],
+        || {
+            let rt = RepositoryType::from_env();
+            assert_eq!(rt, RepositoryType::Postgres);
+        },
+    );
 }
 
 #[test]
 fn test_repository_type_from_env_explicit() {
-    std::env::set_var("REPOSITORY_TYPE", "local");
-
-    let rt = RepositoryType::from_env();
-    assert_eq!(rt, RepositoryType::Local);
-
-    std::env::remove_var("REPOSITORY_TYPE");
+    support::with_scoped_env(&[("REPOSITORY_TYPE", Some("local"))], || {
+        let rt = RepositoryType::from_env();
+        assert_eq!(rt, RepositoryType::Local);
+    });
 }
 
 #[test]
 fn test_repository_type_from_env_explicit_postgres() {
-    std::env::set_var("REPOSITORY_TYPE", "postgres");
-
-    let rt = RepositoryType::from_env();
-    assert_eq!(rt, RepositoryType::Postgres);
-
-    std::env::remove_var("REPOSITORY_TYPE");
+    support::with_scoped_env(&[("REPOSITORY_TYPE", Some("postgres"))], || {
+        let rt = RepositoryType::from_env();
+        assert_eq!(rt, RepositoryType::Postgres);
+    });
 }
 
 #[test]
 fn test_repository_type_from_env_invalid_defaults_to_local() {
-    std::env::set_var("REPOSITORY_TYPE", "invalid");
-    std::env::remove_var("DATABASE_URL");
-    std::env::remove_var("PG_DATABASE_URL");
-
-    let rt = RepositoryType::from_env();
-    assert_eq!(rt, RepositoryType::Local);
-
-    std::env::remove_var("REPOSITORY_TYPE");
+    support::with_scoped_env(
+        &[
+            ("REPOSITORY_TYPE", Some("invalid")),
+            ("DATABASE_URL", None),
+            ("PG_DATABASE_URL", None),
+        ],
+        || {
+            let rt = RepositoryType::from_env();
+            assert_eq!(rt, RepositoryType::Local);
+        },
+    );
 }
 
 #[test]
