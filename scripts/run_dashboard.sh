@@ -20,14 +20,15 @@ if [ ! -d "venv" ]; then
     echo "✅ Virtual environment created successfully"
 fi
 
-# Compile Rust backend first (before venv activation to avoid interpreter detection issues)
-echo "🦀 Compiling Rust backend..."
-python3 -m pip install -q maturin 2>/dev/null || true
-python3 -m maturin develop --release
-
 # Activate virtual environment
 echo "🔌 Activating virtual environment..."
 source venv/bin/activate
+
+# Compile Rust backend (maturin requires an active virtualenv)
+echo "🦀 Compiling Rust backend..."
+python -m pip install -q --upgrade pip setuptools wheel
+python -m pip install -q maturin
+python -m maturin develop --release
 
 # Install/upgrade dependencies
 echo "📥 Installing dependencies..."
