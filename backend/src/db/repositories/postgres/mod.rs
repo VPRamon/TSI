@@ -182,7 +182,7 @@ pub struct PoolStats {
 /// - Automatic retry for transient failures
 /// - Health monitoring and statistics
 /// - Automatic schema migrations
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PostgresRepository {
     pool: PgPool,
     config: PostgresConfig,
