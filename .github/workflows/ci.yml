@@ -35,6 +35,8 @@ jobs:
         run: |
           docker run --rm \
             --env CI=1 \
+            --volume "${{ github.workspace }}":/workspace \
+            --workdir /workspace \
             "${DEV_IMAGE_TAG}" \
             bash -lc '
               set -euo pipefail
