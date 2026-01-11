@@ -4,7 +4,7 @@
 //! error propagation, and error context enrichment throughout the stack.
 
 use tsi_rust::api::{Schedule, ScheduleId};
-use tsi_rust::db::factory::RepositoryType;
+use tsi_rust::db::factory::{RepositoryFactory, RepositoryType};
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::repository::{ErrorContext, RepositoryError};
 use tsi_rust::db::services;
