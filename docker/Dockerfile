@@ -7,41 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 
-FROM base AS dev
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        bash \
-        build-essential \
-        ca-certificates \
-        curl \
-        git \
-        libpq-dev \
-        patchelf \
-        pkg-config \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN useradd -m -s /bin/bash app
-
-RUN python -m venv /opt/venv
-RUN chown -R app:app /opt/venv
-ENV VIRTUAL_ENV=/opt/venv
-ENV PATH="/opt/venv/bin:${PATH}"
-RUN printf '%s\n' \
-    'export VIRTUAL_ENV=/opt/venv' \
-    'export PATH="$VIRTUAL_ENV/bin:$PATH"' \
-    > /etc/profile.d/venv.sh
-RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir "maturin>=1.0,<2.0"
-RUN pip install --no-cache-dir ruff black mypy pandas-stubs types-PyYAML types-Markdown
-
-USER app
-ENV RUSTUP_HOME=/home/app/.rustup \
-    CARGO_HOME=/home/app/.cargo
-ENV PATH="/opt/venv/bin:/home/app/.cargo/bin:${PATH}"
-RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-WORKDIR /workspace
-ENV PYTHONPATH=/workspace/src
-RUN rustup component add rustfmt clippy || true
-
-
 FROM base AS rust-wheel-builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
@@ -65,6 +30,48 @@ RUN maturin build \
         --manifest-path backend/Cargo.toml \
         --features postgres-repo \
         -o /tmp/wheels
+
+
+FROM base AS dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        bash \
+        build-essential \
+        ca-certificates \
+        curl \
+        git \
+        libpq-dev \
+        patchelf \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies globally (no venv) to avoid mixing environments.
+COPY requirements.base.txt ./requirements.base.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.base.txt \
+    && pip install --no-cache-dir \
+        pytest \
+        "maturin>=1.0,<2.0" \
+        ruff \
+        black \
+        mypy \
+        pandas-stubs \
+        types-PyYAML \
+        types-Markdown
+
+# Install the Rust extension wheel so imports work in the dev container.
+COPY --from=rust-wheel-builder /tmp/wheels /tmp/wheels
+RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
+
+RUN useradd -m -s /bin/bash app
+
+USER app
+ENV RUSTUP_HOME=/home/app/.rustup \
+    CARGO_HOME=/home/app/.cargo
+ENV PATH="/home/app/.cargo/bin:${PATH}"
+RUN curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+WORKDIR /workspace
+ENV PYTHONPATH=/workspace/src
+RUN rustup component add rustfmt clippy || true
 
 
 FROM base AS runtime
