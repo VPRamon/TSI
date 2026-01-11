@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, cast
 
 import streamlit as st
 
@@ -49,7 +49,7 @@ def render_status_filter(
         key=key,
         horizontal=horizontal,
     )
-    return selected  # type: ignore[return-value]
+    return cast(Literal['All', 'Scheduled', 'Unscheduled'], selected)
 
 
 __all__ = [
