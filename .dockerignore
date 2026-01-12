@@ -28,7 +28,7 @@ env/
 node_modules/
 
 # Large or unnecessary data during image build
-data/
+# data/  # commented out so Docker build can include application `data/` directory
 
 # Editor / OS files
 .DS_Store

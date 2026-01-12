@@ -89,10 +89,16 @@ impl LocalRepository {
         let schedule_id = ScheduleId(data.next_schedule_id);
         data.next_schedule_id += 1;
 
-        // Assign IDs to blocks
+        // Assign IDs to blocks and store them in the global blocks map.
         for block in &mut schedule.blocks {
             let block_id = data.next_block_id;
             data.next_block_id += 1;
+
+            // Set the DB-assigned ID on the block so later code that expects
+            // `block.id` to be present (e.g. analytics/visualization helpers)
+            // won't panic with `DB Block ID missing`.
+            block.id = Some(crate::api::SchedulingBlockId(block_id));
+
             data.blocks.insert(block_id, block.clone());
         }
 
@@ -318,7 +324,7 @@ impl AnalyticsRepository for LocalRepository {
                     .fold(0.0_f64, |a, b| a.max(b));
                 crate::services::validation::BlockForValidation {
                     schedule_id,
-                    scheduling_block_id: b.id.0,
+                    scheduling_block_id: b.id.map(|id| id.0).expect("DB Block ID missing"),
                     priority: b.priority,
                     requested_duration_sec: b.requested_duration.value() as i32,
                     min_observation_sec: b.min_observation.value() as i32,
@@ -404,16 +410,9 @@ impl AnalyticsRepository for LocalRepository {
         let blocks: Vec<LightweightBlock> = schedule
             .blocks
             .iter()
-            .enumerate()
-            .map(|(idx, b)| {
-                // Use original_block_id if available, otherwise fallback to internal ID
-                let original_block_id = b
-                    .original_block_id
-                    .clone()
-                    .unwrap_or_else(|| format!("{}", idx + 1));
-
+            .map(|b| {
                 LightweightBlock {
-                    original_block_id,
+                    original_block_id: b.original_block_id.clone(),
                     priority: b.priority,
                     priority_bin: "".to_string(), // Will be computed by sky_map service
                     requested_duration_seconds: b.requested_duration,
@@ -481,11 +480,8 @@ impl AnalyticsRepository for LocalRepository {
                     .sum();
 
                 InsightsBlock {
-                    scheduling_block_id: b.id.0,
-                    original_block_id: b
-                        .original_block_id
-                        .clone()
-                        .unwrap_or_else(|| b.id.0.to_string()),
+                    scheduling_block_id: b.id.expect("DB Block ID missing").0,
+                    original_block_id: b.original_block_id.clone(),
                     priority: b.priority,
                     total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
                     requested_hours: qtty::time::Hours::new(b.requested_duration.value() / 3600.0),
@@ -532,9 +528,15 @@ impl ValidationRepository for LocalRepository {
                     valid_count += 1;
                 }
                 ValidationStatus::Impossible => {
+                    // Try to resolve the original_block_id from the stored blocks
+                    let original_id = data
+                        .blocks
+                        .get(&r.scheduling_block_id)
+                        .map(|b| b.original_block_id.clone());
+
                     impossible_blocks.push(crate::api::ValidationIssue {
                         block_id: r.scheduling_block_id,
-                        original_block_id: None,
+                        original_block_id: original_id,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
                         category: r
                             .issue_category
@@ -553,9 +555,14 @@ impl ValidationRepository for LocalRepository {
                     });
                 }
                 ValidationStatus::Error => {
+                    let original_id = data
+                        .blocks
+                        .get(&r.scheduling_block_id)
+                        .map(|b| b.original_block_id.clone());
+
                     validation_errors.push(crate::api::ValidationIssue {
                         block_id: r.scheduling_block_id,
-                        original_block_id: None,
+                        original_block_id: original_id,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
                         category: r
                             .issue_category
@@ -574,9 +581,14 @@ impl ValidationRepository for LocalRepository {
                     });
                 }
                 ValidationStatus::Warning => {
+                    let original_id = data
+                        .blocks
+                        .get(&r.scheduling_block_id)
+                        .map(|b| b.original_block_id.clone());
+
                     validation_warnings.push(crate::api::ValidationIssue {
                         block_id: r.scheduling_block_id,
-                        original_block_id: None,
+                        original_block_id: original_id,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
                         category: r
                             .issue_category
@@ -668,17 +680,10 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<VisibilityBlockSummary> = schedule
             .blocks
             .iter()
-            .enumerate()
-            .map(|(idx, b)| {
-                // Use original_block_id if available, otherwise fallback to internal ID
-                let original_block_id = b
-                    .original_block_id
-                    .clone()
-                    .unwrap_or_else(|| format!("{}", idx + 1));
-
+            .map(|b| {
                 VisibilityBlockSummary {
-                    scheduling_block_id: idx as i64 + 1,
-                    original_block_id,
+                    scheduling_block_id: b.id.expect("DB Block ID missing").0,
+                    original_block_id: b.original_block_id.clone(),
                     priority: b.priority,
                     num_visibility_periods: b.visibility_periods.len(),
                     scheduled: b.scheduled_period.is_some(),
@@ -778,8 +783,7 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<ScheduleTimelineBlock> = schedule
             .blocks
             .iter()
-            .enumerate()
-            .filter_map(|(idx, b)| {
+            .filter_map(|b| {
                 // Only include scheduled blocks
                 let scheduled_period = b.scheduled_period.as_ref()?;
 
@@ -791,15 +795,9 @@ impl VisualizationRepository for LocalRepository {
 
                 let requested_hours = b.requested_duration.value() / 3600.0;
 
-                // Use original_block_id if available, otherwise fallback to internal ID
-                let original_block_id = b
-                    .original_block_id
-                    .clone()
-                    .unwrap_or_else(|| format!("{}", idx + 1));
-
                 Some(ScheduleTimelineBlock {
-                    scheduling_block_id: idx as i64 + 1,
-                    original_block_id,
+                    scheduling_block_id: b.id.expect("DB Block ID missing").0,
+                    original_block_id: b.original_block_id.clone(),
                     priority: b.priority,
                     scheduled_start_mjd: scheduled_period.start,
                     scheduled_stop_mjd: scheduled_period.stop,

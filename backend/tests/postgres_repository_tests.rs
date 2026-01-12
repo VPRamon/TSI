@@ -87,8 +87,8 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
             };
 
             SchedulingBlock {
-                id: SchedulingBlockId(i as i64 + 1),
-                original_block_id: Some(format!("OB-{}", i + 1)),
+                id: Some(SchedulingBlockId(i as i64 + 1)),
+                original_block_id: format!("OB-{}", i + 1),
                 target_ra: (45.0 + i as f64).into(),
                 target_dec: (30.0 - i as f64).into(),
                 constraints: Constraints {
