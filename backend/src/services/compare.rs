@@ -67,13 +67,13 @@ pub(crate) fn compute_stats_with_gaps(
     gap_metrics: Option<GapMetrics>,
 ) -> CompareStats {
     let mut stats = compute_stats(blocks);
-    
+
     if let Some((gap_count, gap_mean_hours, gap_median_hours)) = gap_metrics {
         stats.gap_count = gap_count;
         stats.gap_mean_hours = gap_mean_hours;
         stats.gap_median_hours = gap_median_hours;
     }
-    
+
     stats
 }
 
@@ -199,14 +199,8 @@ pub async fn get_compare_data(
         .map_err(|e| format!("Failed to fetch comparison schedule blocks: {}", e))?;
 
     // Fetch gap metrics from summary analytics
-    let current_gap_metrics = repo
-        .fetch_gap_metrics(current_schedule_id)
-        .await
-        .ok();
-    let comparison_gap_metrics = repo
-        .fetch_gap_metrics(comparison_schedule_id)
-        .await
-        .ok();
+    let current_gap_metrics = repo.fetch_gap_metrics(current_schedule_id).await.ok();
+    let comparison_gap_metrics = repo.fetch_gap_metrics(comparison_schedule_id).await.ok();
 
     compute_compare_data_with_gaps(
         current_blocks,

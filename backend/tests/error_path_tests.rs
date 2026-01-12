@@ -3,13 +3,20 @@
 //! These tests specifically trigger error conditions to ensure proper error handling,
 //! error propagation, and error context enrichment throughout the stack.
 
-use tsi_rust::api::{Schedule, ScheduleId};
+use tsi_rust::api::{ModifiedJulianDate, Period, Schedule, ScheduleId};
 use tsi_rust::db::factory::RepositoryType;
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::repository::{ErrorContext, RepositoryError};
 use tsi_rust::db::services;
 
 mod support;
+
+fn default_schedule_period() -> Period {
+    Period {
+        start: ModifiedJulianDate::new(60000.0),
+        stop: ModifiedJulianDate::new(60001.0),
+    }
+}
 
 // =========================================================
 // Factory Error Tests
@@ -143,6 +150,7 @@ async fn test_services_store_schedule_unhealthy_repo() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "test_checksum".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let result = services::store_schedule(&repo, &schedule).await;
@@ -209,6 +217,7 @@ async fn test_services_store_schedule_with_invalid_data() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "".to_string(), // Empty checksum
+        schedule_period: default_schedule_period(),
     };
 
     // LocalRepository may accept this, but it tests the flow
@@ -443,6 +452,7 @@ async fn test_error_propagation_through_services() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "test".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     // Error should propagate from repository -> services
@@ -467,6 +477,7 @@ async fn test_error_propagation_multiple_operations() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "good_checksum".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let meta = services::store_schedule(&repo, &schedule).await.unwrap();

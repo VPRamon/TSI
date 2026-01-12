@@ -136,6 +136,9 @@ mod tests {
             mean_priority: 5.0,
             median_priority: 4.5,
             total_hours: qtty::Hours::new(20.0),
+            gap_count: None,
+            gap_mean_hours: None,
+            gap_median_hours: None,
         };
         let cloned = stats.clone();
         assert_eq!(cloned.scheduled_count, 10);
@@ -150,6 +153,9 @@ mod tests {
             mean_priority: 5.0,
             median_priority: 4.5,
             total_hours: qtty::Hours::new(20.0),
+            gap_count: None,
+            gap_mean_hours: None,
+            gap_median_hours: None,
         };
         let debug_str = format!("{:?}", stats);
         assert!(debug_str.contains("CompareStats"));
@@ -164,6 +170,9 @@ mod tests {
             mean_priority: 5.0,
             median_priority: 4.5,
             total_hours: qtty::Hours::new(20.0),
+            gap_count: None,
+            gap_mean_hours: None,
+            gap_median_hours: None,
         };
         let json = serde_json::to_string(&stats).unwrap();
         let deserialized: CompareStats = serde_json::from_str(&json).unwrap();
@@ -216,6 +225,9 @@ mod tests {
                 mean_priority: 0.0,
                 median_priority: 0.0,
                 total_hours: qtty::Hours::new(0.0),
+                gap_count: None,
+                gap_mean_hours: None,
+                gap_median_hours: None,
             },
             comparison_stats: CompareStats {
                 scheduled_count: 0,
@@ -224,6 +236,9 @@ mod tests {
                 mean_priority: 0.0,
                 median_priority: 0.0,
                 total_hours: qtty::Hours::new(0.0),
+                gap_count: None,
+                gap_mean_hours: None,
+                gap_median_hours: None,
             },
             common_ids: vec![],
             only_in_current: vec![],
@@ -248,6 +263,9 @@ mod tests {
                 mean_priority: 0.0,
                 median_priority: 0.0,
                 total_hours: qtty::Hours::new(0.0),
+                gap_count: None,
+                gap_mean_hours: None,
+                gap_median_hours: None,
             },
             comparison_stats: CompareStats {
                 scheduled_count: 0,
@@ -256,6 +274,9 @@ mod tests {
                 mean_priority: 0.0,
                 median_priority: 0.0,
                 total_hours: qtty::Hours::new(0.0),
+                gap_count: None,
+                gap_mean_hours: None,
+                gap_median_hours: None,
             },
             common_ids: vec![],
             only_in_current: vec![],

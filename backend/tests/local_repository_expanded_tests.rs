@@ -12,6 +12,13 @@ use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::repository::{AnalyticsRepository, ScheduleRepository};
 use tsi_rust::models::ModifiedJulianDate;
 
+fn default_schedule_period() -> Period {
+    Period {
+        start: ModifiedJulianDate::new(59580.0),
+        stop: ModifiedJulianDate::new(59590.0),
+    }
+}
+
 fn create_test_schedule(name: &str, block_count: usize) -> Schedule {
     let blocks: Vec<SchedulingBlock> = (0..block_count)
         .map(|i| SchedulingBlock {
@@ -50,6 +57,7 @@ fn create_test_schedule(name: &str, block_count: usize) -> Schedule {
         blocks,
         dark_periods: vec![],
         checksum: format!("checksum_{}", name),
+        schedule_period: default_schedule_period(),
     }
 }
 
@@ -234,6 +242,7 @@ async fn test_empty_schedule_storage() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "empty_checksum".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let result = repo.store_schedule(&empty_schedule).await;

@@ -6,14 +6,36 @@
 // support for merging separate JSON blobs (possible_periods, dark_periods)
 // when data is split across multiple files.
 
+use crate::api;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
-use crate::api;
 
+#[derive(serde::Deserialize)]
+struct ScheduleInput {
+    pub id: Option<i64>,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub checksum: String,
+    #[serde(default)]
+    pub schedule_period: Option<api::Period>,
+    #[serde(default)]
+    pub dark_periods: Vec<api::Period>,
+    #[serde(default)]
+    pub blocks: Vec<api::SchedulingBlock>,
+}
 
 fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
-    // TODO: schedule_json follows schema
     // TODO: original_block_id uniqueness & non empty strings
+    let value: serde_json::Value =
+        serde_json::from_str(_schedule_json).context("Invalid schedule JSON")?;
+    let has_blocks = value
+        .as_object()
+        .and_then(|obj| obj.get("blocks"))
+        .is_some();
+    if !has_blocks {
+        anyhow::bail!("Missing required 'blocks' field");
+    }
     Ok(())
 }
 
@@ -35,11 +57,20 @@ pub fn parse_schedule_json_str(
     json_schedule_json: &str,
     possible_periods_json: Option<&str>,
 ) -> Result<api::Schedule> {
-
     validate_input_schedule(json_schedule_json)?;
 
-    let mut schedule: crate::api::Schedule = serde_json::from_str(json_schedule_json)
+    let input: ScheduleInput = serde_json::from_str(json_schedule_json)
         .context("Failed to deserialize schedule JSON using Serde")?;
+    let mut schedule = api::Schedule {
+        id: input.id,
+        name: input.name,
+        checksum: input.checksum,
+        schedule_period: input
+            .schedule_period
+            .unwrap_or_else(|| infer_schedule_period(&input.dark_periods, &input.blocks)),
+        dark_periods: input.dark_periods,
+        blocks: input.blocks,
+    };
 
     // Compute checksum if not provided
     if schedule.checksum.is_empty() {
@@ -86,6 +117,45 @@ pub fn parse_schedule_json_str(
     Ok(schedule)
 }
 
+fn infer_schedule_period(
+    dark_periods: &[api::Period],
+    blocks: &[api::SchedulingBlock],
+) -> api::Period {
+    let mut min_start: Option<f64> = None;
+    let mut max_stop: Option<f64> = None;
+
+    let mut consider_period = |period: &api::Period| {
+        let start = period.start.value();
+        let stop = period.stop.value();
+        min_start = Some(min_start.map_or(start, |v| v.min(start)));
+        max_stop = Some(max_stop.map_or(stop, |v| v.max(stop)));
+    };
+
+    for period in dark_periods {
+        consider_period(period);
+    }
+
+    for block in blocks {
+        for period in &block.visibility_periods {
+            consider_period(period);
+        }
+        if let Some(period) = &block.scheduled_period {
+            consider_period(period);
+        }
+    }
+
+    match (min_start, max_stop) {
+        (Some(start), Some(stop)) => api::Period {
+            start: api::ModifiedJulianDate::new(start),
+            stop: api::ModifiedJulianDate::new(stop),
+        },
+        _ => api::Period {
+            start: api::ModifiedJulianDate::new(0.0),
+            stop: api::ModifiedJulianDate::new(0.0),
+        },
+    }
+}
+
 /// Compute a checksum for the schedule JSON
 fn compute_schedule_checksum(json_str: &str) -> String {
     use sha2::{Digest, Sha256};
@@ -126,7 +196,8 @@ mod tests {
                 &std::fs::read_to_string(&possible_path)
                     .expect("Failed to read repository possible periods fixture"),
             ),
-        ).expect("Failed to parse real schedule fixture")
+        )
+        .expect("Failed to parse real schedule fixture")
     }
 
     fn assert_close(value: f64, expected: f64, label: &str) {
@@ -234,10 +305,7 @@ mod tests {
 
         let possible_periods_json = r#"{ "blocks": { "1000004990": [ { "start": 61771.0, "stop": 61772.0 }, { "start": 61773.0, "stop": 61774.0 } ] } }"#;
 
-        let result = parse_schedule_json_str(
-            schedule_json,
-            Some(possible_periods_json)
-        );
+        let result = parse_schedule_json_str(schedule_json, Some(possible_periods_json));
         assert!(result.is_ok(), "Should parse with possible periods");
 
         let schedule = result.unwrap();

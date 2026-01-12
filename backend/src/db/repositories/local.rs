@@ -659,14 +659,12 @@ impl VisualizationRepository for LocalRepository {
         let blocks: Vec<VisibilityBlockSummary> = schedule
             .blocks
             .iter()
-            .map(|b| {
-                VisibilityBlockSummary {
-                    scheduling_block_id: b.id.expect("DB Block ID missing").0,
-                    original_block_id: b.original_block_id.clone(),
-                    priority: b.priority,
-                    num_visibility_periods: b.visibility_periods.len(),
-                    scheduled: b.scheduled_period.is_some(),
-                }
+            .map(|b| VisibilityBlockSummary {
+                scheduling_block_id: b.id.expect("DB Block ID missing").0,
+                original_block_id: b.original_block_id.clone(),
+                priority: b.priority,
+                num_visibility_periods: b.visibility_periods.len(),
+                scheduled: b.scheduled_period.is_some(),
             })
             .collect();
 
@@ -827,16 +825,19 @@ impl VisualizationRepository for LocalRepository {
         // If analytics have not been populated for this schedule, mirror
         // the postgres behaviour and return no metrics (None, None, None).
         let data = self.data.read().unwrap();
-        if !data.analytics_exists.get(&schedule_id.0).copied().unwrap_or(false) {
+        if !data
+            .analytics_exists
+            .get(&schedule_id.0)
+            .copied()
+            .unwrap_or(false)
+        {
             return Ok((None, None, None));
         }
 
         // Collect scheduled periods from blocks
-        let schedule = data
-            .schedules
-            .get(&schedule_id.0)
-            .cloned()
-            .ok_or_else(|| RepositoryError::NotFound(format!("Schedule {} not found", schedule_id)))?;
+        let schedule = data.schedules.get(&schedule_id.0).cloned().ok_or_else(|| {
+            RepositoryError::NotFound(format!("Schedule {} not found", schedule_id))
+        })?;
 
         let mut periods: Vec<(f64, f64)> = schedule
             .blocks
@@ -846,7 +847,11 @@ impl VisualizationRepository for LocalRepository {
             .collect();
 
         if periods.len() < 2 {
-            return Ok((Some(0), Some(qtty::Hours::new(0.0)), Some(qtty::Hours::new(0.0))));
+            return Ok((
+                Some(0),
+                Some(qtty::Hours::new(0.0)),
+                Some(qtty::Hours::new(0.0)),
+            ));
         }
 
         periods.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
@@ -863,7 +868,11 @@ impl VisualizationRepository for LocalRepository {
         }
 
         if gaps_hours.is_empty() {
-            return Ok((Some(0), Some(qtty::Hours::new(0.0)), Some(qtty::Hours::new(0.0))));
+            return Ok((
+                Some(0),
+                Some(qtty::Hours::new(0.0)),
+                Some(qtty::Hours::new(0.0)),
+            ));
         }
 
         // Mean
@@ -872,7 +881,7 @@ impl VisualizationRepository for LocalRepository {
 
         // Median
         gaps_hours.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let median = if gaps_hours.len() % 2 == 0 {
+        let median = if gaps_hours.len().is_multiple_of(2) {
             let hi = gaps_hours[gaps_hours.len() / 2];
             let lo = gaps_hours[gaps_hours.len() / 2 - 1];
             (lo + hi) / 2.0
@@ -880,13 +889,25 @@ impl VisualizationRepository for LocalRepository {
             gaps_hours[gaps_hours.len() / 2]
         };
 
-        Ok((Some(gaps_hours.len() as i32), Some(qtty::Hours::new(mean)), Some(qtty::Hours::new(median))))
+        Ok((
+            Some(gaps_hours.len() as i32),
+            Some(qtty::Hours::new(mean)),
+            Some(qtty::Hours::new(median)),
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::ModifiedJulianDate;
+
+    fn default_schedule_period() -> Period {
+        Period {
+            start: ModifiedJulianDate::new(60000.0),
+            stop: ModifiedJulianDate::new(60001.0),
+        }
+    }
 
     #[tokio::test]
     async fn test_health_check() {
@@ -907,6 +928,7 @@ mod tests {
             blocks: vec![],
             dark_periods: vec![],
             checksum: "test123".to_string(),
+            schedule_period: default_schedule_period(),
         };
 
         let metadata = repo.store_schedule(&schedule).await.unwrap();
@@ -926,6 +948,7 @@ mod tests {
             blocks: vec![],
             dark_periods: vec![],
             checksum: "hash1".to_string(),
+            schedule_period: default_schedule_period(),
         };
 
         let schedule2 = Schedule {
@@ -934,6 +957,7 @@ mod tests {
             blocks: vec![],
             dark_periods: vec![],
             checksum: "hash2".to_string(),
+            schedule_period: default_schedule_period(),
         };
 
         repo.store_schedule(&schedule1).await.unwrap();
@@ -961,6 +985,7 @@ mod tests {
             blocks: vec![],
             dark_periods: vec![],
             checksum: "test".to_string(),
+            schedule_period: default_schedule_period(),
         };
 
         let metadata = repo.store_schedule(&schedule).await.unwrap();
