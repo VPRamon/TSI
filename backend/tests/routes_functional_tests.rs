@@ -57,6 +57,10 @@ fn create_schedule_with_visibility(name: &str, block_count: usize) -> Schedule {
             stop: ModifiedJulianDate::new(59590.0),
         }],
         checksum: format!("checksum_{}", name),
+        schedule_period: Period {
+            start: ModifiedJulianDate::new(59580.0),
+            stop: ModifiedJulianDate::new(59590.0),
+        },
     }
 }
 

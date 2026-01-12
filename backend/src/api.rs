@@ -372,7 +372,10 @@ impl SchedulingBlock {
     }
 
     fn __repr__(&self) -> String {
-        let id_str = self.id.map(|i| i.0.to_string()).unwrap_or_else(|| "None".to_string());
+        let id_str = self
+            .id
+            .map(|i| i.0.to_string())
+            .unwrap_or_else(|| "None".to_string());
         format!(
             "SchedulingBlock(id={}, original_id={}, ra={:.2}, dec={:.2}, priority={:.1})",
             id_str,

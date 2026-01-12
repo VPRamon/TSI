@@ -1,10 +1,17 @@
 //! Integration tests for repository implementations.
 
 use std::sync::Arc;
-use tsi_rust::api::{Schedule, ScheduleId};
+use tsi_rust::api::{ModifiedJulianDate, Period, Schedule, ScheduleId};
 use tsi_rust::db::{
     AnalyticsRepository, LocalRepository, RepositoryError, ScheduleRepository, ValidationRepository,
 };
+
+fn default_schedule_period() -> Period {
+    Period {
+        start: ModifiedJulianDate::new(60000.0),
+        stop: ModifiedJulianDate::new(60001.0),
+    }
+}
 
 #[tokio::test]
 async fn test_repository_health_check() {
@@ -24,6 +31,7 @@ async fn test_store_and_retrieve_schedule() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "integration_test_123".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     // Store the schedule
@@ -53,6 +61,7 @@ async fn test_list_schedules() {
             blocks: vec![],
             dark_periods: vec![],
             checksum: format!("checksum_{}", i),
+            schedule_period: default_schedule_period(),
         };
         repo.store_schedule(&schedule).await.unwrap();
     }
@@ -85,6 +94,7 @@ async fn test_analytics_lifecycle() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "analytics_test".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
@@ -114,6 +124,7 @@ async fn test_validation_lifecycle() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "validation_test".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
@@ -147,6 +158,7 @@ async fn test_concurrent_access() {
                 blocks: vec![],
                 dark_periods: vec![],
                 checksum: format!("concurrent_{}", i),
+                schedule_period: default_schedule_period(),
             };
             repo_clone.store_schedule(&schedule).await
         });
@@ -182,6 +194,7 @@ async fn test_helper_methods() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "helper".to_string(),
+        schedule_period: default_schedule_period(),
     };
     let schedule_id = repo.store_schedule(&schedule).await.unwrap().schedule_id;
 
@@ -208,6 +221,7 @@ async fn test_connection_unhealthy() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "fail".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let result = repo.store_schedule(&schedule).await;

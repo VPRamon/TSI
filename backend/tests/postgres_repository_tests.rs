@@ -113,6 +113,10 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
         checksum: checksum.to_string(),
         dark_periods,
         blocks,
+        schedule_period: Period {
+            start: ModifiedJulianDate::new(60000.0),
+            stop: ModifiedJulianDate::new(60001.0),
+        },
     }
 }
 
@@ -284,7 +288,7 @@ async fn test_postgres_get_blocks_for_schedule() {
 
     // Verify block data
     for (i, block) in blocks.iter().enumerate() {
-        assert_eq!(block.original_block_id, Some(format!("OB-{}", i + 1)));
+        assert_eq!(block.original_block_id, format!("OB-{}", i + 1));
     }
 }
 
@@ -308,7 +312,7 @@ async fn test_postgres_get_scheduling_block() {
         .await
         .expect("Should get blocks");
 
-    let first_block_id = blocks[0].id.0;
+    let first_block_id = blocks[0].id.expect("block id should be set").0;
 
     // Retrieve single block
     let block = repo
@@ -316,7 +320,7 @@ async fn test_postgres_get_scheduling_block() {
         .await
         .expect("Should get single block");
 
-    assert_eq!(block.id.0, first_block_id);
+    assert_eq!(block.id.expect("block id should be set").0, first_block_id);
 }
 
 #[tokio::test]
@@ -574,7 +578,7 @@ async fn test_postgres_validation_lifecycle() {
         .enumerate()
         .map(|(i, b)| ValidationResult {
             schedule_id,
-            scheduling_block_id: b.id.0,
+            scheduling_block_id: b.id.expect("block id should be set").0,
             status: if i == 0 {
                 ValidationStatus::Impossible
             } else {

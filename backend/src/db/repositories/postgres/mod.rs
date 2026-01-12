@@ -408,7 +408,9 @@ fn json_to_period(value: &Value) -> RepositoryResult<Option<Period>> {
     }
     serde_json::from_value(value.clone())
         .map(Some)
-        .map_err(|e| RepositoryError::InternalError(format!("Failed to parse schedule_period JSON: {e}")))
+        .map_err(|e| {
+            RepositoryError::InternalError(format!("Failed to parse schedule_period JSON: {e}"))
+        })
 }
 
 fn compute_possible_periods_json(blocks: &[SchedulingBlock]) -> Value {
@@ -460,7 +462,7 @@ fn row_to_block(row: ScheduleBlockRow) -> RepositoryResult<SchedulingBlock> {
 
     Ok(SchedulingBlock {
         id: Some(SchedulingBlockId(row.scheduling_block_id)),
-        original_block_id: row.original_block_id,
+        original_block_id: row.original_block_id.unwrap_or_default(),
         target_ra: row.target_ra_deg,
         target_dec: row.target_dec_deg,
         constraints,
@@ -477,10 +479,9 @@ fn build_schedule_from_rows(
     block_rows: Vec<ScheduleBlockRow>,
 ) -> RepositoryResult<Schedule> {
     let dark_periods = value_to_periods(&schedule_row.dark_periods_json)?;
-    let schedule_period = json_to_period(&schedule_row.schedule_period_json)?
-        .ok_or_else(|| RepositoryError::InternalError(
-            "schedule_period_json is required but was null".to_string()
-        ))?;
+    let schedule_period = json_to_period(&schedule_row.schedule_period_json)?.ok_or_else(|| {
+        RepositoryError::InternalError("schedule_period_json is required but was null".to_string())
+    })?;
     let mut blocks = Vec::with_capacity(block_rows.len());
     for row in block_rows {
         blocks.push(row_to_block(row)?);
@@ -624,9 +625,7 @@ fn compute_gap_statistics(
                 for period in arr {
                     if let Some(obj) = period.as_object() {
                         if let (Some(start), Some(stop)) = (obj.get("start"), obj.get("stop")) {
-                            if let (Some(start_f), Some(stop_f)) =
-                                (start.as_f64(), stop.as_f64())
-                            {
+                            if let (Some(start_f), Some(stop_f)) = (start.as_f64(), stop.as_f64()) {
                                 scheduled_periods.push((start_f, stop_f));
                             }
                         }
@@ -822,12 +821,13 @@ impl ScheduleRepository for PostgresRepository {
                 .first(conn)
                 .map_err(map_diesel_error)?;
 
-            Ok(Some(json_to_period(&schedule_period_json)?
-                .ok_or_else(|| {
-                    RepositoryError::DatabaseError(
-                        "schedule_period_json is required but was null".to_string()
+            Ok(Some(json_to_period(&schedule_period_json)?.ok_or_else(
+                || {
+                    RepositoryError::InternalError(
+                        "schedule_period_json is required but was null".to_string(),
                     )
-                })?))
+                },
+            )?))
         })
         .await
     }

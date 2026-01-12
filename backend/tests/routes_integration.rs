@@ -1,4 +1,4 @@
-use tsi_rust::api::{Schedule, ScheduleId};
+use tsi_rust::api::{ModifiedJulianDate, Period, Schedule, ScheduleId};
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::services;
 use tsi_rust::routes;
@@ -10,6 +10,14 @@ fn create_minimal_schedule(name: &str) -> Schedule {
         blocks: vec![],
         dark_periods: vec![],
         checksum: format!("test_{}", name),
+        schedule_period: default_schedule_period(),
+    }
+}
+
+fn default_schedule_period() -> Period {
+    Period {
+        start: ModifiedJulianDate::new(60000.0),
+        stop: ModifiedJulianDate::new(60001.0),
     }
 }
 
@@ -73,6 +81,9 @@ fn test_compare_stats_creation() {
         mean_priority: 5.0,
         median_priority: 4.5,
         total_hours: qtty::Hours::new(20.0),
+        gap_count: None,
+        gap_mean_hours: None,
+        gap_median_hours: None,
     };
     assert_eq!(stats.scheduled_count, 10);
     assert_eq!(stats.unscheduled_count, 5);
@@ -102,6 +113,9 @@ fn test_compare_data_creation() {
             mean_priority: 0.0,
             median_priority: 0.0,
             total_hours: qtty::Hours::new(0.0),
+            gap_count: None,
+            gap_mean_hours: None,
+            gap_median_hours: None,
         },
         comparison_stats: routes::compare::CompareStats {
             scheduled_count: 0,
@@ -110,6 +124,9 @@ fn test_compare_data_creation() {
             mean_priority: 0.0,
             median_priority: 0.0,
             total_hours: qtty::Hours::new(0.0),
+            gap_count: None,
+            gap_mean_hours: None,
+            gap_median_hours: None,
         },
         common_ids: vec![],
         only_in_current: vec![],

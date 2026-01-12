@@ -22,6 +22,13 @@ use tsi_rust::services::validation::{
 
 // ==================== Helper Functions ====================
 
+fn default_schedule_period() -> Period {
+    Period {
+        start: ModifiedJulianDate::new(60000.0),
+        stop: ModifiedJulianDate::new(60001.0),
+    }
+}
+
 fn create_test_block(
     id: i64,
     priority: f64,
@@ -456,6 +463,7 @@ async fn test_local_repository_validation_storage() {
         ],
         dark_periods: vec![],
         checksum: "validation_test_123".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
@@ -513,6 +521,7 @@ async fn test_validation_report_structure() {
         ],
         dark_periods: vec![],
         checksum: "report_test_456".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
@@ -576,6 +585,7 @@ async fn test_validation_empty_schedule() {
         blocks: vec![],
         dark_periods: vec![],
         checksum: "empty_123".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
@@ -608,6 +618,7 @@ async fn test_validation_all_valid_blocks() {
         ],
         dark_periods: vec![],
         checksum: "all_valid_789".to_string(),
+        schedule_period: default_schedule_period(),
     };
 
     let metadata = repo.store_schedule(&schedule).await.unwrap();
