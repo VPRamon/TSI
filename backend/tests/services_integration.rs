@@ -26,8 +26,8 @@ fn create_schedule_with_blocks(name: &str, block_count: usize) -> Schedule {
                 fixed_time: None,
             };
             SchedulingBlock {
-                id: SchedulingBlockId::new((i + 1) as i64),
-                original_block_id: Some(format!("block_{}", i)),
+                id: Some(SchedulingBlockId::new((i + 1) as i64)),
+                original_block_id: format!("block_{}", i),
                 target_ra: qtty::Degrees::new(i as f64 * 10.0),
                 target_dec: qtty::Degrees::new(i as f64 * 5.0 - 45.0),
                 constraints,

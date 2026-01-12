@@ -32,8 +32,8 @@ fn create_test_block(
     visibility_hours: f64,
 ) -> SchedulingBlock {
     SchedulingBlock {
-        id: SchedulingBlockId(id),
-        original_block_id: Some(format!("TEST_{}", id)),
+        id: Some(SchedulingBlockId(id)),
+        original_block_id: format!("TEST_{}", id),
         target_ra: Degrees::new(ra_deg),
         target_dec: Degrees::new(dec_deg),
         constraints: Constraints {
@@ -63,7 +63,7 @@ fn create_test_block(
 fn create_validation_input(block: &SchedulingBlock) -> BlockForValidation {
     BlockForValidation {
         schedule_id: ScheduleId(1),
-        scheduling_block_id: block.id.0,
+        scheduling_block_id: block.id.map(|id| id.0).unwrap_or(0),
         priority: block.priority,
         requested_duration_sec: block.requested_duration.value() as i32,
         min_observation_sec: block.min_observation.value() as i32,

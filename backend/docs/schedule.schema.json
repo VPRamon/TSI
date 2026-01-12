@@ -48,8 +48,14 @@
     "SchedulingBlock": {
       "type": "object",
       "properties": {
-        "id": { "type": "integer" },
-        "original_block_id": { "type": ["string", "null"] },
+        "id": {
+          "type": "integer",
+          "description": "Internal database ID. Optional on input (server-assigned), present on output."
+        },
+        "original_block_id": {
+          "type": "string",
+          "description": "User-provided block identifier. Required on input, preserved on output."
+        },
         "priority": { "type": "number" },
         "target_ra": { "type": "number", "description": "Right ascension in degrees." },
         "target_dec": { "type": "number", "description": "Declination in degrees." },
@@ -63,7 +69,7 @@
         "scheduled_period": { "$ref": "#/definitions/Period" }
       },
       "required": [
-        "id",
+        "original_block_id",
         "priority",
         "target_ra",
         "target_dec",

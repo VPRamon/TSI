@@ -1,4 +1,5 @@
 data/sensitive
+output/
 old
 **coverage_html**
 

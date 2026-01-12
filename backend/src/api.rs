@@ -134,6 +134,7 @@ impl From<ScheduleId> for i64 {
         id.0
     }
 }
+
 // Python-facing Data Transfer Objects (DTOs) moved to the api root.
 use pyo3::types::PyTuple;
 use serde::{Deserialize, Serialize};
@@ -309,10 +310,13 @@ impl Constraints {
 #[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulingBlock {
-    /// Database ID for the block
-    pub id: SchedulingBlockId,
-    /// Original ID from JSON (shown to user)
-    pub original_block_id: Option<String>,
+    /// Database ID for the block (optional on input, server-assigned)
+    #[serde(default)]
+    pub id: Option<SchedulingBlockId>,
+    /// Original ID from JSON (shown to user, required on input for new data)
+    /// For backwards compatibility, defaults to empty string if missing/null.
+    #[serde(default)]
+    pub original_block_id: String,
     /// Right Ascension in degrees (ICRS)
     #[serde(with = "qtty::serde_f64")]
     pub target_ra: qtty::Degrees,
@@ -339,17 +343,17 @@ pub struct SchedulingBlock {
 #[pymethods]
 impl SchedulingBlock {
     #[new]
-    #[pyo3(signature = (id, original_block_id, target_ra, target_dec, constraints, priority, min_observation, requested_duration, visibility_periods=None, scheduled_period=None))]
+    #[pyo3(signature = (original_block_id, target_ra, target_dec, constraints, priority, min_observation, requested_duration, id=None, visibility_periods=None, scheduled_period=None))]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        id: SchedulingBlockId,
-        original_block_id: Option<String>,
+        original_block_id: String,
         target_ra: qtty::Degrees,
         target_dec: qtty::Degrees,
         constraints: Constraints,
         priority: f64,
         min_observation: qtty::Seconds,
         requested_duration: qtty::Seconds,
+        id: Option<SchedulingBlockId>,
         visibility_periods: Option<Vec<Period>>,
         scheduled_period: Option<Period>,
     ) -> Self {
@@ -368,9 +372,11 @@ impl SchedulingBlock {
     }
 
     fn __repr__(&self) -> String {
+        let id_str = self.id.map(|i| i.0.to_string()).unwrap_or_else(|| "None".to_string());
         format!(
-            "SchedulingBlock(id={}, ra={:.2}, dec={:.2}, priority={:.1})",
-            self.id.0,
+            "SchedulingBlock(id={}, original_id={}, ra={:.2}, dec={:.2}, priority={:.1})",
+            id_str,
+            self.original_block_id,
             self.target_ra.value(),
             self.target_dec.value(),
             self.priority

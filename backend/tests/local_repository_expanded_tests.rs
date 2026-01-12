@@ -15,8 +15,8 @@ use tsi_rust::models::ModifiedJulianDate;
 fn create_test_schedule(name: &str, block_count: usize) -> Schedule {
     let blocks: Vec<SchedulingBlock> = (0..block_count)
         .map(|i| SchedulingBlock {
-            id: SchedulingBlockId::new((i + 1) as i64),
-            original_block_id: Some(format!("block_{}", i)),
+            id: Some(SchedulingBlockId::new((i + 1) as i64)),
+            original_block_id: format!("block_{}", i),
             target_ra: qtty::Degrees::new(i as f64 * 10.0),
             target_dec: qtty::Degrees::new(i as f64 * 5.0 - 45.0),
             constraints: Constraints {

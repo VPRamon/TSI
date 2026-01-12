@@ -31,13 +31,10 @@ fn load_schedule_from_files() -> Schedule {
         fs::read_to_string("/workspace/data/schedule.json").expect("Failed to read schedule.json");
     let possible_periods_json = fs::read_to_string("/workspace/data/possible_periods.json")
         .expect("Failed to read possible_periods.json");
-    let dark_periods_json = fs::read_to_string("/workspace/data/dark_periods.json")
-        .expect("Failed to read dark_periods.json");
 
     parse_schedule_json_str(
         &schedule_json,
-        Some(&possible_periods_json),
-        &dark_periods_json,
+        Some(&possible_periods_json)
     )
     .expect("Failed to parse schedule from JSON files")
 }
@@ -855,19 +852,19 @@ async fn test_block_data_integrity() {
         assert!(
             (orig.priority - retr.priority).abs() < 0.001,
             "Priority mismatch for block {}",
-            orig.id
+            orig.original_block_id
         );
 
         // Verify target coordinates (target_ra and target_dec are direct fields)
         assert!(
             (orig.target_ra.value() - retr.target_ra.value()).abs() < 0.001,
             "RA mismatch for block {}",
-            orig.id
+            orig.original_block_id
         );
         assert!(
             (orig.target_dec.value() - retr.target_dec.value()).abs() < 0.001,
             "Dec mismatch for block {}",
-            orig.id
+            orig.original_block_id
         );
 
         // Verify scheduled period if present
@@ -877,12 +874,12 @@ async fn test_block_data_integrity() {
             assert!(
                 (orig_period.start.value() - retr_period.start.value()).abs() < 0.0001,
                 "Scheduled start mismatch for block {}",
-                orig.id
+                orig.original_block_id
             );
             assert!(
                 (orig_period.stop.value() - retr_period.stop.value()).abs() < 0.0001,
                 "Scheduled stop mismatch for block {}",
-                orig.id
+                orig.original_block_id
             );
         }
     }
@@ -910,31 +907,31 @@ async fn test_constraints_preserved() {
             orig.constraints.min_alt.value(),
             retr.constraints.min_alt.value(),
             "Min altitude mismatch for block {}",
-            orig.id
+            orig.original_block_id
         );
         assert_eq!(
             orig.constraints.max_alt.value(),
             retr.constraints.max_alt.value(),
             "Max altitude mismatch for block {}",
-            orig.id
+            orig.original_block_id
         );
         assert_eq!(
             orig.constraints.min_az.value(),
             retr.constraints.min_az.value(),
             "Min azimuth mismatch for block {}",
-            orig.id
+            orig.original_block_id
         );
         assert_eq!(
             orig.constraints.max_az.value(),
             retr.constraints.max_az.value(),
             "Max azimuth mismatch for block {}",
-            orig.id
+            orig.original_block_id
         );
         assert_eq!(
             orig.requested_duration.value(),
             retr.requested_duration.value(),
             "Requested duration mismatch for block {}",
-            orig.id
+            orig.original_block_id
         );
     }
 
@@ -1058,8 +1055,6 @@ async fn test_analytics_populated_on_store() {
 async fn test_empty_schedule_handling() {
     // Test that we can handle a schedule with no blocks
     let repo = LocalRepository::new();
-    let dark_periods_json = fs::read_to_string("/workspace/data/dark_periods.json")
-        .expect("Failed to read dark_periods.json");
 
     // Create minimal empty schedule JSON
     let empty_schedule_json = r#"{
@@ -1069,7 +1064,7 @@ async fn test_empty_schedule_handling() {
         "blocks": []
     }"#;
 
-    let schedule = parse_schedule_json_str(empty_schedule_json, None, &dark_periods_json)
+    let schedule = parse_schedule_json_str(empty_schedule_json, None)
         .expect("Failed to parse empty schedule");
 
     assert!(schedule.blocks.is_empty(), "Schedule should have no blocks");

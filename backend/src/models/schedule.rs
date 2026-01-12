@@ -8,6 +8,14 @@
 
 use anyhow::{Context, Result};
 use std::collections::HashMap;
+use crate::api;
+
+
+fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
+    // TODO: schedule_json follows schema
+    // TODO: original_block_id uniqueness & non empty strings
+    Ok(())
+}
 
 /// Parse schedule from JSON string with optional merging of separate period blobs.
 ///
@@ -19,7 +27,6 @@ use std::collections::HashMap;
 ///
 /// * `json_schedule_json` - Main schedule JSON (snake_case format matching schema)
 /// * `possible_periods_json` - Optional JSON with visibility periods per block ID
-/// * `dark_periods_json` - JSON with dark periods array or wrapper object
 ///
 /// # Returns
 ///
@@ -27,11 +34,17 @@ use std::collections::HashMap;
 pub fn parse_schedule_json_str(
     json_schedule_json: &str,
     possible_periods_json: Option<&str>,
-    dark_periods_json: &str,
-) -> Result<crate::api::Schedule> {
-    // Deserialize schedule using Serde (snake_case JSON matching schema)
-    let mut schedule =
-        parse_schedule_direct(json_schedule_json).context("Failed to parse schedule JSON")?;
+) -> Result<api::Schedule> {
+
+    validate_input_schedule(json_schedule_json)?;
+
+    let mut schedule: crate::api::Schedule = serde_json::from_str(json_schedule_json)
+        .context("Failed to deserialize schedule JSON using Serde")?;
+
+    // Compute checksum if not provided
+    if schedule.checksum.is_empty() {
+        schedule.checksum = compute_schedule_checksum(json_schedule_json);
+    }
 
     // If possible periods are supplied separately, merge them into block.visibility_periods.
     // Accept either a wrapper `{"blocks": { "<id>": [ ... ] }}` or a direct map `{ "<id>": [ ... ] }`.
@@ -55,55 +68,23 @@ pub fn parse_schedule_json_str(
 
             if let Some(map) = maybe_map {
                 for block in &mut schedule.blocks {
-                    if let Some(periods) = map.get(&block.id.to_string()) {
+                    // Match by original_block_id (user-provided identifier)
+                    if let Some(periods) = map.get(&block.original_block_id) {
                         block.visibility_periods = periods.clone();
+                    }
+                    // Fallback: also try matching by internal id if present
+                    else if let Some(id) = block.id {
+                        if let Some(periods) = map.get(&id.0.to_string()) {
+                            block.visibility_periods = periods.clone();
+                        }
                     }
                 }
             }
         }
     }
 
-    // If dark periods were supplied separately (or the parsed schedule lacks them),
-    // try to parse and merge from the provided blob. Accept either wrapper {"dark_periods": [...]}
-    // or a direct array of periods.
-    if schedule.dark_periods.is_empty() && !dark_periods_json.trim().is_empty() {
-        let trimmed = dark_periods_json.trim();
-
-        #[derive(serde::Deserialize)]
-        struct DarkWrapper {
-            dark_periods: Vec<crate::api::Period>,
-        }
-
-        if let Ok(wrapper) = serde_json::from_str::<DarkWrapper>(trimmed) {
-            schedule.dark_periods = wrapper.dark_periods;
-        } else if let Ok(vec) = serde_json::from_str::<Vec<crate::api::Period>>(trimmed) {
-            schedule.dark_periods = vec;
-        }
-    }
-
-    if schedule.checksum.is_empty() {
-        schedule.checksum = compute_schedule_checksum(json_schedule_json);
-    }
-
     Ok(schedule)
 }
-
-/// Parse schedule from new snake_case JSON format (matches schema)
-pub fn parse_schedule_direct(json_str: &str) -> Result<crate::api::Schedule> {
-    let mut schedule: crate::api::Schedule = serde_json::from_str(json_str)
-        .context("Failed to deserialize schedule JSON using Serde")?;
-
-    // Compute checksum if not provided
-    if schedule.checksum.is_empty() {
-        schedule.checksum = compute_schedule_checksum(json_str);
-    }
-
-    Ok(schedule)
-}
-
-// (Legacy adapters removed) The codebase now expects schedule JSON to match the
-// snake_case schema in `backend/docs/schedule.schema.json`. Legacy
-// camelCase adapters were removed to simplify parsing and reduce maintenance.
 
 /// Compute a checksum for the schedule JSON
 fn compute_schedule_checksum(json_str: &str) -> String {
@@ -112,54 +93,6 @@ fn compute_schedule_checksum(json_str: &str) -> String {
     hasher.update(json_str.as_bytes());
     let result = hasher.finalize();
     hex::encode(result)
-}
-
-/// Parses schedule JSON from files into a `Schedule` structure.
-///
-/// # Arguments
-/// * `schedule_json_path` - Path to JSON file containing the scheduling blocks
-/// * `possible_periods_json_path` - Optional path to JSON file with visibility periods per block ID
-/// * `dark_periods_json_path` - Path to JSON file containing dark periods
-///
-/// # Returns
-/// A `Schedule` containing all parsed blocks and dark periods
-pub fn parse_schedule_json(
-    schedule_json_path: &std::path::Path,
-    possible_periods_json_path: Option<&std::path::Path>,
-    dark_periods_json_path: &std::path::Path,
-) -> Result<crate::api::Schedule> {
-    // Read schedule JSON
-    let schedule_json = std::fs::read_to_string(schedule_json_path).with_context(|| {
-        format!(
-            "Failed to read schedule file: {}",
-            schedule_json_path.display()
-        )
-    })?;
-
-    // Read possible periods if provided
-    let possible_periods_json =
-        if let Some(path) = possible_periods_json_path {
-            Some(std::fs::read_to_string(path).with_context(|| {
-                format!("Failed to read possible periods file: {}", path.display())
-            })?)
-        } else {
-            None
-        };
-
-    // Read dark periods
-    let dark_periods_json = std::fs::read_to_string(dark_periods_json_path).with_context(|| {
-        format!(
-            "Failed to read dark periods file: {}",
-            dark_periods_json_path.display()
-        )
-    })?;
-
-    // Parse using string-based function
-    parse_schedule_json_str(
-        &schedule_json,
-        possible_periods_json.as_deref(),
-        &dark_periods_json,
-    )
 }
 
 // ============================================================================
@@ -185,10 +118,15 @@ mod tests {
     fn parse_real_schedule_fixture() -> Schedule {
         let schedule_path = repo_data_path("schedule.json");
         let possible_path = repo_data_path("possible_periods.json");
-        let dark_path = repo_data_path("dark_periods.json");
 
-        parse_schedule_json(&schedule_path, Some(&possible_path), &dark_path)
-            .expect("Failed to parse repository schedule fixtures")
+        parse_schedule_json_str(
+            &std::fs::read_to_string(&schedule_path)
+                .expect("Failed to read repository schedule fixture"),
+            Some(
+                &std::fs::read_to_string(&possible_path)
+                    .expect("Failed to read repository possible periods fixture"),
+            ),
+        ).expect("Failed to parse real schedule fixture")
     }
 
     fn assert_close(value: f64, expected: f64, label: &str) {
@@ -224,9 +162,7 @@ mod tests {
             ]
         }"#;
 
-        let dark_periods_json = r#"{ "dark_periods": [ { "start": 61771.0, "stop": 61772.0 } ] }"#;
-
-        let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
+        let result = parse_schedule_json_str(schedule_json, None);
         assert!(
             result.is_ok(),
             "Should parse minimal schedule: {:?}",
@@ -235,8 +171,7 @@ mod tests {
 
         let schedule = result.unwrap();
         assert_eq!(schedule.blocks.len(), 1);
-        assert_eq!(schedule.dark_periods.len(), 1);
-        assert_eq!(schedule.blocks[0].id.0, 1000004990);
+        assert_eq!(schedule.blocks[0].id.map(|id| id.0), Some(1000004990));
         assert_eq!(schedule.blocks[0].priority, 8.5);
     }
 
@@ -263,8 +198,7 @@ mod tests {
             ]
         }"#;
 
-        let dark_periods_json = r#"{"dark_periods": []}"#;
-        let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
+        let result = parse_schedule_json_str(schedule_json, None);
         assert!(
             result.is_ok(),
             "Should parse with scheduled period: {:?}",
@@ -300,11 +234,9 @@ mod tests {
 
         let possible_periods_json = r#"{ "blocks": { "1000004990": [ { "start": 61771.0, "stop": 61772.0 }, { "start": 61773.0, "stop": 61774.0 } ] } }"#;
 
-        let dark_periods_json = r#"{"dark_periods": []}"#;
         let result = parse_schedule_json_str(
             schedule_json,
-            Some(possible_periods_json),
-            dark_periods_json,
+            Some(possible_periods_json)
         );
         assert!(result.is_ok(), "Should parse with possible periods");
 
@@ -316,16 +248,14 @@ mod tests {
     #[test]
     fn test_missing_scheduling_block_key() {
         let schedule_json = r#"{"SomeOtherKey": []}"#;
-        let dark_periods_json = r#"{"dark_periods": []}"#;
-        let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
+        let result = parse_schedule_json_str(schedule_json, None);
         assert!(result.is_err(), "Should fail without SchedulingBlock key");
     }
 
     #[test]
     fn test_invalid_json() {
         let schedule_json = "not valid json {";
-        let dark_periods_json = r#"{"dark_periods": []}"#;
-        let result = parse_schedule_json_str(schedule_json, None, dark_periods_json);
+        let result = parse_schedule_json_str(schedule_json, None);
         assert!(result.is_err(), "Should fail with invalid JSON");
     }
 
@@ -356,7 +286,7 @@ mod tests {
         let block_4990 = schedule
             .blocks
             .iter()
-            .find(|block| block.id.0 == 1000004990)
+            .find(|block| block.id.map(|id| id.0) == Some(1000004990))
             .expect("Scheduling block 1000004990 should exist");
         assert_eq!(block_4990.priority, 8.5);
         assert_eq!(block_4990.visibility_periods.len(), 120);
@@ -384,7 +314,7 @@ mod tests {
         let block_2662 = schedule
             .blocks
             .iter()
-            .find(|block| block.id.0 == 1000002662)
+            .find(|block| block.id.map(|id| id.0) == Some(1000002662))
             .expect("Scheduling block 1000002662 should exist");
         assert_eq!(
             block_2662.visibility_periods.len(),
