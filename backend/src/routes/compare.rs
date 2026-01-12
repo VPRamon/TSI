@@ -23,6 +23,9 @@ pub struct CompareStats {
     pub mean_priority: f64,
     pub median_priority: f64,
     pub total_hours: qtty::Hours,
+    pub gap_count: Option<i32>,
+    pub gap_mean_hours: Option<qtty::Hours>,
+    pub gap_median_hours: Option<qtty::Hours>,
 }
 
 #[pyclass(module = "tsi_rust_api", get_all)]

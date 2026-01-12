@@ -22,6 +22,9 @@ pub(crate) fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
             mean_priority: 0.0,
             median_priority: 0.0,
             total_hours: qtty::Hours::new(0.0),
+            gap_count: None,
+            gap_mean_hours: None,
+            gap_median_hours: None,
         };
     }
 
@@ -49,7 +52,29 @@ pub(crate) fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
         mean_priority,
         median_priority,
         total_hours: qtty::Hours::new(total_hours_f64),
+        gap_count: None,
+        gap_mean_hours: None,
+        gap_median_hours: None,
     }
+}
+
+/// Gap metrics tuple (count, mean_hours, median_hours)
+pub type GapMetrics = (Option<i32>, Option<qtty::Hours>, Option<qtty::Hours>);
+
+/// Compute statistics for a set of blocks with gap metrics from summary analytics.
+pub(crate) fn compute_stats_with_gaps(
+    blocks: &[CompareBlock],
+    gap_metrics: Option<GapMetrics>,
+) -> CompareStats {
+    let mut stats = compute_stats(blocks);
+    
+    if let Some((gap_count, gap_mean_hours, gap_median_hours)) = gap_metrics {
+        stats.gap_count = gap_count;
+        stats.gap_mean_hours = gap_mean_hours;
+        stats.gap_median_hours = gap_median_hours;
+    }
+    
+    stats
 }
 
 /// Compute comparison data from two sets of blocks.
@@ -59,6 +84,25 @@ pub fn compute_compare_data(
     comparison_blocks: Vec<CompareBlock>,
     current_name: String,
     comparison_name: String,
+) -> Result<CompareData, String> {
+    compute_compare_data_with_gaps(
+        current_blocks,
+        comparison_blocks,
+        current_name,
+        comparison_name,
+        None,
+        None,
+    )
+}
+
+/// Compute comparison data from two sets of blocks with gap metrics.
+pub fn compute_compare_data_with_gaps(
+    current_blocks: Vec<CompareBlock>,
+    comparison_blocks: Vec<CompareBlock>,
+    current_name: String,
+    comparison_name: String,
+    current_gap_metrics: Option<GapMetrics>,
+    comparison_gap_metrics: Option<GapMetrics>,
 ) -> Result<CompareData, String> {
     // Create ID sets for comparison
     let current_ids: HashSet<String> = current_blocks
@@ -116,9 +160,9 @@ pub fn compute_compare_data(
         }
     }
 
-    // Compute statistics
-    let current_stats = compute_stats(&current_blocks);
-    let comparison_stats = compute_stats(&comparison_blocks);
+    // Compute statistics with gap metrics
+    let current_stats = compute_stats_with_gaps(&current_blocks, current_gap_metrics);
+    let comparison_stats = compute_stats_with_gaps(&comparison_blocks, comparison_gap_metrics);
 
     Ok(CompareData {
         current_blocks,
@@ -154,11 +198,23 @@ pub async fn get_compare_data(
         .await
         .map_err(|e| format!("Failed to fetch comparison schedule blocks: {}", e))?;
 
-    compute_compare_data(
+    // Fetch gap metrics from summary analytics
+    let current_gap_metrics = repo
+        .fetch_gap_metrics(current_schedule_id)
+        .await
+        .ok();
+    let comparison_gap_metrics = repo
+        .fetch_gap_metrics(comparison_schedule_id)
+        .await
+        .ok();
+
+    compute_compare_data_with_gaps(
         current_blocks,
         comparison_blocks,
         current_name,
         comparison_name,
+        current_gap_metrics,
+        comparison_gap_metrics,
     )
 }
 

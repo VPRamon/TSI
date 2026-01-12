@@ -819,6 +819,69 @@ impl VisualizationRepository for LocalRepository {
 
         Ok(blocks)
     }
+
+    async fn fetch_gap_metrics(
+        &self,
+        schedule_id: ScheduleId,
+    ) -> RepositoryResult<(Option<i32>, Option<qtty::Hours>, Option<qtty::Hours>)> {
+        // If analytics have not been populated for this schedule, mirror
+        // the postgres behaviour and return no metrics (None, None, None).
+        let data = self.data.read().unwrap();
+        if !data.analytics_exists.get(&schedule_id.0).copied().unwrap_or(false) {
+            return Ok((None, None, None));
+        }
+
+        // Collect scheduled periods from blocks
+        let schedule = data
+            .schedules
+            .get(&schedule_id.0)
+            .cloned()
+            .ok_or_else(|| RepositoryError::NotFound(format!("Schedule {} not found", schedule_id)))?;
+
+        let mut periods: Vec<(f64, f64)> = schedule
+            .blocks
+            .iter()
+            .filter_map(|b| b.scheduled_period.clone())
+            .map(|p| (p.start.value(), p.stop.value()))
+            .collect();
+
+        if periods.len() < 2 {
+            return Ok((Some(0), Some(qtty::Hours::new(0.0)), Some(qtty::Hours::new(0.0))));
+        }
+
+        periods.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Compute positive gaps between consecutive scheduled periods (in hours)
+        let mut gaps_hours: Vec<f64> = Vec::new();
+        for w in periods.windows(2) {
+            let prev = w[0];
+            let next = w[1];
+            let gap_days = next.0 - prev.1;
+            if gap_days > 0.0 {
+                gaps_hours.push(gap_days * 24.0);
+            }
+        }
+
+        if gaps_hours.is_empty() {
+            return Ok((Some(0), Some(qtty::Hours::new(0.0)), Some(qtty::Hours::new(0.0))));
+        }
+
+        // Mean
+        let sum: f64 = gaps_hours.iter().sum();
+        let mean = sum / gaps_hours.len() as f64;
+
+        // Median
+        gaps_hours.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let median = if gaps_hours.len() % 2 == 0 {
+            let hi = gaps_hours[gaps_hours.len() / 2];
+            let lo = gaps_hours[gaps_hours.len() / 2 - 1];
+            (lo + hi) / 2.0
+        } else {
+            gaps_hours[gaps_hours.len() / 2]
+        };
+
+        Ok((Some(gaps_hours.len() as i32), Some(qtty::Hours::new(mean)), Some(qtty::Hours::new(median))))
+    }
 }
 
 #[cfg(test)]
