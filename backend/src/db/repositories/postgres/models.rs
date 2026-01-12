@@ -19,6 +19,7 @@ pub struct ScheduleRow {
     pub dark_periods_json: Value,
     pub possible_periods_json: Value,
     pub raw_schedule_json: Option<Value>,
+    pub schedule_period_json: Value,
 }
 
 #[derive(Debug, Clone, Insertable)]
@@ -29,6 +30,7 @@ pub struct NewScheduleRow {
     pub dark_periods_json: Value,
     pub possible_periods_json: Value,
     pub raw_schedule_json: Option<Value>,
+    pub schedule_period_json: Value,
 }
 
 #[derive(Debug, Clone, Queryable, Selectable)]

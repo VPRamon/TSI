@@ -385,6 +385,13 @@ fn scheduled_period_to_json(period: &Option<Period>) -> Value {
     }
 }
 
+fn period_to_json(period: &Period) -> Value {
+    json!({
+        "start": period.start.value(),
+        "stop": period.stop.value()
+    })
+}
+
 fn value_to_periods(value: &Value) -> RepositoryResult<Vec<Period>> {
     serde_json::from_value(value.clone())
         .map_err(|e| RepositoryError::InternalError(format!("Failed to parse period JSON: {e}")))
@@ -393,6 +400,15 @@ fn value_to_periods(value: &Value) -> RepositoryResult<Vec<Period>> {
 fn value_to_single_period(value: &Value) -> RepositoryResult<Option<Period>> {
     let mut periods: Vec<Period> = value_to_periods(value)?;
     Ok(periods.pop())
+}
+
+fn json_to_period(value: &Value) -> RepositoryResult<Option<Period>> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    serde_json::from_value(value.clone())
+        .map(Some)
+        .map_err(|e| RepositoryError::InternalError(format!("Failed to parse schedule_period JSON: {e}")))
 }
 
 fn compute_possible_periods_json(blocks: &[SchedulingBlock]) -> Value {
@@ -461,6 +477,10 @@ fn build_schedule_from_rows(
     block_rows: Vec<ScheduleBlockRow>,
 ) -> RepositoryResult<Schedule> {
     let dark_periods = value_to_periods(&schedule_row.dark_periods_json)?;
+    let schedule_period = json_to_period(&schedule_row.schedule_period_json)?
+        .ok_or_else(|| RepositoryError::InternalError(
+            "schedule_period_json is required but was null".to_string()
+        ))?;
     let mut blocks = Vec::with_capacity(block_rows.len());
     for row in block_rows {
         blocks.push(row_to_block(row)?);
@@ -470,6 +490,7 @@ fn build_schedule_from_rows(
         id: Some(schedule_row.schedule_id),
         name: schedule_row.schedule_name,
         checksum: schedule_row.checksum,
+        schedule_period,
         dark_periods,
         blocks,
     })
@@ -610,6 +631,7 @@ impl ScheduleRepository for PostgresRepository {
                     dark_periods_json: periods_to_json(&schedule.dark_periods),
                     possible_periods_json: compute_possible_periods_json(&schedule.blocks),
                     raw_schedule_json: serde_json::to_value(&schedule).ok(),
+                    schedule_period_json: period_to_json(&schedule.schedule_period),
                 };
 
                 let inserted: ScheduleRow = diesel::insert_into(schedules::table)
@@ -713,30 +735,18 @@ impl ScheduleRepository for PostgresRepository {
         schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Option<Period>> {
         self.with_conn(move |conn| {
-            let dark_periods_json: Value = schedules::table
+            let schedule_period_json: Value = schedules::table
                 .filter(schedules::schedule_id.eq(schedule_id.0))
-                .select(schedules::dark_periods_json)
+                .select(schedules::schedule_period_json)
                 .first(conn)
                 .map_err(map_diesel_error)?;
 
-            let dark_periods = value_to_periods(&dark_periods_json)?;
-            if dark_periods.is_empty() {
-                return Ok(None);
-            }
-
-            let min_start = dark_periods
-                .iter()
-                .map(|p| p.start.value())
-                .fold(f64::INFINITY, f64::min);
-            let max_stop = dark_periods
-                .iter()
-                .map(|p| p.stop.value())
-                .fold(f64::NEG_INFINITY, f64::max);
-
-            Ok(Some(Period {
-                start: ModifiedJulianDate::new(min_start),
-                stop: ModifiedJulianDate::new(max_stop),
-            }))
+            Ok(Some(json_to_period(&schedule_period_json)?
+                .ok_or_else(|| {
+                    RepositoryError::DatabaseError(
+                        "schedule_period_json is required but was null".to_string()
+                    )
+                })?))
         })
         .await
     }
