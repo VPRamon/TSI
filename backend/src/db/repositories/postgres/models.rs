@@ -131,6 +131,9 @@ pub struct ScheduleSummaryAnalyticsRow {
     pub priority_unscheduled_mean: Option<f64>,
     pub visibility_total_hours: Hours,
     pub requested_mean_hours: Option<Hours>,
+    pub gap_count: Option<i32>,
+    pub gap_mean_hours: Option<Hours>,
+    pub gap_median_hours: Option<Hours>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -149,6 +152,9 @@ pub struct NewScheduleSummaryAnalyticsRow {
     pub priority_unscheduled_mean: Option<f64>,
     pub visibility_total_hours: Hours,
     pub requested_mean_hours: Option<Hours>,
+    pub gap_count: Option<i32>,
+    pub gap_mean_hours: Option<Hours>,
+    pub gap_median_hours: Option<Hours>,
 }
 
 #[derive(Debug, Clone, Queryable, Selectable)]

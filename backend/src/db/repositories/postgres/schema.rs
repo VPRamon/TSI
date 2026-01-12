@@ -67,6 +67,9 @@ diesel::table! {
         priority_unscheduled_mean -> Nullable<Float8>,
         visibility_total_hours -> Float8,
         requested_mean_hours -> Nullable<Float8>,
+        gap_count -> Nullable<Int4>,
+        gap_mean_hours -> Nullable<Float8>,
+        gap_median_hours -> Nullable<Float8>,
         created_at -> Timestamptz,
     }
 }

@@ -578,6 +578,9 @@ fn compute_summary_metrics(
         ))
     };
 
+    // Compute gap statistics from scheduled blocks
+    let (gap_count, gap_mean_hours, gap_median_hours) = compute_gap_statistics(block_rows);
+
     NewScheduleSummaryAnalyticsRow {
         schedule_id,
         total_blocks,
@@ -591,7 +594,85 @@ fn compute_summary_metrics(
         priority_unscheduled_mean,
         visibility_total_hours,
         requested_mean_hours,
+        gap_count,
+        gap_mean_hours,
+        gap_median_hours,
     }
+}
+
+fn compute_gap_statistics(
+    block_rows: &[ScheduleBlockRow],
+) -> (Option<i32>, Option<qtty::Hours>, Option<qtty::Hours>) {
+    use serde_json::Value;
+
+    // Extract all scheduled periods and sort by start time
+    let mut scheduled_periods: Vec<(f64, f64)> = Vec::new();
+
+    for block in block_rows {
+        // Parse scheduled_periods_json - it could be a single period or array
+        if let Ok(json_val) = serde_json::from_value::<Value>(block.scheduled_periods_json.clone())
+        {
+            if let Some(obj) = json_val.as_object() {
+                // Single period: {"start": mjd, "stop": mjd}
+                if let (Some(start), Some(stop)) = (obj.get("start"), obj.get("stop")) {
+                    if let (Some(start_f), Some(stop_f)) = (start.as_f64(), stop.as_f64()) {
+                        scheduled_periods.push((start_f, stop_f));
+                    }
+                }
+            } else if let Some(arr) = json_val.as_array() {
+                // Array of periods: [{"start": mjd, "stop": mjd}, ...]
+                for period in arr {
+                    if let Some(obj) = period.as_object() {
+                        if let (Some(start), Some(stop)) = (obj.get("start"), obj.get("stop")) {
+                            if let (Some(start_f), Some(stop_f)) =
+                                (start.as_f64(), stop.as_f64())
+                            {
+                                scheduled_periods.push((start_f, stop_f));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort by start time
+    scheduled_periods.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+
+    // Compute gaps between consecutive observations
+    let mut gaps_hours: Vec<f64> = Vec::new();
+    for window in scheduled_periods.windows(2) {
+        let (_, end1) = window[0];
+        let (start2, _) = window[1];
+        let gap_days = start2 - end1;
+        if gap_days > 0.0 {
+            gaps_hours.push(gap_days * 24.0); // Convert days to hours
+        }
+    }
+
+    if gaps_hours.is_empty() {
+        return (None, None, None);
+    }
+
+    let gap_count = gaps_hours.len() as i32;
+    let gap_mean = gaps_hours.iter().sum::<f64>() / gaps_hours.len() as f64;
+
+    let gap_median = {
+        let mut sorted = gaps_hours.clone();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let mid = sorted.len() / 2;
+        if sorted.len().is_multiple_of(2) {
+            (sorted[mid - 1] + sorted[mid]) / 2.0
+        } else {
+            sorted[mid]
+        }
+    };
+
+    (
+        Some(gap_count),
+        Some(qtty::Hours::new(gap_mean)),
+        Some(qtty::Hours::new(gap_median)),
+    )
 }
 
 #[async_trait]
@@ -1028,6 +1109,12 @@ impl AnalyticsRepository for PostgresRepository {
                             .eq(excluded(schedule_summary_analytics::visibility_total_hours)),
                         schedule_summary_analytics::requested_mean_hours
                             .eq(excluded(schedule_summary_analytics::requested_mean_hours)),
+                        schedule_summary_analytics::gap_count
+                            .eq(excluded(schedule_summary_analytics::gap_count)),
+                        schedule_summary_analytics::gap_mean_hours
+                            .eq(excluded(schedule_summary_analytics::gap_mean_hours)),
+                        schedule_summary_analytics::gap_median_hours
+                            .eq(excluded(schedule_summary_analytics::gap_median_hours)),
                     ))
                     .execute(tx)
                     .map_err(map_diesel_error)?;
@@ -1714,6 +1801,34 @@ impl VisualizationRepository for PostgresRepository {
                 .collect();
 
             Ok(blocks)
+        })
+        .await
+    }
+
+    async fn fetch_gap_metrics(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<(Option<i32>, Option<qtty::Hours>, Option<qtty::Hours>)> {
+        self.with_conn(move |conn| {
+            let result = schedule_summary_analytics::table
+                .filter(schedule_summary_analytics::schedule_id.eq(schedule_id.0))
+                .select((
+                    schedule_summary_analytics::gap_count,
+                    schedule_summary_analytics::gap_mean_hours,
+                    schedule_summary_analytics::gap_median_hours,
+                ))
+                .first::<(Option<i32>, Option<f64>, Option<f64>)>(conn)
+                .optional()
+                .map_err(map_diesel_error)?;
+
+            match result {
+                Some((gap_count, gap_mean, gap_median)) => Ok((
+                    gap_count,
+                    gap_mean.map(qtty::Hours::new),
+                    gap_median.map(qtty::Hours::new),
+                )),
+                None => Ok((None, None, None)),
+            }
         })
         .await
     }

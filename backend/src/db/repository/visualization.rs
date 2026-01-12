@@ -56,4 +56,17 @@ pub trait VisualizationRepository: Send + Sync {
         priority_max: Option<i32>,
         block_ids: Option<Vec<i64>>,
     ) -> RepositoryResult<Vec<crate::db::models::BlockHistogramData>>;
+
+    /// Fetch gap metrics from summary analytics.
+    ///
+    /// # Arguments
+    /// * `schedule_id` - The ID of the schedule
+    ///
+    /// # Returns
+    /// * `Ok((gap_count, gap_mean_hours, gap_median_hours))` - Gap metrics tuple
+    /// * `Err(RepositoryError)` - If the operation fails
+    async fn fetch_gap_metrics(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<(Option<i32>, Option<qtty::Hours>, Option<qtty::Hours>)>;
 }
