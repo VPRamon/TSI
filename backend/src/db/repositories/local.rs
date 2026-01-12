@@ -10,7 +10,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::api::{Period, ScheduleId};
 use crate::db::{
-    models::{InsightsBlock, ModifiedJulianDate, Schedule, SchedulingBlock},
+    models::{InsightsBlock, Schedule, SchedulingBlock},
     repository::*,
 };
 use crate::services::validation::ValidationResult;
@@ -232,29 +232,8 @@ impl ScheduleRepository for LocalRepository {
     ) -> RepositoryResult<Option<Period>> {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
-        // Calculate time range from dark periods
-        if schedule.dark_periods.is_empty() {
-            return Ok(None);
-        }
-
-        let min_start = schedule
-            .dark_periods
-            .iter()
-            .map(|p| p.start.value())
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
-
-        let max_stop = schedule
-            .dark_periods
-            .iter()
-            .map(|p| p.stop.value())
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
-
-        Ok(Period::new(
-            ModifiedJulianDate::new(min_start),
-            ModifiedJulianDate::new(max_stop),
-        ))
+        // Return the schedule period directly
+        Ok(Some(schedule.schedule_period.clone()))
     }
 
     async fn get_scheduling_block(

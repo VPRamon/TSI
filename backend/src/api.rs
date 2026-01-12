@@ -396,6 +396,8 @@ pub struct Schedule {
     /// SHA256 checksum of schedule data
     #[serde(default)]
     pub checksum: String,
+    /// Overall time window for the schedule in MJD
+    pub schedule_period: Period,
     /// Dark periods (observing windows)
     #[serde(default)]
     pub dark_periods: Vec<Period>,
@@ -410,6 +412,7 @@ impl Schedule {
         id: Option<i64>,
         name: String,
         checksum: String,
+        schedule_period: Period,
         dark_periods: Vec<Period>,
         blocks: Vec<SchedulingBlock>,
     ) -> Self {
@@ -417,6 +420,7 @@ impl Schedule {
             id,
             name,
             checksum,
+            schedule_period,
             dark_periods,
             blocks,
         }
@@ -424,10 +428,11 @@ impl Schedule {
 
     fn __repr__(&self) -> String {
         format!(
-            "Schedule(name='{}', blocks={}, dark_periods={})",
+            "Schedule(name='{}', blocks={}, schedule_period=[{:.2}, {:.2}])",
             self.name,
             self.blocks.len(),
-            self.dark_periods.len()
+            self.schedule_period.start.value(),
+            self.schedule_period.stop.value()
         )
     }
 }

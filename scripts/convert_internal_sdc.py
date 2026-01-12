@@ -220,11 +220,43 @@ def convert_sdc_to_tsi(input_path: Path, output_dir: Path, schedule_name: Option
         
         blocks.append(block)
     
+    # Extract schedule period from configuration
+    # NOTE: The configuration.schedulePeriod is simulation metadata, not the actual observation window.
+    # Instead, compute the schedule_period from the actual scheduled blocks.
+    config = sdc_data.get("configuration", {})
+    config_schedule_period = config.get("schedulePeriod", {}).get("time::Period", {})
+    
+    schedule_period = None
+    
+    # Compute schedule_period from scheduled blocks' time range
+    scheduled_blocks = [b for b in blocks if 'scheduled_period' in b]
+    if scheduled_blocks:
+        # Find min start and max stop across all scheduled periods
+        all_starts = [b['scheduled_period']['start'] for b in scheduled_blocks]
+        all_stops = [b['scheduled_period']['stop'] for b in scheduled_blocks]
+        
+        schedule_period = {
+            "start": min(all_starts),
+            "stop": max(all_stops)
+        }
+    elif config_schedule_period:
+        # Fallback to config if no blocks are scheduled (though this should be rare)
+        begin_str = config_schedule_period.get("begin", "")
+        end_str = config_schedule_period.get("end", "")
+        if begin_str and end_str:
+            schedule_period = {
+                "start": sdc_datetime_to_mjd(begin_str),
+                "stop": sdc_datetime_to_mjd(end_str)
+            }
+    
     # Build schedule.json
     schedule = {
         "name": schedule_name or input_path.stem,
         "blocks": blocks
     }
+    
+    if schedule_period:
+        schedule["schedule_period"] = schedule_period
     
     # Build possible_periods.json
     possible_periods = {"blocks": {}}

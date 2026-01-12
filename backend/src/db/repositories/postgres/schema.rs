@@ -9,6 +9,7 @@ diesel::table! {
         dark_periods_json -> Jsonb,
         possible_periods_json -> Jsonb,
         raw_schedule_json -> Nullable<Jsonb>,
+        schedule_period_json -> Jsonb,
     }
 }
 

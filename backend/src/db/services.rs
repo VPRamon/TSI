@@ -55,7 +55,7 @@
 
 use log::{info, warn};
 
-use super::repository::{FullRepository, RepositoryResult};
+use super::repository::{FullRepository, RepositoryError, RepositoryResult};
 use crate::api::*;
 use crate::models::parse_schedule_json_str;
 
@@ -130,6 +130,15 @@ pub async fn store_schedule_with_options<R: FullRepository + ?Sized>(
         schedule.blocks.len(),
         populate_analytics,
     );
+
+    // Validate schedule_period encompasses all scheduled blocks
+    if let Err(e) = validate_schedule_period(schedule) {
+        warn!(
+            "Service layer: schedule_period validation failed for '{}': {}",
+            schedule.name, e
+        );
+        return Err(e);
+    }
 
     // Try to store the schedule
     let metadata = repo.store_schedule(schedule).await?;
@@ -402,4 +411,39 @@ pub fn store_schedule_sync(
         schedule,
         populate_analytics,
     ))?)
+}
+
+// ==================== Schedule Validation ====================
+
+/// Validate that schedule_period encompasses all scheduled blocks.
+///
+/// Returns an error if any scheduled block falls outside the schedule_period window.
+fn validate_schedule_period(schedule: &Schedule) -> RepositoryResult<()> {
+    let schedule_start = schedule.schedule_period.start.value();
+    let schedule_stop = schedule.schedule_period.stop.value();
+
+    // Check each block's scheduled_period
+    for (idx, block) in schedule.blocks.iter().enumerate() {
+        if let Some(scheduled_period) = &block.scheduled_period {
+            let block_start = scheduled_period.start.value();
+            let block_stop = scheduled_period.stop.value();
+
+            // Add small epsilon tolerance for floating point comparisons (0.0001 days ≈ 8.64 seconds)
+            let epsilon = 0.0001;
+
+            if block_start < schedule_start - epsilon || block_stop > schedule_stop + epsilon {
+                return Err(RepositoryError::ValidationError(format!(
+                    "Block {} (original_id: '{}') has scheduled_period [{:.6}, {:.6}] MJD that falls outside schedule_period [{:.6}, {:.6}] MJD",
+                    idx,
+                    block.original_block_id,
+                    block_start,
+                    block_stop,
+                    schedule_start,
+                    schedule_stop
+                )));
+            }
+        }
+    }
+
+    Ok(())
 }

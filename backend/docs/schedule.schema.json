@@ -6,6 +6,10 @@
   "properties": {
     "name": { "type": "string" },
     "checksum": { "type": "string" },
+    "schedule_period": {
+      "$ref": "#/definitions/Period",
+      "description": "Overall time window for the schedule in MJD"
+    },
     "dark_periods": {
       "type": "array",
       "items": { "$ref": "#/definitions/Period" }
@@ -15,7 +19,7 @@
       "items": { "$ref": "#/definitions/SchedulingBlock" }
     }
   },
-  "required": ["blocks"],
+  "required": ["blocks", "schedule_period"],
   "definitions": {
     "Period": {
       "type": "object",
