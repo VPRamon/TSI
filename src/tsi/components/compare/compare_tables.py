@@ -92,6 +92,8 @@ def render_comparison_tables(compare_data: Any) -> None:
             comparison_scheduled,
             compare_data.current_name,
             compare_data.comparison_name,
+            compare_data.current_stats,
+            compare_data.comparison_stats,
         )
 
         # Display both tables side by side
@@ -168,6 +170,55 @@ def _format_with_delta(
     return f"{value} {delta_label}"
 
 
+def _coerce_to_float(value: Any) -> float | None:
+    """Safely coerce qtty types or plain numbers to float."""
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except Exception:
+        pass
+
+    if hasattr(value, "value"):
+        try:
+            attr = value.value
+            return float(attr() if callable(attr) else attr)
+        except Exception:
+            pass
+
+    return None
+
+
+def _format_value(value: float | int | None, *, is_count: bool = False, precision: int = 2) -> str:
+    """Format a value or return N/A when missing."""
+    if value is None:
+        return "N/A"
+    if is_count:
+        return f"{int(value):,}"
+    return f"{float(value):.{precision}f}"
+
+
+def _format_comparison_value(
+    value: float | int | None,
+    delta: float | None,
+    *,
+    is_count: bool = False,
+    precision: int = 2,
+    inverse_colors: bool = False,
+) -> str:
+    """Format comparison value with optional delta styling."""
+    formatted = _format_value(value, is_count=is_count, precision=precision)
+    if value is None or delta is None:
+        return formatted
+    return _format_with_delta(
+        formatted,
+        delta,
+        is_count=is_count,
+        inverse_colors=inverse_colors,
+    )
+
+
 def _build_metrics_table(
     current_scheduled: list,
     comparison_scheduled: list,
@@ -239,8 +290,10 @@ def _build_time_metrics_table(
     comparison_scheduled: list,
     current_name: str,
     comparison_name: str,
+    current_stats: Any,
+    comparison_stats: Any,
 ) -> pd.DataFrame:
-    """Build time metrics table from CompareBlock lists."""
+    """Build time metrics table from CompareBlock lists and gap metrics from CompareStats."""
     current_count = len(current_scheduled)
     comparison_count = len(comparison_scheduled)
 
@@ -262,22 +315,33 @@ def _build_time_metrics_table(
     )
     comp_median_time = comp_times[len(comp_times) // 2] if comparison_count > 0 else 0
 
-    # For gaps, we need scheduled blocks - skip for now as it requires additional data
-    # These would need scheduled time periods which aren't in CompareBlock
-    current_gaps_count = 0
-    current_mean_gap = 0.0
-    current_median_gap = 0.0
-    comp_gaps_count = 0
-    comp_mean_gap = 0.0
-    comp_median_gap = 0.0
+    # Pull gap metrics from backend stats (None means analytics unavailable)
+    current_gaps_count = getattr(current_stats, "gap_count", None)
+    comp_gaps_count = getattr(comparison_stats, "gap_count", None)
+    current_mean_gap = _coerce_to_float(getattr(current_stats, "gap_mean_hours", None))
+    current_median_gap = _coerce_to_float(getattr(current_stats, "gap_median_hours", None))
+    comp_mean_gap = _coerce_to_float(getattr(comparison_stats, "gap_mean_hours", None))
+    comp_median_gap = _coerce_to_float(getattr(comparison_stats, "gap_median_hours", None))
 
     # Calculate deltas
     delta_total_time = comp_total_time - current_total_time
     delta_mean_time = comp_mean_time - current_mean_time
     delta_median_time = comp_median_time - current_median_time
-    delta_gaps = comp_gaps_count - current_gaps_count
-    delta_mean_gap = comp_mean_gap - current_mean_gap
-    delta_median_gap = comp_median_gap - current_median_gap
+    delta_gaps = (
+        comp_gaps_count - current_gaps_count
+        if comp_gaps_count is not None and current_gaps_count is not None
+        else None
+    )
+    delta_mean_gap = (
+        comp_mean_gap - current_mean_gap
+        if comp_mean_gap is not None and current_mean_gap is not None
+        else None
+    )
+    delta_median_gap = (
+        comp_median_gap - current_median_gap
+        if comp_median_gap is not None and current_median_gap is not None
+        else None
+    )
 
     time_data = {
         "Metric": [
@@ -292,19 +356,19 @@ def _build_time_metrics_table(
             f"{current_total_time:.2f}",
             f"{current_mean_time:.2f}",
             f"{current_median_time:.2f}",
-            f"{current_gaps_count:,}",
-            f"{current_mean_gap:.2f}",
-            f"{current_median_gap:.2f}",
+            _format_value(current_gaps_count, is_count=True),
+            _format_value(current_mean_gap),
+            _format_value(current_median_gap),
         ],
         comparison_name: [
             _format_with_delta(f"{comp_total_time:.2f}", delta_total_time),
             _format_with_delta(f"{comp_mean_time:.2f}", delta_mean_time),
             _format_with_delta(f"{comp_median_time:.2f}", delta_median_time),
-            _format_with_delta(
-                f"{comp_gaps_count:,}", delta_gaps, is_count=True, inverse_colors=True
+            _format_comparison_value(
+                comp_gaps_count, delta_gaps, is_count=True, inverse_colors=True
             ),
-            _format_with_delta(f"{comp_mean_gap:.2f}", delta_mean_gap),
-            _format_with_delta(f"{comp_median_gap:.2f}", delta_median_gap),
+            _format_comparison_value(comp_mean_gap, delta_mean_gap),
+            _format_comparison_value(comp_median_gap, delta_median_gap),
         ],
     }
 
