@@ -2,18 +2,24 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
-    // This crate only acts as a marker/location for the native STARS Core sources.
-    // During native builds other crates may inspect this crate's path to find the
-    // STARS Core CMake project. We simply emit the path as cargo metadata.
+    // This crate hosts both the STARS Core C++ sources and the FFI shim.
+    // Emit metadata so build scripts can locate them.
 
     let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let core_path = manifest.join("../src/scheduler/core");
+    let core_path = manifest.join("core");
+    let ffi_path = manifest.join("ffi");
 
-    // Prefer a sibling `src/scheduler/core` if present; if the user moved the core
-    // sources into this crate, change the path accordingly.
-    let crate_core_path = manifest.join("src").join("core");
-    let path_to_use = if crate_core_path.exists() { crate_core_path } else { core_path };
+    if core_path.exists() {
+        println!("cargo:warning=STARS Core located at: {}", core_path.display());
+        println!("cargo:core_root={}", core_path.display());
+    } else {
+        println!("cargo:warning=STARS Core not found in expected location: {}", core_path.display());
+    }
 
-    println!("cargo:warning=stars-core-native located at: {}", path_to_use.display());
-    println!("cargo:root={}", path_to_use.display());
+    if ffi_path.exists() {
+        println!("cargo:warning=stars_ffi located at: {}", ffi_path.display());
+        println!("cargo:ffi_root={}", ffi_path.display());
+    } else {
+        println!("cargo:warning=stars_ffi not found in expected location: {}", ffi_path.display());
+    }
 }

@@ -77,19 +77,31 @@ fn try_pkg_config() -> bool {
 fn build_from_source(out_dir: &PathBuf) {
     use cmake::Config;
 
-    let stars_ffi_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("../../src/scheduler/stars_ffi");
+    let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+
+    // Prefer consolidated layout: ffi and core in stars-core-native crate
+    let stars_core_native = manifest.join("../stars-core-native");
+    let stars_ffi_dir = stars_core_native.join("ffi");
+    let stars_core_root = stars_core_native.join("core");
 
     if !stars_ffi_dir.exists() {
         panic!(
-            "stars_ffi source directory not found at: {}",
+            "stars_ffi source directory not found at: {}\nExpected layout: crates/stars-core-native/ffi/",
             stars_ffi_dir.display()
+        );
+    }
+
+    if !stars_core_root.exists() {
+        panic!(
+            "STARS Core source directory not found at: {}\nExpected layout: crates/stars-core-native/core/",
+            stars_core_root.display()
         );
     }
 
     let dst = Config::new(&stars_ffi_dir)
         .define("CMAKE_BUILD_TYPE", "Release")
         .define("STARS_FFI_BUILD_STATIC", "OFF")
+        .define("STARS_CORE_ROOT", stars_core_root.to_str().unwrap())
         .build();
 
     println!("cargo:rustc-link-search=native={}/lib", dst.display());
