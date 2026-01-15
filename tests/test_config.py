@@ -148,22 +148,6 @@ class TestPathConversion:
 class TestValidationConstraints:
     """Test pydantic validation constraints."""
 
-    @pytest.mark.skip(
-        reason="Database configuration moved to Rust backend - Settings no longer has database_connection_timeout"
-    )
-    def test_database_connection_timeout_positive(self):
-        """Test that connection timeout must be positive."""
-        with pytest.raises(ValueError):
-            Settings(database_connection_timeout=0)
-
-    @pytest.mark.skip(
-        reason="Database configuration moved to Rust backend - Settings no longer has database_max_retries"
-    )
-    def test_database_max_retries_non_negative(self):
-        """Test that max retries can be zero or positive."""
-        settings = Settings(database_max_retries=0)
-        assert settings.database_max_retries == 0
-
     def test_cache_ttl_non_negative(self):
         """Test that cache TTL can be zero (no cache)."""
         settings = Settings(cache_ttl=0)

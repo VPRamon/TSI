@@ -30,19 +30,3 @@ def schedule_paths() -> tuple[Path, Path | None]:
         pytest.skip("Repository fixture data/schedule.json is not available.")
 
     return schedule_path, visibility_path if visibility_path.exists() else None
-
-
-@pytest.mark.skip("Legacy core.loaders module removed - needs migration to tsi_rust_api")
-def test_load_schedule_from_json_provides_expected_schema(
-    schedule_paths: tuple[Path, Path | None],
-) -> None:
-    """Ensure the JSON loader returns data with the expected columns and validation."""
-    pytest.skip("Test disabled - core.loaders replaced by Rust backend")
-
-
-@pytest.mark.skip("Legacy core.loaders module removed - needs migration to tsi_rust_api")
-def test_load_schedule_from_json_without_visibility(
-    schedule_paths: tuple[Path, Path | None],
-) -> None:
-    """Verify that loading without a visibility file still returns consistent results."""
-    pytest.skip("Test disabled - core.loaders replaced by Rust backend")
