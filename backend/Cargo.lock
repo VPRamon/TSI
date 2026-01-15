@@ -613,40 +613,33 @@ dependencies = [
 
 [[package]]
 name = "qtty"
-version = "0.2.1"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f65b64d2dbc01dbcc4e7a1dc211d24be0644ab71ff937493f8a7335636e7a43"
 dependencies = [
  "pyo3",
  "qtty-core",
- "qtty-derive 0.2.1",
+ "qtty-derive",
 ]
 
 [[package]]
 name = "qtty-core"
-version = "0.2.1"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4169b4a5124f5399d9a88fa8e5998a28bf22bd1bd67469bf9dfe9291bab0bef"
 dependencies = [
  "diesel",
  "libm",
  "pyo3",
- "qtty-derive 0.1.0",
+ "qtty-derive",
  "serde",
 ]
 
 [[package]]
 name = "qtty-derive"
-version = "0.1.0"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbbe021bee01b292c6d6c6fc8f33be3744212a5a9b4c17b557e991b612d42084"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "qtty-derive"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40e9b9234b4947ff1132b4aea5a1cb106bb344cc5c6de709404ed2f61a39ac33"
+checksum = "b1c328e5de738fb8da020b086b9aa6dfc9336a7b5ff3438857de9b3c7e453117"
 dependencies = [
  "proc-macro2",
  "quote",
