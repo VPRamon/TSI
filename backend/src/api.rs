@@ -259,16 +259,12 @@ impl Period {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Constraints {
     /// Minimum altitude in degrees
-    #[serde(with = "qtty::serde_f64")]
     pub min_alt: qtty::Degrees,
     /// Maximum altitude in degrees
-    #[serde(with = "qtty::serde_f64")]
     pub max_alt: qtty::Degrees,
     /// Minimum azimuth in degrees
-    #[serde(with = "qtty::serde_f64")]
     pub min_az: qtty::Degrees,
     /// Maximum azimuth in degrees
-    #[serde(with = "qtty::serde_f64")]
     pub max_az: qtty::Degrees,
     /// Fixed observation time window in MJD
     pub fixed_time: Option<Period>,
@@ -318,20 +314,16 @@ pub struct SchedulingBlock {
     #[serde(default)]
     pub original_block_id: String,
     /// Right Ascension in degrees (ICRS)
-    #[serde(with = "qtty::serde_f64")]
     pub target_ra: qtty::Degrees,
     /// Declination in degrees (ICRS)
-    #[serde(with = "qtty::serde_f64")]
     pub target_dec: qtty::Degrees,
     /// Observing constraints
     pub constraints: Constraints,
     /// Observation priority
     pub priority: f64,
     /// Minimum observation duration in seconds
-    #[serde(with = "qtty::serde_f64")]
     pub min_observation: qtty::Seconds,
     /// Requested observation duration in seconds
-    #[serde(with = "qtty::serde_f64")]
     pub requested_duration: qtty::Seconds,
     /// Visibility periods in MJD
     #[serde(default)]
