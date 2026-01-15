@@ -67,6 +67,8 @@ pub mod models;
 
 pub mod routes;
 
+pub mod scheduler;
+
 pub mod services;
 
 /// Python module entry point for the new TSI Rust API.

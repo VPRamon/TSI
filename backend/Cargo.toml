@@ -1,3 +1,7 @@
+[workspace]
+members = [".", "crates/stars-core-sys", "crates/stars-core"]
+resolver = "2"
+
 [package]
 name = "tsi-rust"
 version = "0.1.0"
@@ -13,6 +17,8 @@ default = ["local-repo"]
 postgres-repo = ["dep:diesel", "dep:diesel_migrations"]
 # In-memory backend for testing and development
 local-repo = []
+# Enable STARS Core scheduling library integration
+stars-core = ["dep:stars-core"]
 
 [dependencies]
 pyo3 = { version = "0.27.2", features = ["extension-module"] }
@@ -30,3 +36,4 @@ toml = "0.8"
 qtty = { version = "0.2.2", features = ["serde", "pyo3", "diesel"] }
 diesel = { version = "2.1", features = ["postgres", "r2d2", "chrono", "serde_json", "numeric"], optional = true }
 diesel_migrations = { version = "2.1", optional = true }
+stars-core = { path = "crates/stars-core", optional = true }

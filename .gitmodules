@@ -2,5 +2,5 @@
 	path = backend/qtty
 	url = git@github.com:Siderust/qtty.git
 [submodule "backend/src/scheduler/core"]
-	path = backend/src/scheduler/core
+	path = backend/crates/stars-core-native/core
 	url = https://devops.ice.csic.es/stars/core.git
