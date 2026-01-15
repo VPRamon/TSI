@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Schedule",
+  "description": "JSON schema describing a Schedule that maps directly to the domain models in `backend/src/db/models/schedule.rs`. Uses snake_case to match Rust conventions.",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "checksum": { "type": "string" },
+    "schedule_period": {
+      "$ref": "#/definitions/Period",
+      "description": "Overall time window for the schedule in MJD"
+    },
+    "dark_periods": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/Period" }
+    },
+    "blocks": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/SchedulingBlock" }
+    }
+  },
+  "required": ["blocks", "schedule_period"],
+  "definitions": {
+    "Period": {
+      "type": "object",
+      "description": "A time window expressed in Modified Julian Date (MJD).",
+      "properties": {
+        "start": {
+          "type": "number",
+          "description": "Start instant as MJD (floating-point)."
+        },
+        "stop": {
+          "type": "number",
+          "description": "Stop instant as MJD (floating-point)."
+        }
+      },
+      "required": ["start", "stop"],
+      "additionalProperties": false
+    },
+    "Constraints": {
+      "type": "object",
+      "properties": {
+        "min_alt": { "type": "number", "description": "Minimum altitude in degrees." },
+        "max_alt": { "type": "number", "description": "Maximum altitude in degrees." },
+        "min_az": { "type": "number", "description": "Minimum azimuth in degrees." },
+        "max_az": { "type": "number", "description": "Maximum azimuth in degrees." },
+        "fixed_time": { "$ref": "#/definitions/Period" }
+      },
+      "required": ["min_alt", "max_alt", "min_az", "max_az"],
+      "additionalProperties": false
+    },
+    "SchedulingBlock": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "description": "Internal database ID. Optional on input (server-assigned), present on output."
+        },
+        "original_block_id": {
+          "type": "string",
+          "description": "User-provided block identifier. Required on input, preserved on output."
+        },
+        "priority": { "type": "number" },
+        "target_ra": { "type": "number", "description": "Right ascension in degrees." },
+        "target_dec": { "type": "number", "description": "Declination in degrees." },
+        "constraints": { "$ref": "#/definitions/Constraints" },
+        "min_observation": { "type": "number", "description": "Minimum observation time in seconds." },
+        "requested_duration": { "type": "number", "description": "Requested duration in seconds." },
+        "visibility_periods": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Period" }
+        },
+        "scheduled_period": { "$ref": "#/definitions/Period" }
+      },
+      "required": [
+        "original_block_id",
+        "priority",
+        "target_ra",
+        "target_dec",
+        "constraints",
+        "min_observation",
+        "requested_duration"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

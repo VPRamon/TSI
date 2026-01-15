@@ -1,0 +1,18 @@
+# Repository Configuration
+# This file determines which repository implementation to use.
+
+[repository]
+# Type of repository to use: "postgres" or "local"
+# - postgres: PostgreSQL repository (requires connection settings below)
+# - local: In-memory repository for testing and local development
+type = "postgres"
+
+[postgres]
+# Example: postgres://user:password@localhost:5432/tsi
+database_url = "postgres://user:pass@host:5432/dbname"
+max_connections = 10
+min_connections = 1
+connect_timeout = 30
+idle_timeout = 600
+max_retries = 3
+retry_delay_ms = 100

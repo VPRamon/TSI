@@ -1,13 +1,21 @@
-# App Pages Documentation
+# TSI Documentation
 
-This folder documents each page of the Streamlit dashboard.
+This directory contains the active docs for the Telescope Scheduling Intelligence (TSI) dashboard and its Python + Rust backend.
 
-- [Sky Map](./sky-map.md)
-- [Distributions](./distributions.md)
-- [Visibility Map & Schedule](./visibility-map.md)
-- [Scheduled Timeline](./schedule.md)
-- [Insights & Conclusions](./insights.md)
-- [Scheduling Trends](./trends.md)
-- [Compare Schedules](./compare.md)
+The index below reflects the current repository state and avoids links to non-existent pages.
 
-See the project’s top-level `README.md` for installation, preprocessing, and usage.
+## Quick Links
+- Setup Guide: [SETUP.md](./SETUP.md)
+- Build Rust backend: `./build_rust.sh` (see script help with `--help`)
+- Run dashboard: `./run_dashboard.sh`
+- Scripts overview: `../scripts/README.md`
+
+## What’s Here
+- Streamlit dashboard in `src/tsi/`
+- Rust backend crate `backend/` producing the `tsi_rust` Python module via PyO3/Maturin
+- Helper scripts in `scripts/` for build, local runs, and utilities
+
+## Getting Started
+Start with the Setup Guide for environment, database, build, and run instructions: [SETUP.md](./SETUP.md)
+
+For top-level project context, see the repository `README.md`.

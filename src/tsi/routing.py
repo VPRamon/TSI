@@ -37,7 +37,7 @@ def render_navigation() -> str | None:
             if st.button(
                 page,
                 key=f"nav_{page}",
-                use_container_width=True,
+                width="stretch",
                 type="primary" if page == current_page else "secondary",
             ):
                 # Update current page and force rerun to update button highlight
@@ -46,8 +46,11 @@ def render_navigation() -> str | None:
 
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Return the current page from state
+    # Return the current page from state, defaulting to first page if not set
     current = state.get_current_page()
+    if current is None and PAGES:
+        current = PAGES[0]
+        state.set_current_page(current)
     return str(current) if current else None
 
 
@@ -60,9 +63,10 @@ def route_to_page(page_name: str) -> None:
     """
     # Lazy import - only load the needed page module for better performance
     page_map = {
+        "Validation": ("tsi.pages.validation_report", "render"),
         "Sky Map": ("tsi.pages.sky_map", "render"),
         "Distributions": ("tsi.pages.distributions", "render"),
-        "Visibility Map": ("tsi.pages.visibility_schedule", "render"),
+        "Visibility Map": ("tsi.pages.visibility_map", "render"),
         "Schedule": ("tsi.pages.scheduled_timeline", "render"),
         "Insights": ("tsi.pages.insights", "render"),
         "Trends": ("tsi.pages.scheduling_trends", "render"),

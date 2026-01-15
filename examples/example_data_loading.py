@@ -21,37 +21,34 @@ def get_project_root() -> Path:
 PROJECT_ROOT = get_project_root()
 sys.path.insert(0, str(PROJECT_ROOT / 'src'))
 
-from core.loaders import (
-    load_schedule_from_json,
-    load_schedule_from_csv,
-    load_schedule_from_iteration,
-)
+import tsi_rust
 
 
-def example_1_load_from_csv():
-    """Example 1: Load from preprocessed CSV file."""
+def example_1_load_from_json():
+    """Example 1: Load from JSON file."""
     print("\n" + "="*60)
-    print("Example 1: Loading from CSV")
+    print("Example 1: Loading from JSON")
     print("="*60)
     
-    csv_path = Path("data/schedule.csv")
+    json_path = Path("data/schedule.json")
     
-    if not csv_path.exists():
-        print(f"⚠️  CSV file not found: {csv_path}")
-        print("To create a preprocessed CSV, run:")
-        print("  python preprocess_schedules.py --schedule data/schedule.json --visibility data/possible_periods.json --output data/schedule.csv")
+    if not json_path.exists():
+        print(f"⚠️  JSON file not found: {json_path}")
         return None
     
-    result = load_schedule_from_csv(csv_path)
+    # Load using Rust backend
+    content = json_path.read_text()
+    import json
+    data = json.loads(content)
+    import pandas as pd
+    blocks = data.get("SchedulingBlock", data.get("schedulingBlocks", data))
+    df = pd.DataFrame(blocks)
     
-    print(f"✅ Loaded {len(result.dataframe)} scheduling blocks")
-    print(f"📊 Source: {result.source_type}")
-    print(f"📁 Path: {result.source_path}")
-    print(f"\nValidation stats:")
-    for key, value in result.validation.stats.items():
-        print(f"  {key}: {value}")
+    print(f"✅ Loaded {len(df)} scheduling blocks")
+    print(f"📊 Source: JSON")
+    print(f"📁 Path: {json_path}")
     
-    return result.dataframe
+    return df
 
 
 def example_2_load_from_json_files():
@@ -67,28 +64,31 @@ def example_2_load_from_json_files():
         print(f"⚠️  JSON file not found: {schedule_json}")
         return None
     
-    result = load_schedule_from_json(
-        schedule_json,
-        visibility_json if visibility_json.exists() else None
+    # Preprocess using Rust backend with validation
+    df_polars, validation = tsi_rust.py_preprocess_schedule(
+        str(schedule_json),
+        str(visibility_json) if visibility_json.exists() else None,
+        validate=True
     )
+    df = df_polars.to_pandas()
     
-    print(f"✅ Loaded {len(result.dataframe)} scheduling blocks")
-    print(f"📊 Source: {result.source_type}")
+    print(f"✅ Loaded {len(df)} scheduling blocks")
+    print(f"📊 Source: JSON")
     
     # Show validation warnings
-    if result.validation.warnings:
-        print(f"\n⚠️  {len(result.validation.warnings)} warnings:")
-        for warning in result.validation.warnings[:3]:
+    if validation.warnings:
+        print(f"\n⚠️  {len(validation.warnings)} warnings:")
+        for warning in validation.warnings[:3]:
             print(f"  • {warning}")
-        if len(result.validation.warnings) > 3:
-            print(f"  ... and {len(result.validation.warnings) - 3} more")
+        if len(validation.warnings) > 3:
+            print(f"  ... and {len(validation.warnings) - 3} more")
     
     # Show sample data
     print(f"\nFirst 3 scheduling blocks:")
     cols = ['schedulingBlockId', 'priority', 'scheduled_flag', 'total_visibility_hours']
-    print(result.dataframe[cols].head(3).to_string(index=False))
+    print(df[cols].head(3).to_string(index=False))
     
-    return result.dataframe
+    return df
 
 
 def example_4_analyze_data(df):
@@ -130,7 +130,7 @@ def main():
     print("🌌" * 30)
     
     # Example 1: CSV (fastest, recommended)
-    df = example_1_load_from_csv()
+    df = example_1_load_from_json()
     
     # Example 2: Direct JSON loading (flexible)
     if df is None:
@@ -146,8 +146,7 @@ def main():
         example_4_analyze_data(df)
     else:
         print("\n❌ No data could be loaded. Please check the data directory.")
-        print("\nTo create sample data, run:")
-        print("  python preprocess_schedules.py --schedule data/schedule.json --visibility data/possible_periods.json --output data/schedule.csv")
+        print("\nTo load sample data, ensure you have data/schedule.json file.")
     
     print("\n" + "="*60)
     print("✅ Examples complete!")
