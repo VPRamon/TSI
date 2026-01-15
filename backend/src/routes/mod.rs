@@ -7,6 +7,7 @@ pub mod timeline;
 pub mod trends;
 pub mod validation;
 pub mod visibility;
+pub mod helpers;
 
 use pyo3::prelude::*;
 
@@ -23,6 +24,7 @@ pub fn register_route_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     trends::register_routes(m)?;
     compare::register_routes(m)?;
     visibility::register_routes(m)?;
+    helpers::register_routes(m)?;
 
     Ok(())
 }
