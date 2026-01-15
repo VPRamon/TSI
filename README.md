@@ -19,7 +19,7 @@ Analyze and visualize astronomical scheduling outputs with an interactive Stream
 ```
 .
 ├── data/
-│   ├── schedule.csv              # Sample preprocessed dataset (used by the app)
+│   ├── schedule.json              # Sample preprocessed dataset (used by the app)
 │   ├── schedule.json             # Raw schedule (example)
 │   ├── possible_periods.json     # Optional visibility periods
 │   └── dark_periods.json         # Optional dark periods (auto-detected by the app)
@@ -44,7 +44,10 @@ Analyze and visualize astronomical scheduling outputs with an interactive Stream
 │       └── assets/styles.css
 ├── run_dashboard.sh              # Local launcher (venv + streamlit)
 ├── streamlit_app.py              # Streamlit Cloud entry (imports tsi.app.main)
-├── Dockerfile
+├── docker/
+│   ├── Dockerfile
+│   ├── docker-compose.md
+│   └── docker-compose.yml
 ├── pyproject.toml
 ├── requirements.txt
 └── tests/
@@ -64,15 +67,27 @@ pip install -r requirements.txt
 streamlit run src/tsi/app.py
 
 # Or use the helper
-./run_dashboard.sh
+./scripts/run_dashboard.sh
 ```
 
 The app opens at http://localhost:8501. On the landing page you can:
 - Upload a preprocessed CSV (fastest), or
 - Upload a raw schedule.json (+ optional possible_periods.json). JSON is processed in‑memory, or
-- Load the bundled sample dataset at `data/schedule.csv`.
+- Load the bundled sample dataset at `data/schedule.json`.
 
 Dark periods: if `data/dark_periods.json` exists, it is auto‑loaded; you can also upload it later on the landing page. The Scheduled Timeline page then shades nighttime (observable) vs daytime (non‑observable) periods.
+
+## Docker Compose (Postgres)
+
+Bring up Postgres + the Streamlit app (Rust backend compiled with Postgres support):
+
+Edit `docker/.env` if you need custom ports or Postgres credentials.
+
+```bash
+./scripts/docker_setup.sh
+```
+
+Guide: `docker/docker-compose.md`
 
 ## Preprocess JSON → CSV (recommended for performance)
 
@@ -82,13 +97,13 @@ The dashboard can process JSON directly, but for repeat analysis and faster load
 # Single file
 python scripts/preprocess_schedules.py \
   --schedule data/schedule.json \
-  --output data/schedule.csv
+  --output data/schedule.json
 
 # With visibility/possible periods
 python scripts/preprocess_schedules.py \
   --schedule data/schedule.json \
   --visibility data/possible_periods.json \
-  --output data/schedule.csv \
+  --output data/schedule.json \
   --verbose
 
 # Batch directory
@@ -105,6 +120,42 @@ python scripts/preprocess_schedules.py \
 ```
 
 Examples: see `examples/example_data_loading.py` and `examples/example_preprocessing.py`.
+
+## Dockerized development & builds
+
+The repository ships with a Debian 12 multi-stage `Dockerfile` tailored for reproducible builds of both the Streamlit frontend and the Rust backend. Highlights:
+
+- `cargo-chef` stages (`cargo-planner`, `cargo-builder`) cache Rust dependencies and produce a Python wheel via `maturin`.
+- `python-builder` prepares a reusable virtual environment with all Python dependencies pre-installed (minus the editable package).
+- `runtime` is a slim image that only contains the venv, app sources, and runtime assets.
+- `dev` target keeps the full Rust toolchain, venv, and Python dev dependencies for an ergonomic shell inside the container.
+
+### Build & run the runtime image
+
+```bash
+# Build (produces the slim runtime image by default)
+docker build -f docker/Dockerfile -t tsi-app .
+
+# Run Streamlit (mount local data if you want live edits)
+docker run --rm -p 8501:8501 \
+  -v "$(pwd)/data:/app/data" \
+  tsi-app
+```
+
+### Development shell with Rust + Python tools
+
+```bash
+# Build the dev image (carries rustup, cargo, pip, pytest, etc.)
+docker build -f docker/Dockerfile -t tsi-dev --target dev .
+
+# Drop into a shell with source + venv + cargo
+docker run --rm -it \
+  -p 8501:8501 \
+  -v "$(pwd):/workspace" \
+  tsi-dev
+```
+
+Inside the dev container the working directory is `/workspace`, Python dependencies are installed globally in the image (no venv), and `PYTHONPATH` points at `src`. Rebuilding the Rust extension is as simple as running `maturin develop --release`.
 
 ## Data schema (CSV expected by the app)
 
@@ -132,16 +183,16 @@ Notes
 
 ## Configuration
 
-Runtime settings are managed via `pydantic-settings` in `src/app_config/settings.py` and can be overridden with environment variables or a `.env` file at repo root.
+Runtime settings are managed via `pydantic-settings` in `src/app_config/settings.py` and can be overridden with environment variables or `docker/.env`.
 
 Key variables
 - DATA_ROOT: base data directory (default: data)
-- SAMPLE_DATASET: path to the sample CSV (default: data/schedule.csv)
+- SAMPLE_DATASET: path to the sample CSV (default: data/schedule.json)
 - CACHE_TTL_SECONDS: cache TTL for loaders (default: 600)
 
-Example `.env`
+Example `docker/.env`
 ```
-SAMPLE_DATASET=data/schedule.csv
+SAMPLE_DATASET=data/schedule.json
 DATA_ROOT=data
 CACHE_TTL_SECONDS=900
 ```
@@ -157,21 +208,6 @@ ruff check src/ tests/
 black --check src/ tests/
 mypy src/
 ```
-
-## Docker
-
-```bash
-# Build
-docker build -t tsi-app .
-
-# Run dashboard (http://localhost:8501)
-docker run --rm -p 8501:8501 tsi-app
-
-# Run tests inside the same image
-docker run --rm tsi-app pytest
-```
-
-The image defaults to launching the dashboard; overriding the command lets you reuse it for CI.
 
 ## Development notes
 

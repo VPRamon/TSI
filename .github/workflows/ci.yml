@@ -2,42 +2,93 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - develop
   pull_request:
-    branches: [ main ]
+    branches:
+      - main
+
+env:
+  DEV_IMAGE_TAG: tsi-dev:ci
+  DEV_CACHE_SCOPE: tsi-dev-ci
 
 jobs:
-  unit:
+  python-quality:
+    name: Python quality gates (Docker)
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          python-version: "3.10"
+          lfs: true
+          submodules: recursive
 
-      - name: Install dependencies
+      - name: Setup Docker environment
+        uses: ./.github/actions/setup-docker
+        with:
+          dev-image-tag: ${{ env.DEV_IMAGE_TAG }}
+          dev-cache-scope: ${{ env.DEV_CACHE_SCOPE }}
+
+      - name: Run linters and type checks (via scripts)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e ".[dev]"
+          chmod +x scripts/*.sh
+          ./scripts/ci_frontend.sh --docker --linters-only
 
-      - name: Lint with ruff
-        run: ruff check src/ tests/
+  python-tests:
+    name: Python tests (${{ matrix.subset }}) (Docker)
+    runs-on: ubuntu-latest
+    needs:
+      - python-quality
+    strategy:
+      fail-fast: false
+      matrix:
+        subset:
+          - unit
+          - integration
+          - e2e
+          - unmarked
+          - bindings
 
-      - name: Format check with black
-        run: black --check src/ tests/
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: recursive
 
-      - name: Type check with mypy
-        run: mypy src/
-        continue-on-error: true
+      - name: Setup Docker environment
+        uses: ./.github/actions/setup-docker
+        with:
+          dev-image-tag: ${{ env.DEV_IMAGE_TAG }}
+          dev-cache-scope: ${{ env.DEV_CACHE_SCOPE }}
 
-      - name: Run unit tests
-        run: pytest -m unit --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing:skip-covered
+      - name: Run test subset (via scripts)
+        env:
+          SUBSET: ${{ matrix.subset }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/*.sh
 
-      - name: Upload coverage artifact
+          case "${SUBSET}" in
+            unit|integration|unmarked)
+              ./scripts/ci_frontend.sh --docker --tests-only --subset "${SUBSET}"
+              ;;
+            e2e)
+              ./scripts/ci_e2e.sh --docker
+              ;;
+            bindings)
+              ./scripts/ci_backend.sh standard --docker --bindings-only
+              ;;
+            *)
+              echo "error: unknown subset ${SUBSET}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Upload unit coverage
+        if: matrix.subset == 'unit' && hashFiles('coverage.xml') != ''
         uses: actions/upload-artifact@v4
         with:
           name: unit-coverage
@@ -45,44 +96,26 @@ jobs:
             coverage.xml
             htmlcov/
 
-  integration:
+  rust:
+    name: Rust checks (Docker)
     runs-on: ubuntu-latest
-    needs: unit
+    needs:
+      - python-quality
 
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          python-version: "3.10"
+          lfs: true
+          submodules: recursive
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e ".[dev]"
-
-      - name: Run integration tests
-        run: pytest -m integration -q
-
-  e2e:
-    runs-on: ubuntu-latest
-    needs: unit
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Docker environment
+        uses: ./.github/actions/setup-docker
         with:
-          python-version: "3.10"
+          dev-image-tag: ${{ env.DEV_IMAGE_TAG }}
+          dev-cache-scope: ${{ env.DEV_CACHE_SCOPE }}
 
-      - name: Install dependencies
+      - name: Run backend checks (via scripts)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e ".[dev]"
-
-      - name: Run e2e tests
-        run: pytest -m e2e -q
+          chmod +x scripts/*.sh
+          ./scripts/ci_backend.sh standard --docker --no-bindings

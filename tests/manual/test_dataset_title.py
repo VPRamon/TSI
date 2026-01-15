@@ -30,7 +30,7 @@ def format_filename(filename: str) -> str:
 # Test cases
 test_files = [
     "schedule.json",
-    "schedule.csv",
+    "schedule.json",
     "possible_periods.json",
 ]
 

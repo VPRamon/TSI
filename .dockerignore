@@ -1,24 +1,35 @@
-# Python cache and build artifacts
-__pycache__/
-*.py[cod]
-*.so
-*.pyd
-
-# Virtual environments
-.env
-.venv
-env/
-venv/
-
-# Test and coverage outputs
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Version control
+# Exclude VCS
 .git
-.gitignore
 
-# Local data caches and notebooks
-*.ipynb_checkpoints
-notebooks/
+# Python artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.tox/
+
+# Build artifacts
+target/
+backend/target/
+dist/
+build/
+*.egg-info
+
+# Coverage / docs
+htmlcov/
+docs/_build/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+
+# Large or unnecessary data during image build
+# data/  # commented out so Docker build can include application `data/` directory
+
+# Editor / OS files
+.DS_Store
+.vscode/

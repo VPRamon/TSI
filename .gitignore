@@ -1,4 +1,7 @@
 data/sensitive
+output/
+old
+**coverage_html**
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -137,7 +140,6 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
 .envrc
 .venv
 env/
@@ -207,3 +209,5 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+scripts/db_credentials.py
