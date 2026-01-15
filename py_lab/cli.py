@@ -72,6 +72,7 @@ def analyze_feasibility(
     num_observations: int,
     min_priority: Optional[int] = None,
     max_iterations: int = 50,
+    time_limit_s: float = 5.0,
     output_dir: Optional[Path] = None,
     verbose: bool = True
 ):
@@ -163,7 +164,7 @@ def analyze_feasibility(
         print("\n[4/5] Checking scheduling feasibility with CP-SAT...")
     
     analyzer = ConflictAnalyzer()
-    result = analyzer.check_feasibility(df_to_analyze)
+    result = analyzer.check_feasibility(df_to_analyze, time_limit_s=time_limit_s)
     
     if result.feasible:
         if verbose:
@@ -176,7 +177,9 @@ def analyze_feasibility(
         if verbose:
             print("\n[5/5] Finding minimal infeasible subset...")
         
-        conflict_result = analyzer.find_conflicts(df_to_analyze, max_iterations=max_iterations)
+        conflict_result = analyzer.find_conflicts(
+            df_to_analyze, max_iterations=max_iterations, time_limit_s=time_limit_s
+        )
         
         if conflict_result.infeasible_tasks:
             if verbose:
@@ -264,6 +267,13 @@ Examples:
         default=50,
         help="Maximum iterations for conflict detection (default: 50)"
     )
+
+    parser.add_argument(
+        "-t", "--time-limit",
+        type=float,
+        default=5.0,
+        help="Per-call solver time limit in seconds (default: 5.0)"
+    )
     
     parser.add_argument(
         "-o", "--output",
@@ -287,6 +297,7 @@ Examples:
         num_observations=args.num_obs,
         min_priority=args.priority,
         max_iterations=args.max_iterations,
+        time_limit_s=args.time_limit,
         output_dir=args.output,
         verbose=not args.quiet
     )

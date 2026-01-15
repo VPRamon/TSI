@@ -111,7 +111,8 @@ class ConflictAnalyzer:
     def check_feasibility(
         self, 
         df: pd.DataFrame,
-        time_scale: float = 86400.0
+        time_scale: float = 86400.0,
+        time_limit_s: float = 5.0
     ) -> ConflictResult:
         """
         Check if all observations in the DataFrame can be scheduled without conflicts.
@@ -131,7 +132,7 @@ class ConflictAnalyzer:
                 message="No valid tasks to schedule (zero duration or no visibility)"
             )
         
-        feasible = can_schedule(tasks)
+        feasible = can_schedule(tasks, time_limit_s=time_limit_s)
         
         if feasible:
             return ConflictResult(
@@ -149,7 +150,8 @@ class ConflictAnalyzer:
         self,
         df: pd.DataFrame,
         time_scale: float = 86400.0,
-        max_iterations: int = 100
+        max_iterations: int = 100,
+        time_limit_s: float = 5.0
     ) -> ConflictResult:
         """
         Find minimal infeasible subset (MIS) of conflicting observations.
@@ -178,7 +180,7 @@ class ConflictAnalyzer:
             )
         
         # Find minimal infeasible subset
-        mis = find_minimal_infeasible_subset(tasks, max_iterations)
+        mis = find_minimal_infeasible_subset(tasks, max_iterations, time_limit_s=time_limit_s)
         
         if mis is None:
             return ConflictResult(
@@ -291,7 +293,8 @@ class ConflictAnalyzer:
 def detect_conflicts(
     df: pd.DataFrame,
     time_scale: float = 86400.0,
-    max_iterations: int = 100
+    max_iterations: int = 100,
+    time_limit_s: float = 5.0
 ) -> ConflictResult:
     """
     Convenience function to detect conflicts in a schedule DataFrame.
@@ -315,7 +318,7 @@ def detect_conflicts(
         ...     print(f"Conflicts found: {result.infeasible_tasks}")
     """
     analyzer = ConflictAnalyzer()
-    return analyzer.find_conflicts(df, time_scale, max_iterations)
+    return analyzer.find_conflicts(df, time_scale, max_iterations, time_limit_s=time_limit_s)
 
 
 def get_schedulable_subset(
