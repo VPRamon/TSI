@@ -10,9 +10,9 @@
       "$ref": "#/definitions/Period",
       "description": "Overall time window for the schedule in MJD"
     },
-    "dark_periods": {
-      "type": "array",
-      "items": { "$ref": "#/definitions/Period" }
+    "geographic_location": {
+      "$ref": "#/definitions/GeographicLocation",
+      "description": "Geographic location (latitude/longitude) where schedule applies."
     },
     "blocks": {
       "type": "array",
@@ -35,6 +35,26 @@
         }
       },
       "required": ["start", "stop"],
+      "additionalProperties": false
+    },
+    "GeographicLocation": {
+      "type": "object",
+      "description": "Geographic location where the schedule applies.",
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "description": "Latitude in decimal degrees (-90 to 90)."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "Longitude in decimal degrees (-180 to 180)."
+        },
+        "elevation_m": {
+          "type": "number",
+          "description": "Elevation in meters above sea level."
+        }
+      },
+      "required": ["latitude", "longitude"],
       "additionalProperties": false
     },
     "Constraints": {
