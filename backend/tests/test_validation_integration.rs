@@ -8,8 +8,8 @@
 
 use qtty::{angular::Degrees, time::Seconds};
 use tsi_rust::api::{
-    Constraints, ModifiedJulianDate, Period, Schedule, ScheduleId, SchedulingBlock,
-    SchedulingBlockId,
+    Constraints, GeographicLocation, ModifiedJulianDate, Period, Schedule, ScheduleId,
+    SchedulingBlock, SchedulingBlockId,
 };
 use tsi_rust::db::{
     repositories::LocalRepository,
@@ -462,6 +462,12 @@ async fn test_local_repository_validation_storage() {
             create_test_block(3, -1.0, 270.0, 60.0, 600.0, 3600.0, 5.0), // Negative priority
         ],
         dark_periods: vec![],
+        geographic_location: GeographicLocation {
+            latitude: 28.7624,
+            longitude: -17.8892,
+            elevation_m: Some(2396.0),
+        },
+        astronomical_nights: vec![],
         checksum: "validation_test_123".to_string(),
         schedule_period: default_schedule_period(),
     };
@@ -520,6 +526,12 @@ async fn test_validation_report_structure() {
             // Warning (narrow elevation range) - need to test this differently
         ],
         dark_periods: vec![],
+        geographic_location: GeographicLocation {
+            latitude: 28.7624,
+            longitude: -17.8892,
+            elevation_m: Some(2396.0),
+        },
+        astronomical_nights: vec![],
         checksum: "report_test_456".to_string(),
         schedule_period: default_schedule_period(),
     };
@@ -584,6 +596,12 @@ async fn test_validation_empty_schedule() {
         name: "Empty Schedule".to_string(),
         blocks: vec![],
         dark_periods: vec![],
+        geographic_location: GeographicLocation {
+            latitude: 28.7624,
+            longitude: -17.8892,
+            elevation_m: Some(2396.0),
+        },
+        astronomical_nights: vec![],
         checksum: "empty_123".to_string(),
         schedule_period: default_schedule_period(),
     };
@@ -617,6 +635,12 @@ async fn test_validation_all_valid_blocks() {
             create_test_block(3, 7.0, 270.0, 60.0, 600.0, 3600.0, 5.0),
         ],
         dark_periods: vec![],
+        geographic_location: GeographicLocation {
+            latitude: 28.7624,
+            longitude: -17.8892,
+            elevation_m: Some(2396.0),
+        },
+        astronomical_nights: vec![],
         checksum: "all_valid_789".to_string(),
         schedule_period: default_schedule_period(),
     };

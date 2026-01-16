@@ -19,7 +19,7 @@
       "items": { "$ref": "#/definitions/SchedulingBlock" }
     }
   },
-  "required": ["blocks", "schedule_period"],
+  "required": ["blocks", "schedule_period", "geographic_location"],
   "definitions": {
     "Period": {
       "type": "object",

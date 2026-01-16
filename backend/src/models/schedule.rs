@@ -21,6 +21,7 @@ struct ScheduleInput {
     pub schedule_period: Option<api::Period>,
     #[serde(default)]
     pub dark_periods: Vec<api::Period>,
+    pub geographic_location: api::GeographicLocation,
     #[serde(default)]
     pub blocks: Vec<api::SchedulingBlock>,
 }
@@ -61,14 +62,25 @@ pub fn parse_schedule_json_str(
 
     let input: ScheduleInput = serde_json::from_str(json_schedule_json)
         .context("Failed to deserialize schedule JSON using Serde")?;
+    
+    let schedule_period = input
+        .schedule_period
+        .unwrap_or_else(|| infer_schedule_period(&input.dark_periods, &input.blocks));
+    
+    // Compute astronomical nights (location is required)
+    let astronomical_nights = crate::services::astronomical_night::compute_astronomical_nights(
+        &input.geographic_location,
+        &schedule_period,
+    );
+    
     let mut schedule = api::Schedule {
         id: input.id,
         name: input.name,
         checksum: input.checksum,
-        schedule_period: input
-            .schedule_period
-            .unwrap_or_else(|| infer_schedule_period(&input.dark_periods, &input.blocks)),
+        schedule_period,
         dark_periods: input.dark_periods,
+        geographic_location: input.geographic_location,
+        astronomical_nights,
         blocks: input.blocks,
     };
 
@@ -214,6 +226,11 @@ mod tests {
     #[test]
     fn test_parse_minimal_schedule() {
         let schedule_json = r#"{
+            "geographic_location": {
+                "latitude": 28.7624,
+                "longitude": -17.8892,
+                "elevation_m": 2396.0
+            },
             "blocks": [
                 {
                     "id": 1000004990,
@@ -249,6 +266,11 @@ mod tests {
     #[test]
     fn test_parse_with_scheduled_period() {
         let schedule_json = r#"{
+            "geographic_location": {
+                "latitude": 28.7624,
+                "longitude": -17.8892,
+                "elevation_m": 2396.0
+            },
             "blocks": [
                 {
                     "id": 1000004990,
@@ -284,6 +306,11 @@ mod tests {
     #[test]
     fn test_parse_with_possible_periods() {
         let schedule_json = r#"{
+            "geographic_location": {
+                "latitude": 28.7624,
+                "longitude": -17.8892,
+                "elevation_m": 2396.0
+            },
             "blocks": [
                 {
                     "id": 1000004990,

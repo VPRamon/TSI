@@ -6,7 +6,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 use tsi_rust::api::{
-    Constraints, Period, Schedule, ScheduleId, SchedulingBlock, SchedulingBlockId,
+    Constraints, GeographicLocation, Period, Schedule, ScheduleId, SchedulingBlock,
+    SchedulingBlockId,
 };
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::repository::{AnalyticsRepository, ScheduleRepository};
@@ -56,6 +57,12 @@ fn create_test_schedule(name: &str, block_count: usize) -> Schedule {
         name: name.to_string(),
         blocks,
         dark_periods: vec![],
+        geographic_location: GeographicLocation {
+            latitude: 28.7624,
+            longitude: -17.8892,
+            elevation_m: Some(2396.0),
+        },
+        astronomical_nights: vec![],
         checksum: format!("checksum_{}", name),
         schedule_period: default_schedule_period(),
     }
@@ -241,6 +248,12 @@ async fn test_empty_schedule_storage() {
         name: "empty".to_string(),
         blocks: vec![],
         dark_periods: vec![],
+        geographic_location: GeographicLocation {
+            latitude: 28.7624,
+            longitude: -17.8892,
+            elevation_m: Some(2396.0),
+        },
+        astronomical_nights: vec![],
         checksum: "empty_checksum".to_string(),
         schedule_period: default_schedule_period(),
     };

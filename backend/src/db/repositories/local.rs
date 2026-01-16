@@ -900,7 +900,7 @@ impl VisualizationRepository for LocalRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::ModifiedJulianDate;
+    use crate::api::{GeographicLocation, ModifiedJulianDate};
 
     fn default_schedule_period() -> Period {
         Period {
@@ -927,6 +927,12 @@ mod tests {
             name: "Test Schedule".to_string(),
             blocks: vec![],
             dark_periods: vec![],
+            geographic_location: GeographicLocation {
+                latitude: 28.7624,
+                longitude: -17.8892,
+                elevation_m: Some(2396.0),
+            },
+            astronomical_nights: vec![],
             checksum: "test123".to_string(),
             schedule_period: default_schedule_period(),
         };
@@ -947,6 +953,12 @@ mod tests {
             name: "Schedule 1".to_string(),
             blocks: vec![],
             dark_periods: vec![],
+            geographic_location: GeographicLocation {
+                latitude: 28.7624,
+                longitude: -17.8892,
+                elevation_m: Some(2396.0),
+            },
+            astronomical_nights: vec![],
             checksum: "hash1".to_string(),
             schedule_period: default_schedule_period(),
         };
@@ -956,6 +968,12 @@ mod tests {
             name: "Schedule 2".to_string(),
             blocks: vec![],
             dark_periods: vec![],
+            geographic_location: GeographicLocation {
+                latitude: 28.7624,
+                longitude: -17.8892,
+                elevation_m: Some(2396.0),
+            },
+            astronomical_nights: vec![],
             checksum: "hash2".to_string(),
             schedule_period: default_schedule_period(),
         };
@@ -984,6 +1002,12 @@ mod tests {
             name: "Test".to_string(),
             blocks: vec![],
             dark_periods: vec![],
+            geographic_location: GeographicLocation {
+                latitude: 28.7624,
+                longitude: -17.8892,
+                elevation_m: Some(2396.0),
+            },
+            astronomical_nights: vec![],
             checksum: "test".to_string(),
             schedule_period: default_schedule_period(),
         };

@@ -141,6 +141,70 @@ use serde::{Deserialize, Serialize};
 
 pub use crate::models::ModifiedJulianDate;
 
+/// Geographic location (latitude, longitude, elevation).
+#[pyclass(module = "tsi_rust_api")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GeographicLocation {
+    /// Latitude in decimal degrees (-90 to 90)
+    pub latitude: f64,
+    /// Longitude in decimal degrees (-180 to 180)
+    pub longitude: f64,
+    /// Elevation in meters above sea level (optional)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub elevation_m: Option<f64>,
+}
+
+#[pymethods]
+impl GeographicLocation {
+    #[new]
+    pub fn new(latitude: f64, longitude: f64, elevation_m: Option<f64>) -> PyResult<Self> {
+        if !(-90.0..=90.0).contains(&latitude) {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Latitude must be between -90 and 90 degrees",
+            ));
+        }
+        if !(-180.0..=180.0).contains(&longitude) {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "Longitude must be between -180 and 180 degrees",
+            ));
+        }
+        Ok(Self {
+            latitude,
+            longitude,
+            elevation_m,
+        })
+    }
+
+    #[getter]
+    pub fn latitude(&self) -> f64 {
+        self.latitude
+    }
+
+    #[getter]
+    pub fn longitude(&self) -> f64 {
+        self.longitude
+    }
+
+    #[getter]
+    pub fn elevation_m(&self) -> Option<f64> {
+        self.elevation_m
+    }
+
+    fn __repr__(&self) -> String {
+        if let Some(elev) = self.elevation_m {
+            format!(
+                "GeographicLocation(lat={:.4}, lon={:.4}, elevation_m={:.1})",
+                self.latitude, self.longitude, elev
+            )
+        } else {
+            format!(
+                "GeographicLocation(lat={:.4}, lon={:.4})",
+                self.latitude, self.longitude
+            )
+        }
+    }
+}
+
 /// Time period in Modified Julian Date (MJD) format.
 #[pyclass(module = "tsi_rust_api")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -396,6 +460,11 @@ pub struct Schedule {
     /// Dark periods (observing windows)
     #[serde(default)]
     pub dark_periods: Vec<Period>,
+    /// Geographic location of the observatory (required)
+    pub geographic_location: GeographicLocation,
+    /// Computed astronomical night periods (Sun altitude < -18°)
+    #[serde(default)]
+    pub astronomical_nights: Vec<Period>,
     /// List of scheduling blocks
     pub blocks: Vec<SchedulingBlock>,
 }
@@ -409,6 +478,8 @@ impl Schedule {
         checksum: String,
         schedule_period: Period,
         dark_periods: Vec<Period>,
+        geographic_location: GeographicLocation,
+        astronomical_nights: Vec<Period>,
         blocks: Vec<SchedulingBlock>,
     ) -> Self {
         Self {
@@ -417,6 +488,8 @@ impl Schedule {
             checksum,
             schedule_period,
             dark_periods,
+            geographic_location,
+            astronomical_nights,
             blocks,
         }
     }
@@ -440,6 +513,7 @@ pub fn register_api_functions(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Register all API classes
     m.add_class::<ModifiedJulianDate>()?;
     m.add_class::<Period>()?;
+    m.add_class::<GeographicLocation>()?;
     m.add_class::<Constraints>()?;
     m.add_class::<SchedulingBlock>()?;
     m.add_class::<Schedule>()?;

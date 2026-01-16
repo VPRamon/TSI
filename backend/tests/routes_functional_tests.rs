@@ -3,7 +3,7 @@
 //! These tests exercise the full API call stack from route handlers
 //! through services to repositories, validating end-to-end functionality.
 
-use tsi_rust::api::{Constraints, Period, Schedule, SchedulingBlock, SchedulingBlockId};
+use tsi_rust::api::{Constraints, GeographicLocation, Period, Schedule, SchedulingBlock, SchedulingBlockId};
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::services;
 use tsi_rust::models::ModifiedJulianDate;
@@ -56,6 +56,12 @@ fn create_schedule_with_visibility(name: &str, block_count: usize) -> Schedule {
             start: ModifiedJulianDate::new(59580.0),
             stop: ModifiedJulianDate::new(59590.0),
         }],
+        geographic_location: GeographicLocation {
+            latitude: 28.7624,
+            longitude: -17.8892,
+            elevation_m: Some(2396.0),
+        },
+        astronomical_nights: vec![],
         checksum: format!("checksum_{}", name),
         schedule_period: Period {
             start: ModifiedJulianDate::new(59580.0),

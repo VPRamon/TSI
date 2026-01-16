@@ -1,4 +1,4 @@
-use tsi_rust::api::{ModifiedJulianDate, Period, Schedule, ScheduleId};
+use tsi_rust::api::{GeographicLocation, ModifiedJulianDate, Period, Schedule, ScheduleId};
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::services;
 use tsi_rust::routes;
@@ -9,6 +9,12 @@ fn create_minimal_schedule(name: &str) -> Schedule {
         name: name.to_string(),
         blocks: vec![],
         dark_periods: vec![],
+        geographic_location: GeographicLocation {
+            latitude: 28.7624,
+            longitude: -17.8892,
+            elevation_m: Some(2396.0),
+        },
+        astronomical_nights: vec![],
         checksum: format!("test_{}", name),
         schedule_period: default_schedule_period(),
     }

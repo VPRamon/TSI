@@ -10,6 +10,8 @@ diesel::table! {
         possible_periods_json -> Jsonb,
         raw_schedule_json -> Nullable<Jsonb>,
         schedule_period_json -> Jsonb,
+        observer_location_json -> Jsonb,
+        astronomical_night_periods_json -> Jsonb,
     }
 }
 
