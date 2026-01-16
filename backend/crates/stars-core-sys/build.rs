@@ -11,7 +11,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=STARS_FFI_LIB_DIR");
     println!("cargo:rerun-if-env-changed=STARS_CORE_DIR");
 
-    let _out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     // Strategy 1: Check for pre-built library via environment variable
     if let Ok(lib_dir) = env::var("STARS_FFI_LIB_DIR") {
@@ -34,30 +34,36 @@ fn main() {
     }
 
     // Strategy 4: Look for library in common locations
-    let search_paths = [
-        "/usr/local/lib",
-        "/usr/lib",
-        "/usr/lib/x86_64-linux-gnu",
-        "../../src/scheduler/stars_ffi/build",
-    ];
+    #[cfg(not(feature = "build-native"))]
+    {
+        let search_paths = [
+            "/usr/local/lib",
+            "/usr/lib",
+            "/usr/lib/x86_64-linux-gnu",
+            "../../src/scheduler/stars_ffi/build",
+        ];
 
-    for path in &search_paths {
-        let lib_path = PathBuf::from(path).join("libstars_ffi.so");
-        if lib_path.exists() {
-            println!("cargo:rustc-link-search=native={}", path);
-            println!("cargo:rustc-link-lib=dylib=stars_ffi");
-            link_stars_core_deps();
-            return;
+        for path in &search_paths {
+            let lib_path = PathBuf::from(path).join("libstars_ffi.so");
+            if lib_path.exists() {
+                println!("cargo:rustc-link-search=native={}", path);
+                println!("cargo:rustc-link-lib=dylib=stars_ffi");
+                link_stars_core_deps();
+                return;
+            }
         }
     }
 
     // If we get here, we couldn't find the library
-    eprintln!("Could not find stars_ffi library.");
-    eprintln!("Options:");
-    eprintln!("  1. Set STARS_FFI_LIB_DIR environment variable");
-    eprintln!("  2. Install stars_ffi system-wide");
-    eprintln!("  3. Enable 'build-native' feature to build from source");
-    panic!("stars_ffi library not found");
+    #[cfg(not(feature = "build-native"))]
+    {
+        eprintln!("Could not find stars_ffi library.");
+        eprintln!("Options:");
+        eprintln!("  1. Set STARS_FFI_LIB_DIR environment variable");
+        eprintln!("  2. Install stars_ffi system-wide");
+        eprintln!("  3. Enable 'build-native' feature to build from source");
+        panic!("stars_ffi library not found");
+    }
 }
 
 fn try_pkg_config() -> bool {

@@ -158,8 +158,11 @@ sudo make install
 # Run all tests except those requiring native libs
 cargo test
 
-# Run tests including STARS integration (requires built native lib)
-cargo test --features stars-core
+# Run STARS integration tests and build the native C++ libs from source
+cargo test --features build-native
+
+# If you already have a system-installed stars_ffi (advanced), you can also run:
+# cargo test --features stars-core
 ```
 
 ## CI/CD Considerations

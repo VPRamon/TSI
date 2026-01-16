@@ -11,3 +11,6 @@ pub mod stars;
 
 #[cfg(feature = "stars-core")]
 pub use stars::*;
+
+#[cfg(all(test, feature = "stars-core"))]
+mod tests;

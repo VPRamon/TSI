@@ -20,6 +20,10 @@ local-repo = []
 # Enable STARS Core scheduling library integration
 stars-core = ["dep:stars-core"]
 
+# Build STARS Core native sources (C++ + FFI shim) as part of the Rust build.
+# This implies `stars-core` so `cargo test --features build-native` just works.
+build-native = ["stars-core", "stars-core/build-native"]
+
 [dependencies]
 pyo3 = { version = "0.27.2", features = ["extension-module"] }
 chrono = { version = "0.4", features = ["serde"] }

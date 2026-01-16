@@ -11,7 +11,14 @@ FROM base AS rust-wheel-builder
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
+    cmake \
         curl \
+    git \
+    libboost-all-dev \
+    libnova-dev \
+    nlohmann-json3-dev \
+    libxml++2.6-dev \
+    libxml2-dev \
         patchelf \
         pkg-config \
         libpq-dev \
@@ -37,8 +44,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         bash \
         build-essential \
         ca-certificates \
+    cmake \
         curl \
         git \
+    libboost-all-dev \
+    libnova-dev \
+    nlohmann-json3-dev \
+    libxml++2.6-dev \
+    libxml2-dev \
         libpq-dev \
         patchelf \
         pkg-config \
@@ -56,7 +69,7 @@ RUN set -eux; \
     chmod 0644 /etc/profile.d/rust-path.sh; \
     for tool in cargo rustc rustdoc rustfmt clippy-driver cargo-clippy cargo-fmt; do \
         tool_path="$(/opt/cargo/bin/rustup which "${tool}" || true)"; \
-        if [[ -n "${tool_path}" && -x "${tool_path}" ]]; then \
+        if [ -n "${tool_path}" ] && [ -x "${tool_path}" ]; then \
             ln -sf "${tool_path}" "/usr/local/bin/${tool}"; \
         fi; \
     done

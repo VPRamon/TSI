@@ -12,5 +12,14 @@ serde_json = "1.0"
 thiserror = "2.0"
 chrono = { version = "0.4", features = ["serde"] }
 
+[features]
+default = []
+
+# Build the native C++ library from the bundled sources.
+build-native = ["stars-core-sys/build-native"]
+
+# Link against system-installed STARS Core component libraries (advanced).
+system-libs = ["stars-core-sys/system-libs"]
+
 [dev-dependencies]
 tempfile = "3.0"
