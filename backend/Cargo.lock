@@ -865,13 +865,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "stars-core-native"
-version = "0.1.0"
-dependencies = [
- "cmake",
-]
-
-[[package]]
 name = "stars-core-sys"
 version = "0.1.0"
 dependencies = [

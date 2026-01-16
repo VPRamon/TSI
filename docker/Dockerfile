@@ -32,6 +32,25 @@ RUN pip install --no-cache-dir "maturin>=1.0,<2.0"
 RUN rustup component add rustfmt clippy || true
 
 COPY backend/ ./backend/
+# Use the checked-in STARS Core submodule under docker/deps/stars-core
+# Copy into the image and build/install it so subsequent Rust/CMake finds system libs
+COPY docker/deps/stars-core /usr/src/stars-core
+RUN set -eux; \
+    if [ -d /usr/src/stars-core ]; then \
+        mkdir -p /usr/src/stars-core/build; \
+        cd /usr/src/stars-core/build; \
+        cmake .. -DCMAKE_BUILD_TYPE=Release; \
+        make -j"$(nproc)"; \
+        make install; \
+    else \
+        echo "Warning: /usr/src/stars-core not found in image"; \
+    fi; \
+    # Build and install stars_ffi from the workspace ffi wrapper so pkg-config and cmake can find it
+    cd /workspace/backend/crates/stars-core-native/ffi || cd backend/crates/stars-core-native/ffi; \
+    mkdir -p build; cd build; \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DSTARS_CORE_ROOT=/usr/src/stars-core; \
+    make -j"$(nproc)"; \
+    make install
 RUN maturin build \
         --release \
         --manifest-path backend/Cargo.toml \
