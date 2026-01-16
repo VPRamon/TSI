@@ -8,6 +8,7 @@ import streamlit as st
 
 from app_config import get_settings
 from tsi.components.landing.landing_backend import render_schedules_section
+from tsi.components.landing.landing_creative import render_creative_section
 from tsi.components.landing.landing_upload import render_upload_section
 from tsi.theme import add_vertical_space, render_landing_title
 
@@ -34,11 +35,14 @@ def render() -> None:
 
     add_vertical_space(3)
 
-    # Two-column layout for data selection
-    col1, col2 = st.columns(2)
+    # Three-column layout for data selection options
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         render_schedules_section()
 
     with col2:
         render_upload_section()
+
+    with col3:
+        render_creative_section()

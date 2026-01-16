@@ -161,6 +161,15 @@ def get_schedule_time_range(schedule_ref: str) -> tuple[Any, Any] | None:
     return (result[0], result[1])
 
 
+# ============================================================================
+# Scheduler Service
+# ============================================================================
+from tsi.services.scheduler_service import (
+    SchedulingResult,
+    run_scheduling_simulation,
+)
+
+
 __all__ = [
     # Core Backend Service
     "backend",
@@ -200,4 +209,7 @@ __all__ = [
     "format_datetime_utc",
     "filter_visibility_blocks",
     "get_all_block_ids",
+    # Scheduler Service
+    "SchedulingResult",
+    "run_scheduling_simulation",
 ]

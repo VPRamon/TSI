@@ -5,6 +5,7 @@ Run with: streamlit run src/tsi/app.py
 
 from tsi import state
 from tsi.pages import landing
+from tsi.pages import creative_workspace
 from tsi.routing import render_navigation, route_to_page
 from tsi.theme import apply_page_config, load_custom_css
 
@@ -20,8 +21,11 @@ def main() -> None:
     # Initialize session state
     state.initialize_state()
 
-    # Check if data is loaded
-    if not state.has_data():
+    # Check if creative mode is active
+    if creative_workspace.is_creative_mode():
+        # Show creative workspace
+        creative_workspace.render()
+    elif not state.has_data():
         # Show landing page
         landing.render()
     else:

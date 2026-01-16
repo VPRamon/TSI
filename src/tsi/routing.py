@@ -71,6 +71,7 @@ def route_to_page(page_name: str) -> None:
         "Insights": ("tsi.pages.insights", "render"),
         "Trends": ("tsi.pages.scheduling_trends", "render"),
         "Compare": ("tsi.pages.compare_schedules", "render"),
+        "Creative": ("tsi.pages.creative_workspace", "render"),
     }
 
     page_info = page_map.get(page_name)
