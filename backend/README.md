@@ -6,7 +6,8 @@ This directory contains the Telescope Scheduling Intelligence (TSI) Rust backend
 
 ```
 backend/
-├── Cargo.toml                    # Workspace manifest
+├── Cargo.toml                    # Package manifest
+├── build.rs                      # Build script for native library linkage
 ├── src/                          # Main Rust backend sources
 │   ├── lib.rs                    # TSI Rust library entry point
 │   ├── api/                      # Python bindings (PyO3)
@@ -15,39 +16,60 @@ backend/
 │   ├── services/                 # Business logic
 │   └── scheduler/                # Scheduling integration module
 │       ├── mod.rs                # Scheduler module exports
-│       └── stars.rs              # STARS Core Rust API wrapper
+│       ├── stars.rs              # STARS Core Rust API (FFI declarations + safe wrappers)
+│       └── tests.rs              # Integration tests for STARS Core
 │
-└── crates/                       # Workspace member crates
-    ├── stars-core-native/        # Native C++ sources (no Rust code except helper)
-    │   ├── core/                 # STARS Core C++ library (git submodule)
-    │   └── ffi/                  # C++ FFI shim (stars_ffi)
-    │       ├── include/stars_ffi.h
-    │       ├── src/stars_ffi.cpp
-    │       └── CMakeLists.txt
-    │
-    ├── stars-core-sys/           # Low-level Rust FFI bindings
-    │   ├── build.rs              # Finds/builds native libraries
-    │   └── src/lib.rs            # Raw extern "C" declarations
-    │
-    └── stars-core/               # Safe Rust wrapper API
-        └── src/
-            ├── lib.rs            # High-level API
-            ├── context.rs        # Context (instrument, execution period)
-            ├── blocks.rs         # Scheduling blocks collection
-            ├── periods.rs        # Possible periods (prescheduler)
-            ├── schedule.rs       # Schedule result
-            ├── types.rs          # Shared types and parameters
-            └── error.rs          # Error types
+└── native/                       # Native C++ FFI implementation
+    └── ffi/                      # C FFI shim wrapping STARS Core C++
+        ├── include/stars_ffi.h   # C header (API for Rust FFI)
+        ├── src/stars_ffi.cpp     # C++ implementation
+        ├── CMakeLists.txt        # CMake build configuration
+        └── stars_ffi.pc.in       # pkg-config template
 ```
 
-## Crate Dependency Graph
+## Dependency Graph
 
 ```
 tsi-rust (main backend)
-    └─> stars-core (optional, feature-gated)
-            └─> stars-core-sys
-                    └─> stars-core-native (build-time only)
-                            └─> STARS Core C++ (git submodule)
+    └─> stars.rs (feature-gated via "stars-core")
+            └─> libstars_ffi.so (C FFI shim)
+                    └─> STARS Core C++ library (docker/deps/stars-core)
+```
+
+## Features
+
+- `local-repo` (default): In-memory repository backend for testing
+- `postgres-repo`: PostgreSQL repository backend with Diesel ORM
+- `stars-core`: Enable STARS Core scheduling library integration
+- `build-native`: Build stars_ffi from source (includes `stars-core`)
+
+## Building
+
+### Without STARS Core (default)
+
+```bash
+cargo build
+cargo test
+```
+
+### With STARS Core (requires libstars_ffi installed)
+
+```bash
+# If stars_ffi is installed system-wide or via Docker:
+cargo test --features stars-core
+
+# Or specify library location:
+STARS_FFI_LIB_DIR=/usr/local/lib cargo test --features stars-core
+```
+
+### Docker Build (recommended)
+
+The Docker image builds everything:
+
+```bash
+cd docker
+docker compose build
+docker compose run --rm dev cargo test --features stars-core
 ```
 
 ## Design Principles

@@ -55,9 +55,9 @@ RUN set -eux; \
     fi; \
     # Build and install stars_ffi from the repo checkout copied into /app/backend.
     # Don't use /workspace here: it's a devcontainer runtime mount, not present during image build.
-    cd /app/backend/crates/stars-core-native/ffi; \
+    cd /app/backend/native/ffi; \
     mkdir -p build; cd build; \
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DSTARS_CORE_ROOT=/usr/src/stars-core; \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local; \
     make -j"$(nproc)"; \
     make install
 RUN maturin build \

@@ -8,3 +8,4 @@ Description: C FFI bindings for STARS Core scheduling library
 Version: @PROJECT_VERSION@
 Libs: -L${libdir} -lstars_ffi
 Cflags: -I${includedir}
+Requires: stars-core
