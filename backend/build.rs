@@ -166,11 +166,8 @@ fn link_stars_core_deps() {
     #[cfg(target_os = "macos")]
     println!("cargo:rustc-link-lib=dylib=c++");
 
-    // Link the main STARS_CORE library
-    // The library is named libSTARS_CORE (with underscores)
-    for lib in &["STARS_CORE", "nova"] {
-        println!("cargo:rustc-link-lib=dylib={}", lib);
-    }
+    // Note: stars_ffi library transitively provides all STARS Core dependencies
+    // No need to explicitly link individual STARS Core components
 
     // Try to find boost libraries via pkg-config
     if pkg_config::probe_library("boost_log").is_err() {

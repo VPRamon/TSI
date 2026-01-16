@@ -66,16 +66,16 @@ pub mod ffi {
     #[repr(C)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum StarsErrorCode {
-        STARS_OK = 0,
-        STARS_ERROR_NULL_POINTER = 1,
-        STARS_ERROR_INVALID_JSON = 2,
-        STARS_ERROR_SERIALIZATION = 3,
-        STARS_ERROR_DESERIALIZATION = 4,
-        STARS_ERROR_INVALID_HANDLE = 5,
-        STARS_ERROR_SCHEDULING_FAILED = 6,
-        STARS_ERROR_PRESCHEDULER_FAILED = 7,
-        STARS_ERROR_IO = 8,
-        STARS_ERROR_UNKNOWN = 99,
+        StarsOk = 0,
+        StarsErrorNullPointer = 1,
+        StarsErrorInvalidJson = 2,
+        StarsErrorSerialization = 3,
+        StarsErrorDeserialization = 4,
+        StarsErrorInvalidHandle = 5,
+        StarsErrorSchedulingFailed = 6,
+        StarsErrorPreschedulerFailed = 7,
+        StarsErrorIo = 8,
+        StarsErrorUnknown = 99,
     }
 
     /// Result structure containing error code and optional message
@@ -90,7 +90,7 @@ pub mod ffi {
         /// Check if the result indicates success
         #[inline]
         pub fn is_ok(&self) -> bool {
-            self.code == StarsErrorCode::STARS_OK
+            self.code == StarsErrorCode::StarsOk
         }
 
         /// Check if the result indicates an error
@@ -141,8 +141,8 @@ pub mod ffi {
     #[repr(C)]
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum StarsSchedulerType {
-        STARS_SCHEDULER_ACCUMULATIVE = 0,
-        STARS_SCHEDULER_HYBRID_ACCUMULATIVE = 1,
+        StarsSchedulerAccumulative = 0,
+        StarsSchedulerHybridAccumulative = 1,
     }
 
     /// Scheduling parameters
@@ -158,7 +158,7 @@ pub mod ffi {
     impl Default for StarsSchedulingParams {
         fn default() -> Self {
             Self {
-                algorithm: StarsSchedulerType::STARS_SCHEDULER_ACCUMULATIVE,
+                algorithm: StarsSchedulerType::StarsSchedulerAccumulative,
                 max_iterations: 0,
                 time_limit_seconds: 0.0,
                 seed: -1,
@@ -349,21 +349,21 @@ impl Error {
         };
 
         match result.code {
-            ffi::StarsErrorCode::STARS_OK => {
+            ffi::StarsErrorCode::StarsOk => {
                 // This shouldn't happen, but handle it gracefully
                 Error::Unknown("Unexpected OK status treated as error".into())
             }
-            ffi::StarsErrorCode::STARS_ERROR_NULL_POINTER => Error::NullPointer,
-            ffi::StarsErrorCode::STARS_ERROR_INVALID_JSON => Error::InvalidJson(message),
-            ffi::StarsErrorCode::STARS_ERROR_SERIALIZATION => Error::Serialization(message),
-            ffi::StarsErrorCode::STARS_ERROR_DESERIALIZATION => Error::Deserialization(message),
-            ffi::StarsErrorCode::STARS_ERROR_INVALID_HANDLE => Error::InvalidHandle(message),
-            ffi::StarsErrorCode::STARS_ERROR_SCHEDULING_FAILED => Error::SchedulingFailed(message),
-            ffi::StarsErrorCode::STARS_ERROR_PRESCHEDULER_FAILED => {
+            ffi::StarsErrorCode::StarsErrorNullPointer => Error::NullPointer,
+            ffi::StarsErrorCode::StarsErrorInvalidJson => Error::InvalidJson(message),
+            ffi::StarsErrorCode::StarsErrorSerialization => Error::Serialization(message),
+            ffi::StarsErrorCode::StarsErrorDeserialization => Error::Deserialization(message),
+            ffi::StarsErrorCode::StarsErrorInvalidHandle => Error::InvalidHandle(message),
+            ffi::StarsErrorCode::StarsErrorSchedulingFailed => Error::SchedulingFailed(message),
+            ffi::StarsErrorCode::StarsErrorPreschedulerFailed => {
                 Error::PreschedulerFailed(message)
             }
-            ffi::StarsErrorCode::STARS_ERROR_IO => Error::Io(message),
-            ffi::StarsErrorCode::STARS_ERROR_UNKNOWN => Error::Unknown(message),
+            ffi::StarsErrorCode::StarsErrorIo => Error::Io(message),
+            ffi::StarsErrorCode::StarsErrorUnknown => Error::Unknown(message),
         }
     }
 }
@@ -386,9 +386,9 @@ pub enum SchedulerType {
 impl From<SchedulerType> for ffi::StarsSchedulerType {
     fn from(t: SchedulerType) -> Self {
         match t {
-            SchedulerType::Accumulative => ffi::StarsSchedulerType::STARS_SCHEDULER_ACCUMULATIVE,
+            SchedulerType::Accumulative => ffi::StarsSchedulerType::StarsSchedulerAccumulative,
             SchedulerType::HybridAccumulative => {
-                ffi::StarsSchedulerType::STARS_SCHEDULER_HYBRID_ACCUMULATIVE
+                ffi::StarsSchedulerType::StarsSchedulerHybridAccumulative
             }
         }
     }
@@ -397,8 +397,8 @@ impl From<SchedulerType> for ffi::StarsSchedulerType {
 impl From<ffi::StarsSchedulerType> for SchedulerType {
     fn from(t: ffi::StarsSchedulerType) -> Self {
         match t {
-            ffi::StarsSchedulerType::STARS_SCHEDULER_ACCUMULATIVE => SchedulerType::Accumulative,
-            ffi::StarsSchedulerType::STARS_SCHEDULER_HYBRID_ACCUMULATIVE => {
+            ffi::StarsSchedulerType::StarsSchedulerAccumulative => SchedulerType::Accumulative,
+            ffi::StarsSchedulerType::StarsSchedulerHybridAccumulative => {
                 SchedulerType::HybridAccumulative
             }
         }

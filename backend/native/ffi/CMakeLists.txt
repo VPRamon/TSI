@@ -5,6 +5,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Ensure we can find the installed cmake headers
+if(STARS_CORE_ROOT)
+    list(APPEND CMAKE_MODULE_PATH "${STARS_CORE_ROOT}/share/cmake/Modules")
+    list(APPEND CMAKE_PREFIX_PATH "${STARS_CORE_ROOT}")
+endif()
+
 # Find required packages
 find_package(PkgConfig REQUIRED)
 

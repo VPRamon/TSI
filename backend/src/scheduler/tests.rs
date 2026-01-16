@@ -164,8 +164,24 @@ fn test_full_pipeline_convenience() {
                         "seconds": 0
                     },
                     "targetCoordinates": {
-                        "ra": "10:30:00",
-                        "dec": "+45:00:00"
+                        "ra": 157.5,
+                        "dec": 45.0
+                    }
+                }
+            },
+            {
+                "stars::scheduling_blocks::ObservationTask": {
+                    "name": "Target-2",
+                    "priority": 0.8,
+                    "duration": {
+                        "days": 0,
+                        "hours": 2,
+                        "minutes": 0,
+                        "seconds": 0
+                    },
+                    "targetCoordinates": {
+                        "ra": 200.0,
+                        "dec": -30.0
                     }
                 }
             }
@@ -204,7 +220,7 @@ fn test_blocks_iteration() {
                     "name": "Target-A",
                     "priority": 1.0,
                     "duration": { "days": 0, "hours": 1, "minutes": 0, "seconds": 0 },
-                    "targetCoordinates": { "ra": "10:30:00", "dec": "+45:00:00" }
+                    "targetCoordinates": { "ra": 157.5, "dec": 45.0 }
                 }
             },
             {
@@ -212,7 +228,7 @@ fn test_blocks_iteration() {
                     "name": "Target-B",
                     "priority": 0.5,
                     "duration": { "days": 0, "hours": 2, "minutes": 0, "seconds": 0 },
-                    "targetCoordinates": { "ra": "14:20:00", "dec": "-20:00:00" }
+                    "targetCoordinates": { "ra": 215.0, "dec": -20.0 }
                 }
             },
             {
@@ -220,7 +236,7 @@ fn test_blocks_iteration() {
                     "name": "Target-C",
                     "priority": 0.7,
                     "duration": { "days": 0, "hours": 1, "minutes": 30, "seconds": 0 },
-                    "targetCoordinates": { "ra": "08:15:00", "dec": "+30:00:00" }
+                    "targetCoordinates": { "ra": 123.75, "dec": 30.0 }
                 }
             }
         ]
