@@ -57,9 +57,9 @@ def run_scheduling_simulation(
     Returns:
         SchedulingResult with success status and schedule details.
     """
-    from tsi.components.creative.proposal_builder import (
-        export_proposals_to_schedule_json,
-        get_all_tasks,
+    from tsi.components.creative.task_builder import (
+        export_tasks_to_schedule_json,
+        get_tasks,
     )
     
     def log(msg: str) -> None:
@@ -71,8 +71,8 @@ def run_scheduling_simulation(
     start_time = time.time()
     
     try:
-        # Get proposals and tasks
-        tasks = get_all_tasks()
+        # Get tasks
+        tasks = get_tasks()
         if not tasks:
             return SchedulingResult(
                 success=False,
@@ -82,7 +82,7 @@ def run_scheduling_simulation(
         log(f"📋 Found {len(tasks)} tasks to schedule")
         
         # Export to schedule JSON format
-        schedule_data = export_proposals_to_schedule_json()
+        schedule_data = export_tasks_to_schedule_json()
         log(f"📦 Prepared schedule with {len(schedule_data['blocks'])} blocks")
         
         # Build schedule period

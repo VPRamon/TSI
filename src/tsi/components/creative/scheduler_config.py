@@ -408,18 +408,14 @@ def _render_location_config(config: SchedulerConfig) -> None:
 
 def _render_run_section() -> None:
     """Render the run scheduler section with logs."""
-    from tsi.components.creative.proposal_builder import get_proposals, get_all_tasks
+    from tsi.components.creative.task_builder import get_tasks
     
-    proposals = get_proposals()
-    tasks = get_all_tasks()
+    tasks = get_tasks()
     
     # Validation
     can_run = True
-    if not proposals:
-        st.warning("⚠️ Create at least one proposal to run the scheduler")
-        can_run = False
-    elif not tasks:
-        st.warning("⚠️ Add at least one task to run the scheduler")
+    if not tasks:
+        st.warning("⚠️ Create at least one task to run the scheduler")
         can_run = False
     
     config = get_scheduler_config()

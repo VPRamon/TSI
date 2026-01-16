@@ -1,7 +1,11 @@
-"""Proposal canvas component for visualizing proposals as a tree structure.
+"""Task canvas component for visualizing scheduling blocks as a tree structure.
 
-This module renders proposals and their tasks as a tree-like graph
+This module renders tasks (and future sequences) as a tree-like graph
 using Plotly for interactive visualization.
+
+In STARS terminology:
+- Tasks are individual Scheduling Blocks
+- Sequences (future) are groups of related Tasks
 """
 
 from __future__ import annotations
@@ -12,36 +16,38 @@ from typing import Any
 import plotly.graph_objects as go
 import streamlit as st
 
-from tsi.components.creative.proposal_builder import (
+from tsi.components.creative.task_builder import (
     ObservationTask,
-    Proposal,
-    get_proposals,
-    get_selected_proposal,
-    set_selected_proposal,
+    Sequence,
+    get_tasks,
+    get_sequences,
+    get_selected_task,
+    set_selected_task,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def render_proposal_canvas() -> None:
+def render_task_canvas() -> None:
     """
-    Render the proposal canvas showing proposals as a tree structure.
+    Render the task canvas showing scheduling blocks as a tree structure.
     
     The visualization shows:
     - Root node: "Schedule"
-    - Intermediate nodes: Proposals (and Sequences in future)
+    - Intermediate nodes: Sequences (future feature)
     - Leaf nodes: Observation Tasks
     """
-    st.markdown("### 🌳 Proposal Structure")
+    st.markdown("### 🌳 Schedule Structure")
     
-    proposals = get_proposals()
+    tasks = get_tasks()
+    sequences = get_sequences()  # Future: will show sequence groupings
     
-    if not proposals:
+    if not tasks:
         _render_empty_canvas()
         return
     
     # Build tree data
-    tree_data = _build_tree_data(proposals)
+    tree_data = _build_tree_data(tasks, sequences)
     
     # Create and display the tree visualization
     fig = _create_tree_figure(tree_data)
@@ -49,15 +55,15 @@ def render_proposal_canvas() -> None:
     # Display with Plotly
     st.plotly_chart(
         fig,
-        key="proposal_tree_chart",
+        key="task_tree_chart",
     )
     
-    # Legend
-    _render_legend()
+    # Legend and stats
+    _render_legend(tasks)
 
 
 def _render_empty_canvas() -> None:
-    """Render placeholder when no proposals exist."""
+    """Render placeholder when no tasks exist."""
     st.markdown(
         """
         <div style="
@@ -68,26 +74,33 @@ def _render_empty_canvas() -> None:
             color: #888;
             margin: 20px 0;
         ">
-            <h3>📋 No Proposals Yet</h3>
-            <p>Create proposals using the Proposal Builder panel.</p>
+            <h3>📋 No Tasks Yet</h3>
+            <p>Create tasks using the Task Builder panel.</p>
             <p style="font-size: 0.9em;">
-                Proposals will appear here as a tree structure with<br>
-                <b>Proposals</b> as intermediate nodes and <b>Tasks</b> as leaves.
+                Tasks will appear here as a tree structure with<br>
+                the <b>Schedule</b> as root and <b>Tasks</b> as leaves.
             </p>
         </div>
         """,
         unsafe_allow_html=True,
     )
     
-    # TODO: Sequences placeholder
+    # Sequences placeholder
     st.caption(
         "💡 *Future feature: Sequences will allow grouping tasks that must be executed together.*"
     )
 
 
-def _build_tree_data(proposals: list[Proposal]) -> dict[str, Any]:
+def _build_tree_data(
+    tasks: list[ObservationTask], 
+    sequences: list[Sequence]
+) -> dict[str, Any]:
     """
     Build tree structure data for visualization.
+    
+    Args:
+        tasks: List of observation tasks
+        sequences: List of sequences (future feature)
     
     Returns:
         Dictionary with nodes and edges for the tree.
@@ -107,57 +120,45 @@ def _build_tree_data(proposals: list[Proposal]) -> dict[str, Any]:
         "size": 40,
     })
     
-    # Calculate positions for proposals
-    n_proposals = len(proposals)
-    proposal_spacing = 2.0
-    proposal_start_x = -((n_proposals - 1) * proposal_spacing) / 2
+    # For now, all tasks connect directly to root
+    # Future: tasks in sequences will connect through sequence nodes
     
-    for i, proposal in enumerate(proposals):
-        proposal_x = proposal_start_x + i * proposal_spacing
-        proposal_y = -1
+    # Get tasks not in any sequence
+    sequenced_task_ids = set()
+    for seq in sequences:
+        sequenced_task_ids.update(seq.task_ids)
+    
+    ungrouped_tasks = [t for t in tasks if t.id not in sequenced_task_ids]
+    
+    # Calculate positions for ungrouped tasks
+    n_tasks = len(ungrouped_tasks)
+    if n_tasks > 0:
+        task_spacing = min(2.0, 10.0 / max(1, n_tasks))
+        task_start_x = -((n_tasks - 1) * task_spacing) / 2
         
-        proposal_node_id = f"proposal_{proposal.id}"
-        nodes.append({
-            "id": proposal_node_id,
-            "label": f"📁 {proposal.name}",
-            "type": "proposal",
-            "x": proposal_x,
-            "y": proposal_y,
-            "color": "#2196F3",
-            "size": 30,
-            "proposal_id": proposal.id,
-        })
-        edges.append((root_id, proposal_node_id))
-        
-        # TODO: Add sequence nodes here when implemented
-        # Sequences would be intermediate nodes between proposals and tasks
-        
-        # Add task nodes
-        n_tasks = len(proposal.tasks)
-        if n_tasks > 0:
-            task_spacing = min(1.5, proposal_spacing * 0.8 / max(1, n_tasks - 1))
-            task_start_x = proposal_x - ((n_tasks - 1) * task_spacing) / 2
+        for i, task in enumerate(ungrouped_tasks):
+            task_x = task_start_x + i * task_spacing
+            task_y = -1
             
-            for j, task in enumerate(proposal.tasks):
-                task_x = task_start_x + j * task_spacing
-                task_y = -2
-                
-                task_node_id = f"task_{task.id}"
-                
-                # Color based on priority
-                task_color = _priority_to_color(task.priority)
-                
-                nodes.append({
-                    "id": task_node_id,
-                    "label": f"🎯 {task.name}",
-                    "type": "task",
-                    "x": task_x,
-                    "y": task_y,
-                    "color": task_color,
-                    "size": 20,
-                    "task": task,
-                })
-                edges.append((proposal_node_id, task_node_id))
+            task_node_id = f"task_{task.id}"
+            
+            # Color based on priority
+            task_color = _priority_to_color(task.priority)
+            
+            nodes.append({
+                "id": task_node_id,
+                "label": f"🎯 {task.name}",
+                "type": "task",
+                "x": task_x,
+                "y": task_y,
+                "color": task_color,
+                "size": 25,
+                "task": task,
+            })
+            edges.append((root_id, task_node_id))
+    
+    # Future: Add sequence nodes and their tasks here
+    # Sequences would be intermediate nodes between root and tasks
     
     return {"nodes": nodes, "edges": edges}
 
@@ -220,10 +221,10 @@ def _create_tree_figure(tree_data: dict[str, Any]) -> go.Figure:
                 f"Duration: {task.duration_hours:.1f}h<br>"
                 f"RA: {task.ra_deg:.2f}°, Dec: {task.dec_deg:.2f}°"
             )
-        elif node["type"] == "proposal":
-            hover_text = f"<b>{node['label']}</b><br>Click to select"
+        elif node["type"] == "sequence":
+            hover_text = f"<b>{node['label']}</b><br>Sequence (future feature)"
         else:
-            hover_text = node["label"]
+            hover_text = f"<b>{node['label']}</b><br>Schedule root"
         
         node_trace = go.Scatter(
             x=[node["x"]],
@@ -261,39 +262,36 @@ def _create_tree_figure(tree_data: dict[str, Any]) -> go.Figure:
             ),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
-            height=400,
+            height=350,
         ),
     )
     
     return fig
 
 
-def _render_legend() -> None:
+def _render_legend(tasks: list[ObservationTask]) -> None:
     """Render legend for the tree visualization."""
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         st.markdown("🟢 **Root** (Schedule)")
     with col2:
-        st.markdown("🔵 **Proposal** (Group)")
+        st.markdown("🔗 **Sequence** (Future)")
     with col3:
-        st.markdown("🎯 **Task** (Observation)")
+        st.markdown("🎯 **Task** (Block)")
     with col4:
         st.markdown("🔴 High / 🟠 Med / 🟡 Low Priority")
     
     # Summary stats
-    proposals = get_proposals()
-    total_tasks = sum(len(p.tasks) for p in proposals)
-    total_hours = sum(
-        sum(t.duration_hours for t in p.tasks)
-        for p in proposals
-    )
+    total_hours = sum(t.duration_hours for t in tasks)
+    avg_priority = sum(t.priority for t in tasks) / len(tasks) if tasks else 0
     
     st.markdown("---")
     cols = st.columns(3)
     with cols[0]:
-        st.metric("Proposals", len(proposals))
+        st.metric("Total Tasks", len(tasks))
     with cols[1]:
-        st.metric("Total Tasks", total_tasks)
-    with cols[2]:
         st.metric("Total Hours", f"{total_hours:.1f}")
+    with cols[2]:
+        st.metric("Avg Priority", f"{avg_priority:.1f}")
+

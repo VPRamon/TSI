@@ -1,10 +1,14 @@
-"""Creative workspace page for building proposals and running scheduling simulations.
+"""Creative workspace page for building tasks and running scheduling simulations.
 
 This page provides an interactive environment for:
-- Building observation proposals with tasks
-- Visualizing proposal structure as a tree
+- Building observation tasks (scheduling blocks)
+- Visualizing task structure as a tree
 - Configuring and running the scheduler
 - Chatting with an AI assistant for guidance
+
+In STARS terminology:
+- Tasks are Scheduling Blocks (atomic observation units)
+- Sequences (future) are groups of related Tasks
 """
 
 from __future__ import annotations
@@ -14,8 +18,8 @@ import logging
 import streamlit as st
 
 from tsi.components.creative.chat_panel import render_chat_panel
-from tsi.components.creative.proposal_builder import render_proposal_builder
-from tsi.components.creative.proposal_canvas import render_proposal_canvas
+from tsi.components.creative.task_builder import render_task_builder
+from tsi.components.creative.task_canvas import render_task_canvas
 from tsi.components.creative.scheduler_config import render_scheduler_config
 from tsi.theme import add_vertical_space
 
@@ -34,8 +38,8 @@ def render() -> None:
     Layout:
     - Left column (1/3): Chat panel for AI assistance
     - Right column (2/3): 
-        - Top: Proposal canvas (tree visualization)
-        - Middle: Proposal builder panel
+        - Top: Task canvas (tree visualization)
+        - Middle: Task builder panel
         - Bottom: Scheduler configuration and run controls
     """
     # Page header
@@ -43,7 +47,7 @@ def render() -> None:
         """
         <div style='text-align: center; margin-bottom: 1rem;'>
             <h1>🎨 Creative Scheduling Workspace</h1>
-            <p style='color: #888;'>Build proposals, configure scheduling, and run simulations</p>
+            <p style='color: #888;'>Build tasks, configure scheduling, and run simulations</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -61,7 +65,7 @@ def render() -> None:
     
     with col_main:
         # Canvas at the top
-        render_proposal_canvas()
+        render_task_canvas()
         
         st.markdown("---")
         
@@ -69,7 +73,7 @@ def render() -> None:
         col_builder, col_config = st.columns(2)
         
         with col_builder:
-            render_proposal_builder()
+            render_task_builder()
         
         with col_config:
             render_scheduler_config()
@@ -146,15 +150,15 @@ def _render_footer() -> None:
         st.markdown(
             """
             <div style='text-align: center; color: #666; font-size: 0.9em;'>
-                💡 <b>Tip:</b> Use the chat assistant for help with scheduling concepts and proposal building.
+                💡 <b>Tip:</b> Use the chat assistant for help with scheduling concepts and task building.
             </div>
             """,
             unsafe_allow_html=True,
         )
     
     with col3:
-        if st.button("📥 Export Proposals", width="stretch"):
-            _export_proposals()
+        if st.button("📥 Export Tasks", width="stretch"):
+            _export_tasks()
 
 
 def _go_back_home() -> None:
@@ -169,15 +173,15 @@ def _go_back_home() -> None:
     st.rerun()
 
 
-def _export_proposals() -> None:
-    """Export proposals to JSON file."""
+def _export_tasks() -> None:
+    """Export tasks to JSON file."""
     import json
-    from tsi.components.creative.proposal_builder import export_proposals_to_schedule_json
+    from tsi.components.creative.task_builder import export_tasks_to_schedule_json
     
-    schedule_data = export_proposals_to_schedule_json()
+    schedule_data = export_tasks_to_schedule_json()
     
-    if not schedule_data.get('schedulingBlocks'):
-        st.warning("No proposals to export!")
+    if not schedule_data.get('blocks'):
+        st.warning("No tasks to export!")
         return
     
     json_str = json.dumps(schedule_data, indent=2)
@@ -185,7 +189,7 @@ def _export_proposals() -> None:
     st.download_button(
         label="📥 Download JSON",
         data=json_str,
-        file_name="creative_proposals.json",
+        file_name="creative_schedule.json",
         mime="application/json",
     )
 
