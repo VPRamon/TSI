@@ -4,6 +4,7 @@
 //! and the Python bindings. Services orchestrate database calls and implement
 //! business logic and data processing.
 
+pub mod astronomical_night;
 pub mod compare;
 
 pub mod distributions;
