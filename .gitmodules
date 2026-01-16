@@ -1,6 +1,6 @@
 [submodule "backend/qtty"]
 	path = backend/qtty
 	url = git@github.com:Siderust/qtty.git
-[submodule "backend/crates/stars-core-native/core"]
-	path = backend/crates/stars-core-native/core
+[submodule "docker/deps/stars-core"]
+	path = docker/deps/stars-core
 	url = https://devops.ice.csic.es/stars/core.git
