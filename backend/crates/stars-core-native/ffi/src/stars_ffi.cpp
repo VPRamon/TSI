@@ -8,9 +8,12 @@
 
 #include <string>
 #include <memory>
+#include <optional>
 #include <cstring>
 #include <exception>
 #include <mutex>
+#include <thread>
+#include <unordered_map>
 #include <fstream>
 #include <sstream>
 
@@ -23,8 +26,8 @@
 #include <stars/serialization/archives/json/output_archive.h>
 #include <stars/scheduler/prescheduler/prescheduler.h>
 #include <stars/scheduler/schedule/schedule.h>
-#include <stars/scheduler/scheduling_algorithms/accumulative/scheduling_algorithm.h>
-#include <stars/scheduler/scheduling_algorithms/hybrid_accumulative/scheduling_algorithm.h>
+#include <stars/scheduler/scheduling_algorithms/accumulative/accumulative_scheduling_algorithm.h>
+#include <stars/scheduler/scheduling_algorithms/hybrid_accumulative/hybrid_accumulative_scheduling_algorithm.h>
 #include <stars/scheduling_blocks/scheduling_block.h>
 #include <stars/scheduling_blocks/sequence.h>
 #include <stars/scheduling_blocks/observation_task.h>
@@ -94,6 +97,7 @@ struct StarsBlocksCollection {
 
 struct StarsPossiblePeriods {
     stars::constraints::PossiblePeriodsMap periods;
+    std::unordered_map<std::string, std::string> blockNamesById;
     
     StarsPossiblePeriods() = default;
 };
@@ -160,7 +164,7 @@ StarsResult stars_context_create(const char* config_json, StarsContextHandle* ou
         if (config.contains("instrument")) {
             stars::serialization::archives::json::InputArchive archive(config["instrument"]);
             stars::serialization::Deserializer deserializer(archive);
-            ctx->instrument = std::make_shared<stars::scheduler::instruments::Instrument>();
+            ctx->instrument = std::make_shared<stars::scheduler::instruments::Instrument>(0);
             ctx->instrument->Load(deserializer);
         }
         
@@ -230,9 +234,9 @@ StarsResult stars_context_get_execution_period(StarsContextHandle handle, char**
     
     try {
         nlohmann::json result;
-        result["begin"] = handle->executionPeriod.BeginTime().GetString();
-        result["end"] = handle->executionPeriod.EndTime().GetString();
-        result["duration_days"] = handle->executionPeriod.GetDuration().GetTotalDays();
+        result["begin"] = handle->executionPeriod.BeginTime().ToString();
+        result["end"] = handle->executionPeriod.EndTime().ToString();
+        result["duration_days"] = handle->executionPeriod.GetDuration().TotalHours() / 24.0;
         
         *out_json = duplicate_string(result.dump());
         return make_ok();
@@ -399,6 +403,10 @@ StarsResult stars_compute_possible_periods(
             blocks->blocks,
             ctx->executionPeriod
         );
+
+        for (const auto& block : blocks->blocks) {
+            periods->blockNamesById.emplace(block->GetId(), block->GetName());
+        }
         
         *out_handle = periods.release();
         return make_ok();
@@ -419,16 +427,17 @@ StarsResult stars_possible_periods_to_json(StarsPossiblePeriodsHandle handle, ch
     try {
         nlohmann::json result = nlohmann::json::array();
         
-        for (const auto& [block, periods] : handle->periods) {
+        for (const auto& [blockId, periods] : handle->periods) {
             nlohmann::json entry;
-            entry["block_id"] = block->GetId();
-            entry["block_name"] = block->GetName();
+            entry["block_id"] = blockId;
+            auto it = handle->blockNamesById.find(blockId);
+            entry["block_name"] = (it == handle->blockNamesById.end()) ? blockId : it->second;
             
             nlohmann::json periodsArray = nlohmann::json::array();
             for (const auto& period : periods) {
                 nlohmann::json p;
-                p["begin"] = period.BeginTime().GetString();
-                p["end"] = period.EndTime().GetString();
+                p["begin"] = period.BeginTime().ToString();
+                p["end"] = period.EndTime().ToString();
                 periodsArray.push_back(p);
             }
             entry["periods"] = periodsArray;
@@ -485,10 +494,26 @@ StarsResult stars_run_scheduler(
         
         switch (params.algorithm) {
             case STARS_SCHEDULER_ACCUMULATIVE:
-                algorithm = std::make_unique<stars::scheduler::algorithms::accumulative::SchedulingAlgorithm>();
+                algorithm = std::make_unique<
+                    stars::scheduler::algorithms::accumulative::AccumulativeSchedulingAlgorithm>(
+                    stars::scheduler::algorithms::accumulative::AccumulativeSchedulingAlgorithm::Configuration(
+                        params.max_iterations ? params.max_iterations : 50,
+                        /*reattempt=*/false,
+                        /*range=*/1,
+                        stars::scheduler::algorithms::figure_of_merit::TaskPriority,
+                        params.seed >= 0 ? std::optional<int>{params.seed} : std::nullopt));
                 break;
             case STARS_SCHEDULER_HYBRID_ACCUMULATIVE:
-                algorithm = std::make_unique<stars::scheduler::algorithms::hybrid_accumulative::SchedulingAlgorithm>();
+                algorithm = std::make_unique<
+                    stars::scheduler::algorithms::hybrid_accumulative::HybridAccumulativeSchedulingAlgorithm>(
+                    stars::scheduler::algorithms::hybrid_accumulative::HybridAccumulativeSchedulingAlgorithm::
+                        Configuration(
+                            std::max(1u, std::thread::hardware_concurrency()),
+                            params.max_iterations ? params.max_iterations : 50,
+                            /*reattempt=*/false,
+                            /*range=*/1,
+                            stars::scheduler::algorithms::figure_of_merit::TaskPriority,
+                            /*seeds=*/{}));
                 break;
             default:
                 return make_result(STARS_ERROR_SCHEDULING_FAILED, "Unknown algorithm type");
@@ -547,8 +572,8 @@ StarsResult stars_schedule_to_json(StarsScheduleHandle handle, char** out_json) 
                 nlohmann::json u;
                 u["task_id"] = unit->GetTask()->GetId();
                 u["task_name"] = unit->GetTask()->GetName();
-                u["begin"] = unit->GetPeriod().BeginTime().GetString();
-                u["end"] = unit->GetPeriod().EndTime().GetString();
+                u["begin"] = unit->GetPeriod().BeginTime().ToString();
+                u["end"] = unit->GetPeriod().EndTime().ToString();
                 units.push_back(u);
             }
             

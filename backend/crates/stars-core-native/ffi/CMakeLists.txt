@@ -78,6 +78,13 @@ target_include_directories(stars_ffi
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
+# STARS Core headers in this repo live under `src/stars/...` (not a separate `include/`).
+# When using STARS_CORE_ROOT (common in devcontainer builds), explicitly add it so
+# `#include <stars/...>` resolves even if the core install doesn't ship headers.
+if(DEFINED STARS_CORE_ROOT AND EXISTS "${STARS_CORE_ROOT}/src/stars")
+    target_include_directories(stars_ffi PRIVATE "${STARS_CORE_ROOT}/src")
+endif()
+
 # Link to STARS Core components
 target_link_libraries(stars_ffi
     PRIVATE
@@ -110,14 +117,14 @@ elseif(TARGET stars::serialization)
 else()
     # Link by library name (installed case)
     target_link_libraries(stars_ffi PRIVATE
-        stars-serialization
-        stars-scheduling-blocks
-        stars-scheduler
-        stars-json-builder
-        stars-constraints
-        stars-time
-        stars-coordinates
-        stars-astro
+        stars_core_serialization
+        stars_core_scheduling_blocks
+        stars_core_scheduler
+        stars_core_json_builder
+        stars_core_constraints
+        stars_core_time
+        stars_core_coordinates
+        stars_core_astro
     )
 endif()
 

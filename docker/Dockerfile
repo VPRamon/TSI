@@ -37,18 +37,27 @@ COPY backend/ ./backend/
 COPY docker/deps/stars-core /usr/src/stars-core
 RUN set -eux; \
     if [ -d /usr/src/stars-core ]; then \
+        # Build and install included json-schema-validator so find_package succeeds
+        if [ -d /usr/src/stars-core/docker/src/json-schema-validator ]; then \
+            mkdir -p /usr/src/stars-core/docker/src/json-schema-validator/build; \
+            cd /usr/src/stars-core/docker/src/json-schema-validator/build; \
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local; \
+            make -j"$(nproc)"; \
+            make install; \
+        fi; \
         mkdir -p /usr/src/stars-core/build; \
         cd /usr/src/stars-core/build; \
-        cmake .. -DCMAKE_BUILD_TYPE=Release; \
+        cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_DOCUMENTATION=OFF -DBUILD_TESTS=OFF -DCMAKE_CXX_FLAGS="-include algorithm -include optional -include type_traits -include unordered_map"; \
         make -j"$(nproc)"; \
         make install; \
     else \
         echo "Warning: /usr/src/stars-core not found in image"; \
     fi; \
-    # Build and install stars_ffi from the workspace ffi wrapper so pkg-config and cmake can find it
-    cd /workspace/backend/crates/stars-core-native/ffi || cd backend/crates/stars-core-native/ffi; \
+    # Build and install stars_ffi from the repo checkout copied into /app/backend.
+    # Don't use /workspace here: it's a devcontainer runtime mount, not present during image build.
+    cd /app/backend/crates/stars-core-native/ffi; \
     mkdir -p build; cd build; \
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DSTARS_CORE_ROOT=/usr/src/stars-core; \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local -DSTARS_CORE_ROOT=/usr/src/stars-core; \
     make -j"$(nproc)"; \
     make install
 RUN maturin build \
