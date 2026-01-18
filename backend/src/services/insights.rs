@@ -333,6 +333,13 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
     // These are tracked in the validation results table
     blocks.retain(|b| b.total_visibility_hours.value() > 0.0);
 
+    if blocks.is_empty() {
+        return Err(format!(
+            "No blocks with visibility data found for schedule_id={}. All blocks have zero visibility hours. This likely means visibility_periods data is missing from the schedule.",
+            schedule_id
+        ));
+    }
+
     compute_insights_data(blocks)
 }
 

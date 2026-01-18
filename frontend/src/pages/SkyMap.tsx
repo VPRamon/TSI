@@ -1,13 +1,14 @@
 /**
  * Sky Map page - Celestial coordinate visualization.
  */
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Plot from 'react-plotly.js';
 import { useSkyMap } from '@/hooks';
 import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
 
 function SkyMap() {
   const { scheduleId } = useParams();
+  const navigate = useNavigate();
   const id = parseInt(scheduleId ?? '0', 10);
   const { data, isLoading, error, refetch } = useSkyMap(id);
 
@@ -20,12 +21,28 @@ function SkyMap() {
   }
 
   if (error) {
+    const errorMessage = (error as Error).message;
+    const isNotFound = errorMessage.includes('not found') || errorMessage.includes('Not found');
+    
     return (
-      <ErrorMessage
-        title="Failed to load sky map"
-        message={(error as Error).message}
-        onRetry={() => refetch()}
-      />
+      <div className="flex items-center justify-center h-full p-4">
+        <div className="max-w-md">
+          <ErrorMessage
+            title={isNotFound ? 'Schedule Not Found' : 'Failed to load sky map'}
+            message={isNotFound 
+              ? `Schedule ${id} does not exist. It may have been deleted or the server may have restarted.`
+              : errorMessage
+            }
+            onRetry={isNotFound ? undefined : () => refetch()}
+          />
+          <button
+            onClick={() => navigate('/')}
+            className="mt-4 w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            Return to Schedule List
+          </button>
+        </div>
+      </div>
     );
   }
 
