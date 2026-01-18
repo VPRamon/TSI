@@ -69,6 +69,9 @@ pub mod routes;
 
 pub mod services;
 
+#[cfg(feature = "http-server")]
+pub mod http;
+
 /// Python module entry point for the new TSI Rust API.
 ///
 /// This is the new stable API module that isolates Python bindings from internal implementations.
