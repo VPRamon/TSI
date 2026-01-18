@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     pkg-config \
     cmake \
+    # Node.js & npm for frontend development inside the dev container
+    nodejs \
+    npm \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -45,3 +48,6 @@ RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --no-modify-path \
     && ~/.cargo/bin/rustup component add rustfmt clippy || true
 
 CMD ["sleep", "infinity"]
+
+# Expose frontend dev port so host/container tooling can map it
+EXPOSE 3000
