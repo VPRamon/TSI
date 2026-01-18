@@ -15,7 +15,8 @@
   "shutdownAction": "stopCompose",
   "forwardPorts": [
     8501,
-    5432
+    5432,
+    3000
   ],
   "customizations": {
     "vscode": {
