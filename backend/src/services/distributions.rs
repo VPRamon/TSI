@@ -128,6 +128,13 @@ pub async fn get_distribution_data(
         Err(_) => 0,
     };
 
+    if blocks.is_empty() {
+        return Err(format!(
+            "No blocks with visibility data found for schedule_id={}. All blocks have zero visibility hours. This likely means visibility_periods data is missing from the schedule.",
+            schedule_id
+        ));
+    }
+
     compute_distribution_data(blocks, impossible_count)
 }
 

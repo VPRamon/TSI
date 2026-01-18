@@ -82,6 +82,13 @@ function Landing() {
   };
 
   const handleScheduleClick = (scheduleId: number) => {
+    // Verify schedule exists in the current list before navigating
+    const scheduleExists = data?.schedules?.some(s => s.schedule_id === scheduleId);
+    if (!scheduleExists) {
+      setUploadError(`Schedule ${scheduleId} not found. Please refresh the page.`);
+      refetch();
+      return;
+    }
     navigate(`/schedules/${scheduleId}/sky-map`);
   };
 
