@@ -24,7 +24,11 @@ fn test_parse_schedule_with_geographic_location() {
     }"#;
 
     let result = parse_schedule_json_str(schedule_json, None);
-    assert!(result.is_ok(), "Failed to parse schedule with location: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Failed to parse schedule with location: {:?}",
+        result.err()
+    );
 
     let schedule = result.unwrap();
 
@@ -55,7 +59,10 @@ fn test_parse_schedule_computes_astronomical_nights() {
     assert!(result.is_ok());
 
     let schedule = result.unwrap();
-    assert!(!schedule.astronomical_nights.is_empty(), "Expected astronomical nights to be computed");
+    assert!(
+        !schedule.astronomical_nights.is_empty(),
+        "Expected astronomical nights to be computed"
+    );
 
     // Verify nights are within the schedule period
     for night in &schedule.astronomical_nights {
@@ -81,15 +88,21 @@ fn test_compute_astronomical_nights_greenwich() {
 
     let nights = compute_astronomical_nights(&location, &period);
 
-    assert!(!nights.is_empty(), "Expected astronomical nights at Greenwich in January");
+    assert!(
+        !nights.is_empty(),
+        "Expected astronomical nights at Greenwich in January"
+    );
 
     // Each night should be valid
     for night in &nights {
         assert!(night.start.value() < night.stop.value());
         // Night duration should be reasonable (e.g., 4-12 hours in winter)
         let duration_hours = (night.stop.value() - night.start.value()) * 24.0;
-        assert!(duration_hours > 1.0 && duration_hours < 24.0, 
-            "Unreasonable night duration: {:.1} hours", duration_hours);
+        assert!(
+            duration_hours > 1.0 && duration_hours < 24.0,
+            "Unreasonable night duration: {:.1} hours",
+            duration_hours
+        );
     }
 }
 
@@ -110,11 +123,17 @@ fn test_compute_astronomical_nights_roque_de_los_muchachos() {
 
     let nights = compute_astronomical_nights(&location, &period);
 
-    assert!(!nights.is_empty(), "Expected astronomical nights at Roque de los Muchachos");
+    assert!(
+        !nights.is_empty(),
+        "Expected astronomical nights at Roque de los Muchachos"
+    );
 
     // Should have around 7 nights in a week
-    assert!(nights.len() >= 5 && nights.len() <= 10,
-        "Expected ~7 nights in a week, got {}", nights.len());
+    assert!(
+        nights.len() >= 5 && nights.len() <= 10,
+        "Expected ~7 nights in a week, got {}",
+        nights.len()
+    );
 }
 
 /// Test that location and astronomical nights roundtrip through the database
@@ -143,7 +162,9 @@ async fn test_location_and_nights_persist_to_database() {
     let metadata = services::store_schedule(&repo, &schedule).await.unwrap();
 
     // Retrieve schedule
-    let retrieved = services::get_schedule(&repo, metadata.schedule_id).await.unwrap();
+    let retrieved = services::get_schedule(&repo, metadata.schedule_id)
+        .await
+        .unwrap();
 
     // Verify geographic location persisted
     let location = &retrieved.geographic_location;
@@ -192,7 +213,7 @@ fn test_location_without_elevation() {
 #[test]
 fn test_no_astronomical_nights_polar_summer() {
     let location = GeographicLocation {
-        latitude: 70.0,  // High northern latitude
+        latitude: 70.0, // High northern latitude
         longitude: 20.0,
         elevation_m: Some(0.0),
     };
@@ -231,7 +252,7 @@ fn test_inferred_schedule_period_with_location() {
     assert!(result.is_ok());
 
     let schedule = result.unwrap();
-    
+
     // Schedule period should be inferred from dark periods
     assert_eq!(schedule.schedule_period.start.value(), 60694.0);
     assert_eq!(schedule.schedule_period.stop.value(), 60697.0);

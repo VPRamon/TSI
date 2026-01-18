@@ -3,7 +3,9 @@
 //! These tests exercise the full API call stack from route handlers
 //! through services to repositories, validating end-to-end functionality.
 
-use tsi_rust::api::{Constraints, GeographicLocation, Period, Schedule, SchedulingBlock, SchedulingBlockId};
+use tsi_rust::api::{
+    Constraints, GeographicLocation, Period, Schedule, SchedulingBlock, SchedulingBlockId,
+};
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::services;
 use tsi_rust::models::ModifiedJulianDate;
