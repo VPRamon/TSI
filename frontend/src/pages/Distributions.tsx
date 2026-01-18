@@ -2,14 +2,29 @@
  * Distributions page - Statistical analysis of schedule properties.
  */
 import { useParams } from 'react-router-dom';
-import Plot from 'react-plotly.js';
-import { useDistributions } from '@/hooks';
-import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
+import { useDistributions, usePlotlyTheme } from '@/hooks';
+import { Card, LoadingSpinner, ErrorMessage, MetricCard, PlotlyChart } from '@/components';
+import { STATUS_COLORS } from '@/constants/colors';
 
 function Distributions() {
   const { scheduleId } = useParams();
   const id = parseInt(scheduleId ?? '0', 10);
   const { data, isLoading, error, refetch } = useDistributions(id);
+
+  // Call hooks unconditionally (rules of hooks)
+  const { layout: priorityLayout, config } = usePlotlyTheme({
+    title: 'Priority Distribution',
+    xAxis: { title: 'Priority' },
+    yAxis: { title: 'Count' },
+    barMode: 'overlay',
+  });
+
+  const { layout: visibilityLayout } = usePlotlyTheme({
+    title: 'Visibility Distribution',
+    xAxis: { title: 'Total Visibility (hours)' },
+    yAxis: { title: 'Count' },
+    barMode: 'overlay',
+  });
 
   if (isLoading) {
     return (
@@ -39,14 +54,14 @@ function Distributions() {
       type: 'histogram',
       x: data.blocks.filter((b) => b.scheduled).map((b) => b.priority),
       name: 'Scheduled',
-      marker: { color: '#22c55e' },
+      marker: { color: STATUS_COLORS.scheduled },
       opacity: 0.7,
     },
     {
       type: 'histogram',
       x: data.blocks.filter((b) => !b.scheduled).map((b) => b.priority),
       name: 'Unscheduled',
-      marker: { color: '#ef4444' },
+      marker: { color: STATUS_COLORS.unscheduled },
       opacity: 0.7,
     },
   ];
@@ -57,61 +72,17 @@ function Distributions() {
       type: 'histogram',
       x: data.blocks.filter((b) => b.scheduled).map((b) => b.total_visibility_hours),
       name: 'Scheduled',
-      marker: { color: '#22c55e' },
+      marker: { color: STATUS_COLORS.scheduled },
       opacity: 0.7,
     },
     {
       type: 'histogram',
       x: data.blocks.filter((b) => !b.scheduled).map((b) => b.total_visibility_hours),
       name: 'Unscheduled',
-      marker: { color: '#ef4444' },
+      marker: { color: STATUS_COLORS.unscheduled },
       opacity: 0.7,
     },
   ];
-
-  const baseLayout: Partial<Plotly.Layout> = {
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: '#1e293b',
-    font: { color: '#94a3b8' },
-    barmode: 'overlay',
-    legend: {
-      orientation: 'h',
-      y: -0.15,
-      font: { color: '#94a3b8' },
-    },
-    margin: { t: 50, r: 20, b: 60, l: 60 },
-  };
-
-  const priorityLayout: Partial<Plotly.Layout> = {
-    ...baseLayout,
-    title: { text: 'Priority Distribution', font: { color: '#fff' } },
-    xaxis: {
-      title: { text: 'Priority' },
-      gridcolor: '#334155',
-    },
-    yaxis: {
-      title: { text: 'Count' },
-      gridcolor: '#334155',
-    },
-  };
-
-  const visibilityLayout: Partial<Plotly.Layout> = {
-    ...baseLayout,
-    title: { text: 'Visibility Distribution', font: { color: '#fff' } },
-    xaxis: {
-      title: { text: 'Total Visibility (hours)' },
-      gridcolor: '#334155',
-    },
-    yaxis: {
-      title: { text: 'Count' },
-      gridcolor: '#334155',
-    },
-  };
-
-  const config: Partial<Plotly.Config> = {
-    responsive: true,
-    displayModeBar: true,
-  };
 
   return (
     <div className="space-y-6">
@@ -140,15 +111,7 @@ function Distributions() {
             value={`${data.priority_stats.min.toFixed(1)} - ${data.priority_stats.max.toFixed(1)}`}
           />
         </div>
-        <div className="h-[400px]">
-          <Plot
-            data={priorityHistogram}
-            layout={priorityLayout}
-            config={config}
-            style={{ width: '100%', height: '100%' }}
-            useResizeHandler
-          />
-        </div>
+        <PlotlyChart data={priorityHistogram} layout={priorityLayout} config={config} height="400px" />
       </Card>
 
       {/* Visibility stats */}
@@ -162,15 +125,12 @@ function Distributions() {
             value={`${data.visibility_stats.min.toFixed(0)} - ${data.visibility_stats.max.toFixed(0)}h`}
           />
         </div>
-        <div className="h-[400px]">
-          <Plot
-            data={visibilityHistogram}
-            layout={visibilityLayout}
-            config={config}
-            style={{ width: '100%', height: '100%' }}
-            useResizeHandler
-          />
-        </div>
+        <PlotlyChart
+          data={visibilityHistogram}
+          layout={visibilityLayout}
+          config={config}
+          height="400px"
+        />
       </Card>
     </div>
   );

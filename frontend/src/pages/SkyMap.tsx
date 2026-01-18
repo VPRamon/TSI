@@ -2,15 +2,23 @@
  * Sky Map page - Celestial coordinate visualization.
  */
 import { useParams, useNavigate } from 'react-router-dom';
-import Plot from 'react-plotly.js';
-import { useSkyMap } from '@/hooks';
-import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
+import { useSkyMap, usePlotlyTheme } from '@/hooks';
+import { Card, LoadingSpinner, ErrorMessage, MetricCard, PlotlyChart } from '@/components';
+import { STATUS_COLORS } from '@/constants/colors';
 
 function SkyMap() {
   const { scheduleId } = useParams();
   const navigate = useNavigate();
   const id = parseInt(scheduleId ?? '0', 10);
   const { data, isLoading, error, refetch } = useSkyMap(id);
+
+  // Call hook unconditionally (rules of hooks)
+  const { layout, config } = usePlotlyTheme({
+    title: 'Sky Map - Observation Targets',
+    xAxis: { title: 'Right Ascension (degrees)', range: [0, 360] },
+    yAxis: { title: 'Declination (degrees)', range: [-90, 90] },
+    configPreset: 'skymap',
+  });
 
   if (isLoading) {
     return (
@@ -64,7 +72,7 @@ function SkyMap() {
       y: scheduled.map((b) => b.target_dec_deg),
       marker: {
         size: 8,
-        color: '#22c55e',
+        color: STATUS_COLORS.scheduled,
         opacity: 0.7,
       },
       text: scheduled.map(
@@ -80,7 +88,7 @@ function SkyMap() {
       y: unscheduled.map((b) => b.target_dec_deg),
       marker: {
         size: 6,
-        color: '#ef4444',
+        color: STATUS_COLORS.unscheduled,
         opacity: 0.5,
       },
       text: unscheduled.map(
@@ -89,40 +97,6 @@ function SkyMap() {
       hoverinfo: 'text',
     },
   ];
-
-  const layout: Partial<Plotly.Layout> = {
-    title: {
-      text: 'Sky Map - Observation Targets',
-      font: { color: '#fff' },
-    },
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: '#1e293b',
-    font: { color: '#94a3b8' },
-    xaxis: {
-      title: { text: 'Right Ascension (degrees)' },
-      range: [0, 360],
-      gridcolor: '#334155',
-      zerolinecolor: '#475569',
-    },
-    yaxis: {
-      title: { text: 'Declination (degrees)' },
-      range: [-90, 90],
-      gridcolor: '#334155',
-      zerolinecolor: '#475569',
-    },
-    legend: {
-      orientation: 'h',
-      y: -0.15,
-      font: { color: '#94a3b8' },
-    },
-    margin: { t: 50, r: 20, b: 60, l: 60 },
-  };
-
-  const config: Partial<Plotly.Config> = {
-    responsive: true,
-    displayModeBar: true,
-    modeBarButtonsToRemove: ['lasso2d', 'select2d'],
-  };
 
   const schedulingRate =
     data.total_count > 0 ? ((data.scheduled_count / data.total_count) * 100).toFixed(1) : '0';
@@ -151,15 +125,7 @@ function SkyMap() {
 
       {/* Plot */}
       <Card title="Celestial Coordinates">
-        <div className="h-[500px]">
-          <Plot
-            data={plotData}
-            layout={layout}
-            config={config}
-            style={{ width: '100%', height: '100%' }}
-            useResizeHandler
-          />
-        </div>
+        <PlotlyChart data={plotData} layout={layout} config={config} height="500px" />
       </Card>
 
       {/* Priority bins legend */}

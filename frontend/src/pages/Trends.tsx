@@ -3,9 +3,9 @@
  */
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import Plot from 'react-plotly.js';
-import { useTrends } from '@/hooks';
-import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
+import { useTrends, usePlotlyTheme } from '@/hooks';
+import { Card, LoadingSpinner, ErrorMessage, MetricCard, PlotlyChart } from '@/components';
+import { STATUS_COLORS } from '@/constants/colors';
 
 function Trends() {
   const { scheduleId } = useParams();
@@ -16,6 +16,19 @@ function Trends() {
   const [bandwidth, setBandwidth] = useState(0.5);
 
   const { data, isLoading, error, refetch } = useTrends(id, { bins, bandwidth });
+
+  // Call hooks unconditionally (rules of hooks)
+  const { layout: byPriorityLayout, config } = usePlotlyTheme({
+    title: 'Scheduling Rate by Priority',
+    xAxis: { title: 'Priority Bin' },
+    yAxis: { title: 'Scheduling Rate (%)', range: [0, 100] },
+  });
+
+  const { layout: byVisibilityLayout } = usePlotlyTheme({
+    title: 'Scheduling Rate by Visibility',
+    xAxis: { title: 'Visibility (hours)' },
+    yAxis: { title: 'Scheduling Rate (%)', range: [0, 100] },
+  });
 
   if (isLoading) {
     return (
@@ -62,7 +75,7 @@ function Trends() {
       name: 'Empirical Rate',
       x: data.by_visibility.map((p) => p.mid_value),
       y: data.by_visibility.map((p) => p.scheduled_rate * 100),
-      line: { color: '#22c55e' },
+      line: { color: STATUS_COLORS.scheduled },
       marker: { size: 8 },
     },
     {
@@ -71,40 +84,9 @@ function Trends() {
       name: 'Smoothed',
       x: data.smoothed_visibility.map((p) => p.x),
       y: data.smoothed_visibility.map((p) => p.y_smoothed * 100),
-      line: { color: '#f59e0b', dash: 'dash' },
+      line: { color: STATUS_COLORS.impossible, dash: 'dash' },
     },
   ];
-
-  const baseLayout: Partial<Plotly.Layout> = {
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: '#1e293b',
-    font: { color: '#94a3b8' },
-    margin: { t: 50, r: 20, b: 60, l: 60 },
-    legend: {
-      orientation: 'h',
-      y: -0.15,
-      font: { color: '#94a3b8' },
-    },
-  };
-
-  const byPriorityLayout: Partial<Plotly.Layout> = {
-    ...baseLayout,
-    title: { text: 'Scheduling Rate by Priority', font: { color: '#fff' } },
-    xaxis: { title: { text: 'Priority Bin' }, gridcolor: '#334155' },
-    yaxis: { title: { text: 'Scheduling Rate (%)' }, gridcolor: '#334155', range: [0, 100] },
-  };
-
-  const byVisibilityLayout: Partial<Plotly.Layout> = {
-    ...baseLayout,
-    title: { text: 'Scheduling Rate by Visibility', font: { color: '#fff' } },
-    xaxis: { title: { text: 'Visibility (hours)' }, gridcolor: '#334155' },
-    yaxis: { title: { text: 'Scheduling Rate (%)' }, gridcolor: '#334155', range: [0, 100] },
-  };
-
-  const config: Partial<Plotly.Config> = {
-    responsive: true,
-    displayModeBar: true,
-  };
 
   return (
     <div className="space-y-6">
@@ -157,28 +139,17 @@ function Trends() {
 
       {/* By Priority chart */}
       <Card title="By Priority">
-        <div className="h-[400px]">
-          <Plot
-            data={byPriorityData}
-            layout={byPriorityLayout}
-            config={config}
-            style={{ width: '100%', height: '100%' }}
-            useResizeHandler
-          />
-        </div>
+        <PlotlyChart data={byPriorityData} layout={byPriorityLayout} config={config} height="400px" />
       </Card>
 
       {/* By Visibility chart */}
       <Card title="By Visibility">
-        <div className="h-[400px]">
-          <Plot
-            data={byVisibilityData}
-            layout={byVisibilityLayout}
-            config={config}
-            style={{ width: '100%', height: '100%' }}
-            useResizeHandler
-          />
-        </div>
+        <PlotlyChart
+          data={byVisibilityData}
+          layout={byVisibilityLayout}
+          config={config}
+          height="400px"
+        />
       </Card>
     </div>
   );

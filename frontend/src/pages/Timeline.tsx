@@ -2,15 +2,45 @@
  * Timeline page - Scheduled observations over time.
  */
 import { useParams } from 'react-router-dom';
-import Plot from 'react-plotly.js';
-import { useTimeline } from '@/hooks';
-import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
+import { useTimeline, usePlotlyTheme } from '@/hooks';
+import { Card, LoadingSpinner, ErrorMessage, MetricCard, PlotlyChart } from '@/components';
 import { mjdToDate } from '@/constants/dates';
 
 function Timeline() {
   const { scheduleId } = useParams();
   const id = parseInt(scheduleId ?? '0', 10);
   const { data, isLoading, error, refetch } = useTimeline(id);
+
+  // Add dark periods as background shapes (compute before hook call)
+  const shapes: Partial<Plotly.Shape>[] = (data?.dark_periods ?? []).map((period) => ({
+    type: 'rect',
+    xref: 'x',
+    yref: 'paper',
+    x0: mjdToDate(period.start),
+    x1: mjdToDate(period.stop),
+    y0: 0,
+    y1: 1,
+    fillcolor: 'rgba(30, 58, 138, 0.2)',
+    line: { width: 0 },
+  }));
+
+  // Call hook unconditionally (rules of hooks)
+  const { layout, config } = usePlotlyTheme({
+    title: 'Observation Timeline',
+    xAxis: { title: 'Date', type: 'date' },
+    yAxis: { title: 'Observation' },
+    shapes,
+    showLegend: false,
+  });
+
+  // Override yaxis to hide tick labels
+  const timelineLayout = {
+    ...layout,
+    yaxis: {
+      ...layout.yaxis,
+      showticklabels: false,
+    },
+  };
 
   if (isLoading) {
     return (
@@ -50,47 +80,6 @@ function Timeline() {
     showlegend: false,
   }));
 
-  // Add dark periods as background shapes
-  const shapes: Partial<Plotly.Shape>[] = data.dark_periods.map((period) => ({
-    type: 'rect',
-    xref: 'x',
-    yref: 'paper',
-    x0: mjdToDate(period.start),
-    x1: mjdToDate(period.stop),
-    y0: 0,
-    y1: 1,
-    fillcolor: 'rgba(30, 58, 138, 0.2)',
-    line: { width: 0 },
-  }));
-
-  const layout: Partial<Plotly.Layout> = {
-    title: {
-      text: 'Observation Timeline',
-      font: { color: '#fff' },
-    },
-    paper_bgcolor: 'transparent',
-    plot_bgcolor: '#1e293b',
-    font: { color: '#94a3b8' },
-    xaxis: {
-      title: { text: 'Date' },
-      type: 'date',
-      gridcolor: '#334155',
-    },
-    yaxis: {
-      title: { text: 'Observation' },
-      showticklabels: false,
-      gridcolor: '#334155',
-    },
-    shapes,
-    margin: { t: 50, r: 20, b: 60, l: 60 },
-    hovermode: 'closest',
-  };
-
-  const config: Partial<Plotly.Config> = {
-    responsive: true,
-    displayModeBar: true,
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -109,15 +98,7 @@ function Timeline() {
 
       {/* Timeline chart */}
       <Card title="Schedule Timeline">
-        <div className="h-[600px]">
-          <Plot
-            data={plotData}
-            layout={layout}
-            config={config}
-            style={{ width: '100%', height: '100%' }}
-            useResizeHandler
-          />
-        </div>
+        <PlotlyChart data={plotData} layout={timelineLayout} config={config} height="600px" />
       </Card>
 
       {/* Months list */}
