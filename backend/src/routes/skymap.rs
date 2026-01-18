@@ -1,8 +1,6 @@
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 /// Priority bin information for sky map.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PriorityBinInfo {
     pub label: String,
@@ -12,7 +10,6 @@ pub struct PriorityBinInfo {
 }
 
 /// Minimal block data for visualization queries.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LightweightBlock {
     pub original_block_id: String, // Original ID from JSON (shown to user)
@@ -25,7 +22,6 @@ pub struct LightweightBlock {
 }
 
 /// Sky map visualization data.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkyMapData {
     pub blocks: Vec<LightweightBlock>,
@@ -44,24 +40,6 @@ pub struct SkyMapData {
 
 /// Route function name constant
 pub const GET_SKY_MAP_DATA: &str = "get_sky_map_data";
-
-/// Get sky map visualization data (ETL-based).
-#[pyfunction]
-pub fn get_sky_map_data(schedule_id: crate::api::ScheduleId) -> PyResult<crate::api::SkyMapData> {
-    let data = crate::services::py_get_sky_map_data_analytics(schedule_id)
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
-    Ok(data)
-}
-
-/// Register skymap functions, classes and constants with Python module.
-pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_sky_map_data, m)?)?;
-    m.add_class::<PriorityBinInfo>()?;
-    m.add_class::<LightweightBlock>()?;
-    m.add_class::<SkyMapData>()?;
-    m.add("GET_SKY_MAP_DATA", GET_SKY_MAP_DATA)?;
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

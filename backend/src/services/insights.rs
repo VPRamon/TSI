@@ -5,7 +5,6 @@
 use crate::db::models::{
     AnalyticsMetrics, ConflictRecord, CorrelationEntry, InsightsBlock, InsightsData, TopObservation,
 };
-use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
@@ -343,18 +342,13 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
 ///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 /// To see validation issues, use py_get_validation_report.
-// #[pyfunction] - removed, function now internal only
-pub fn py_get_insights_data(schedule_id: crate::api::ScheduleId) -> PyResult<InsightsData> {
+pub fn py_get_insights_data(schedule_id: crate::api::ScheduleId) -> Result<InsightsData, String> {
     let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
+        format!("Failed to create async runtime: {}", e)
     })?;
 
     runtime
         .block_on(get_insights_data(schedule_id.0))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 #[cfg(test)]

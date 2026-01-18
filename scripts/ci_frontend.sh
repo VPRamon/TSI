@@ -2,34 +2,40 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=ci_common.sh
-source "${SCRIPT_DIR}/ci_common.sh"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+FRONTEND_DIR="${ROOT_DIR}/frontend"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+ci_header() { echo -e "\n${BLUE}=== $1 ===${NC}"; }
+ci_success() { echo -e "${GREEN}✓ $1${NC}"; }
+ci_error() { echo -e "${RED}✗ $1${NC}"; }
+ci_warn() { echo -e "${YELLOW}! $1${NC}"; }
 
 RUN_LINTERS=true
-RUN_TESTS=true
-TEST_SUBSET=""
+RUN_TYPECHECK=true
+RUN_BUILD=false
 SHOW_HELP=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --linters-only)
-            RUN_TESTS=false
+            RUN_TYPECHECK=false
+            RUN_BUILD=false
             shift
             ;;
-        --tests-only)
+        --typecheck-only)
             RUN_LINTERS=false
+            RUN_BUILD=false
             shift
             ;;
-        --subset)
-            TEST_SUBSET="${2:-}"
-            shift 2
-            ;;
-        --docker)
-            USE_DOCKER=true
-            shift
-            ;;
-        --no-docker)
-            USE_DOCKER=false
+        --build)
+            RUN_BUILD=true
             shift
             ;;
         -h|--help)
@@ -48,109 +54,56 @@ if [[ "$SHOW_HELP" == true ]]; then
     cat << EOF
 Usage: scripts/ci_frontend.sh [OPTIONS]
 
-Python/Streamlit (frontend + library) quality gates and tests.
+React/TypeScript frontend quality gates and build checks.
 
 Options:
-  --linters-only      Run ruff/black/mypy only
-  --tests-only        Run pytest only
-  --subset SUBSET     unit|integration|unmarked|all
-  --docker            Force Docker execution (DEV_IMAGE_TAG)
-  --no-docker         Force native execution
+  --linters-only      Run ESLint only
+  --typecheck-only    Run TypeScript check only
+  --build             Also run production build
   -h, --help          Show this help message
-
-Notes:
-  - E2E tests are run by scripts/ci_e2e.sh
-  - Rust/PyO3 bindings tests are run by scripts/ci_backend.sh
 
 EOF
     exit 0
 fi
 
-ci_init_docker
-ci_show_mode
+cd "$FRONTEND_DIR"
+
+# Check if node_modules exists
+if [[ ! -d "node_modules" ]]; then
+    ci_header "Installing dependencies"
+    npm ci
+fi
 
 FAILED=()
 
 if [[ "$RUN_LINTERS" == true ]]; then
-    ci_header "Python Quality Gates"
-
-    if ci_run "ruff check src/ tests/"; then
-        ci_success "ruff check passed"
+    ci_header "ESLint"
+    if npm run lint 2>/dev/null; then
+        ci_success "ESLint passed"
     else
-        ci_error "ruff check failed"
-        FAILED+=("ruff")
-    fi
-
-    if ci_run "black --check src/ tests/"; then
-        ci_success "black check passed"
-    else
-        ci_error "black check failed"
-        FAILED+=("black")
-    fi
-
-    if ci_run "mypy src/"; then
-        ci_success "mypy passed"
-    else
-        ci_error "mypy failed"
-        FAILED+=("mypy")
+        ci_error "ESLint failed"
+        FAILED+=("eslint")
     fi
 fi
 
-if [[ "$RUN_TESTS" == true ]]; then
-    ci_header "Python Tests"
-
-    if [[ -n "$TEST_SUBSET" && "$TEST_SUBSET" != "all" ]]; then
-        SUBSETS=("$TEST_SUBSET")
+if [[ "$RUN_TYPECHECK" == true ]]; then
+    ci_header "TypeScript Check"
+    if npm run typecheck 2>/dev/null; then
+        ci_success "TypeScript check passed"
     else
-        SUBSETS=(unit integration unmarked)
+        ci_error "TypeScript check failed"
+        FAILED+=("typecheck")
     fi
+fi
 
-    for subset in "${SUBSETS[@]}"; do
-        case "$subset" in
-            unit)
-                if ci_run "pytest -m unit --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing:skip-covered"; then
-                    ci_success "unit tests passed"
-                else
-                    ci_error "unit tests failed"
-                    FAILED+=("pytest-unit")
-                fi
-                ;;
-            integration)
-                set +e
-                ci_run "pytest -m integration --no-cov"
-                PYTEST_EXIT=$?
-                set -e
-                if [[ $PYTEST_EXIT -eq 0 || $PYTEST_EXIT -eq 5 ]]; then
-                    ci_success "integration tests passed"
-                else
-                    ci_error "integration tests failed"
-                    FAILED+=("pytest-integration")
-                fi
-                ;;
-            unmarked)
-                set +e
-                ci_run "pytest -m 'not unit and not integration and not e2e' --no-cov"
-                PYTEST_EXIT=$?
-                set -e
-                if [[ $PYTEST_EXIT -eq 0 || $PYTEST_EXIT -eq 5 ]]; then
-                    ci_success "unmarked tests passed"
-                else
-                    ci_error "unmarked tests failed"
-                    FAILED+=("pytest-unmarked")
-                fi
-                ;;
-            e2e)
-                ci_warn "subset 'e2e' belongs to scripts/ci_e2e.sh; skipping"
-                ;;
-            bindings)
-                ci_warn "subset 'bindings' belongs to scripts/ci_backend.sh; skipping"
-                ;;
-            *)
-                ci_error "Unknown subset: $subset"
-                FAILED+=("pytest-$subset")
-                ;;
-        esac
-    done
+if [[ "$RUN_BUILD" == true ]]; then
+    ci_header "Production Build"
+    if npm run build; then
+        ci_success "Build succeeded"
+    else
+        ci_error "Build failed"
+        FAILED+=("build")
+    fi
 fi
 
 ci_header "Summary"

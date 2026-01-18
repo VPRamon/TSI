@@ -1,10 +1,10 @@
 //! # TSI Rust Backend
 //!
-//! High-performance telescope scheduling analysis engine with Python bindings.
+//! High-performance telescope scheduling analysis engine.
 //!
 //! This crate provides a Rust-based backend for the Telescope Scheduling Intelligence (TSI)
 //! system, offering efficient parsing, preprocessing, validation, and analysis of astronomical
-//! observation schedules. The core functionality is exposed to Python via PyO3 bindings.
+//! observation schedules. The backend exposes a REST API via Axum for the React frontend.
 //!
 //! ## Features
 //!
@@ -13,37 +13,17 @@
 //! - **Analysis**: Compute metrics, correlations, and identify scheduling conflicts
 //! - **Time Handling**: Modified Julian Date (MJD) conversions and time period management
 //! - **Visibility Computation**: Integration with visibility period data
+//! - **HTTP API**: RESTful endpoints for frontend integration
 //!
 //! ## Architecture
 //!
 //! The crate is organized into several logical modules:
 //!
-//! - [`api`]: PyO3 bindings exposing Rust functionality to Python (DTOs, conversions, exports)
+//! - [`api`]: Data Transfer Objects (DTOs) for API responses
 //! - [`db`]: Database operations, repository pattern, and persistence layer
 //! - [`services`]: High-level business logic and visualization services
-//!
-//! ## Python API Example
-//!
-//! ```python
-//! import tsi_rust
-//!
-//! # Initialize database connection
-//! tsi_rust.py_init_database()
-//!
-//! # Store schedule and populate analytics
-//! metadata = tsi_rust.py_store_schedule(
-//!     schedule_json,
-//!     possible_periods_json,
-//!     dark_periods_json,
-//!     "My Schedule",
-//!     populate_analytics=True,
-//!     skip_time_bins=False
-//! )
-//!
-//! # Get pre-computed analytics summary
-//! summary = tsi_rust.py_get_schedule_summary(metadata.schedule_id)
-//! print(f"Scheduling rate: {summary.scheduling_rate:.2%}")
-//! ```
+//! - [`http`]: Axum-based HTTP server and request handlers
+//! - [`routes`]: Route-specific data types and business logic
 //!
 
 // Allow large error types - RepositoryError contains rich context for debugging
@@ -58,8 +38,6 @@
 //! - Parallel batch operations
 //! - Minimal allocations in hot paths
 
-use pyo3::prelude::*;
-
 pub mod api;
 
 pub mod db;
@@ -71,71 +49,3 @@ pub mod services;
 
 #[cfg(feature = "http-server")]
 pub mod http;
-
-/// Python module entry point for the new TSI Rust API.
-///
-/// This is the new stable API module that isolates Python bindings from internal implementations.
-/// All PyO3 types and conversions are handled in the `api` module, allowing internal models
-/// to evolve independently.
-///
-/// # Module Contents
-///
-/// - Time conversion utilities
-/// - Database operations (store, retrieve, analytics)
-/// - Visualization data queries (sky map, distributions, timeline, insights, trends, compare)
-/// - Algorithm operations (conflict detection, top observations)
-/// - Validation reports
-///
-/// # Usage
-///
-/// ```python
-/// import tsi_rust_api
-///
-/// # Initialize database
-/// tsi_rust_api.init_database()
-///
-/// # Store schedule
-/// metadata = tsi_rust_api.store_schedule(
-///     schedule_json, possible_periods_json, dark_periods_json,
-///     "My Schedule", populate_analytics=True
-/// )
-///
-/// # Get visualization data
-/// sky_map = tsi_rust_api.get_sky_map_data(metadata.schedule_id)
-/// ```
-#[pymodule]
-fn tsi_rust(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Re-export all functions from the API module
-    api::register_api_functions(m)?;
-
-    // Add transformation functions that Python code expects
-    api::register_transformation_functions(m)?;
-
-    Ok(())
-}
-
-/// Python module: tsi_rust_api
-///
-/// **NEW API** - This is the new high-level API module.
-/// The `tsi_rust` module above is for backwards compatibility.
-///
-/// Example usage:
-/// ```python
-/// from tsi_rust_api import TSIBackend
-///
-/// # Initialize backend
-/// backend = TSIBackend()
-///
-/// # Store schedule with ETL
-/// metadata = backend.store_schedule(
-///     schedule_json, possible_periods_json, dark_periods_json,
-///     "My Schedule", populate_analytics=True
-/// )
-///
-/// # Get visualization data
-/// sky_map = tsi_rust_api.get_sky_map_data(metadata.schedule_id)
-/// ```
-#[pymodule]
-fn tsi_rust_api(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    api::register_api_functions(m)
-}

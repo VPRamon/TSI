@@ -1,12 +1,10 @@
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // =========================================================
-// Trends types + route
+// Trends types
 // =========================================================
 
 /// Block data for trends analysis.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendsBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
@@ -18,7 +16,6 @@ pub struct TrendsBlock {
 }
 
 /// Empirical scheduling rate point.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmpiricalRatePoint {
     pub bin_label: String,
@@ -28,7 +25,6 @@ pub struct EmpiricalRatePoint {
 }
 
 /// Smoothed trend point.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SmoothedPoint {
     pub x: f64,
@@ -37,7 +33,6 @@ pub struct SmoothedPoint {
 }
 
 /// Heatmap bin data.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HeatmapBin {
     pub visibility_mid: f64,
@@ -47,7 +42,6 @@ pub struct HeatmapBin {
 }
 
 /// Trends metrics summary.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendsMetrics {
     pub total_count: usize,
@@ -66,7 +60,6 @@ pub struct TrendsMetrics {
 }
 
 /// Complete trends dataset.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendsData {
     pub blocks: Vec<TrendsBlock>,
@@ -82,38 +75,6 @@ pub struct TrendsData {
 
 /// Route function name constant for trends
 pub const GET_TRENDS_DATA: &str = "get_trends_data";
-
-/// Get trends analysis data (wraps service call).
-/// Accepts optional parameters from Python and uses sensible defaults.
-#[pyfunction]
-#[allow(clippy::too_many_arguments)]
-pub fn get_trends_data(
-    schedule_id: crate::api::ScheduleId,
-    n_bins: Option<i64>,
-    bandwidth: Option<f64>,
-    n_smooth_points: Option<i64>,
-) -> PyResult<crate::api::TrendsData> {
-    let n_bins = n_bins.unwrap_or(10) as usize;
-    let bandwidth = bandwidth.unwrap_or(0.5);
-    let n_smooth_points = n_smooth_points.unwrap_or(12) as usize;
-
-    let data =
-        crate::services::py_get_trends_data(schedule_id, n_bins, bandwidth, n_smooth_points)?;
-    Ok(data)
-}
-
-/// Register trends-related functions, classes, and constants.
-pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_trends_data, m)?)?;
-    m.add_class::<TrendsBlock>()?;
-    m.add_class::<EmpiricalRatePoint>()?;
-    m.add_class::<SmoothedPoint>()?;
-    m.add_class::<HeatmapBin>()?;
-    m.add_class::<TrendsMetrics>()?;
-    m.add_class::<TrendsData>()?;
-    m.add("GET_TRENDS_DATA", GET_TRENDS_DATA)?;
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

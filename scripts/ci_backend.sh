@@ -6,8 +6,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/ci_common.sh"
 
 MODE="standard"  # standard|coverage|all
-RUN_BINDINGS=true
-RUN_RUST=true
 
 SHOW_HELP=false
 
@@ -23,14 +21,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --all)
             MODE="all"
-            shift
-            ;;
-        --no-bindings)
-            RUN_BINDINGS=false
-            shift
-            ;;
-        --bindings-only)
-            RUN_RUST=false
             shift
             ;;
         --docker)
@@ -57,7 +47,7 @@ if [[ "${SHOW_HELP}" == true ]]; then
     cat << EOF
 Usage: scripts/ci_backend.sh [standard|coverage|all] [OPTIONS]
 
-Rust backend CI checks (plus optional Python bindings tests).
+Rust backend CI checks.
 
 Modes:
   standard            cargo fmt/check/clippy/test (+ doc tests)
@@ -65,8 +55,6 @@ Modes:
   all                 run standard + coverage
 
 Options:
-  --no-bindings       Skip Python bindings tests (pytest backend/tests)
-    --bindings-only     Run only Python bindings tests (skip Rust)
   --docker            Force Docker execution (DEV_IMAGE_TAG)
   --no-docker         Force native execution
   -h, --help          Show this help message
@@ -85,58 +73,42 @@ ci_show_mode
 FAILED=()
 
 run_standard() {
-    if [[ "$RUN_RUST" == true ]]; then
-        ci_header "Rust Backend Checks"
+    ci_header "Rust Backend Checks"
 
-        if ci_run "cd backend && cargo fmt --all --check"; then
-            ci_success "cargo fmt passed"
-        else
-            ci_error "cargo fmt failed"
-            FAILED+=("cargo-fmt")
-        fi
-
-        # Match the most complete flavor used in root CI (all features).
-        if ci_run "cd backend && cargo check --all-targets --all-features"; then
-            ci_success "cargo check passed"
-        else
-            ci_error "cargo check failed"
-            FAILED+=("cargo-check")
-        fi
-
-        if ci_run "cd backend && cargo clippy --all-targets --all-features -- -D warnings"; then
-            ci_success "cargo clippy passed"
-        else
-            ci_error "cargo clippy failed"
-            FAILED+=("cargo-clippy")
-        fi
-
-        if ci_run "cd backend && cargo test --all-targets --all-features"; then
-            ci_success "cargo test passed"
-        else
-            ci_error "cargo test failed"
-            FAILED+=("cargo-test")
-        fi
-
-        if ci_run "cd backend && cargo test --doc --all-features"; then
-            ci_success "cargo doc tests passed"
-        else
-            ci_error "cargo doc tests failed"
-            FAILED+=("cargo-doc-test")
-        fi
+    if ci_run "cd backend && cargo fmt --all --check"; then
+        ci_success "cargo fmt passed"
+    else
+        ci_error "cargo fmt failed"
+        FAILED+=("cargo-fmt")
     fi
 
-    if [[ "$RUN_BINDINGS" == true ]]; then
-        ci_header "Python Bindings Tests"
-        set +e
-        ci_run "pytest backend/tests --no-cov"
-        PYTEST_EXIT=$?
-        set -e
-        if [[ $PYTEST_EXIT -eq 0 || $PYTEST_EXIT -eq 5 ]]; then
-            ci_success "bindings tests passed"
-        else
-            ci_error "bindings tests failed"
-            FAILED+=("pytest-bindings")
-        fi
+    # Match the most complete flavor used in root CI (all features).
+    if ci_run "cd backend && cargo check --all-targets --all-features"; then
+        ci_success "cargo check passed"
+    else
+        ci_error "cargo check failed"
+        FAILED+=("cargo-check")
+    fi
+
+    if ci_run "cd backend && cargo clippy --all-targets --all-features -- -D warnings"; then
+        ci_success "cargo clippy passed"
+    else
+        ci_error "cargo clippy failed"
+        FAILED+=("cargo-clippy")
+    fi
+
+    if ci_run "cd backend && cargo test --all-targets --all-features"; then
+        ci_success "cargo test passed"
+    else
+        ci_error "cargo test failed"
+        FAILED+=("cargo-test")
+    fi
+
+    if ci_run "cd backend && cargo test --doc --all-features"; then
+        ci_success "cargo doc tests passed"
+    else
+        ci_error "cargo doc tests failed"
+        FAILED+=("cargo-doc-test")
     fi
 }
 

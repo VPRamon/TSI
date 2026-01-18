@@ -1,12 +1,10 @@
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // =========================================================
-// Insights types + route
+// Insights types
 // =========================================================
 
 /// Block data for insights analysis.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InsightsBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
@@ -21,7 +19,6 @@ pub struct InsightsBlock {
 }
 
 /// Analytics metrics.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalyticsMetrics {
     pub total_observations: usize,
@@ -37,7 +34,6 @@ pub struct AnalyticsMetrics {
 }
 
 /// Correlation entry.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CorrelationEntry {
     pub variable1: String,
@@ -46,7 +42,6 @@ pub struct CorrelationEntry {
 }
 
 /// Conflict record.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConflictRecord {
     pub block_id_1: String, // Original ID from JSON
@@ -59,7 +54,6 @@ pub struct ConflictRecord {
 }
 
 /// Top observation entry.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TopObservation {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
@@ -71,7 +65,6 @@ pub struct TopObservation {
 }
 
 /// Complete insights dataset.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InsightsData {
     pub blocks: Vec<InsightsBlock>,
@@ -87,28 +80,6 @@ pub struct InsightsData {
 
 /// Route function name constant for insights
 pub const GET_INSIGHTS_DATA: &str = "get_insights_data";
-
-/// Get insights analysis data (wraps service call)
-#[pyfunction]
-pub fn get_insights_data(
-    schedule_id: crate::api::ScheduleId,
-) -> PyResult<crate::api::InsightsData> {
-    let data = crate::services::py_get_insights_data(schedule_id)?;
-    Ok(data)
-}
-
-/// Register insights functions, classes and constants.
-pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_insights_data, m)?)?;
-    m.add_class::<InsightsBlock>()?;
-    m.add_class::<AnalyticsMetrics>()?;
-    m.add_class::<CorrelationEntry>()?;
-    m.add_class::<ConflictRecord>()?;
-    m.add_class::<TopObservation>()?;
-    m.add_class::<InsightsData>()?;
-    m.add("GET_INSIGHTS_DATA", GET_INSIGHTS_DATA)?;
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

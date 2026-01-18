@@ -3,7 +3,6 @@
 #![allow(clippy::useless_vec)]
 
 use crate::api::{LightweightBlock, SkyMapData};
-use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
@@ -150,24 +149,17 @@ pub async fn get_sky_map_data(schedule_id: crate::api::ScheduleId) -> Result<Sky
 }
 
 /// Get complete sky map data with computed bins and metadata.
-/// This is the main Python-callable function for the sky map feature.
-// #[pyfunction] - removed, function now internal only
-pub fn py_get_sky_map_data(schedule_id: crate::api::ScheduleId) -> PyResult<SkyMapData> {
+pub fn py_get_sky_map_data(schedule_id: crate::api::ScheduleId) -> Result<SkyMapData, String> {
     let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
+        format!("Failed to create async runtime: {}", e)
     })?;
 
     runtime
         .block_on(get_sky_map_data(schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 /// Alias for compatibility - uses analytics path.
-// #[pyfunction] - removed, function now internal only
-pub fn py_get_sky_map_data_analytics(schedule_id: crate::api::ScheduleId) -> PyResult<SkyMapData> {
+pub fn py_get_sky_map_data_analytics(schedule_id: crate::api::ScheduleId) -> Result<SkyMapData, String> {
     py_get_sky_map_data(schedule_id)
 }
 

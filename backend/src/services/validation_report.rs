@@ -1,8 +1,7 @@
-//! Python bindings for validation report functionality.
+//! Validation report functionality.
 //!
-//! This module exposes validation report data to Python via PyO3.
+//! This module provides validation report data.
 
-use pyo3::prelude::*;
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor from python/database module
@@ -32,30 +31,23 @@ use crate::db::get_repository;
 /// for issue in report.impossible_blocks:
 ///     print(f"Block {issue.block_id}: {issue.description}")
 /// ```
-// #[pyfunction] - removed, function now internal only
 pub fn py_get_validation_report(
     schedule_id: crate::api::ScheduleId,
-) -> PyResult<crate::api::ValidationReport> {
+) -> Result<crate::api::ValidationReport, String> {
     // Get the initialized repository
     let repo = get_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e.to_string()))?;
+        .map_err(|e| e.to_string())?;
 
     // Create Tokio runtime to bridge async database operations
     let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
+        format!("Failed to create async runtime: {}", e)
     })?;
 
     // Fetch validation results from repository
     let report_data = runtime
         .block_on(repo.fetch_validation_results(schedule_id))
         .map_err(|e| {
-            PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-                "Failed to fetch validation report: {}",
-                e
-            ))
+            format!("Failed to fetch validation report: {}", e)
         })?;
 
     Ok(report_data)

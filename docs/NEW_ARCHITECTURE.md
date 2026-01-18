@@ -1,8 +1,14 @@
-# TSI New Architecture - Quick Start Guide
+# TSI Architecture Guide
 
-This document describes how to run the new client-server architecture for TSI.
+This document describes the client-server architecture for TSI.
 
 ## Architecture Overview
+
+The TSI application uses a modern client-server architecture:
+
+- **Frontend**: React + TypeScript SPA with Plotly.js visualizations
+- **Backend**: Rust HTTP server (axum) with REST API
+- **Database**: PostgreSQL for production, in-memory for development
 
 ```
 ┌──────────────────────────┐
@@ -16,7 +22,7 @@ This document describes how to run the new client-server architecture for TSI.
 ┌──────────────────────────┐
 │ Rust Backend (axum)     │  ← Port 8080
 │ - REST API endpoints
-│ - Reuses existing services
+│ - Business logic services
 │ - PostgreSQL/Local repo
 └─────────────▲──────────┘
               │
@@ -71,10 +77,7 @@ The frontend will start on `http://localhost:3000` and proxy API requests to the
 ```bash
 # Start all services (backend, frontend, PostgreSQL)
 cd docker
-docker compose -f docker-compose.new.yml up --build
-
-# Start with legacy Streamlit app as well
-docker compose -f docker-compose.new.yml --profile legacy up --build
+docker compose up --build
 ```
 
 ## API Endpoints
@@ -123,16 +126,17 @@ TSI/
 │   ├── src/
 │   │   ├── bin/
 │   │   │   └── server.rs       # HTTP server entry point
-│   │   ├── http/               # HTTP layer (new)
+│   │   ├── http/               # HTTP layer
 │   │   │   ├── mod.rs
 │   │   │   ├── handlers.rs     # Request handlers
 │   │   │   ├── router.rs       # Route definitions
 │   │   │   ├── state.rs        # App state
 │   │   │   ├── error.rs        # Error handling
 │   │   │   └── dto.rs          # DTOs for HTTP API
+│   │   ├── api.rs              # Public API types
 │   │   ├── db/                 # Repository layer
 │   │   ├── services/           # Business logic
-│   │   ├── routes/             # Python bindings (legacy)
+│   │   ├── routes/             # Route-specific DTOs
 │   │   └── models/             # Domain models
 │   └── Cargo.toml
 ├── frontend/
@@ -146,21 +150,18 @@ TSI/
 │   │   └── main.tsx
 │   ├── package.json
 │   └── vite.config.ts
-└── docker/
-    ├── docker-compose.new.yml  # New architecture
-    ├── Dockerfile.backend      # Rust backend
-    ├── Dockerfile.frontend     # React frontend
-    └── nginx.conf              # Frontend nginx config
+├── docker/
+│   ├── docker-compose.yml      # Docker Compose config
+│   ├── Dockerfile.backend      # Rust backend
+│   ├── Dockerfile.frontend     # React frontend
+│   └── nginx.conf              # Frontend nginx config
+└── archive/                    # Archived deprecated code
+    ├── python/                 # Old Streamlit app
+    ├── docker/                 # Legacy Docker configs
+    ├── tests/                  # Old Python tests
+    ├── examples/               # Old Python examples
+    └── scripts/                # Deprecated scripts
 ```
-
-## Migration from Streamlit
-
-The new architecture runs alongside the existing Streamlit app during the migration period:
-
-1. The Rust backend exposes the same functionality via HTTP that was previously available through Python bindings
-2. The React frontend provides the same visualizations as Streamlit pages
-3. Both can run simultaneously during transition
-4. Once migration is complete, the Python/Streamlit code can be removed
 
 ## Testing
 

@@ -5,15 +5,15 @@ edition = "2021"
 
 [lib]
 name = "tsi_rust"
-crate-type = ["cdylib", "rlib"]  # rlib needed for benchmarks and tests
+crate-type = ["rlib"]  # Only rlib needed for HTTP server
 
 [[bin]]
 name = "tsi-server"
 path = "src/bin/server.rs"
-required-features = []
+required-features = ["http-server"]
 
 [features]
-default = ["local-repo"]
+default = ["local-repo", "http-server"]
 # Production backend using PostgreSQL with Diesel ORM
 postgres-repo = ["dep:diesel", "dep:diesel_migrations"]
 # In-memory backend for testing and development
@@ -22,7 +22,6 @@ local-repo = []
 http-server = ["dep:axum", "dep:tower", "dep:tower-http", "dep:uuid", "dep:tracing", "dep:tracing-subscriber"]
 
 [dependencies]
-pyo3 = { version = "0.27.2", features = ["extension-module"] }
 chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -34,7 +33,7 @@ sha2 = "0.10"
 hex = "0.4"
 log = "0.4"
 toml = "0.8"
-qtty = { version = "0.2.2", features = ["serde", "pyo3", "diesel"] }
+qtty = { version = "0.2.2", features = ["serde", "diesel"] }
 siderust = { path = "siderust" }
 diesel = { version = "2.1", features = ["postgres", "r2d2", "chrono", "serde_json", "numeric"], optional = true }
 diesel_migrations = { version = "2.1", optional = true }

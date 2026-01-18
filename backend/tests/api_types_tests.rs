@@ -49,7 +49,7 @@ fn test_period_contains() {
 
 #[test]
 fn test_period_contains_mjd() {
-    let period = Period::py_new(59000.0, 59001.0);
+    let period = Period::from_mjd(59000.0, 59001.0);
 
     assert!(period.contains_mjd(59000.0));
     assert!(period.contains_mjd(59000.5));
@@ -86,8 +86,8 @@ fn test_period_overlaps() {
 }
 
 #[test]
-fn test_period_py_new() {
-    let period = Period::py_new(59000.0, 59001.0);
+fn test_period_from_mjd() {
+    let period = Period::from_mjd(59000.0, 59001.0);
     assert_eq!(period.start_mjd(), 59000.0);
     assert_eq!(period.stop_mjd(), 59001.0);
 }
@@ -111,7 +111,7 @@ fn test_constraints_creation() {
 
 #[test]
 fn test_constraints_with_fixed_time() {
-    let period = Period::py_new(59000.0, 59001.0);
+    let period = Period::from_mjd(59000.0, 59001.0);
     let constraints = Constraints::new(
         qtty::Degrees::new(20.0),
         qtty::Degrees::new(80.0),
@@ -185,7 +185,7 @@ fn test_all_id_types_value_getter() {
 
 #[test]
 fn test_period_serialization() {
-    let period = Period::py_new(59000.0, 59001.0);
+    let period = Period::from_mjd(59000.0, 59001.0);
     let json = serde_json::to_string(&period).unwrap();
     assert!(json.contains("59000"));
     assert!(json.contains("59001"));

@@ -1,12 +1,10 @@
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // =========================================================
-// Distribution types + route
+// Distribution types
 // =========================================================
 
 /// Block data for distribution analysis.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionBlock {
     pub priority: f64,
@@ -17,7 +15,6 @@ pub struct DistributionBlock {
 }
 
 /// Distribution statistics.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionStats {
     pub count: usize,
@@ -30,7 +27,6 @@ pub struct DistributionStats {
 }
 
 /// Complete distribution dataset.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionData {
     pub blocks: Vec<DistributionBlock>,
@@ -45,25 +41,6 @@ pub struct DistributionData {
 
 /// Route function name constant for distribution data
 pub const GET_DISTRIBUTION_DATA: &str = "get_distribution_data";
-
-/// Get distribution visualization data (wraps service call)
-#[pyfunction]
-pub fn get_distribution_data(
-    schedule_id: crate::api::ScheduleId,
-) -> PyResult<crate::api::DistributionData> {
-    let data = crate::services::py_get_distribution_data_analytics(schedule_id)?;
-    Ok(data)
-}
-
-/// Register distribution functions, classes and constants with the Python module.
-pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_distribution_data, m)?)?;
-    m.add_class::<DistributionBlock>()?;
-    m.add_class::<DistributionStats>()?;
-    m.add_class::<DistributionData>()?;
-    m.add("GET_DISTRIBUTION_DATA", GET_DISTRIBUTION_DATA)?;
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

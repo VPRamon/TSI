@@ -1,6 +1,9 @@
-# Docker Compose (Postgres + Streamlit)
+# Docker Setup
 
-This setup runs the TSI Streamlit app plus a Postgres database, and builds the Rust backend with the `postgres-repo` feature enabled.
+This setup runs the TSI application with Docker Compose:
+- **PostgreSQL** database
+- **Rust backend** (axum HTTP server)
+- **React frontend** (served by nginx)
 
 ## Prerequisites
 
@@ -8,44 +11,65 @@ This setup runs the TSI Streamlit app plus a Postgres database, and builds the R
 
 ## Quickstart
 
-Edit `docker/.env` if you need custom ports or Postgres credentials.
-
 ```bash
-./scripts/docker_setup.sh
+cd docker
+docker compose up --build
 ```
 
-- Streamlit UI: `http://localhost:8501` (or `$TSI_PORT`)
-- Postgres: `localhost:5432` (or `$POSTGRES_PORT`)
+Services:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8080
+- PostgreSQL: localhost:5432
 
-## Common commands
+## Environment Variables
+
+Copy `.env.example` to `.env` to customize:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGRES_USER` | `tsi` | Database user |
+| `POSTGRES_PASSWORD` | `tsi` | Database password |
+| `POSTGRES_DB` | `tsi` | Database name |
+| `POSTGRES_PORT` | `5432` | Database port |
+| `BACKEND_PORT` | `8080` | Backend API port |
+| `FRONTEND_PORT` | `3000` | Frontend port |
+| `RUST_LOG` | `info` | Log level |
+
+## Common Commands
 
 ```bash
-# Start (in background)
-./scripts/docker_setup.sh up -d --build
+# Start in background
+docker compose up -d --build
 
-# Logs
-./scripts/docker_setup.sh logs -f app
+# View logs
+docker compose logs -f backend
+docker compose logs -f frontend
 
 # Stop
-./scripts/docker_setup.sh down
+docker compose down
 
-# Stop + delete DB volume (DANGER: deletes persisted data)
-./scripts/docker_setup.sh down -v
+# Stop and delete database volume (DANGER: deletes data)
+docker compose down -v
+
+# Rebuild a single service
+docker compose build backend
+docker compose up -d backend
 ```
 
-## Connecting to Postgres
+## Connecting to PostgreSQL
 
 ```bash
-./scripts/docker_setup.sh exec postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+# Via docker
+docker compose exec postgres psql -U tsi -d tsi
+
+# From host (if port is exposed)
+psql "postgres://tsi:tsi@localhost:5432/tsi"
 ```
 
-From your host (if you published the port):
+## Production Deployment
 
-```bash
-psql "postgres://$POSTGRES_USER:$POSTGRES_PASSWORD@localhost:$POSTGRES_PORT/$POSTGRES_DB"
-```
-
-## Notes
-
-- The Rust backend reads `DATABASE_URL` and will create/update tables via Diesel migrations automatically when it first initializes.
-- App data files are mounted from `data` (repo root) into the container at `/app/data` (see `docker/docker-compose.yml`).
+For production, update the `.env` file with secure credentials and consider:
+- Using Docker secrets for sensitive values
+- Adding SSL/TLS termination (nginx or load balancer)
+- Setting `RUST_LOG=warn` or `error`
+- Configuring proper health check intervals

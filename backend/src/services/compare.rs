@@ -3,7 +3,6 @@
 
 use crate::api::{CompareBlock, CompareData, CompareStats, SchedulingChange};
 use crate::db::get_repository;
-use pyo3::prelude::*;
 use std::collections::{HashMap, HashSet};
 use tokio::runtime::Runtime;
 
@@ -212,20 +211,15 @@ pub async fn get_compare_data(
     )
 }
 
-/// Python binding for get_compare_data.
 /// Fetches and compares two schedules from the database.
-// #[pyfunction] - removed, function now internal only
 pub fn py_get_compare_data(
     current_schedule_id: crate::api::ScheduleId,
     comparison_schedule_id: crate::api::ScheduleId,
     current_name: String,
     comparison_name: String,
-) -> PyResult<CompareData> {
+) -> Result<CompareData, String> {
     let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
+        format!("Failed to create async runtime: {}", e)
     })?;
 
     runtime
@@ -235,7 +229,6 @@ pub fn py_get_compare_data(
             current_name,
             comparison_name,
         ))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 #[cfg(test)]
