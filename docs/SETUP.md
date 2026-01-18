@@ -1,20 +1,16 @@
 # TSI Application Setup Guide
 
-Complete guide to run the TSI (Telescope Scheduling Intelligence) application locally with the Rust backend.
+Complete guide to run the TSI (Telescope Scheduling Intelligence) application locally with the Rust HTTP backend and React frontend.
+
+## Architecture Overview
+
+- **Backend**: Rust HTTP server (axum) on port 8080
+- **Frontend**: React/TypeScript app (Vite) on port 5173 (dev) or nginx on port 3000 (production)
+- **Database**: PostgreSQL 16 (production) or in-memory LocalRepository (development)
 
 ## Prerequisites
 
-### 1. Postgres Database
-
-Use Docker Compose (recommended):
-
-```bash
-./scripts/docker_setup.sh up -d postgres
-```
-
-Defaults: user `tsi`, password `tsi`, db `tsi`, port `5432`.
-
-### 2. Development Environment
+### 1. Development Environment
 
 #### Option A: VS Code Dev Container (Recommended)
 
@@ -32,84 +28,179 @@ code .
 #### Option B: Local Setup
 
 Requirements:
-- Python 3.11+
 - Rust toolchain (via rustup) + Cargo
-- Maturin (installed automatically by the build script if missing)
+- Node.js 18+ and npm
+- PostgreSQL 16 (optional, for production mode)
 
 ```bash
-# Create and activate a virtual environment (Linux)
-python3 -m venv venv
-source venv/bin/activate
+# Install Rust (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Build the Rust backend (from repo root)
-./build_rust.sh --release
+# Install Node.js dependencies
+cd frontend
+npm install
 ```
 
 ---
 
-## Step 1: Database Configuration
+## Quick Start (Development Mode)
 
-Edit `docker/.env` (used by Docker Compose and the app config). For local runs outside Docker, either export these variables in your shell or add them to `docker/.env` and source it:
+### 1. Start the Backend
+
+The backend runs with an in-memory repository by default (no database required):
+
+```bash
+# From repository root
+./scripts/run_server.sh
+```
+
+Or manually:
+
+```bash
+cd backend
+cargo run --bin tsi-server --features "local-repo,http-server"
+```
+
+The API will be available at `http://localhost:8080`.
+
+### 2. Start the Frontend
+
+In a separate terminal:
+
+```bash
+# From repository root
+./scripts/run_frontend.sh
+```
+
+Or manually:
+
+```bash
+cd frontend
+npm run dev
+```
+
+The application will be available at `http://localhost:5173`.
+
+---
+
+## Production Setup with PostgreSQL
+
+### 1. Start PostgreSQL
+
+```bash
+./scripts/docker_setup.sh up -d postgres
+```
+
+Defaults: user `tsi`, password `tsi`, db `tsi`, port `5432`.
+
+### 2. Configure Environment
+
+Edit `docker/.env`:
 
 ```bash
 DATABASE_URL=postgres://tsi:tsi@localhost:5432/tsi
-REPOSITORY_TYPE=postgres
+BACKEND_PORT=8080
+FRONTEND_PORT=3000
 
 # Optional: connection tuning
 PG_POOL_MAX=10
 PG_POOL_MIN=1
 PG_CONN_TIMEOUT_SEC=30
-PG_IDLE_TIMEOUT_SEC=600
-PG_MAX_RETRIES=3
-PG_RETRY_DELAY_MS=100
 ```
 
-The Postgres migrations run automatically the first time the repository initializes.
+### 3. Run with PostgreSQL
+
+```bash
+# Backend with PostgreSQL repository
+cd backend
+cargo run --bin tsi-server --features "postgres-repo,http-server"
+```
+
+The Postgres migrations run automatically on first start.
 
 ---
 
-## Step 2: Build the Application
+## Docker Compose (Full Stack)
+
+### Development
 
 ```bash
-./build_rust.sh --release
+cd docker
+docker-compose up -d
 ```
 
-Verify the Rust module loads:
+This starts:
+- PostgreSQL on port 5432
+- Rust backend on port 8080
+- React frontend (nginx) on port 3000
+
+### Access the Application
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8080
+
+---
+
+## API Endpoints
+
+The backend exposes the following endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check |
+| `/api/landing` | GET | Landing page statistics |
+| `/api/timeline` | POST | Timeline visualization data |
+| `/api/distribution` | POST | Distribution analysis |
+| `/api/trends` | POST | Trend analysis |
+| `/api/skymap` | POST | Sky map data |
+| `/api/compare` | POST | Schedule comparison |
+| `/api/validation` | POST | Schedule validation |
+| `/api/visibility` | POST | Visibility calculations |
+| `/api/insights` | POST | Schedule insights |
+
+---
+
+## Running Tests
+
+### Backend Tests
 
 ```bash
-python -c "import tsi_rust; print('✅ Rust backend loaded')"
-python -c "from app_config import get_settings; print('✅ Config loaded')"
+cd backend
+cargo test --all-features
+```
+
+### Frontend Tests
+
+```bash
+cd frontend
+npm run lint      # ESLint
+npm run typecheck # TypeScript check
+```
+
+### Full CI
+
+```bash
+./scripts/ci.sh
 ```
 
 ---
 
-## Step 3: Run the Application
+## Troubleshooting
 
-```bash
-streamlit run src/tsi/app.py
-```
+### Backend won't start
 
-Or use the helper script:
+1. Check if port 8080 is already in use
+2. Verify Rust toolchain: `rustc --version`
+3. Try clean build: `cd backend && cargo clean && cargo build`
 
-```bash
-./run_dashboard.sh
-```
+### Frontend can't connect to backend
 
-The application will be available at `http://localhost:8501`.
+1. Verify backend is running on port 8080
+2. Check CORS settings if using different ports
+3. Check browser console for network errors
 
----
+### Database connection issues
 
-## Step 4: Upload Your First Schedule
-
-1. Open the application in your browser
-2. Navigate to "Upload Schedule" page
-3. Select a JSON schedule file
-4. Click Upload
-
-The application will:
-1. Parse and validate the schedule
-2. Store it in the Postgres-backed repository
-3. Populate analytics used by the visualization pages
+1. Verify PostgreSQL is running: `docker ps`
+2. Check DATABASE_URL is correct
+3. Test connection: `psql $DATABASE_URL`

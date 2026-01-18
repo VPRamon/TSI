@@ -5,7 +5,6 @@ use crate::api;
 use crate::api::Period;
 use crate::db::models::ScheduleTimelineBlock;
 use chrono::TimeZone;
-use pyo3::prelude::*;
 use std::collections::HashSet;
 use tokio::runtime::Runtime;
 
@@ -106,20 +105,15 @@ pub async fn get_schedule_timeline_data(
 /// Get complete schedule timeline data with computed statistics and metadata.
 /// This is the main function for the schedule timeline feature, computing all statistics
 /// on the Rust side for maximum performance.
-// #[pyfunction] - removed, function now internal only
 pub fn py_get_schedule_timeline_data(
     schedule_id: crate::api::ScheduleId,
-) -> PyResult<crate::api::ScheduleTimelineData> {
+) -> Result<crate::api::ScheduleTimelineData, String> {
     let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
+        format!("Failed to create async runtime: {}", e)
     })?;
 
     runtime
         .block_on(get_schedule_timeline_data(schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 #[cfg(test)]

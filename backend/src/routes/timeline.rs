@@ -1,12 +1,10 @@
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // =========================================================
-// Schedule timeline types + route
+// Schedule timeline types
 // =========================================================
 
 /// Timeline block data.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleTimelineBlock {
     pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
@@ -22,7 +20,6 @@ pub struct ScheduleTimelineBlock {
 }
 
 /// Schedule timeline dataset.
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleTimelineData {
     pub blocks: Vec<ScheduleTimelineBlock>,
@@ -36,24 +33,6 @@ pub struct ScheduleTimelineData {
 
 /// Route function name constant for schedule timeline
 pub const GET_SCHEDULE_TIMELINE_DATA: &str = "get_schedule_timeline_data";
-
-/// Get schedule timeline data (wraps service call)
-#[pyfunction]
-pub fn get_schedule_timeline_data(
-    schedule_id: crate::api::ScheduleId,
-) -> PyResult<ScheduleTimelineData> {
-    let data = crate::services::py_get_schedule_timeline_data(schedule_id)?;
-    Ok(data)
-}
-
-/// Register timeline route functions, classes, and constants.
-pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_schedule_timeline_data, m)?)?;
-    m.add_class::<ScheduleTimelineBlock>()?;
-    m.add_class::<ScheduleTimelineData>()?;
-    m.add("GET_SCHEDULE_TIMELINE_DATA", GET_SCHEDULE_TIMELINE_DATA)?;
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

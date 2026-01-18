@@ -4,7 +4,6 @@ use crate::api::{
     EmpiricalRatePoint, HeatmapBin, InsightsBlock, SmoothedPoint, TrendsBlock, TrendsData,
     TrendsMetrics,
 };
-use pyo3::prelude::*;
 use std::collections::HashMap;
 use tokio::runtime::Runtime;
 
@@ -450,27 +449,23 @@ pub async fn get_trends_data(
 /// Get complete trends data with computed analytics and metadata.
 ///
 /// **Note**: Impossible blocks are automatically excluded.
-// #[pyfunction] - removed, function now internal only
 pub fn py_get_trends_data(
     schedule_id: crate::api::ScheduleId,
     n_bins: usize,
     bandwidth: f64,
     n_smooth_points: usize,
-) -> PyResult<TrendsData> {
+) -> Result<TrendsData, String> {
     let runtime = Runtime::new().map_err(|e| {
-        PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!(
-            "Failed to create async runtime: {}",
-            e
-        ))
+        format!("Failed to create async runtime: {}", e)
     })?;
 
     // Ensure analytics are populated (if missing) before computing trends.
     let repo = crate::db::get_repository()
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+        .map_err(|e| format!("{}", e))?;
 
     runtime
         .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("{}", e)))?;
+        .map_err(|e| format!("{}", e))?;
 
     runtime
         .block_on(get_trends_data(
@@ -479,7 +474,6 @@ pub fn py_get_trends_data(
             bandwidth,
             n_smooth_points,
         ))
-        .map_err(|e| PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(e))
 }
 
 #[cfg(test)]

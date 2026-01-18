@@ -1,11 +1,9 @@
-use pyo3::prelude::*;
 use serde::{Deserialize, Serialize};
 
 // =========================================================
-// Compare types + route
+// Compare types
 // =========================================================
 
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareBlock {
     pub scheduling_block_id: String,
@@ -14,7 +12,6 @@ pub struct CompareBlock {
     pub requested_hours: qtty::Hours,
 }
 
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareStats {
     pub scheduled_count: usize,
@@ -28,7 +25,6 @@ pub struct CompareStats {
     pub gap_median_hours: Option<qtty::Hours>,
 }
 
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchedulingChange {
     pub scheduling_block_id: String,
@@ -36,7 +32,6 @@ pub struct SchedulingChange {
     pub change_type: String,
 }
 
-#[pyclass(module = "tsi_rust_api", get_all)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareData {
     pub current_blocks: Vec<CompareBlock>,
@@ -52,36 +47,6 @@ pub struct CompareData {
 }
 
 pub const GET_COMPARE_DATA: &str = "get_compare_data";
-
-#[pyfunction]
-pub fn get_compare_data(
-    current_schedule_id: crate::api::ScheduleId,
-    comparison_schedule_id: crate::api::ScheduleId,
-    current_name: Option<String>,
-    comparison_name: Option<String>,
-) -> PyResult<crate::api::CompareData> {
-    let current_name = current_name.unwrap_or_else(|| "Schedule A".to_string());
-    let comparison_name = comparison_name.unwrap_or_else(|| "Schedule B".to_string());
-
-    let data = crate::services::py_get_compare_data(
-        current_schedule_id,
-        comparison_schedule_id,
-        current_name,
-        comparison_name,
-    )?;
-    Ok(data)
-}
-
-/// Register compare route functions, classes and constants.
-pub fn register_routes(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(get_compare_data, m)?)?;
-    m.add_class::<CompareBlock>()?;
-    m.add_class::<CompareStats>()?;
-    m.add_class::<SchedulingChange>()?;
-    m.add_class::<CompareData>()?;
-    m.add("GET_COMPARE_DATA", GET_COMPARE_DATA)?;
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

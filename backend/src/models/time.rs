@@ -1,8 +1,7 @@
-use pyo3::prelude::*;
-
 use serde::*;
 
-#[pyclass(module = "tsi_rust")]
+/// Modified Julian Date representation.
+/// MJD 0 = 1858-11-17 00:00:00 UTC
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct ModifiedJulianDate(qtty::Days);
 
@@ -16,55 +15,29 @@ impl ModifiedJulianDate {
     pub fn value(&self) -> f64 {
         self.0.value()
     }
-}
 
-#[pymethods]
-impl ModifiedJulianDate {
-    #[new]
-    pub fn py_new(value: f64) -> Self {
-        Self::new(value)
+    /// Convert to Unix timestamp (seconds since 1970-01-01 00:00:00 UTC).
+    pub fn to_unix_timestamp(&self) -> f64 {
+        (self.value() - 40587.0) * 86400.0
     }
 
-    #[getter]
-    pub fn get_value(&self) -> f64 {
-        self.value()
+    /// Create from Unix timestamp (seconds since 1970-01-01 00:00:00 UTC).
+    pub fn from_unix_timestamp(timestamp: f64) -> Self {
+        Self::new(timestamp / 86400.0 + 40587.0)
     }
 
-    pub fn __float__(&self) -> f64 {
-        self.value()
+    /// Convert to chrono DateTime<Utc>.
+    pub fn to_datetime(&self) -> chrono::DateTime<chrono::Utc> {
+        let secs = self.to_unix_timestamp();
+        let secs_i64 = secs.floor() as i64;
+        let nanos = ((secs - secs.floor()) * 1e9) as u32;
+        chrono::DateTime::from_timestamp(secs_i64, nanos)
+            .unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH)
     }
 
-    #[staticmethod]
-    pub fn from_datetime(dt: Py<PyAny>) -> PyResult<Self> {
-        Python::attach(|py| {
-            let datetime_mod = py.import("datetime")?;
-            let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
-
-            let dt_obj = dt.as_ref();
-            let tzinfo = dt_obj.getattr(py, "tzinfo")?;
-
-            let timestamp = if tzinfo.is_none(py) {
-                let kwargs = pyo3::types::PyDict::new(py);
-                kwargs.set_item("tzinfo", &timezone_utc)?;
-                let aware = dt_obj.call_method(py, "replace", (), Some(&kwargs))?;
-                aware.call_method0(py, "timestamp")?.extract::<f64>(py)?
-            } else {
-                dt_obj.call_method0(py, "timestamp")?.extract::<f64>(py)?
-            };
-
-            Ok(Self::new(timestamp / 86400.0 + 40587.0))
-        })
-    }
-
-    pub fn to_datetime<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let secs = (self.value() - 40587.0) * 86400.0;
-
-        let datetime_mod = py.import("datetime")?;
-        let datetime_cls = datetime_mod.getattr("datetime")?;
-        let timezone_utc = datetime_mod.getattr("timezone")?.getattr("utc")?;
-
-        let dt_obj = datetime_cls.call_method1("fromtimestamp", (secs, timezone_utc))?;
-        Ok(dt_obj)
+    /// Create from chrono DateTime<Utc>.
+    pub fn from_datetime(dt: chrono::DateTime<chrono::Utc>) -> Self {
+        Self::from_unix_timestamp(dt.timestamp() as f64 + dt.timestamp_subsec_nanos() as f64 / 1e9)
     }
 }
 
@@ -94,24 +67,6 @@ mod tests {
     fn test_mjd_value() {
         let mjd = ModifiedJulianDate::new(59000.5);
         assert_eq!(mjd.value(), 59000.5);
-    }
-
-    #[test]
-    fn test_mjd_py_new() {
-        let mjd = ModifiedJulianDate::py_new(60000.123);
-        assert_eq!(mjd.value(), 60000.123);
-    }
-
-    #[test]
-    fn test_mjd_get_value() {
-        let mjd = ModifiedJulianDate::new(55555.5);
-        assert_eq!(mjd.get_value(), 55555.5);
-    }
-
-    #[test]
-    fn test_mjd_float() {
-        let mjd = ModifiedJulianDate::new(57000.25);
-        assert_eq!(mjd.__float__(), 57000.25);
     }
 
     #[test]
@@ -156,5 +111,20 @@ mod tests {
     fn test_mjd_large_values() {
         let mjd = ModifiedJulianDate::new(100000.999);
         assert_eq!(mjd.value(), 100000.999);
+    }
+
+    #[test]
+    fn test_mjd_to_unix_timestamp() {
+        // MJD 40587.0 corresponds to Unix epoch (1970-01-01)
+        let mjd = ModifiedJulianDate::new(40587.0);
+        assert!((mjd.to_unix_timestamp()).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_mjd_roundtrip_unix() {
+        let original = ModifiedJulianDate::new(59000.5);
+        let timestamp = original.to_unix_timestamp();
+        let roundtrip = ModifiedJulianDate::from_unix_timestamp(timestamp);
+        assert!((original.value() - roundtrip.value()).abs() < 1e-9);
     }
 }

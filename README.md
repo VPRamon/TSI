@@ -1,224 +1,174 @@
-# Telescope Scheduling Intelligence
+# Telescope Scheduling Intelligence (TSI)
 
-Analyze and visualize astronomical scheduling outputs with an interactive Streamlit app, a reusable preprocessing library, examples, and notebooks. https://telescope-scheduling-intelligence.streamlit.app
+Analyze and visualize astronomical scheduling outputs with an interactive web application.
 
-![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![Streamlit](https://img.shields.io/badge/streamlit-1.31%2B-ff4b4b.svg)
+![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)
+![TypeScript](https://img.shields.io/badge/typescript-5.0%2B-blue.svg)
+![React](https://img.shields.io/badge/react-18%2B-61dafb.svg)
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
 
-## What’s inside
+## Architecture
 
-- Streamlit dashboard with pages for Sky Map, Distributions, Visibility Map, Scheduled Timeline, Insights, Trends, and Compare
-- JSON/CSV loaders and preprocessing pipeline (fast, consistent, validated)
-- Optional Dark Periods overlay to distinguish observable vs non-observable time windows
-- Scripts and examples for batch preprocessing and data exploration
-- Tests (unit + e2e) and a Docker image for reproducible runs
-
-## Repository layout (key files)
+TSI uses a modern client-server architecture:
 
 ```
-.
-├── data/
-│   ├── schedule.json              # Sample preprocessed dataset (used by the app)
-│   ├── schedule.json             # Raw schedule (example)
-│   ├── possible_periods.json     # Optional visibility periods
-│   └── dark_periods.json         # Optional dark periods (auto-detected by the app)
-├── examples/
-│   ├── example_data_loading.py   # Loaders usage
-│   └── example_preprocessing.py  # Preprocessor usage
-├── notebooks/
-│   ├── eda.ipynb
-│   └── scheduling_trends.ipynb
-├── scripts/
-│   ├── preprocess_schedules.py   # CLI: JSON → CSV (single/batch)
-│   └── train_model.py            # Modeling pipeline entrypoint
-├── src/
-│   ├── core/
-│   │   ├── loaders/              # JSON/CSV/data-dir loaders
-│   │   └── preprocessing/        # SchedulePreprocessor + helpers
-│   └── tsi/
-│       ├── app.py                # Streamlit entrypoint
-│       ├── routing.py, state.py, theme.py
-│       ├── pages/                # Sky Map, Distributions, Visibility Map, Schedule, Insights, Trends, Compare
-│       ├── plots/, components/, services/
-│       └── assets/styles.css
-├── run_dashboard.sh              # Local launcher (venv + streamlit)
-├── streamlit_app.py              # Streamlit Cloud entry (imports tsi.app.main)
-├── docker/
-│   ├── Dockerfile
-│   ├── docker-compose.md
-│   └── docker-compose.yml
-├── pyproject.toml
-├── requirements.txt
-└── tests/
-    ├── core/, e2e/, manual/
-    └── benchmarks/
+┌──────────────────────────┐
+│ Web Frontend (React+TS) │  ← Port 3000
+│ - Plotly.js visualizations
+│ - React Query for data fetching
+│ - Tailwind CSS styling
+└─────────────▲──────────┘
+              │ HTTP/JSON
+              ▼
+┌──────────────────────────┐
+│ Rust Backend (axum)     │  ← Port 8080
+│ - REST API endpoints
+│ - Business logic services
+│ - PostgreSQL/Local repo
+└─────────────▲──────────┘
+              │
+              ▼
+┌──────────────────────────┐
+│ PostgreSQL Database      │  ← Port 5432
+└──────────────────────────┘
 ```
 
-## Quickstart
+## Features
 
-Prereqs: Python 3.10+ and pip.
+- **Sky Map**: RA/Dec visualization with priority coloring and status filtering
+- **Distributions**: Histograms for priority, visibility, duration, and elevation
+- **Visibility Map**: Constraint-based visibility window visualization
+- **Timeline**: Month-by-month scheduled observation view with dark period overlays
+- **Insights**: Scheduling rates, correlations, and analytics
+- **Trends**: Time evolution of scheduling metrics
+- **Compare**: Side-by-side schedule comparison
+- **Validation**: Schedule integrity and constraint validation reports
+
+## Project Structure
+
+```
+TSI/
+├── backend/              # Rust HTTP server (axum)
+│   ├── src/
+│   │   ├── bin/server.rs   # Entry point
+│   │   ├── http/           # HTTP handlers & routing
+│   │   ├── services/       # Business logic
+│   │   ├── db/             # Repository layer
+│   │   └── models/         # Domain models
+│   └── Cargo.toml
+├── frontend/             # React SPA
+│   ├── src/
+│   │   ├── pages/          # Page components
+│   │   ├── components/     # Reusable UI components
+│   │   ├── api/            # API client
+│   │   └── hooks/          # React Query hooks
+│   └── package.json
+├── docker/               # Docker configuration
+│   ├── docker-compose.yml
+│   ├── Dockerfile.backend
+│   └── Dockerfile.frontend
+├── data/                 # Sample datasets
+└── docs/                 # Documentation
+```
+
+## Quick Start
+
+### Prerequisites
+
+- Rust 1.75+ with `cargo`
+- Node.js 20+ with `npm`
+- Docker and Docker Compose (optional)
+
+### Development
+
+**Backend:**
+```bash
+cd backend
+cargo run --bin tsi-server
+```
+Server starts at http://localhost:8080
+
+**Frontend:**
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Frontend starts at http://localhost:3000
+
+### Docker Compose
 
 ```bash
-# Install
-pip install -r requirements.txt
-
-# Run the Streamlit app
-streamlit run src/tsi/app.py
-
-# Or use the helper
-./scripts/run_dashboard.sh
+cd docker
+docker compose up --build
 ```
 
-The app opens at http://localhost:8501. On the landing page you can:
-- Upload a preprocessed CSV (fastest), or
-- Upload a raw schedule.json (+ optional possible_periods.json). JSON is processed in‑memory, or
-- Load the bundled sample dataset at `data/schedule.json`.
+This starts:
+- PostgreSQL on port 5432
+- Backend API on port 8080
+- Frontend on port 3000
 
-Dark periods: if `data/dark_periods.json` exists, it is auto‑loaded; you can also upload it later on the landing page. The Scheduled Timeline page then shades nighttime (observable) vs daytime (non‑observable) periods.
+## API Endpoints
 
-## Docker Compose (Postgres)
-
-Bring up Postgres + the Streamlit app (Rust backend compiled with Postgres support):
-
-Edit `docker/.env` if you need custom ports or Postgres credentials.
-
-```bash
-./scripts/docker_setup.sh
-```
-
-Guide: `docker/docker-compose.md`
-
-## Preprocess JSON → CSV (recommended for performance)
-
-The dashboard can process JSON directly, but for repeat analysis and faster loads prefer CSV precomputation using the CLI.
-
-```bash
-# Single file
-python scripts/preprocess_schedules.py \
-  --schedule data/schedule.json \
-  --output data/schedule.json
-
-# With visibility/possible periods
-python scripts/preprocess_schedules.py \
-  --schedule data/schedule.json \
-  --visibility data/possible_periods.json \
-  --output data/schedule.json \
-  --verbose
-
-# Batch directory
-python scripts/preprocess_schedules.py \
-  --batch-dir data/schedules \
-  --output-dir data/preprocessed
-
-# Batch with custom patterns
-python scripts/preprocess_schedules.py \
-  --batch-dir data/schedules \
-  --pattern "schedule_*.json" \
-  --visibility-pattern "possible_periods*.json" \
-  --output-dir data/preprocessed
-```
-
-Examples: see `examples/example_data_loading.py` and `examples/example_preprocessing.py`.
-
-## Dockerized development & builds
-
-The repository ships with a Debian 12 multi-stage `Dockerfile` tailored for reproducible builds of both the Streamlit frontend and the Rust backend. Highlights:
-
-- `cargo-chef` stages (`cargo-planner`, `cargo-builder`) cache Rust dependencies and produce a Python wheel via `maturin`.
-- `python-builder` prepares a reusable virtual environment with all Python dependencies pre-installed (minus the editable package).
-- `runtime` is a slim image that only contains the venv, app sources, and runtime assets.
-- `dev` target keeps the full Rust toolchain, venv, and Python dev dependencies for an ergonomic shell inside the container.
-
-### Build & run the runtime image
-
-```bash
-# Build (produces the slim runtime image by default)
-docker build -f docker/Dockerfile -t tsi-app .
-
-# Run Streamlit (mount local data if you want live edits)
-docker run --rm -p 8501:8501 \
-  -v "$(pwd)/data:/app/data" \
-  tsi-app
-```
-
-### Development shell with Rust + Python tools
-
-```bash
-# Build the dev image (carries rustup, cargo, pip, pytest, etc.)
-docker build -f docker/Dockerfile -t tsi-dev --target dev .
-
-# Drop into a shell with source + venv + cargo
-docker run --rm -it \
-  -p 8501:8501 \
-  -v "$(pwd):/workspace" \
-  tsi-dev
-```
-
-Inside the dev container the working directory is `/workspace`, Python dependencies are installed globally in the image (no venv), and `PYTHONPATH` points at `src`. Rebuilding the Rust extension is as simple as running `maturin develop --release`.
-
-## Data schema (CSV expected by the app)
-
-Required columns (from `src/tsi/config.py`):
-- schedulingBlockId, priority, minObservationTimeInSec, requestedDurationSec
-- fixedStartTime, fixedStopTime, decInDeg, raInDeg
-- minAzimuthAngleInDeg, maxAzimuthAngleInDeg, minElevationAngleInDeg, maxElevationAngleInDeg
-- scheduled_period.start, scheduled_period.stop
-- visibility, num_visibility_periods, total_visibility_hours, priority_bin
-- scheduled_flag, requested_hours, elevation_range_deg
-
-Notes
-- Times are MJD in the raw JSON; the app converts to UTC timestamps for display.
-- The `visibility` column is a list of (start, stop) MJD pairs; when stored in CSV it’s stringified.
-
-## Dashboard pages
-
-- Sky Map: RA/Dec scatter with color by priority or status, size by requested hours, priority and time filters
-- Distributions: histograms and summary distributions (priority, visibility hours, requested duration, elevation range)
-- Visibility Map: visualize visibility windows and constraints
-- Scheduled Timeline: month‑by‑month view of scheduled observations; optional dark/daytime overlays; CSV export
-- Insights: scheduling rates, correlations, integrity checks, and top lists
-- Trends: time evolution of scheduling metrics
-- Compare: load a second CSV to compare two schedules side‑by‑side
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/v1/schedules` | List all schedules |
+| POST | `/v1/schedules` | Create a new schedule |
+| GET | `/v1/schedules/{id}/sky-map` | Sky map data |
+| GET | `/v1/schedules/{id}/distributions` | Distribution statistics |
+| GET | `/v1/schedules/{id}/visibility-map` | Visibility map |
+| GET | `/v1/schedules/{id}/timeline` | Timeline data |
+| GET | `/v1/schedules/{id}/insights` | Analytics insights |
+| GET | `/v1/schedules/{id}/trends` | Scheduling trends |
+| GET | `/v1/schedules/{id}/validation-report` | Validation report |
+| GET | `/v1/schedules/{id}/compare/{other}` | Compare schedules |
 
 ## Configuration
 
-Runtime settings are managed via `pydantic-settings` in `src/app_config/settings.py` and can be overridden with environment variables or `docker/.env`.
+### Environment Variables
 
-Key variables
-- DATA_ROOT: base data directory (default: data)
-- SAMPLE_DATASET: path to the sample CSV (default: data/schedule.json)
-- CACHE_TTL_SECONDS: cache TTL for loaders (default: 600)
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HOST` | `0.0.0.0` | Server bind address |
+| `PORT` | `8080` | Server port |
+| `DATABASE_URL` | - | PostgreSQL connection string |
+| `RUST_LOG` | `info` | Log level |
 
-Example `docker/.env`
-```
-SAMPLE_DATASET=data/schedule.json
-DATA_ROOT=data
-CACHE_TTL_SECONDS=900
-```
+### Feature Flags (Cargo)
 
-## Run tests and quality gates
+| Feature | Description |
+|---------|-------------|
+| `local-repo` | In-memory repository (development) |
+| `postgres-repo` | PostgreSQL repository (production) |
+| `http-server` | HTTP server with axum |
 
+## Testing
+
+**Backend:**
 ```bash
-# Unit + e2e tests
-pytest
-
-# Optional dev tools (install with: pip install -e ".[dev]")
-ruff check src/ tests/
-black --check src/ tests/
-mypy src/
+cd backend
+cargo test
 ```
 
-## Development notes
+**Frontend:**
+```bash
+cd frontend
+npm run typecheck
+npm run lint
+```
 
-- Add pages under `src/tsi/pages/` and register them in `src/tsi/routing.py`.
-- Plots live in `src/tsi/plots/`, components in `src/tsi/components/`, services in `src/tsi/services/`.
-- JSON/CSV parsing and preprocessing are under `src/core/`.
+## Documentation
+
+- [Architecture Guide](docs/NEW_ARCHITECTURE.md)
+- [Repository Pattern](docs/REPOSITORY_PATTERN.md)
+- [Docker Setup](docs/SETUP.md)
+- [PostgreSQL Design](docs/POSTGRES_ETL_DB_DESIGN.md)
 
 ## License
 
-AGPL-3.0 — see `LICENSE` for details.
+AGPL-3.0 — see [LICENSE](LICENSE) for details.
 
 ---
 
-Built with Streamlit, Plotly, pandas, and modern Python tooling.
+Built with Rust, React, TypeScript, Plotly.js, and modern web tooling.

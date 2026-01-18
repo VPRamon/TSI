@@ -1,23 +1,14 @@
 /// Defines a newtype ID wrapper around an integer-like scalar (typically `i64`)
 /// and generates:
-/// - `#[pyo3::pyclass(module = "...")]`
 /// - derives (Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)
 /// - `Display`
 /// - `From<$inner> for $name` and `From<$name> for $inner`
-/// - `tiberius::{FromSql, IntoSql, ToSql}` using the inner type’s implementations
 ///
 /// Usage:
 ///   define_id_type!(i64, ScheduleId);
-///   // optionally override the pyo3 module:
-///   define_id_type!(i64, ScheduleId, module = "tsi_rust_api");
 #[macro_export]
 macro_rules! define_id_type {
     ($inner:ty, $name:ident) => {
-        $crate::define_id_type!($inner, $name, module = "tsi_rust_api");
-    };
-
-    ($inner:ty, $name:ident, module = $module:literal) => {
-        #[pyo3::pyclass(module = $module)]
         #[derive(
             Debug,
             Copy,
@@ -50,21 +41,14 @@ macro_rules! define_id_type {
             }
         }
 
-        #[pyo3::pymethods]
         impl $name {
-            #[new]
             pub fn new(value: $inner) -> Self {
                 $name(value)
             }
 
-            #[getter]
             pub fn value(&self) -> $inner {
                 self.0
             }
         }
     };
 }
-
-// Example:
-// define_id_type!(i64, ScheduleId);
-// define_id_type!(i64, UserId, module = "tsi_rust_api");
