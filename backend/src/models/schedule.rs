@@ -62,17 +62,17 @@ pub fn parse_schedule_json_str(
 
     let input: ScheduleInput = serde_json::from_str(json_schedule_json)
         .context("Failed to deserialize schedule JSON using Serde")?;
-    
+
     let schedule_period = input
         .schedule_period
         .unwrap_or_else(|| infer_schedule_period(&input.dark_periods, &input.blocks));
-    
+
     // Compute astronomical nights (location is required)
     let astronomical_nights = crate::services::astronomical_night::compute_astronomical_nights(
         &input.geographic_location,
         &schedule_period,
     );
-    
+
     let mut schedule = api::Schedule {
         id: input.id,
         name: input.name,

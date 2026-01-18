@@ -482,10 +482,10 @@ fn build_schedule_from_rows(
     let schedule_period = json_to_period(&schedule_row.schedule_period_json)?.ok_or_else(|| {
         RepositoryError::InternalError("schedule_period_json is required but was null".to_string())
     })?;
-    let geographic_location: crate::api::GeographicLocation = serde_json::from_value(
-        schedule_row.observer_location_json.clone()
-    )
-    .map_err(|e| RepositoryError::InternalError(format!("Failed to parse observer location: {}", e)))?;
+    let geographic_location: crate::api::GeographicLocation =
+        serde_json::from_value(schedule_row.observer_location_json.clone()).map_err(|e| {
+            RepositoryError::InternalError(format!("Failed to parse observer location: {}", e))
+        })?;
     let astronomical_nights = value_to_periods(&schedule_row.astronomical_night_periods_json)?;
     let mut blocks = Vec::with_capacity(block_rows.len());
     for row in block_rows {
@@ -720,9 +720,9 @@ impl ScheduleRepository for PostgresRepository {
                     raw_schedule_json: serde_json::to_value(&schedule).ok(),
                     schedule_period_json: period_to_json(&schedule.schedule_period),
                     observer_location_json: serde_json::to_value(&schedule.geographic_location)
-                        .map_err(|e| map_diesel_error(diesel::result::Error::SerializationError(
-                            Box::new(e)
-                        )))?,
+                        .map_err(|e| {
+                            map_diesel_error(diesel::result::Error::SerializationError(Box::new(e)))
+                        })?,
                     astronomical_night_periods_json: periods_to_json(&schedule.astronomical_nights),
                 };
 
