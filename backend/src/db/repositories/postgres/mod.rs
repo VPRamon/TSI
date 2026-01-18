@@ -766,10 +766,16 @@ impl ScheduleRepository for PostgresRepository {
                     .collect();
 
                 if !block_rows.is_empty() {
-                    diesel::insert_into(schedule_blocks::table)
-                        .values(&block_rows)
-                        .execute(tx)
-                        .map_err(map_diesel_error)?;
+                    // Insert blocks in chunks to avoid exceeding Postgres parameter limits
+                    // (very large schedules can generate more than 65535 parameters in a single
+                    // prepared statement). Choose a conservative chunk size.
+                    let chunk_size: usize = 1000;
+                    for chunk in block_rows.chunks(chunk_size) {
+                        diesel::insert_into(schedule_blocks::table)
+                            .values(chunk)
+                            .execute(tx)
+                            .map_err(map_diesel_error)?;
+                    }
                 }
 
                 Ok(ScheduleInfo {

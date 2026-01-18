@@ -32,5 +32,5 @@ docker build \
   --build-arg DEBIAN_VERSION="${DEBIAN_VERSION}" \
   --build-arg RUST_VERSION="${RUST_VERSION}" \
   -t "${IMAGE_NAME}" \
-  -f "${WORKSPACE_DIR}/Dockerfile" \
+  -f "${WORKSPACE_DIR}/docker/Dockerfile" \
   "${WORKSPACE_DIR}"
