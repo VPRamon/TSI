@@ -23,12 +23,11 @@
 
 use std::env;
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use tsi_rust::db::repository::FullRepository;
+use tsi_rust::db;
 use tsi_rust::http::{create_router, AppState};
 
 #[tokio::main]
@@ -47,8 +46,9 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting TSI HTTP Server");
 
-    // Initialize repository based on feature flags
-    let repository: Arc<dyn FullRepository> = initialize_repository().await?;
+    // Initialize global repository once and reuse it across the app
+    db::init_repository().map_err(|e| anyhow::anyhow!(e))?;
+    let repository = std::sync::Arc::clone(db::get_repository()?);
     info!("Repository initialized successfully");
 
     // Create application state
@@ -75,30 +75,4 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Initialize the repository based on enabled features.
-#[cfg(feature = "postgres-repo")]
-async fn initialize_repository() -> anyhow::Result<Arc<dyn FullRepository>> {
-    use tsi_rust::db::{PostgresConfig, RepositoryFactory};
-
-    info!("Initializing PostgreSQL repository");
-    let config = PostgresConfig::from_env()
-        .map_err(|e| anyhow::anyhow!("Failed to load PostgreSQL config: {}", e))?;
-    
-    let repo = RepositoryFactory::create_postgres(&config).await
-        .map_err(|e| anyhow::anyhow!("Failed to create PostgreSQL repository: {}", e))?;
-    
-    Ok(repo)
-}
-
-#[cfg(all(feature = "local-repo", not(feature = "postgres-repo")))]
-async fn initialize_repository() -> anyhow::Result<Arc<dyn FullRepository>> {
-    use tsi_rust::db::RepositoryFactory;
-
-    info!("Initializing local (in-memory) repository");
-    Ok(RepositoryFactory::create_local())
-}
-
-#[cfg(not(any(feature = "postgres-repo", feature = "local-repo")))]
-async fn initialize_repository() -> anyhow::Result<Arc<dyn FullRepository>> {
-    anyhow::bail!("No repository feature enabled. Enable either 'postgres-repo' or 'local-repo'.")
-}
+// Repository initialization is handled by `db::init_repository()`.
