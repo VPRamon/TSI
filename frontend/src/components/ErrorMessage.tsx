@@ -10,15 +10,15 @@ interface ErrorMessageProps {
 function ErrorMessage({ title = 'Error', message, onRetry }: ErrorMessageProps) {
   return (
     <div className="flex flex-col items-center justify-center p-8 text-center">
-      <div className="w-16 h-16 mb-4 flex items-center justify-center rounded-full bg-red-500/10">
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
         <span className="text-3xl">⚠️</span>
       </div>
-      <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
-      <p className="text-slate-400 mb-4">{message}</p>
+      <h3 className="mb-2 text-lg font-semibold text-white">{title}</h3>
+      <p className="mb-4 text-slate-400">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors"
+          className="rounded-lg bg-primary-600 px-4 py-2 text-white transition-colors hover:bg-primary-700"
         >
           Try Again
         </button>

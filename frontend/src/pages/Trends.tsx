@@ -10,16 +10,16 @@ import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
 function Trends() {
   const { scheduleId } = useParams();
   const id = parseInt(scheduleId ?? '0', 10);
-  
+
   // Query parameters
   const [bins, setBins] = useState(10);
   const [bandwidth, setBandwidth] = useState(0.5);
-  
+
   const { data, isLoading, error, refetch } = useTrends(id, { bins, bandwidth });
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -111,27 +111,25 @@ function Trends() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Trends</h1>
-        <p className="text-slate-400 mt-1">
-          Scheduling trends and patterns analysis
-        </p>
+        <p className="mt-1 text-slate-400">Scheduling trends and patterns analysis</p>
       </div>
 
       {/* Controls */}
       <Card title="Parameters">
         <div className="flex flex-wrap gap-6">
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Number of Bins</label>
+            <label className="mb-1 block text-sm text-slate-400">Number of Bins</label>
             <input
               type="number"
               value={bins}
               onChange={(e) => setBins(parseInt(e.target.value, 10) || 10)}
               min={5}
               max={20}
-              className="w-24 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+              className="w-24 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white"
             />
           </div>
           <div>
-            <label className="block text-sm text-slate-400 mb-1">Bandwidth</label>
+            <label className="mb-1 block text-sm text-slate-400">Bandwidth</label>
             <input
               type="number"
               value={bandwidth}
@@ -139,34 +137,22 @@ function Trends() {
               min={0.1}
               max={2}
               step={0.1}
-              className="w-24 px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+              className="w-24 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white"
             />
           </div>
         </div>
       </Card>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetricCard
-          label="Total Blocks"
-          value={metrics.total_count}
-          icon="📊"
-        />
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+        <MetricCard label="Total Blocks" value={metrics.total_count} icon="📊" />
         <MetricCard
           label="Scheduling Rate"
           value={`${(metrics.scheduling_rate * 100).toFixed(1)}%`}
           icon="📈"
         />
-        <MetricCard
-          label="Zero Visibility"
-          value={metrics.zero_visibility_count}
-          icon="🚫"
-        />
-        <MetricCard
-          label="Priority Mean"
-          value={metrics.priority_mean.toFixed(2)}
-          icon="⭐"
-        />
+        <MetricCard label="Zero Visibility" value={metrics.zero_visibility_count} icon="🚫" />
+        <MetricCard label="Priority Mean" value={metrics.priority_mean.toFixed(2)} icon="⭐" />
       </div>
 
       {/* By Priority chart */}
