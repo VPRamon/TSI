@@ -56,7 +56,7 @@ function Timeline() {
   }));
 
   // Add dark periods as background shapes
-  const shapes: Plotly.Shape[] = data.dark_periods.map((period) => ({
+  const shapes: Partial<Plotly.Shape>[] = data.dark_periods.map((period) => ({
     type: 'rect',
     xref: 'x',
     yref: 'paper',
@@ -77,12 +77,12 @@ function Timeline() {
     plot_bgcolor: '#1e293b',
     font: { color: '#94a3b8' },
     xaxis: {
-      title: 'Date',
+      title: { text: 'Date' },
       type: 'date',
       gridcolor: '#334155',
     },
     yaxis: {
-      title: 'Observation',
+      title: { text: 'Observation' },
       showticklabels: false,
       gridcolor: '#334155',
     },

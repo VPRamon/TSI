@@ -77,13 +77,13 @@ function SkyMap() {
     plot_bgcolor: '#1e293b',
     font: { color: '#94a3b8' },
     xaxis: {
-      title: 'Right Ascension (degrees)',
+      title: { text: 'Right Ascension (degrees)' },
       range: [0, 360],
       gridcolor: '#334155',
       zerolinecolor: '#475569',
     },
     yaxis: {
-      title: 'Declination (degrees)',
+      title: { text: 'Declination (degrees)' },
       range: [-90, 90],
       gridcolor: '#334155',
       zerolinecolor: '#475569',

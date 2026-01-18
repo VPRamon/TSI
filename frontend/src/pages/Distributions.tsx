@@ -86,11 +86,11 @@ function Distributions() {
     ...baseLayout,
     title: { text: 'Priority Distribution', font: { color: '#fff' } },
     xaxis: {
-      title: 'Priority',
+      title: { text: 'Priority' },
       gridcolor: '#334155',
     },
     yaxis: {
-      title: 'Count',
+      title: { text: 'Count' },
       gridcolor: '#334155',
     },
   };
@@ -99,11 +99,11 @@ function Distributions() {
     ...baseLayout,
     title: { text: 'Visibility Distribution', font: { color: '#fff' } },
     xaxis: {
-      title: 'Total Visibility (hours)',
+      title: { text: 'Total Visibility (hours)' },
       gridcolor: '#334155',
     },
     yaxis: {
-      title: 'Count',
+      title: { text: 'Count' },
       gridcolor: '#334155',
     },
   };
