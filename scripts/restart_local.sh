@@ -72,8 +72,8 @@ restart_backend() {
   else
     echo "Starting backend in background (logs: $LOGDIR/backend.log)..."
     nohup bash -c "cd '$ROOT' && ./scripts/run_server.sh" > "$LOGDIR/backend.log" 2>&1 &
-    sleep 1
-    echo "Backend started."
+    echo "Backend started (pid: $!). Waiting for readiness..."
+    wait_for_backend || echo "Warning: backend did not report healthy within timeout. Check $LOGDIR/backend.log"
   fi
 }
 
@@ -89,6 +89,34 @@ restart_frontend() {
     sleep 1
     echo "Frontend started."
   fi
+}
+
+# Wait for backend to become healthy (poll /health). Respects BACKEND_HOST/BACKEND_PORT env vars.
+wait_for_backend() {
+  local host=${BACKEND_HOST:-127.0.0.1}
+  # If the backend binds 0.0.0.0, check localhost instead
+  if [[ "$host" == "0.0.0.0" ]]; then host=127.0.0.1; fi
+  local port=${BACKEND_PORT:-8080}
+  local url="http://${host}:${port}/health"
+  local timeout=${BACKEND_WAIT_TIMEOUT:-30}
+
+  echo "Waiting for backend health at $url (timeout ${timeout}s) ..."
+  for i in $(seq 1 $timeout); do
+    if command -v curl >/dev/null 2>&1; then
+      if curl -fs "$url" >/dev/null 2>&1; then
+        echo "Backend healthy"
+        return 0
+      fi
+    else
+      # Fallback: try TCP connect
+      if (echo > /dev/tcp/${host}/${port}) >/dev/null 2>&1; then
+        echo "Backend accepting connections on ${host}:${port}"
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+  return 1
 }
 
 # validate foreground usage
