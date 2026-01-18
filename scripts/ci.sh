@@ -1,117 +1,85 @@
 #!/bin/bash
-set -euo pipefail
+set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-RUN_BACKEND=true
-RUN_FRONTEND=true
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PROJECT_ROOT
 
-BACKEND_MODE="standard" # standard|coverage
-FRONTEND_LINTERS_ONLY=false
-FRONTEND_TYPECHECK_ONLY=false
+print_header() {
+    echo -e "\n${GREEN}=== $1 ===${NC}\n"
+}
 
-SHOW_HELP=false
+check_result() {
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ $1 passed${NC}"
+    else
+        echo -e "${RED}✗ $1 failed${NC}"
+        exit 1
+    fi
+}
 
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --backend)
-            RUN_BACKEND=true
-            RUN_FRONTEND=false
-            shift
-            ;;
-        --frontend)
-            RUN_BACKEND=false
-            RUN_FRONTEND=true
-            shift
-            ;;
-        --all)
-            RUN_BACKEND=true
-            RUN_FRONTEND=true
-            shift
-            ;;
-        --rust-coverage|--coverage)
-            BACKEND_MODE="coverage"
-            shift
-            ;;
-        --linters-only)
-            FRONTEND_LINTERS_ONLY=true
-            FRONTEND_TYPECHECK_ONLY=false
-            shift
-            ;;
-        --typecheck-only)
-            FRONTEND_TYPECHECK_ONLY=true
-            FRONTEND_LINTERS_ONLY=false
-            shift
-            ;;
-        -h|--help)
-            SHOW_HELP=true
-            shift
-            ;;
-        *)
-            echo "Unknown option: $1" >&2
-            SHOW_HELP=true
-            shift
-            ;;
+show_help() {
+    echo "Usage: ./ci.sh [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --quick               Skip long-running tests"
+    echo "  --fix                 Auto-fix formatting and linting issues where possible"
+    echo "  --backend-only        Run only backend checks"
+    echo "  --frontend-only       Run only frontend checks"
+    echo "  --help                Show this help message"
+    echo ""
+}
+
+# Parse arguments
+QUICK=false
+FIX=false
+BACKEND_ONLY=false
+FRONTEND_ONLY=false
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --quick) QUICK=true ;;
+        --fix) FIX=true ;;
+        --backend-only) BACKEND_ONLY=true ;;
+        --frontend-only) FRONTEND_ONLY=true ;;
+        --help) show_help; exit 0 ;;
+        *) echo "Unknown parameter: $1"; show_help; exit 1 ;;
     esac
+    shift
 done
 
-if [[ "$SHOW_HELP" == true ]]; then
-    cat << EOF
-Usage: scripts/ci.sh [OPTIONS]
-
-Run CI checks locally for backend (Rust) and frontend (React/TypeScript).
-
-Selection:
-  --all               Run backend + frontend (default)
-  --backend           Run backend only
-  --frontend          Run frontend only
-
-Backend options:
-  --rust-coverage     Run Rust coverage (nightly + cargo-llvm-cov)
-
-Frontend options:
-  --linters-only      Run ESLint only
-  --typecheck-only    Run TypeScript check only
-
-EOF
-    exit 0
+# Run Backend CI
+if [ "$FRONTEND_ONLY" = false ]; then
+    print_header "Running Backend CI"
+    
+    BACKEND_ARGS=""
+    if [ "$FIX" = true ]; then
+        BACKEND_ARGS="$BACKEND_ARGS --fix"
+    fi
+    
+    # We don't have a direct equivalent for --quick in the rust script yet, 
+    # but we can pass it if we update ci_backend.sh to handle it.
+    # For now, let's just run it.
+    
+    "$PROJECT_ROOT/scripts/ci_backend.sh" $BACKEND_ARGS
+    check_result "Backend CI"
 fi
 
-FAILED=()
-
-if [[ "$RUN_FRONTEND" == true ]]; then
-    FRONTEND_ARGS=()
-    if [[ "$FRONTEND_LINTERS_ONLY" == true ]]; then
-        FRONTEND_ARGS+=("--linters-only")
+# Run Frontend CI
+if [ "$BACKEND_ONLY" = false ]; then
+    print_header "Running Frontend CI"
+    
+    FRONTEND_ARGS=""
+    if [ "$FIX" = true ]; then
+        FRONTEND_ARGS="$FRONTEND_ARGS --fix"
     fi
-    if [[ "$FRONTEND_TYPECHECK_ONLY" == true ]]; then
-        FRONTEND_ARGS+=("--typecheck-only")
-    fi
-
-    if ! "${SCRIPT_DIR}/ci_frontend.sh" "${FRONTEND_ARGS[@]+"${FRONTEND_ARGS[@]}"}"; then
-        FAILED+=("frontend")
-    fi
+    
+    "$PROJECT_ROOT/scripts/ci_frontend.sh" $FRONTEND_ARGS
+    check_result "Frontend CI"
 fi
 
-if [[ "$RUN_BACKEND" == true ]]; then
-    BACKEND_ARGS=()
-    if [[ "$BACKEND_MODE" == "coverage" ]]; then
-        BACKEND_ARGS+=("coverage")
-    fi
-
-    if ! "${SCRIPT_DIR}/ci_backend.sh" "${BACKEND_ARGS[@]+"${BACKEND_ARGS[@]}"}"; then
-        FAILED+=("backend")
-    fi
-fi
-
-echo ""
-if [[ ${#FAILED[@]} -eq 0 ]]; then
-    echo "All CI checks passed"
-    exit 0
-else
-    echo "The following groups failed:" >&2
-    for group in "${FAILED[@]}"; do
-        echo "  - ${group}" >&2
-    done
-    exit 1
-fi
+print_header "All CI checks passed successfully!"

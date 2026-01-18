@@ -90,15 +90,15 @@ function Trends() {
   const byPriorityLayout: Partial<Plotly.Layout> = {
     ...baseLayout,
     title: { text: 'Scheduling Rate by Priority', font: { color: '#fff' } },
-    xaxis: { title: 'Priority Bin', gridcolor: '#334155' },
-    yaxis: { title: 'Scheduling Rate (%)', gridcolor: '#334155', range: [0, 100] },
+    xaxis: { title: { text: 'Priority Bin' }, gridcolor: '#334155' },
+    yaxis: { title: { text: 'Scheduling Rate (%)' }, gridcolor: '#334155', range: [0, 100] },
   };
 
   const byVisibilityLayout: Partial<Plotly.Layout> = {
     ...baseLayout,
     title: { text: 'Scheduling Rate by Visibility', font: { color: '#fff' } },
-    xaxis: { title: 'Visibility (hours)', gridcolor: '#334155' },
-    yaxis: { title: 'Scheduling Rate (%)', gridcolor: '#334155', range: [0, 100] },
+    xaxis: { title: { text: 'Visibility (hours)' }, gridcolor: '#334155' },
+    yaxis: { title: { text: 'Scheduling Rate (%)' }, gridcolor: '#334155', range: [0, 100] },
   };
 
   const config: Partial<Plotly.Config> = {
