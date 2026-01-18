@@ -20,8 +20,8 @@ import type {
   ApiError,
 } from './types';
 
-// Base URL - use proxy in development
-const BASE_URL = import.meta.env.PROD ? '' : '/api';
+// Base URL - use /api prefix for both dev (proxy) and prod (creates consistency with nginx)
+const BASE_URL = '/api';
 
 class ApiClient {
   private client: AxiosInstance;
