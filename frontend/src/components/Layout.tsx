@@ -24,12 +24,22 @@ function Layout() {
 
   return (
     <div className="flex min-h-screen bg-slate-900">
+      {/* Skip to main content link for keyboard navigation */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary-600 focus:px-4 focus:py-2 focus:text-white focus:outline-none focus:ring-2 focus:ring-primary-400"
+      >
+        Skip to main content
+      </a>
+
       {/* Sidebar */}
       {!isLanding && (
         <aside
           className={`${
             sidebarOpen ? 'w-64' : 'w-16'
           } flex flex-col border-r border-slate-700 bg-slate-800 transition-all duration-300`}
+          role="navigation"
+          aria-label="Main navigation"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-700 p-4">
@@ -37,6 +47,8 @@ function Layout() {
             <button
               onClick={toggleSidebar}
               className="rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white"
+              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              aria-expanded={sidebarOpen}
             >
               {sidebarOpen ? '◀' : '▶'}
             </button>
@@ -108,7 +120,7 @@ function Layout() {
       )}
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto p-6">
+      <main id="main-content" className="flex-1 overflow-auto p-6" role="main" tabIndex={-1}>
         <Outlet />
       </main>
     </div>

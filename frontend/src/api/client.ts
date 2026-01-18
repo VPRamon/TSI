@@ -17,8 +17,16 @@ import type {
   CompareData,
   CompareQuery,
   VisibilityMapData,
-  ApiError,
+  ApiError as ApiErrorResponse,
 } from './types';
+import {
+  ApiRequestError,
+  NotFoundError,
+  ValidationError,
+  NetworkError,
+  ServerError,
+  RateLimitError,
+} from './errors';
 
 // Base URL - use /api prefix for both dev (proxy) and prod (creates consistency with nginx)
 const BASE_URL = '/api';
@@ -34,14 +42,41 @@ class ApiClient {
       },
     });
 
-    // Response interceptor for error handling
+    // Response interceptor for error handling with typed errors
     this.client.interceptors.response.use(
       (response) => response,
-      (error: AxiosError<ApiError>) => {
-        if (error.response?.data) {
-          throw new Error(error.response.data.message || 'An error occurred');
+      (error: AxiosError<ApiErrorResponse>) => {
+        // Network error (no response)
+        if (!error.response) {
+          throw new NetworkError();
         }
-        throw error;
+
+        const { status, data } = error.response;
+        const message = data?.message || 'An error occurred';
+
+        // Map status codes to typed errors
+        switch (status) {
+          case 400:
+            throw new ValidationError(message);
+          case 404: {
+            // Extract resource info from URL if available
+            const urlParts = error.config?.url?.split('/') ?? [];
+            const resourceType = urlParts[urlParts.length - 2] || 'Resource';
+            const resourceId = urlParts[urlParts.length - 1] || 'unknown';
+            throw new NotFoundError(resourceType, resourceId);
+          }
+          case 429: {
+            const retryAfter = parseInt(error.response.headers['retry-after'] ?? '60', 10);
+            throw new RateLimitError(retryAfter);
+          }
+          case 500:
+          case 502:
+          case 503:
+          case 504:
+            throw new ServerError(message);
+          default:
+            throw new ApiRequestError(message, status, status >= 500);
+        }
       }
     );
   }
