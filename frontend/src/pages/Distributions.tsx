@@ -13,7 +13,7 @@ function Distributions() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -118,13 +118,11 @@ function Distributions() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Distributions</h1>
-        <p className="text-slate-400 mt-1">
-          Statistical analysis of schedule properties
-        </p>
+        <p className="mt-1 text-slate-400">Statistical analysis of schedule properties</p>
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <MetricCard label="Total Blocks" value={data.total_count} icon="📊" />
         <MetricCard label="Scheduled" value={data.scheduled_count} icon="✅" />
         <MetricCard label="Unscheduled" value={data.unscheduled_count} icon="❌" />
@@ -133,7 +131,7 @@ function Distributions() {
 
       {/* Priority stats */}
       <Card title="Priority Statistics">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           <MetricCard label="Mean" value={data.priority_stats.mean.toFixed(2)} />
           <MetricCard label="Median" value={data.priority_stats.median.toFixed(2)} />
           <MetricCard label="Std Dev" value={data.priority_stats.std_dev.toFixed(2)} />
@@ -155,7 +153,7 @@ function Distributions() {
 
       {/* Visibility stats */}
       <Card title="Visibility Statistics">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
           <MetricCard label="Mean" value={`${data.visibility_stats.mean.toFixed(1)}h`} />
           <MetricCard label="Median" value={`${data.visibility_stats.median.toFixed(1)}h`} />
           <MetricCard label="Std Dev" value={`${data.visibility_stats.std_dev.toFixed(1)}h`} />

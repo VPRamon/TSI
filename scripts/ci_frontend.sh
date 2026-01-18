@@ -19,6 +19,8 @@ ci_warn() { echo -e "${YELLOW}! $1${NC}"; }
 
 RUN_LINTERS=true
 RUN_TYPECHECK=true
+RUN_FORMAT_CHECK=true
+RUN_TESTS=true
 RUN_BUILD=false
 SHOW_HELP=false
 
@@ -26,11 +28,12 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --linters-only)
             RUN_TYPECHECK=false
+            RUN_FORMAT_CHECK=false
+            RUN_TESTS=false
             RUN_BUILD=false
             shift
             ;;
-        --typecheck-only)
-            RUN_LINTERS=false
+        --quality-gates)
             RUN_BUILD=false
             shift
             ;;
@@ -58,7 +61,7 @@ React/TypeScript frontend quality gates and build checks.
 
 Options:
   --linters-only      Run ESLint only
-  --typecheck-only    Run TypeScript check only
+  --quality-gates     Run all quality checks (lint, type-check, format, tests)
   --build             Also run production build
   -h, --help          Show this help message
 
@@ -88,11 +91,31 @@ fi
 
 if [[ "$RUN_TYPECHECK" == true ]]; then
     ci_header "TypeScript Check"
-    if npm run typecheck 2>/dev/null; then
+    if npm run type-check 2>/dev/null; then
         ci_success "TypeScript check passed"
     else
         ci_error "TypeScript check failed"
-        FAILED+=("typecheck")
+        FAILED+=("type-check")
+    fi
+fi
+
+if [[ "$RUN_FORMAT_CHECK" == true ]]; then
+    ci_header "Prettier Format Check"
+    if npm run format:check 2>/dev/null; then
+        ci_success "Format check passed"
+    else
+        ci_error "Format check failed"
+        FAILED+=("format-check")
+    fi
+fi
+
+if [[ "$RUN_TESTS" == true ]]; then
+    ci_header "Unit Tests"
+    if npm run test:run 2>/dev/null; then
+        ci_success "Unit tests passed"
+    else
+        ci_error "Unit tests failed"
+        FAILED+=("tests")
     fi
 fi
 

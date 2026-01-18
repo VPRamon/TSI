@@ -12,9 +12,9 @@ interface CardProps {
 
 function Card({ title, children, className = '', headerAction }: CardProps) {
   return (
-    <div className={`bg-slate-800 rounded-xl border border-slate-700 ${className}`}>
+    <div className={`rounded-xl border border-slate-700 bg-slate-800 ${className}`}>
       {title && (
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
+        <div className="flex items-center justify-between border-b border-slate-700 px-6 py-4">
           <h2 className="text-lg font-semibold text-white">{title}</h2>
           {headerAction}
         </div>

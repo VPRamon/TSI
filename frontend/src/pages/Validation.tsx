@@ -12,7 +12,7 @@ function Validation() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -40,58 +40,37 @@ function Validation() {
   };
 
   const getCriticalityColor = (criticality: string) => {
-    return criticalityColors[criticality as keyof typeof criticalityColors] || 'bg-slate-500/20 text-slate-400';
+    return (
+      criticalityColors[criticality as keyof typeof criticalityColors] ||
+      'bg-slate-500/20 text-slate-400'
+    );
   };
 
   const totalIssues =
-    data.impossible_blocks.length +
-    data.validation_errors.length +
-    data.validation_warnings.length;
+    data.impossible_blocks.length + data.validation_errors.length + data.validation_warnings.length;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Validation</h1>
-        <p className="text-slate-400 mt-1">
-          Schedule validation report and issues
-        </p>
+        <p className="mt-1 text-slate-400">Schedule validation report and issues</p>
       </div>
 
       {/* Summary metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <MetricCard
-          label="Total Blocks"
-          value={data.total_blocks}
-          icon="📦"
-        />
-        <MetricCard
-          label="Valid Blocks"
-          value={data.valid_blocks}
-          icon="✅"
-        />
-        <MetricCard
-          label="Impossible"
-          value={data.impossible_blocks.length}
-          icon="🚫"
-        />
-        <MetricCard
-          label="Errors"
-          value={data.validation_errors.length}
-          icon="❌"
-        />
-        <MetricCard
-          label="Warnings"
-          value={data.validation_warnings.length}
-          icon="⚠️"
-        />
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+        <MetricCard label="Total Blocks" value={data.total_blocks} icon="📦" />
+        <MetricCard label="Valid Blocks" value={data.valid_blocks} icon="✅" />
+        <MetricCard label="Impossible" value={data.impossible_blocks.length} icon="🚫" />
+        <MetricCard label="Errors" value={data.validation_errors.length} icon="❌" />
+        <MetricCard label="Warnings" value={data.validation_warnings.length} icon="⚠️" />
       </div>
 
       {/* Overall status */}
       <Card>
         <div className="flex items-center gap-4">
           <div
-            className={`w-16 h-16 rounded-full flex items-center justify-center ${
+            className={`flex h-16 w-16 items-center justify-center rounded-full ${
               totalIssues === 0 ? 'bg-green-500/20' : 'bg-yellow-500/20'
             }`}
           >
@@ -117,22 +96,24 @@ function Validation() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">
-                  <th className="text-left py-3 px-4 text-slate-400">Block ID</th>
-                  <th className="text-left py-3 px-4 text-slate-400">Issue Type</th>
-                  <th className="text-left py-3 px-4 text-slate-400">Description</th>
-                  <th className="text-center py-3 px-4 text-slate-400">Criticality</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Block ID</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Issue Type</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Description</th>
+                  <th className="px-4 py-3 text-center text-slate-400">Criticality</th>
                 </tr>
               </thead>
               <tbody>
                 {data.impossible_blocks.map((issue, index) => (
                   <tr key={index} className="border-b border-slate-700/50">
-                    <td className="py-3 px-4 text-white">
+                    <td className="px-4 py-3 text-white">
                       {issue.original_block_id || issue.block_id}
                     </td>
-                    <td className="py-3 px-4 text-slate-300">{issue.issue_type}</td>
-                    <td className="py-3 px-4 text-slate-300">{issue.description}</td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`px-2 py-1 rounded text-xs ${getCriticalityColor(issue.criticality)}`}>
+                    <td className="px-4 py-3 text-slate-300">{issue.issue_type}</td>
+                    <td className="px-4 py-3 text-slate-300">{issue.description}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span
+                        className={`rounded px-2 py-1 text-xs ${getCriticalityColor(issue.criticality)}`}
+                      >
                         {issue.criticality}
                       </span>
                     </td>
@@ -151,23 +132,23 @@ function Validation() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">
-                  <th className="text-left py-3 px-4 text-slate-400">Block ID</th>
-                  <th className="text-left py-3 px-4 text-slate-400">Field</th>
-                  <th className="text-left py-3 px-4 text-slate-400">Current</th>
-                  <th className="text-left py-3 px-4 text-slate-400">Expected</th>
-                  <th className="text-left py-3 px-4 text-slate-400">Description</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Block ID</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Field</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Current</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Expected</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Description</th>
                 </tr>
               </thead>
               <tbody>
                 {data.validation_errors.map((issue, index) => (
                   <tr key={index} className="border-b border-slate-700/50">
-                    <td className="py-3 px-4 text-white">
+                    <td className="px-4 py-3 text-white">
                       {issue.original_block_id || issue.block_id}
                     </td>
-                    <td className="py-3 px-4 text-slate-300">{issue.field_name || '-'}</td>
-                    <td className="py-3 px-4 text-red-400">{issue.current_value || '-'}</td>
-                    <td className="py-3 px-4 text-green-400">{issue.expected_value || '-'}</td>
-                    <td className="py-3 px-4 text-slate-300">{issue.description}</td>
+                    <td className="px-4 py-3 text-slate-300">{issue.field_name || '-'}</td>
+                    <td className="px-4 py-3 text-red-400">{issue.current_value || '-'}</td>
+                    <td className="px-4 py-3 text-green-400">{issue.expected_value || '-'}</td>
+                    <td className="px-4 py-3 text-slate-300">{issue.description}</td>
                   </tr>
                 ))}
               </tbody>
@@ -183,19 +164,19 @@ function Validation() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">
-                  <th className="text-left py-3 px-4 text-slate-400">Block ID</th>
-                  <th className="text-left py-3 px-4 text-slate-400">Issue Type</th>
-                  <th className="text-left py-3 px-4 text-slate-400">Description</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Block ID</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Issue Type</th>
+                  <th className="px-4 py-3 text-left text-slate-400">Description</th>
                 </tr>
               </thead>
               <tbody>
                 {data.validation_warnings.map((issue, index) => (
                   <tr key={index} className="border-b border-slate-700/50">
-                    <td className="py-3 px-4 text-white">
+                    <td className="px-4 py-3 text-white">
                       {issue.original_block_id || issue.block_id}
                     </td>
-                    <td className="py-3 px-4 text-slate-300">{issue.issue_type}</td>
-                    <td className="py-3 px-4 text-slate-300">{issue.description}</td>
+                    <td className="px-4 py-3 text-slate-300">{issue.issue_type}</td>
+                    <td className="px-4 py-3 text-slate-300">{issue.description}</td>
                   </tr>
                 ))}
               </tbody>

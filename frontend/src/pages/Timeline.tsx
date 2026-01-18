@@ -5,12 +5,7 @@ import { useParams } from 'react-router-dom';
 import Plot from 'react-plotly.js';
 import { useTimeline } from '@/hooks';
 import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
-
-// Convert MJD to JavaScript Date
-function mjdToDate(mjd: number): Date {
-  const MJD_EPOCH = Date.UTC(1858, 10, 17); // November 17, 1858
-  return new Date(MJD_EPOCH + mjd * 86400000);
-}
+import { mjdToDate } from '@/constants/dates';
 
 function Timeline() {
   const { scheduleId } = useParams();
@@ -19,7 +14,7 @@ function Timeline() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex h-full items-center justify-center">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -101,25 +96,15 @@ function Timeline() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-white">Timeline</h1>
-        <p className="text-slate-400 mt-1">
-          Scheduled observations over time
-        </p>
+        <p className="mt-1 text-slate-400">Scheduled observations over time</p>
       </div>
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <MetricCard label="Total Blocks" value={data.total_count} icon="📅" />
         <MetricCard label="Scheduled" value={data.scheduled_count} icon="✅" />
-        <MetricCard
-          label="Unique Months"
-          value={data.unique_months.length}
-          icon="📆"
-        />
-        <MetricCard
-          label="Dark Periods"
-          value={data.dark_periods.length}
-          icon="🌙"
-        />
+        <MetricCard label="Unique Months" value={data.unique_months.length} icon="📆" />
+        <MetricCard label="Dark Periods" value={data.dark_periods.length} icon="🌙" />
       </div>
 
       {/* Timeline chart */}
@@ -141,7 +126,7 @@ function Timeline() {
           {data.unique_months.map((month) => (
             <span
               key={month}
-              className="px-3 py-1 bg-slate-700 rounded-full text-sm text-slate-300"
+              className="rounded-full bg-slate-700 px-3 py-1 text-sm text-slate-300"
             >
               {month}
             </span>

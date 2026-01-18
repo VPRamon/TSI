@@ -70,17 +70,23 @@ class ApiClient {
   }
 
   async getDistributions(scheduleId: number): Promise<DistributionData> {
-    const { data } = await this.client.get<DistributionData>(`/v1/schedules/${scheduleId}/distributions`);
+    const { data } = await this.client.get<DistributionData>(
+      `/v1/schedules/${scheduleId}/distributions`
+    );
     return data;
   }
 
   async getVisibilityMap(scheduleId: number): Promise<VisibilityMapData> {
-    const { data } = await this.client.get<VisibilityMapData>(`/v1/schedules/${scheduleId}/visibility-map`);
+    const { data } = await this.client.get<VisibilityMapData>(
+      `/v1/schedules/${scheduleId}/visibility-map`
+    );
     return data;
   }
 
   async getTimeline(scheduleId: number): Promise<ScheduleTimelineData> {
-    const { data } = await this.client.get<ScheduleTimelineData>(`/v1/schedules/${scheduleId}/timeline`);
+    const { data } = await this.client.get<ScheduleTimelineData>(
+      `/v1/schedules/${scheduleId}/timeline`
+    );
     return data;
   }
 
@@ -97,7 +103,9 @@ class ApiClient {
   }
 
   async getValidationReport(scheduleId: number): Promise<ValidationReport> {
-    const { data } = await this.client.get<ValidationReport>(`/v1/schedules/${scheduleId}/validation-report`);
+    const { data } = await this.client.get<ValidationReport>(
+      `/v1/schedules/${scheduleId}/validation-report`
+    );
     return data;
   }
 

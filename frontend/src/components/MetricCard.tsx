@@ -10,14 +10,7 @@ interface MetricCardProps {
   className?: string;
 }
 
-function MetricCard({
-  label,
-  value,
-  icon,
-  trend,
-  trendValue,
-  className = '',
-}: MetricCardProps) {
+function MetricCard({ label, value, icon, trend, trendValue, className = '' }: MetricCardProps) {
   const trendColors = {
     up: 'text-green-500',
     down: 'text-red-500',
@@ -31,13 +24,13 @@ function MetricCard({
   };
 
   return (
-    <div className={`bg-slate-800 rounded-xl border border-slate-700 p-4 ${className}`}>
+    <div className={`rounded-xl border border-slate-700 bg-slate-800 p-4 ${className}`}>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-slate-400">{label}</p>
-          <p className="text-2xl font-bold text-white mt-1">{value}</p>
+          <p className="mt-1 text-2xl font-bold text-white">{value}</p>
           {trend && trendValue && (
-            <p className={`text-sm mt-1 ${trendColors[trend]}`}>
+            <p className={`mt-1 text-sm ${trendColors[trend]}`}>
               {trendIcons[trend]} {trendValue}
             </p>
           )}
