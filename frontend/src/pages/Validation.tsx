@@ -4,6 +4,7 @@
 import { useParams } from 'react-router-dom';
 import { useValidationReport } from '@/hooks';
 import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
+import { CRITICALITY_CLASSES, type CriticalityKey } from '@/constants/colors';
 
 function Validation() {
   const { scheduleId } = useParams();
@@ -32,17 +33,9 @@ function Validation() {
     return <ErrorMessage message="No data available" />;
   }
 
-  const criticalityColors = {
-    critical: 'bg-red-500/20 text-red-400',
-    high: 'bg-orange-500/20 text-orange-400',
-    medium: 'bg-yellow-500/20 text-yellow-400',
-    low: 'bg-blue-500/20 text-blue-400',
-  };
-
   const getCriticalityColor = (criticality: string) => {
     return (
-      criticalityColors[criticality as keyof typeof criticalityColors] ||
-      'bg-slate-500/20 text-slate-400'
+      CRITICALITY_CLASSES[criticality as CriticalityKey] || 'bg-slate-500/20 text-slate-400'
     );
   };
 

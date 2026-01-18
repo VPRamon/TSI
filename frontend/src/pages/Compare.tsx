@@ -4,6 +4,7 @@
 import { useParams } from 'react-router-dom';
 import { useCompare } from '@/hooks';
 import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
+import { CHANGE_TYPE_COLORS, type ChangeTypeKey } from '@/constants/colors';
 
 function Compare() {
   const { scheduleId, otherId } = useParams();
@@ -33,12 +34,6 @@ function Compare() {
   if (!data) {
     return <ErrorMessage message="No data available" />;
   }
-
-  const changeTypeColors: Record<string, string> = {
-    scheduled: 'bg-green-500/20 text-green-400',
-    unscheduled: 'bg-red-500/20 text-red-400',
-    unchanged: 'bg-slate-500/20 text-slate-400',
-  };
 
   return (
     <div className="space-y-6">
@@ -136,7 +131,8 @@ function Compare() {
                     <td className="px-4 py-3 text-center">
                       <span
                         className={`rounded px-2 py-1 text-xs ${
-                          changeTypeColors[change.change_type] || 'bg-slate-500/20 text-slate-400'
+                          CHANGE_TYPE_COLORS[change.change_type as ChangeTypeKey] ||
+                          'bg-slate-500/20 text-slate-400'
                         }`}
                       >
                         {change.change_type}
