@@ -56,6 +56,17 @@ docker compose build backend
 docker compose up -d backend
 ```
 
+Note: the Nginx proxy defaults to a 1MB client body limit. If your schedule JSON files exceed 1MB, increase the limit in [docker/nginx.conf](nginx.conf) (for example `client_max_body_size 50M;`) and then restart the frontend service.
+
+To restart the frontend after changing the config:
+
+```bash
+cd docker
+docker compose up -d --build frontend
+# or
+docker compose restart frontend
+```
+
 ## Connecting to PostgreSQL
 
 ```bash
