@@ -36,6 +36,7 @@ export function useRemountDetector(componentName: string): void {
         'color: #ef4444; font-weight: bold;'
       );
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps = only runs on mount/unmount
 }
 
