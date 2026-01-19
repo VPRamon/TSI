@@ -2,7 +2,7 @@
  * ChartPanel component - Flat panel for charts with optional title.
  * Less elevation than Card for cleaner chart presentation.
  */
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 
 interface ChartPanelProps {
   title?: string;
@@ -10,7 +10,7 @@ interface ChartPanelProps {
   className?: string;
 }
 
-function ChartPanel({ title, children, className = '' }: ChartPanelProps) {
+const ChartPanel = memo(function ChartPanel({ title, children, className = '' }: ChartPanelProps) {
   return (
     <div className={`rounded-lg border border-slate-700 bg-slate-800/30 ${className}`}>
       {title && (
@@ -21,6 +21,6 @@ function ChartPanel({ title, children, className = '' }: ChartPanelProps) {
       <div className="p-4">{children}</div>
     </div>
   );
-}
+});
 
 export default ChartPanel;

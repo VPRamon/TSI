@@ -2,7 +2,7 @@
  * SplitPane component - Controls on left, main content on right (desktop).
  * Stacks vertically on mobile.
  */
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 
 interface SplitPaneProps {
   /** Left/top panel content (controls) */
@@ -21,7 +21,7 @@ const widthClasses = {
   lg: 'lg:w-96',
 };
 
-function SplitPane({ controls, children, controlsWidth = 'md', className = '' }: SplitPaneProps) {
+const SplitPane = memo(function SplitPane({ controls, children, controlsWidth = 'md', className = '' }: SplitPaneProps) {
   return (
     <div className={`flex flex-col gap-6 lg:flex-row ${className}`}>
       {/* Controls panel */}
@@ -39,6 +39,6 @@ function SplitPane({ controls, children, controlsWidth = 'md', className = '' }:
       </div>
     </div>
   );
-}
+});
 
 export default SplitPane;
