@@ -96,10 +96,10 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
       fileInputRef.current.value = '';
     }
     
-    // Navigate to the schedule if we have a schedule_id
+    // Navigate to the schedule validation page if we have a schedule_id
     if (result && typeof result === 'object' && 'schedule_id' in result) {
       const scheduleId = (result as { schedule_id: number }).schedule_id;
-      setTimeout(() => navigate(`/schedules/${scheduleId}/sky-map`), 1500);
+      setTimeout(() => navigate(`/schedules/${scheduleId}/validation`), 1500);
     }
   };
 
