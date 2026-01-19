@@ -11,34 +11,30 @@ function Timeline() {
   const id = parseInt(scheduleId ?? '0', 10);
   const { data, isLoading, error, refetch } = useTimeline(id);
 
-  // Add dark periods as background shapes (compute before hook call)
-  const shapes: Partial<Plotly.Shape>[] = (data?.dark_periods ?? []).map((period) => ({
-    type: 'rect',
-    xref: 'x',
-    yref: 'paper',
-    x0: mjdToDate(period.start),
-    x1: mjdToDate(period.stop),
-    y0: 0,
-    y1: 1,
-    fillcolor: 'rgba(30, 58, 138, 0.2)',
-    line: { width: 0 },
-  }));
-
   // Call hook unconditionally (rules of hooks)
   const { layout, config } = usePlotlyTheme({
     title: 'Observation Timeline',
-    xAxis: { title: 'Date', type: 'date' },
-    yAxis: { title: 'Observation' },
-    shapes,
+    xAxis: { title: 'Day of Month' },
+    yAxis: { title: 'Month' },
     showLegend: false,
   });
 
-  // Override yaxis to hide tick labels
+  // Override axes for calendar-style layout
   const timelineLayout = {
     ...layout,
+    xaxis: {
+      ...layout.xaxis,
+      title: 'Day of Month',
+      range: [0, 32],
+      dtick: 1,
+    },
     yaxis: {
       ...layout.yaxis,
-      showticklabels: false,
+      title: 'Month',
+      tickmode: 'array',
+      tickvals: data.unique_months.map((_, index) => index),
+      ticktext: data.unique_months,
+      autorange: 'reversed',
     },
   };
 
@@ -64,21 +60,38 @@ function Timeline() {
     return <ErrorMessage message="No data available" />;
   }
 
-  // Create Gantt-like chart with scatter plot
-  const plotData: Plotly.Data[] = data.blocks.map((block, index) => ({
-    type: 'scatter',
-    mode: 'lines',
-    name: block.original_block_id,
-    x: [mjdToDate(block.scheduled_start_mjd), mjdToDate(block.scheduled_stop_mjd)],
-    y: [index, index],
-    line: {
-      width: 8,
-      color: `hsl(${(block.priority / 10) * 240}, 70%, 50%)`,
-    },
-    text: `${block.original_block_id}<br>Priority: ${block.priority.toFixed(1)}<br>Duration: ${block.requested_hours.toFixed(1)}h`,
-    hoverinfo: 'text',
-    showlegend: false,
-  }));
+  // Group blocks by month and create month mapping
+  const monthMap = new Map<string, number>();
+  data.unique_months.forEach((month, index) => {
+    monthMap.set(month, index);
+  });
+
+  // Create calendar-style timeline with scatter plot
+  const plotData: Plotly.Data[] = data.blocks.map((block) => {
+    const startDate = mjdToDate(block.scheduled_start_mjd);
+    const stopDate = mjdToDate(block.scheduled_stop_mjd);
+    const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+    const monthIndex = monthMap.get(monthKey) ?? 0;
+    
+    // Calculate fractional day positions for start and stop
+    const startDay = startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
+    const stopDay = stopDate.getDate() + stopDate.getHours() / 24 + stopDate.getMinutes() / 1440;
+    
+    return {
+      type: 'scatter',
+      mode: 'lines',
+      name: block.original_block_id,
+      x: [startDay, stopDay],
+      y: [monthIndex, monthIndex],
+      line: {
+        width: 20,
+        color: `hsl(${(block.priority / 10) * 240}, 70%, 50%)`,
+      },
+      text: `${block.original_block_id}<br>Start: ${startDate.toISOString()}<br>Priority: ${block.priority.toFixed(1)}<br>Duration: ${block.requested_hours.toFixed(1)}h`,
+      hoverinfo: 'text',
+      showlegend: false,
+    };
+  });
 
   return (
     <div className="space-y-6">
