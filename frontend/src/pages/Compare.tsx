@@ -16,30 +16,9 @@ function Compare() {
   const { data, isLoading, error, refetch } = useCompare(currentId, comparisonId);
   const plotlyTheme = usePlotlyTheme();
 
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <ErrorMessage
-        title="Failed to load comparison"
-        message={(error as Error).message}
-        onRetry={() => refetch()}
-      />
-    );
-  }
-
-  if (!data) {
-    return <ErrorMessage message="No data available" />;
-  }
-
-  // Prepare chart data
+  // Prepare chart data - must be called unconditionally (rules of hooks)
   const priorityDistributionData = useMemo(() => {
+    if (!data) return [];
     const currentPriorities = data.current_blocks.map((b) => b.priority);
     const comparisonPriorities = data.comparison_blocks.map((b) => b.priority);
     
@@ -77,6 +56,7 @@ function Compare() {
   }, [data]);
 
   const schedulingStatusData = useMemo(() => {
+    if (!data) return [];
     return [
       {
         name: data.current_name,
@@ -114,6 +94,7 @@ function Compare() {
   }, [data]);
 
   const changesData = useMemo(() => {
+    if (!data) return [];
     const newlyScheduled = data.scheduling_changes.filter((c) => c.change_type === 'newly_scheduled').length;
     const newlyUnscheduled = data.scheduling_changes.filter((c) => c.change_type === 'newly_unscheduled').length;
 
@@ -134,6 +115,7 @@ function Compare() {
   }, [data]);
 
   const timeDistributionData = useMemo(() => {
+    if (!data) return [];
     const currentTimes = data.current_blocks.map((b) => b.requested_hours);
     const comparisonTimes = data.comparison_blocks.map((b) => b.requested_hours);
 
@@ -164,6 +146,28 @@ function Compare() {
       },
     ];
   }, [data]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <ErrorMessage
+        title="Failed to load comparison"
+        message={(error as Error).message}
+        onRetry={() => refetch()}
+      />
+    );
+  }
+
+  if (!data) {
+    return <ErrorMessage message="No data available" />;
+  }
 
   return (
     <div className="space-y-6">

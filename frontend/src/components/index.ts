@@ -9,5 +9,8 @@ export { DataTable } from './DataTable';
 export type { TableColumn, DataTableProps } from './DataTable';
 export type { LogEntry, LogStreamProps } from './LogStream';
 
+// Layout primitives
+export * from './layout';
+
 // Charts
 export * from './charts';
