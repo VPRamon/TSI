@@ -29,10 +29,8 @@ use tsi_rust::services::{compare, distributions, insights, sky_map, timeline, tr
 fn load_schedule_from_files() -> Schedule {
     let schedule_json =
         fs::read_to_string("/workspace/data/schedule.json").expect("Failed to read schedule.json");
-    let possible_periods_json = fs::read_to_string("/workspace/data/possible_periods.json")
-        .expect("Failed to read possible_periods.json");
 
-    parse_schedule_json_str(&schedule_json, Some(&possible_periods_json))
+    parse_schedule_json_str(&schedule_json)
         .expect("Failed to parse schedule from JSON files")
 }
 
@@ -1066,7 +1064,7 @@ async fn test_empty_schedule_handling() {
     }"#;
 
     let schedule =
-        parse_schedule_json_str(empty_schedule_json, None).expect("Failed to parse empty schedule");
+        parse_schedule_json_str(empty_schedule_json).expect("Failed to parse empty schedule");
 
     assert!(schedule.blocks.is_empty(), "Schedule should have no blocks");
 

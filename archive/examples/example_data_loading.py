@@ -58,7 +58,6 @@ def example_2_load_from_json_files():
     print("="*60)
     
     schedule_json = Path("data/schedule.json")
-    visibility_json = Path("data/possible_periods.json")
     
     if not schedule_json.exists():
         print(f"⚠️  JSON file not found: {schedule_json}")
@@ -67,7 +66,6 @@ def example_2_load_from_json_files():
     # Preprocess using Rust backend with validation
     df_polars, validation = tsi_rust.py_preprocess_schedule(
         str(schedule_json),
-        str(visibility_json) if visibility_json.exists() else None,
         validate=True
     )
     df = df_polars.to_pandas()

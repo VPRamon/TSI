@@ -17,6 +17,14 @@
     "blocks": {
       "type": "array",
       "items": { "$ref": "#/definitions/SchedulingBlock" }
+    },
+    "possible_periods": {
+      "type": "object",
+      "description": "Optional map of SchedulingBlock original_block_id (string) to arrays of visibility periods.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "$ref": "#/definitions/Period" }
+      }
     }
   },
   "required": ["blocks", "schedule_period", "geographic_location"],
