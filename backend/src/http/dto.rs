@@ -47,12 +47,23 @@ fn default_true() -> bool {
 /// Response for schedule creation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateScheduleResponse {
-    /// ID of the created schedule
-    pub schedule_id: i64,
-    /// Name of the schedule
-    pub schedule_name: String,
+    /// Job ID for tracking the async processing
+    pub job_id: String,
     /// Message about the operation
     pub message: String,
+}
+
+/// Job status response for async processing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JobStatusResponse {
+    /// Job ID
+    pub job_id: String,
+    /// Job status
+    pub status: String,
+    /// Log entries
+    pub logs: Vec<crate::services::job_tracker::LogEntry>,
+    /// Result if completed
+    pub result: Option<serde_json::Value>,
 }
 
 /// Query parameters for trends endpoint.

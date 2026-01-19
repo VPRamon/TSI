@@ -45,3 +45,8 @@ tower-http = { version = "0.6", features = ["cors", "trace", "compression-gzip"]
 uuid = { version = "1.0", features = ["v4", "serde"], optional = true }
 tracing = { version = "0.1", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = true }
+
+# SSE and async streaming for job logs
+async-stream = "0.3"
+futures = "0.3"
+parking_lot = "0.12"

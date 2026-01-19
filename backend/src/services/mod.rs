@@ -21,6 +21,10 @@ pub mod validation;
 pub mod validation_report;
 pub mod visibility;
 
+// Async job processing
+pub mod job_tracker;
+pub mod schedule_processor;
+
 pub use compare::py_get_compare_data;
 pub use distributions::{py_get_distribution_data, py_get_distribution_data_analytics};
 pub use insights::py_get_insights_data;

@@ -29,6 +29,9 @@ pub fn create_router(state: AppState) -> Router {
         // Schedule CRUD
         .route("/schedules", get(handlers::list_schedules))
         .route("/schedules", post(handlers::create_schedule))
+        // Job management
+        .route("/jobs/{job_id}", get(handlers::get_job_status))
+        .route("/jobs/{job_id}/logs", get(handlers::stream_job_logs))
         // Visualization endpoints
         .route("/schedules/{schedule_id}/sky-map", get(handlers::get_sky_map))
         .route("/schedules/{schedule_id}/distributions", get(handlers::get_distributions))

@@ -25,9 +25,24 @@ export interface CreateScheduleRequest {
 }
 
 export interface CreateScheduleResponse {
-  schedule_id: number;
-  schedule_name: string;
+  job_id: string;
   message: string;
+}
+
+export interface LogEntry {
+  timestamp: string;
+  level: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+}
+
+export interface JobStatusResponse {
+  job_id: string;
+  status: string;
+  logs: LogEntry[];
+  result?: {
+    schedule_id: number;
+    schedule_name: string;
+  };
 }
 
 export interface HealthResponse {
