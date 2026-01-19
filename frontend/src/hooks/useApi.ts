@@ -3,7 +3,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api';
-import type { CreateScheduleRequest, TrendsQuery, CompareQuery } from '@/api/types';
+import type { CreateScheduleRequest, TrendsQuery, CompareQuery, VisibilityHistogramQuery } from '@/api/types';
 
 // Query keys factory
 export const queryKeys = {
@@ -13,6 +13,8 @@ export const queryKeys = {
   skyMap: (id: number) => ['skyMap', id] as const,
   distributions: (id: number) => ['distributions', id] as const,
   visibilityMap: (id: number) => ['visibilityMap', id] as const,
+  visibilityHistogram: (id: number, query?: VisibilityHistogramQuery) => 
+    ['visibilityHistogram', id, query] as const,
   timeline: (id: number) => ['timeline', id] as const,
   insights: (id: number) => ['insights', id] as const,
   trends: (id: number, query?: TrendsQuery) => ['trends', id, query] as const,
@@ -72,6 +74,14 @@ export function useVisibilityMap(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.visibilityMap(scheduleId),
     queryFn: () => api.getVisibilityMap(scheduleId),
+    enabled: scheduleId > 0,
+  });
+}
+
+export function useVisibilityHistogram(scheduleId: number, query?: VisibilityHistogramQuery) {
+  return useQuery({
+    queryKey: queryKeys.visibilityHistogram(scheduleId, query),
+    queryFn: () => api.getVisibilityHistogram(scheduleId, query),
     enabled: scheduleId > 0,
   });
 }

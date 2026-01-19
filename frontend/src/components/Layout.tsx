@@ -9,6 +9,7 @@ import { useHealth } from '@/hooks';
 const scheduleNavItems = [
   { path: 'sky-map', label: 'Sky Map', icon: '🌌' },
   { path: 'distributions', label: 'Distributions', icon: '📊' },
+  { path: 'visibility-map', label: 'Visibility Map', icon: '🗺️' },
   { path: 'timeline', label: 'Timeline', icon: '📅' },
   { path: 'insights', label: 'Insights', icon: '💡' },
   { path: 'trends', label: 'Trends', icon: '📈' },

@@ -15,6 +15,7 @@ use std::time::Duration;
 use super::dto::{
     CompareQuery, CreateScheduleRequest, CreateScheduleResponse, HealthResponse,
     JobStatusResponse, ScheduleInfoDto, ScheduleListResponse, TrendsQuery,
+    VisibilityHistogramQuery, VisibilityBin,
 };
 use super::error::AppError;
 use super::state::AppState;
@@ -164,6 +165,96 @@ pub async fn get_visibility_map(
         .await?;
 
     Ok(Json(data))
+}
+
+/// GET /v1/schedules/{schedule_id}/visibility-histogram
+///
+/// Get visibility histogram data for a schedule with optional filters.
+pub async fn get_visibility_histogram(
+    State(state): State<AppState>,
+    Path(schedule_id): Path<i64>,
+    Query(query): Query<VisibilityHistogramQuery>,
+) -> HandlerResult<Vec<VisibilityBin>> {
+    use crate::db::models::BlockHistogramData;
+    use crate::services::visibility::compute_visibility_histogram_rust;
+    
+    let schedule_id = ScheduleId::new(schedule_id);
+    
+    // Get schedule time range
+    let time_range = state
+        .repository
+        .get_schedule_time_range(schedule_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("No time range found for schedule {}", schedule_id)))?;
+    
+    // Convert MJD to Unix timestamps
+    const MJD_EPOCH_UNIX: i64 = -3506716800;
+    let start_unix = MJD_EPOCH_UNIX + (time_range.start.value() * 86400.0) as i64;
+    let end_unix = MJD_EPOCH_UNIX + (time_range.stop.value() * 86400.0) as i64;
+    
+    // Determine bin duration
+    let bin_duration_seconds = if let Some(minutes) = query.bin_duration_minutes {
+        minutes * 60
+    } else {
+        let num_bins = query.num_bins.unwrap_or(50);
+        let time_range_seconds = end_unix - start_unix;
+        std::cmp::max(1, time_range_seconds / num_bins as i64)
+    };
+    
+    // Fetch blocks with visibility data
+    let blocks = state
+        .repository
+        .get_blocks_for_schedule(schedule_id)
+        .await?;
+    
+    // Convert to histogram data format and apply filters
+    let histogram_blocks: Vec<BlockHistogramData> = blocks
+        .into_iter()
+        .filter(|b| {
+            // Apply priority filters
+            if let Some(min_p) = query.priority_min {
+                if b.priority < min_p as f64 {
+                    return false;
+                }
+            }
+            if let Some(max_p) = query.priority_max {
+                if b.priority > max_p as f64 {
+                    return false;
+                }
+            }
+            // Apply block ID filter
+            if let Some(ref ids) = query.block_ids {
+                if let Some(id) = b.id {
+                    if !ids.contains(&id.value()) {
+                        return false;
+                    }
+                }
+            }
+            true
+        })
+        .map(|b| BlockHistogramData {
+            scheduling_block_id: b.id.map(|id| id.value()).unwrap_or(0),
+            priority: b.priority as i32,
+            visibility_periods: Some(b.visibility_periods),
+        })
+        .collect();
+    
+    // Compute histogram using the service
+    let bins = tokio::task::spawn_blocking(move || {
+        compute_visibility_histogram_rust(
+            histogram_blocks.into_iter(),
+            start_unix,
+            end_unix,
+            bin_duration_seconds,
+            query.priority_min,
+            query.priority_max,
+        )
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
+    .map_err(|e| AppError::Internal(format!("Histogram computation error: {}", e)))?;
+    
+    Ok(Json(bins))
 }
 
 /// GET /v1/schedules/{schedule_id}/timeline
