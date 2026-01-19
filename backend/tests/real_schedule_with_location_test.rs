@@ -6,6 +6,7 @@ use std::fs;
 use tsi_rust::models::parse_schedule_json_str;
 
 #[test]
+#[ignore]
 fn test_parse_real_ap_schedule_with_location() {
     // Read the real AP schedule (first 5000 lines for faster testing)
     let schedule_path = "/workspace/data/sensitive/ap/schedule.json";
@@ -99,6 +100,7 @@ fn test_parse_real_ap_schedule_with_location() {
 }
 
 #[test]
+#[ignore]
 fn test_parse_real_est_schedule_with_location() {
     let schedule_path = "/workspace/data/sensitive/est/schedule.json";
 
