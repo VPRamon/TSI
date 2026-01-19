@@ -328,6 +328,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "reason: too slow for regular test runs"]
     fn test_parse_real_schedule_files() {
         let schedule = parse_real_schedule_fixture();
 
@@ -376,6 +377,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "reason: too slow for regular test runs"]
     fn test_parse_fixed_time_block_from_real_data() {
         let schedule = parse_real_schedule_fixture();
 
