@@ -17,7 +17,7 @@
  * we avoid). Reset is handled internally.
  */
 import { useState, useCallback, useRef, memo, useEffect } from 'react';
-import { useRemountDetector, useRenderCounter } from '../hooks/useRemountDetector';
+import { useRemountDetector, useRenderCounter } from '@/hooks/useRemountDetector';
 
 export interface FilterParams {
   numBins: number;

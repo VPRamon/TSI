@@ -8,7 +8,7 @@ import { memo, useMemo, useDeferredValue } from 'react';
 import { PlotlyChart, ChartPanel } from '@/components';
 import { usePlotlyTheme } from '@/hooks/usePlotlyTheme';
 import { useHistogramData, type HistogramBin } from '../hooks/useHistogramData';
-import { useRemountDetector, useRenderCounter } from '../hooks/useRemountDetector';
+import { useRemountDetector, useRenderCounter } from '@/hooks/useRemountDetector';
 
 interface OpportunitiesHistogramProps {
   histogramData: HistogramBin[] | undefined;
