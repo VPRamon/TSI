@@ -1,34 +1,33 @@
 /**
  * VisibilityMap page - Histogram of target visibility over observation period.
  * 
- * ARCHITECTURE (v3 - complete remount elimination):
+ * This page displays a visibility histogram showing when observation targets
+ * are visible during the scheduling period. Users can filter by priority range
+ * and adjust histogram binning to analyze visibility patterns.
  * 
- * ROOT CAUSES OF BLINKING:
- * 1. Passing ReactNode as props (controls, children) creates new refs each render
- * 2. Early returns cause React to unmount/remount entire subtrees
- * 3. State changes at parent level cause all children to re-render
- * 4. FilterSettings syncing from parent via useEffect caused feedback loops
+ * ARCHITECTURE:
+ * - Thin page component that assembles shared/feature components
+ * - FilterSettings: uncontrolled component with debounced updates (prevents blink)
+ * - OpportunitiesHistogram: memoized with useDeferredValue for smooth updates
+ * - InfoCards: inline memoized section (page-specific layout only)
  * 
- * SOLUTION - TWO-COMPONENT PATTERN:
- * - VisibilityMapLoader: handles data fetching, shows loading/error states
- * - VisibilityMapContent: stable tree, receives ONLY stable props
- * 
- * KEY INSIGHT: The content component receives:
- * - mapData: changes rarely (initial load only)
- * - histogramData: changes on filter updates (but isolated to histogram)
- * - No ReactNode props - each child is a direct child in JSX
- * - Filter state lives in FilterSettings (not hoisted to parent)
+ * RENDER ISOLATION:
+ * - FilterSettings owns its state completely (no sync from parent)
+ * - InfoCards depends only on mapData (stable after initial load)
+ * - Histogram updates are isolated via memoization boundaries
  */
 import { useState, useCallback, useMemo, memo } from 'react';
 import { useParams } from 'react-router-dom';
-import { useVisibilityMap, useVisibilityHistogram } from '@/hooks';
+import { useVisibilityMap, useVisibilityHistogram, useRemountDetector, useRenderCounter } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
   PageContainer,
+  PageHeader,
+  MetricsGrid,
+  MetricCard,
 } from '@/components';
-import { InfoCards, FilterSettings, OpportunitiesHistogram, type FilterParams } from './components';
-import { useRemountDetector, useRenderCounter } from './hooks/useRemountDetector';
+import { FilterSettings, OpportunitiesHistogram, type FilterParams } from '@/features/schedules';
 
 // Types for histogram query
 interface HistogramQuery {
@@ -63,9 +62,47 @@ interface HistogramBin {
 }
 
 /**
+ * InfoCards - Page header and summary metrics section.
+ * Inline component - only depends on mapData which is stable after initial load.
+ */
+interface InfoCardsProps {
+  totalCount: number;
+  scheduledCount: number;
+  priorityMin: number;
+  priorityMax: number;
+}
+
+const InfoCards = memo(function InfoCards({
+  totalCount,
+  scheduledCount,
+  priorityMin,
+  priorityMax,
+}: InfoCardsProps) {
+  useRemountDetector('InfoCards');
+  useRenderCounter('InfoCards');
+
+  return (
+    <>
+      <PageHeader
+        title="Visibility Map"
+        description={`Target visibility over the observation period (${totalCount} blocks)`}
+      />
+      <MetricsGrid>
+        <MetricCard label="Total Blocks" value={totalCount} icon="📊" />
+        <MetricCard label="Scheduled" value={scheduledCount} icon="✅" />
+        <MetricCard
+          label="Priority Range"
+          value={`${priorityMin.toFixed(1)} - ${priorityMax.toFixed(1)}`}
+          icon="⭐"
+        />
+      </MetricsGrid>
+    </>
+  );
+});
+
+/**
  * Content component - renders the stable layout.
- * This component does NOT do any data fetching - it receives stable props.
- * Children are rendered directly in JSX, not passed as props.
+ * No data fetching - receives stable props and renders children directly in JSX.
  */
 interface VisibilityMapContentProps {
   mapData: MapData;
@@ -95,8 +132,8 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
 
       {/* Split layout: controls left, chart right */}
       <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Controls panel */}
-        <aside className="shrink-0 lg:w-64">
+        {/* Controls panel - fixed width on desktop */}
+        <aside className="shrink-0 lg:w-72">
           <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
             <FilterSettings
               defaultParams={DEFAULT_FILTERS}
@@ -107,7 +144,7 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
           </div>
         </aside>
         
-        {/* Chart area */}
+        {/* Chart area - flexible width with overflow prevention */}
         <div className="min-w-0 flex-1">
           <OpportunitiesHistogram
             histogramData={histogramData}
