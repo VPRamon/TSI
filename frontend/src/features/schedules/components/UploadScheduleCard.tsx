@@ -1,10 +1,11 @@
 /**
  * Upload schedule card component.
- * Handles file selection and schedule upload.
+ * Handles file selection and schedule upload with live log streaming.
  */
 import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCreateSchedule } from '@/hooks';
-import { LoadingSpinner } from '@/components';
+import { LoadingSpinner, LogStream } from '@/components';
 
 // SVG Icons
 const UploadIcon = () => (
@@ -36,11 +37,13 @@ export interface UploadScheduleCardProps {
 
 function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
   const createSchedule = useCreateSchedule();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadName, setUploadName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [jobId, setJobId] = useState<string | null>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -55,6 +58,7 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
 
     setIsUploading(true);
     setUploadError('');
+    setJobId(null);
     try {
       const content = await selectedFile.text();
       let scheduleJson: unknown;
@@ -66,26 +70,43 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
       }
       const name = uploadName || selectedFile.name.replace('.json', '');
 
-      await createSchedule.mutateAsync({
+      const response = await createSchedule.mutateAsync({
         name,
         schedule_json: scheduleJson,
         populate_analytics: true,
       });
 
-      // Reset form on success
-      setUploadName('');
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      // Set job ID to start streaming logs
+      setJobId(response.job_id);
     } catch (err) {
       console.error('Failed to upload schedule:', err);
       const message = err instanceof Error ? err.message : 'Unknown upload error';
       setUploadError(message);
       onError?.(message);
-    } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleComplete = (result: unknown) => {
+    setIsUploading(false);
+    // Reset form on success
+    setUploadName('');
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
+    // Navigate to the schedule if we have a schedule_id
+    if (result && typeof result === 'object' && 'schedule_id' in result) {
+      const scheduleId = (result as { schedule_id: number }).schedule_id;
+      setTimeout(() => navigate(`/schedules/${scheduleId}/sky-map`), 1500);
+    }
+  };
+
+  const handleJobError = (error: string) => {
+    setIsUploading(false);
+    setUploadError(error);
+    onError?.(error);
   };
 
   return (
@@ -164,6 +185,17 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
             >
               <strong className="font-medium">Error:</strong> {uploadError}
             </div>
+          )}
+
+          {/* Live Log Stream */}
+          {jobId && (
+            <LogStream
+              jobId={jobId}
+              apiBaseUrl="/api"
+              onComplete={handleComplete}
+              onError={handleJobError}
+              maxHeight="250px"
+            />
           )}
         </div>
 

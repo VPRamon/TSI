@@ -91,11 +91,19 @@ pub fn parse_schedule_json_str(
 
     // If possible_periods are embedded in the JSON, merge them into block.visibility_periods.
     // possible_periods is a map of original_block_id (string) -> array of Period
-    if let Some(map) = input.possible_periods {
+    // 
+    // PERFORMANCE NOTE: For very large possible_periods maps (>100MB), this can be slow.
+    // The map is deserialized entirely into memory, then cloned for each matching block.
+    // Optimizations for extreme cases (not implemented yet):
+    // - Use a streaming JSON parser to process blocks and periods incrementally
+    // - Store large possible_periods in a separate compressed file/table
+    // - Lazy-load visibility periods on demand rather than materializing all at once
+    if let Some(mut map) = input.possible_periods {
         for block in &mut schedule.blocks {
             // Match by original_block_id (user-provided identifier)
-            if let Some(periods) = map.get(&block.original_block_id) {
-                block.visibility_periods = periods.clone();
+            // Use remove() instead of get() to move data and avoid clone
+            if let Some(periods) = map.remove(&block.original_block_id) {
+                block.visibility_periods = periods;
             }
         }
     }

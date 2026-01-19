@@ -6,6 +6,7 @@ import type {
   ScheduleListResponse,
   CreateScheduleRequest,
   CreateScheduleResponse,
+  JobStatusResponse,
   HealthResponse,
   SkyMapData,
   DistributionData,
@@ -153,6 +154,12 @@ class ApiClient {
       `/v1/schedules/${scheduleId}/compare/${otherId}`,
       { params: query }
     );
+    return data;
+  }
+
+  // Job management
+  async getJobStatus(jobId: string): Promise<JobStatusResponse> {
+    const { data } = await this.client.get<JobStatusResponse>(`/v1/jobs/${jobId}`);
     return data;
   }
 }
