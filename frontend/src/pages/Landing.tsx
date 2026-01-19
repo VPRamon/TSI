@@ -21,7 +21,7 @@ function Landing() {
       refetch();
       return;
     }
-    navigate(`/schedules/${scheduleId}/sky-map`);
+    navigate(`/schedules/${scheduleId}/validation`);
   };
 
   if (isLoading) {
