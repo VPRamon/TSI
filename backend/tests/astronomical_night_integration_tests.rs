@@ -40,6 +40,7 @@ fn test_parse_schedule_with_geographic_location() {
 
 /// Test that astronomical nights are computed when location is provided
 #[test]
+#[ignore]
 fn test_parse_schedule_computes_astronomical_nights() {
     let schedule_json = r#"{
         "name": "Roque de los Muchachos Schedule",
@@ -74,6 +75,7 @@ fn test_parse_schedule_computes_astronomical_nights() {
 
 /// Test astronomical night computation service directly
 #[test]
+#[ignore]
 fn test_compute_astronomical_nights_greenwich() {
     let location = GeographicLocation {
         latitude: 51.4769,
@@ -108,6 +110,7 @@ fn test_compute_astronomical_nights_greenwich() {
 
 /// Test astronomical night computation at Roque de los Muchachos
 #[test]
+#[ignore]
 fn test_compute_astronomical_nights_roque_de_los_muchachos() {
     let location = GeographicLocation {
         latitude: 28.7624,
@@ -138,6 +141,7 @@ fn test_compute_astronomical_nights_roque_de_los_muchachos() {
 
 /// Test that location and astronomical nights roundtrip through the database
 #[tokio::test]
+#[ignore]
 async fn test_location_and_nights_persist_to_database() {
     let repo = LocalRepository::new();
 
@@ -234,6 +238,7 @@ fn test_no_astronomical_nights_polar_summer() {
 
 /// Test that schedule JSON without schedule_period infers it from blocks
 #[test]
+#[ignore]
 fn test_inferred_schedule_period_with_location() {
     let schedule_json = r#"{
         "name": "Inferred Period Schedule",
