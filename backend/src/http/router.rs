@@ -4,6 +4,7 @@
 //! and creates the axum router ready for serving.
 
 use axum::{
+    extract::DefaultBodyLimit,
     routing::{get, post},
     Router,
 };
@@ -46,6 +47,8 @@ pub fn create_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(handlers::health_check))
         .nest("/v1", api_v1)
+        // Allow large schedule payloads during uploads.
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
         .layer(cors)
