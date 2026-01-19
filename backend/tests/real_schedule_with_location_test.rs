@@ -17,7 +17,7 @@ fn test_parse_real_ap_schedule_with_location() {
 
     let schedule_json = fs::read_to_string(schedule_path).expect("Failed to read AP schedule");
 
-    let result = parse_schedule_json_str(&schedule_json, None);
+    let result = parse_schedule_json_str(&schedule_json);
     assert!(
         result.is_ok(),
         "Failed to parse AP schedule: {:?}",
@@ -109,7 +109,7 @@ fn test_parse_real_est_schedule_with_location() {
 
     let schedule_json = fs::read_to_string(schedule_path).expect("Failed to read EST schedule");
 
-    let result = parse_schedule_json_str(&schedule_json, None);
+    let result = parse_schedule_json_str(&schedule_json);
     assert!(
         result.is_ok(),
         "Failed to parse EST schedule: {:?}",

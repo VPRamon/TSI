@@ -24,6 +24,8 @@ struct ScheduleInput {
     pub geographic_location: api::GeographicLocation,
     #[serde(default)]
     pub blocks: Vec<api::SchedulingBlock>,
+    #[serde(default)]
+    pub possible_periods: Option<HashMap<String, Vec<api::Period>>>,
 }
 
 fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
@@ -40,23 +42,21 @@ fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
     Ok(())
 }
 
-/// Parse schedule from JSON string with optional merging of separate period blobs.
+/// Parse schedule from JSON string.
 ///
-/// This function deserializes a schedule JSON string using Serde, then optionally
-/// merges `possible_periods` and `dark_periods` from separate JSON blobs when the
-/// data is split across multiple files.
+/// This function deserializes a schedule JSON string using Serde.
+/// If the JSON contains an optional `possible_periods` field (map of block IDs to periods),
+/// those visibility periods are merged into the corresponding blocks.
 ///
 /// # Arguments
 ///
 /// * `json_schedule_json` - Main schedule JSON (snake_case format matching schema)
-/// * `possible_periods_json` - Optional JSON with visibility periods per block ID
 ///
 /// # Returns
 ///
 /// A fully populated `Schedule` with merged periods and computed checksum.
 pub fn parse_schedule_json_str(
     json_schedule_json: &str,
-    possible_periods_json: Option<&str>,
 ) -> Result<api::Schedule> {
     validate_input_schedule(json_schedule_json)?;
 
@@ -89,39 +89,13 @@ pub fn parse_schedule_json_str(
         schedule.checksum = compute_schedule_checksum(json_schedule_json);
     }
 
-    // If possible periods are supplied separately, merge them into block.visibility_periods.
-    // Accept either a wrapper `{"blocks": { "<id>": [ ... ] }}` or a direct map `{ "<id>": [ ... ] }`.
-    if let Some(pp_json) = possible_periods_json {
-        let trimmed = pp_json.trim();
-        if !trimmed.is_empty() {
-            #[derive(serde::Deserialize)]
-            struct BlocksWrapper {
-                blocks: HashMap<String, Vec<crate::api::Period>>,
-            }
-
-            // Try wrapper form first, then try direct map form.
-            let maybe_map: Option<HashMap<String, Vec<crate::api::Period>>> =
-                match serde_json::from_str::<BlocksWrapper>(trimmed) {
-                    Ok(wrapper) => Some(wrapper.blocks),
-                    Err(_) => {
-                        serde_json::from_str::<HashMap<String, Vec<crate::api::Period>>>(trimmed)
-                            .ok()
-                    }
-                };
-
-            if let Some(map) = maybe_map {
-                for block in &mut schedule.blocks {
-                    // Match by original_block_id (user-provided identifier)
-                    if let Some(periods) = map.get(&block.original_block_id) {
-                        block.visibility_periods = periods.clone();
-                    }
-                    // Fallback: also try matching by internal id if present
-                    else if let Some(id) = block.id {
-                        if let Some(periods) = map.get(&id.0.to_string()) {
-                            block.visibility_periods = periods.clone();
-                        }
-                    }
-                }
+    // If possible_periods are embedded in the JSON, merge them into block.visibility_periods.
+    // possible_periods is a map of original_block_id (string) -> array of Period
+    if let Some(map) = input.possible_periods {
+        for block in &mut schedule.blocks {
+            // Match by original_block_id (user-provided identifier)
+            if let Some(periods) = map.get(&block.original_block_id) {
+                block.visibility_periods = periods.clone();
             }
         }
     }
@@ -199,15 +173,10 @@ mod tests {
 
     fn parse_real_schedule_fixture() -> Schedule {
         let schedule_path = repo_data_path("schedule.json");
-        let possible_path = repo_data_path("possible_periods.json");
 
         parse_schedule_json_str(
             &std::fs::read_to_string(&schedule_path)
                 .expect("Failed to read repository schedule fixture"),
-            Some(
-                &std::fs::read_to_string(&possible_path)
-                    .expect("Failed to read repository possible periods fixture"),
-            ),
         )
         .expect("Failed to parse real schedule fixture")
     }
@@ -250,7 +219,7 @@ mod tests {
             ]
         }"#;
 
-        let result = parse_schedule_json_str(schedule_json, None);
+        let result = parse_schedule_json_str(schedule_json);
         assert!(
             result.is_ok(),
             "Should parse minimal schedule: {:?}",
@@ -291,7 +260,7 @@ mod tests {
             ]
         }"#;
 
-        let result = parse_schedule_json_str(schedule_json, None);
+        let result = parse_schedule_json_str(schedule_json);
         assert!(
             result.is_ok(),
             "Should parse with scheduled period: {:?}",
@@ -313,7 +282,7 @@ mod tests {
             },
             "blocks": [
                 {
-                    "id": 1000004990,
+                    "original_block_id": "1000004990",
                     "priority": 8.5,
                     "target_ra": 158.03,
                     "target_dec": -68.03,
@@ -327,12 +296,16 @@ mod tests {
                     "min_observation": 1200,
                     "requested_duration": 1200
                 }
-            ]
+            ],
+            "possible_periods": {
+                "1000004990": [
+                    { "start": 61771.0, "stop": 61772.0 },
+                    { "start": 61773.0, "stop": 61774.0 }
+                ]
+            }
         }"#;
 
-        let possible_periods_json = r#"{ "blocks": { "1000004990": [ { "start": 61771.0, "stop": 61772.0 }, { "start": 61773.0, "stop": 61774.0 } ] } }"#;
-
-        let result = parse_schedule_json_str(schedule_json, Some(possible_periods_json));
+        let result = parse_schedule_json_str(schedule_json);
         assert!(result.is_ok(), "Should parse with possible periods");
 
         let schedule = result.unwrap();
@@ -343,14 +316,14 @@ mod tests {
     #[test]
     fn test_missing_scheduling_block_key() {
         let schedule_json = r#"{"SomeOtherKey": []}"#;
-        let result = parse_schedule_json_str(schedule_json, None);
+        let result = parse_schedule_json_str(schedule_json);
         assert!(result.is_err(), "Should fail without SchedulingBlock key");
     }
 
     #[test]
     fn test_invalid_json() {
         let schedule_json = "not valid json {";
-        let result = parse_schedule_json_str(schedule_json, None);
+        let result = parse_schedule_json_str(schedule_json);
         assert!(result.is_err(), "Should fail with invalid JSON");
     }
 

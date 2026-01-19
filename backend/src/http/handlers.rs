@@ -70,18 +70,11 @@ pub async fn create_schedule(
     // Convert JSON values to strings for the service layer
     let schedule_json_str = serde_json::to_string(&request.schedule_json)
         .map_err(|e| AppError::BadRequest(format!("Invalid schedule JSON: {}", e)))?;
-    
-    let visibility_json_str = request
-        .visibility_json
-        .map(|v| serde_json::to_string(&v))
-        .transpose()
-        .map_err(|e| AppError::BadRequest(format!("Invalid visibility JSON: {}", e)))?;
 
     // Parse and store the schedule
     let schedule = db_services::parse_schedule_from_json(
         &request.name,
         &schedule_json_str,
-        visibility_json_str.as_deref(),
     )
     .map_err(|e| AppError::BadRequest(format!("Failed to parse schedule: {}", e)))?;
 

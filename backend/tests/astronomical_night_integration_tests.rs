@@ -23,7 +23,7 @@ fn test_parse_schedule_with_geographic_location() {
         "blocks": []
     }"#;
 
-    let result = parse_schedule_json_str(schedule_json, None);
+    let result = parse_schedule_json_str(schedule_json);
     assert!(
         result.is_ok(),
         "Failed to parse schedule with location: {:?}",
@@ -55,7 +55,7 @@ fn test_parse_schedule_computes_astronomical_nights() {
         "blocks": []
     }"#;
 
-    let result = parse_schedule_json_str(schedule_json, None);
+    let result = parse_schedule_json_str(schedule_json);
     assert!(result.is_ok());
 
     let schedule = result.unwrap();
@@ -155,7 +155,7 @@ async fn test_location_and_nights_persist_to_database() {
         "blocks": []
     }"#;
 
-    let schedule = parse_schedule_json_str(schedule_json, None).unwrap();
+    let schedule = parse_schedule_json_str(schedule_json).unwrap();
     let original_nights_count = schedule.astronomical_nights.len();
 
     // Store schedule
@@ -198,7 +198,7 @@ fn test_location_without_elevation() {
         "blocks": []
     }"#;
 
-    let result = parse_schedule_json_str(schedule_json, None);
+    let result = parse_schedule_json_str(schedule_json);
     assert!(result.is_ok());
 
     let schedule = result.unwrap();
@@ -248,7 +248,7 @@ fn test_inferred_schedule_period_with_location() {
         "blocks": []
     }"#;
 
-    let result = parse_schedule_json_str(schedule_json, None);
+    let result = parse_schedule_json_str(schedule_json);
     assert!(result.is_ok());
 
     let schedule = result.unwrap();

@@ -33,11 +33,8 @@ pub use crate::api::{
 pub struct CreateScheduleRequest {
     /// Name for the schedule
     pub name: String,
-    /// Schedule JSON data (raw JSON string or parsed object)
+    /// Schedule JSON data (may include optional possible_periods field)
     pub schedule_json: serde_json::Value,
-    /// Optional visibility JSON data
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub visibility_json: Option<serde_json::Value>,
     /// Whether to populate analytics after storing (default: true)
     #[serde(default = "default_true")]
     pub populate_analytics: bool,
