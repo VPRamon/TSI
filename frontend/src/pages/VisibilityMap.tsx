@@ -1,10 +1,21 @@
 /**
  * Visibility Map page - Histogram of target visibility over observation period.
+ * Redesigned with SplitPane layout: controls on left, chart on right (desktop).
  */
 import { useState, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useVisibilityMap, useVisibilityHistogram } from '@/hooks';
-import { Card, LoadingSpinner, ErrorMessage, MetricCard, PlotlyChart } from '@/components';
+import {
+  LoadingSpinner,
+  ErrorMessage,
+  MetricCard,
+  PlotlyChart,
+  PageHeader,
+  PageContainer,
+  SplitPane,
+  MetricsGrid,
+  ChartPanel,
+} from '@/components';
 import { usePlotlyTheme } from '@/hooks/usePlotlyTheme';
 
 function VisibilityMap() {
@@ -123,19 +134,143 @@ function VisibilityMap() {
     hovertemplate: '<b>%{y} visible blocks</b><br>Time: %{x|%Y-%m-%d %H:%M}<br><extra></extra>',
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
+  const handleReset = () => {
+    setNumBins(50);
+    setBinDurationMinutes(undefined);
+    setPriorityMin(undefined);
+    setPriorityMax(undefined);
+    setUseCustomDuration(false);
+  };
+
+  // Controls panel content
+  const controlsContent = (
+    <div className="space-y-5">
+      <h3 className="text-sm font-medium text-slate-200">Filters</h3>
+
+      {/* Binning method toggle */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Visibility Map</h1>
-        <p className="mt-1 text-slate-400">
-          Target visibility over the observation period ({filteredBlocks.length} blocks,{' '}
-          {histogramData.length} bins, ~{durationLabel} per bin)
-        </p>
+        <label className="mb-1.5 block text-xs font-medium text-slate-400">
+          Binning Method
+        </label>
+        <select
+          className="w-full rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          value={useCustomDuration ? 'duration' : 'bins'}
+          onChange={(e) => setUseCustomDuration(e.target.value === 'duration')}
+        >
+          <option value="bins">Number of Bins</option>
+          <option value="duration">Bin Duration</option>
+        </select>
       </div>
 
-      {/* Statistics */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      {/* Number of bins OR bin duration */}
+      {!useCustomDuration ? (
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">
+            Number of Bins
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              min="10"
+              max="200"
+              value={numBins}
+              onChange={(e) => setNumBins(parseInt(e.target.value, 10))}
+              className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-600"
+            />
+            <span className="w-10 text-right text-sm font-medium text-white">{numBins}</span>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">
+            Bin Duration (min)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max="10080"
+            value={binDurationMinutes ?? 60}
+            onChange={(e) =>
+              setBinDurationMinutes(e.target.value ? parseInt(e.target.value, 10) : undefined)
+            }
+            className="w-full rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
+      )}
+
+      <div className="border-t border-slate-700 pt-4">
+        <h4 className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">
+          Priority Range
+        </h4>
+
+        {/* Priority min */}
+        <div className="mb-3">
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">
+            Min Priority
+          </label>
+          <input
+            type="number"
+            min={mapData.priority_min}
+            max={mapData.priority_max}
+            step="0.1"
+            value={priorityMin ?? mapData.priority_min}
+            onChange={(e) =>
+              setPriorityMin(e.target.value ? parseFloat(e.target.value) : undefined)
+            }
+            className="w-full rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
+
+        {/* Priority max */}
+        <div>
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">
+            Max Priority
+          </label>
+          <input
+            type="number"
+            min={mapData.priority_min}
+            max={mapData.priority_max}
+            step="0.1"
+            value={priorityMax ?? mapData.priority_max}
+            onChange={(e) =>
+              setPriorityMax(e.target.value ? parseFloat(e.target.value) : undefined)
+            }
+            className="w-full rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          />
+        </div>
+      </div>
+
+      {/* Reset button */}
+      <button
+        onClick={handleReset}
+        className="w-full rounded-md bg-slate-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800"
+      >
+        Reset Filters
+      </button>
+
+      {/* Current settings summary */}
+      <div className="rounded-md bg-slate-700/50 p-3">
+        <p className="text-xs text-slate-400">Current Settings</p>
+        <p className="mt-1 text-sm text-slate-200">
+          {histogramData.length} bins • ~{durationLabel}/bin
+        </p>
+        <p className="mt-0.5 text-sm text-slate-200">
+          Priority: {effectivePriorityMin.toFixed(1)} – {effectivePriorityMax.toFixed(1)}
+        </p>
+      </div>
+    </div>
+  );
+
+  return (
+    <PageContainer>
+      {/* Header */}
+      <PageHeader
+        title="Visibility Map"
+        description={`Target visibility over the observation period (${filteredBlocks.length} blocks)`}
+      />
+
+      {/* Metrics */}
+      <MetricsGrid>
         <MetricCard label="Total Blocks" value={mapData.total_count} icon="📊" />
         <MetricCard label="Filtered Blocks" value={filteredBlocks.length} icon="🔍" />
         <MetricCard label="Scheduled" value={mapData.scheduled_count} icon="✅" />
@@ -144,141 +279,36 @@ function VisibilityMap() {
           value={`${mapData.priority_min.toFixed(1)} - ${mapData.priority_max.toFixed(1)}`}
           icon="⭐"
         />
-      </div>
+      </MetricsGrid>
 
-      {/* Filter Controls */}
-      <Card title="Filters">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Binning method toggle */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">
-              Binning Method
-            </label>
-            <select
-              className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              value={useCustomDuration ? 'duration' : 'bins'}
-              onChange={(e) => setUseCustomDuration(e.target.value === 'duration')}
-            >
-              <option value="bins">Number of Bins</option>
-              <option value="duration">Bin Duration</option>
-            </select>
-          </div>
-
-          {/* Number of bins OR bin duration */}
-          {!useCustomDuration ? (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                Number of Bins: {numBins}
-              </label>
-              <input
-                type="range"
-                min="10"
-                max="200"
-                value={numBins}
-                onChange={(e) => setNumBins(parseInt(e.target.value, 10))}
-                className="w-full"
-              />
-            </div>
-          ) : (
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-300">
-                Bin Duration (minutes)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="10080"
-                value={binDurationMinutes ?? 60}
-                onChange={(e) =>
-                  setBinDurationMinutes(
-                    e.target.value ? parseInt(e.target.value, 10) : undefined
-                  )
-                }
-                className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-          )}
-
-          {/* Priority min */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">
-              Min Priority
-            </label>
-            <input
-              type="number"
-              min={mapData.priority_min}
-              max={mapData.priority_max}
-              step="0.1"
-              value={priorityMin ?? mapData.priority_min}
-              onChange={(e) =>
-                setPriorityMin(e.target.value ? parseFloat(e.target.value) : undefined)
-              }
-              className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-
-          {/* Priority max */}
-          <div>
-            <label className="mb-2 block text-sm font-medium text-slate-300">
-              Max Priority
-            </label>
-            <input
-              type="number"
-              min={mapData.priority_min}
-              max={mapData.priority_max}
-              step="0.1"
-              value={priorityMax ?? mapData.priority_max}
-              onChange={(e) =>
-                setPriorityMax(e.target.value ? parseFloat(e.target.value) : undefined)
-              }
-              className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            />
-          </div>
-
-          {/* Reset button */}
-          <div className="flex items-end">
-            <button
-              onClick={() => {
-                setNumBins(50);
-                setBinDurationMinutes(undefined);
-                setPriorityMin(undefined);
-                setPriorityMax(undefined);
-                setUseCustomDuration(false);
-              }}
-              className="w-full rounded-lg bg-slate-600 px-4 py-2 text-white transition-colors hover:bg-slate-500"
-            >
-              Reset Filters
-            </button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Histogram */}
-      <Card title="Visibility Histogram">
-        <PlotlyChart
-          data={[histogramTrace]}
-          layout={{
-            ...plotlyTheme,
-            xaxis: {
-              title: { text: 'Observation Period (UTC)' },
-              showgrid: true,
-              gridcolor: 'rgba(100, 100, 100, 0.3)',
-              type: 'date',
-            },
-            yaxis: {
-              title: { text: 'Number of Visible Blocks' },
-              showgrid: true,
-              gridcolor: 'rgba(100, 100, 100, 0.3)',
-            },
-            bargap: 0,
-            height: 600,
-            hovermode: 'x unified',
-            showlegend: false,
-          }}
-          config={{ displayModeBar: true, responsive: true }}
-        />
-      </Card>
-    </div>
+      {/* Split layout: controls left, chart right */}
+      <SplitPane controls={controlsContent} controlsWidth="sm">
+        <ChartPanel title="Visibility Histogram">
+          <PlotlyChart
+            data={[histogramTrace]}
+            layout={{
+              ...plotlyTheme,
+              xaxis: {
+                title: { text: 'Observation Period (UTC)' },
+                showgrid: true,
+                gridcolor: 'rgba(100, 100, 100, 0.3)',
+                type: 'date',
+              },
+              yaxis: {
+                title: { text: 'Number of Visible Blocks' },
+                showgrid: true,
+                gridcolor: 'rgba(100, 100, 100, 0.3)',
+              },
+              bargap: 0,
+              height: 550,
+              hovermode: 'x unified',
+              showlegend: false,
+            }}
+            config={{ displayModeBar: true, responsive: true }}
+          />
+        </ChartPanel>
+      </SplitPane>
+    </PageContainer>
   );
 }
 

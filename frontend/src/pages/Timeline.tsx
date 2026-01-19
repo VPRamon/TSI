@@ -1,9 +1,19 @@
 /**
  * Timeline page - Scheduled observations over time.
+ * Redesigned with consistent layout primitives.
  */
 import { useParams } from 'react-router-dom';
 import { useTimeline, usePlotlyTheme } from '@/hooks';
-import { Card, LoadingSpinner, ErrorMessage, MetricCard, PlotlyChart } from '@/components';
+import {
+  LoadingSpinner,
+  ErrorMessage,
+  MetricCard,
+  PlotlyChart,
+  PageHeader,
+  PageContainer,
+  MetricsGrid,
+  ChartPanel,
+} from '@/components';
 import { mjdToDate } from '@/constants/dates';
 
 function Timeline() {
@@ -94,40 +104,41 @@ function Timeline() {
   });
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Timeline</h1>
-        <p className="mt-1 text-slate-400">Scheduled observations over time</p>
-      </div>
+      <PageHeader
+        title="Timeline"
+        description="Scheduled observations over time"
+      />
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <MetricsGrid>
         <MetricCard label="Total Blocks" value={data.total_count} icon="📅" />
         <MetricCard label="Scheduled" value={data.scheduled_count} icon="✅" />
         <MetricCard label="Unique Months" value={data.unique_months.length} icon="📆" />
         <MetricCard label="Dark Periods" value={data.dark_periods.length} icon="🌙" />
-      </div>
+      </MetricsGrid>
 
       {/* Timeline chart */}
-      <Card title="Schedule Timeline">
-        <PlotlyChart data={plotData} layout={timelineLayout} config={config} height="600px" />
-      </Card>
+      <ChartPanel title="Schedule Timeline">
+        <PlotlyChart data={plotData} layout={timelineLayout} config={config} height="550px" />
+      </ChartPanel>
 
       {/* Months list */}
-      <Card title="Covered Months">
+      <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-4">
+        <h3 className="mb-3 text-sm font-medium text-slate-300">Covered Months</h3>
         <div className="flex flex-wrap gap-2">
           {data.unique_months.map((month) => (
             <span
               key={month}
-              className="rounded-full bg-slate-700 px-3 py-1 text-sm text-slate-300"
+              className="rounded-full bg-slate-700/50 px-3 py-1 text-sm text-slate-300"
             >
               {month}
             </span>
           ))}
         </div>
-      </Card>
-    </div>
+      </div>
+    </PageContainer>
   );
 }
 

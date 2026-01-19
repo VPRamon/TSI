@@ -1,9 +1,19 @@
 /**
  * Sky Map page - Celestial coordinate visualization.
+ * Redesigned with consistent layout primitives.
  */
 import { useParams, useNavigate } from 'react-router-dom';
 import { useSkyMap, usePlotlyTheme } from '@/hooks';
-import { Card, LoadingSpinner, ErrorMessage, MetricCard, PlotlyChart } from '@/components';
+import {
+  LoadingSpinner,
+  ErrorMessage,
+  MetricCard,
+  PlotlyChart,
+  PageHeader,
+  PageContainer,
+  MetricsGrid,
+  ChartPanel,
+} from '@/components';
 import { STATUS_COLORS } from '@/constants/colors';
 
 function SkyMap() {
@@ -46,7 +56,7 @@ function SkyMap() {
           />
           <button
             onClick={() => navigate('/')}
-            className="mt-4 w-full rounded-lg bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
+            className="mt-4 w-full rounded-lg bg-primary-600 px-4 py-2 text-white transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-900"
           >
             Return to Schedule List
           </button>
@@ -102,17 +112,15 @@ function SkyMap() {
     data.total_count > 0 ? ((data.scheduled_count / data.total_count) * 100).toFixed(1) : '0';
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Sky Map</h1>
-        <p className="mt-1 text-slate-400">
-          Visualization of observation targets in celestial coordinates
-        </p>
-      </div>
+      <PageHeader
+        title="Sky Map"
+        description="Visualization of observation targets in celestial coordinates"
+      />
 
       {/* Metrics */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <MetricsGrid>
         <MetricCard label="Total Blocks" value={data.total_count} icon="🎯" />
         <MetricCard label="Scheduled" value={data.scheduled_count} icon="✅" />
         <MetricCard label="Scheduling Rate" value={`${schedulingRate}%`} icon="📊" />
@@ -121,27 +129,32 @@ function SkyMap() {
           value={`${data.priority_min.toFixed(1)} - ${data.priority_max.toFixed(1)}`}
           icon="⭐"
         />
-      </div>
+      </MetricsGrid>
 
-      {/* Plot */}
-      <Card title="Celestial Coordinates">
+      {/* Main chart */}
+      <ChartPanel title="Celestial Coordinates">
         <PlotlyChart data={plotData} layout={layout} config={config} height="500px" />
-      </Card>
+      </ChartPanel>
 
       {/* Priority bins legend */}
-      <Card title="Priority Bins">
+      <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-4">
+        <h3 className="mb-3 text-sm font-medium text-slate-300">Priority Bins</h3>
         <div className="flex flex-wrap gap-4">
           {data.priority_bins.map((bin) => (
             <div key={bin.label} className="flex items-center gap-2">
-              <div className="h-4 w-4 rounded" style={{ backgroundColor: bin.color }} />
+              <div
+                className="h-3 w-3 rounded-sm"
+                style={{ backgroundColor: bin.color }}
+                aria-hidden="true"
+              />
               <span className="text-sm text-slate-300">
-                {bin.label}: {bin.min_priority.toFixed(1)} - {bin.max_priority.toFixed(1)}
+                {bin.label}: {bin.min_priority.toFixed(1)} – {bin.max_priority.toFixed(1)}
               </span>
             </div>
           ))}
         </div>
-      </Card>
-    </div>
+      </div>
+    </PageContainer>
   );
 }
 

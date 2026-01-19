@@ -1,9 +1,17 @@
 /**
  * Validation page - Schedule validation report.
+ * Redesigned with consistent layout primitives and improved table presentation.
  */
 import { useParams } from 'react-router-dom';
 import { useValidationReport } from '@/hooks';
-import { Card, LoadingSpinner, ErrorMessage, MetricCard } from '@/components';
+import {
+  LoadingSpinner,
+  ErrorMessage,
+  MetricCard,
+  PageHeader,
+  PageContainer,
+  MetricsGrid,
+} from '@/components';
 import { CRITICALITY_CLASSES, type CriticalityKey } from '@/constants/colors';
 
 function Validation() {
@@ -43,69 +51,81 @@ function Validation() {
     data.impossible_blocks.length + data.validation_errors.length + data.validation_warnings.length;
 
   return (
-    <div className="space-y-6">
+    <PageContainer>
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Validation</h1>
-        <p className="mt-1 text-slate-400">Schedule validation report and issues</p>
-      </div>
+      <PageHeader
+        title="Validation"
+        description="Schedule validation report and issues"
+      />
 
       {/* Summary metrics */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-5">
+      <MetricsGrid columns={5}>
         <MetricCard label="Total Blocks" value={data.total_blocks} icon="📦" />
         <MetricCard label="Valid Blocks" value={data.valid_blocks} icon="✅" />
         <MetricCard label="Impossible" value={data.impossible_blocks.length} icon="🚫" />
         <MetricCard label="Errors" value={data.validation_errors.length} icon="❌" />
         <MetricCard label="Warnings" value={data.validation_warnings.length} icon="⚠️" />
-      </div>
+      </MetricsGrid>
 
       {/* Overall status */}
-      <Card>
-        <div className="flex items-center gap-4">
-          <div
-            className={`flex h-16 w-16 items-center justify-center rounded-full ${
-              totalIssues === 0 ? 'bg-green-500/20' : 'bg-yellow-500/20'
-            }`}
-          >
-            <span className="text-3xl">{totalIssues === 0 ? '✅' : '⚠️'}</span>
-          </div>
-          <div>
-            <h3 className="text-xl font-semibold text-white">
-              {totalIssues === 0 ? 'All Clear!' : `${totalIssues} Issues Found`}
-            </h3>
-            <p className="text-slate-400">
-              {totalIssues === 0
-                ? 'No validation issues detected in this schedule.'
-                : 'Review the issues below to improve schedule quality.'}
-            </p>
-          </div>
+      <div className="flex items-center gap-4 rounded-lg border border-slate-700 bg-slate-800/30 p-4">
+        <div
+          className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${
+            totalIssues === 0 ? 'bg-emerald-500/20' : 'bg-amber-500/20'
+          }`}
+          aria-hidden="true"
+        >
+          <span className="text-2xl">{totalIssues === 0 ? '✅' : '⚠️'}</span>
         </div>
-      </Card>
+        <div>
+          <h3 className="text-lg font-semibold text-white">
+            {totalIssues === 0 ? 'All Clear!' : `${totalIssues} Issues Found`}
+          </h3>
+          <p className="text-sm text-slate-400">
+            {totalIssues === 0
+              ? 'No validation issues detected in this schedule.'
+              : 'Review the issues below to improve schedule quality.'}
+          </p>
+        </div>
+      </div>
 
       {/* Impossible blocks */}
       {data.impossible_blocks.length > 0 && (
-        <Card title={`Impossible Blocks (${data.impossible_blocks.length})`}>
+        <section className="rounded-lg border border-slate-700 bg-slate-800/30">
+          <div className="border-b border-slate-700/50 px-4 py-3">
+            <h2 className="text-sm font-medium text-slate-300">
+              Impossible Blocks ({data.impossible_blocks.length})
+            </h2>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="px-4 py-3 text-left text-slate-400">Block ID</th>
-                  <th className="px-4 py-3 text-left text-slate-400">Issue Type</th>
-                  <th className="px-4 py-3 text-left text-slate-400">Description</th>
-                  <th className="px-4 py-3 text-center text-slate-400">Criticality</th>
+                <tr className="border-b border-slate-700/50">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Block ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Issue Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Description
+                  </th>
+                  <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Criticality
+                  </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-700/30">
                 {data.impossible_blocks.map((issue, index) => (
-                  <tr key={index} className="border-b border-slate-700/50">
-                    <td className="px-4 py-3 text-white">
+                  <tr key={index} className="hover:bg-slate-700/20">
+                    <td className="px-4 py-3 font-medium text-white">
                       {issue.original_block_id || issue.block_id}
                     </td>
                     <td className="px-4 py-3 text-slate-300">{issue.issue_type}</td>
-                    <td className="px-4 py-3 text-slate-300">{issue.description}</td>
+                    <td className="max-w-md px-4 py-3 text-slate-300">{issue.description}</td>
                     <td className="px-4 py-3 text-center">
                       <span
-                        className={`rounded px-2 py-1 text-xs ${getCriticalityColor(issue.criticality)}`}
+                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getCriticalityColor(issue.criticality)}`}
                       >
                         {issue.criticality}
                       </span>
@@ -115,69 +135,99 @@ function Validation() {
               </tbody>
             </table>
           </div>
-        </Card>
+        </section>
       )}
 
       {/* Validation errors */}
       {data.validation_errors.length > 0 && (
-        <Card title={`Errors (${data.validation_errors.length})`}>
+        <section className="rounded-lg border border-slate-700 bg-slate-800/30">
+          <div className="border-b border-slate-700/50 px-4 py-3">
+            <h2 className="text-sm font-medium text-slate-300">
+              Errors ({data.validation_errors.length})
+            </h2>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="px-4 py-3 text-left text-slate-400">Block ID</th>
-                  <th className="px-4 py-3 text-left text-slate-400">Field</th>
-                  <th className="px-4 py-3 text-left text-slate-400">Current</th>
-                  <th className="px-4 py-3 text-left text-slate-400">Expected</th>
-                  <th className="px-4 py-3 text-left text-slate-400">Description</th>
+                <tr className="border-b border-slate-700/50">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Block ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Field
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Current
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Expected
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Description
+                  </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-700/30">
                 {data.validation_errors.map((issue, index) => (
-                  <tr key={index} className="border-b border-slate-700/50">
-                    <td className="px-4 py-3 text-white">
+                  <tr key={index} className="hover:bg-slate-700/20">
+                    <td className="px-4 py-3 font-medium text-white">
                       {issue.original_block_id || issue.block_id}
                     </td>
                     <td className="px-4 py-3 text-slate-300">{issue.field_name || '-'}</td>
-                    <td className="px-4 py-3 text-red-400">{issue.current_value || '-'}</td>
-                    <td className="px-4 py-3 text-green-400">{issue.expected_value || '-'}</td>
-                    <td className="px-4 py-3 text-slate-300">{issue.description}</td>
+                    <td className="px-4 py-3 font-mono text-sm text-red-400">
+                      {issue.current_value || '-'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-sm text-emerald-400">
+                      {issue.expected_value || '-'}
+                    </td>
+                    <td className="max-w-xs px-4 py-3 text-slate-300">{issue.description}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </Card>
+        </section>
       )}
 
       {/* Validation warnings */}
       {data.validation_warnings.length > 0 && (
-        <Card title={`Warnings (${data.validation_warnings.length})`}>
+        <section className="rounded-lg border border-slate-700 bg-slate-800/30">
+          <div className="border-b border-slate-700/50 px-4 py-3">
+            <h2 className="text-sm font-medium text-slate-300">
+              Warnings ({data.validation_warnings.length})
+            </h2>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="px-4 py-3 text-left text-slate-400">Block ID</th>
-                  <th className="px-4 py-3 text-left text-slate-400">Issue Type</th>
-                  <th className="px-4 py-3 text-left text-slate-400">Description</th>
+                <tr className="border-b border-slate-700/50">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Block ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Issue Type
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                    Description
+                  </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-700/30">
                 {data.validation_warnings.map((issue, index) => (
-                  <tr key={index} className="border-b border-slate-700/50">
-                    <td className="px-4 py-3 text-white">
+                  <tr key={index} className="hover:bg-slate-700/20">
+                    <td className="px-4 py-3 font-medium text-white">
                       {issue.original_block_id || issue.block_id}
                     </td>
                     <td className="px-4 py-3 text-slate-300">{issue.issue_type}</td>
-                    <td className="px-4 py-3 text-slate-300">{issue.description}</td>
+                    <td className="max-w-md px-4 py-3 text-slate-300">{issue.description}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </Card>
+        </section>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
