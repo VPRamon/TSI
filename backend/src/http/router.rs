@@ -37,6 +37,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/schedules/{schedule_id}/sky-map", get(handlers::get_sky_map))
         .route("/schedules/{schedule_id}/distributions", get(handlers::get_distributions))
         .route("/schedules/{schedule_id}/visibility-map", get(handlers::get_visibility_map))
+        .route("/schedules/{schedule_id}/visibility-histogram", get(handlers::get_visibility_histogram))
         .route("/schedules/{schedule_id}/timeline", get(handlers::get_timeline))
         .route("/schedules/{schedule_id}/insights", get(handlers::get_insights))
         .route("/schedules/{schedule_id}/trends", get(handlers::get_trends))

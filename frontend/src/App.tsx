@@ -12,6 +12,7 @@ const Insights = lazy(() => import('./pages/Insights'));
 const Trends = lazy(() => import('./pages/Trends'));
 const Validation = lazy(() => import('./pages/Validation'));
 const Compare = lazy(() => import('./pages/Compare'));
+const VisibilityMap = lazy(() => import('./pages/VisibilityMap'));
 
 // Loading fallback component
 function PageLoader() {
@@ -32,6 +33,7 @@ function App() {
             <Route path="schedules/:scheduleId">
               <Route path="sky-map" element={<SkyMap />} />
               <Route path="distributions" element={<Distributions />} />
+              <Route path="visibility-map" element={<VisibilityMap />} />
               <Route path="timeline" element={<Timeline />} />
               <Route path="insights" element={<Insights />} />
               <Route path="trends" element={<Trends />} />

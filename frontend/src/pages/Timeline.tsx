@@ -24,17 +24,17 @@ function Timeline() {
     ...layout,
     xaxis: {
       ...layout.xaxis,
-      title: 'Day of Month',
+      title: { text: 'Day of Month' },
       range: [0, 32],
       dtick: 1,
     },
     yaxis: {
       ...layout.yaxis,
-      title: 'Month',
-      tickmode: 'array',
-      tickvals: data.unique_months.map((_, index) => index),
-      ticktext: data.unique_months,
-      autorange: 'reversed',
+      title: { text: 'Month' },
+      tickmode: 'array' as const,
+      tickvals: data?.unique_months?.map((_, index) => index) || [],
+      ticktext: data?.unique_months || [],
+      autorange: 'reversed' as const,
     },
   };
 

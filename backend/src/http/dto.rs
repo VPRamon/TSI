@@ -27,6 +27,7 @@ pub use crate::api::{
     // Visibility
     VisibilityBlockSummary, VisibilityMapData,
 };
+pub use crate::db::models::VisibilityBin;
 
 /// Request body for creating a new schedule.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,6 +90,26 @@ pub struct CompareQuery {
     /// Name for the comparison schedule (optional)
     #[serde(default)]
     pub comparison_name: Option<String>,
+}
+
+/// Query parameters for visibility histogram endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct VisibilityHistogramQuery {
+    /// Bin duration in minutes (optional, default: computed from num_bins)
+    #[serde(default)]
+    pub bin_duration_minutes: Option<i64>,
+    /// Number of bins (used if bin_duration_minutes not specified, default: 50)
+    #[serde(default)]
+    pub num_bins: Option<usize>,
+    /// Minimum priority filter (inclusive, optional)
+    #[serde(default)]
+    pub priority_min: Option<i32>,
+    /// Maximum priority filter (inclusive, optional)
+    #[serde(default)]
+    pub priority_max: Option<i32>,
+    /// Filter by specific block IDs (optional)
+    #[serde(default)]
+    pub block_ids: Option<Vec<i64>>,
 }
 
 /// Health check response.

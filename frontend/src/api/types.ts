@@ -346,6 +346,12 @@ export interface VisibilityMapData {
   scheduled_count: number;
 }
 
+export interface VisibilityBin {
+  bin_start_unix: number;
+  bin_end_unix: number;
+  visible_count: number;
+}
+
 // =============================================================================
 // Query Parameters
 // =============================================================================
@@ -359,6 +365,14 @@ export interface TrendsQuery {
 export interface CompareQuery {
   current_name?: string;
   comparison_name?: string;
+}
+
+export interface VisibilityHistogramQuery {
+  bin_duration_minutes?: number;
+  num_bins?: number;
+  priority_min?: number;
+  priority_max?: number;
+  block_ids?: number[];
 }
 
 // =============================================================================

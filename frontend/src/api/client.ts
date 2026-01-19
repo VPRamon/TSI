@@ -18,6 +18,8 @@ import type {
   CompareData,
   CompareQuery,
   VisibilityMapData,
+  VisibilityBin,
+  VisibilityHistogramQuery,
   ApiError as ApiErrorResponse,
 } from './types';
 import {
@@ -115,6 +117,17 @@ class ApiClient {
   async getVisibilityMap(scheduleId: number): Promise<VisibilityMapData> {
     const { data } = await this.client.get<VisibilityMapData>(
       `/v1/schedules/${scheduleId}/visibility-map`
+    );
+    return data;
+  }
+
+  async getVisibilityHistogram(
+    scheduleId: number,
+    query?: VisibilityHistogramQuery
+  ): Promise<VisibilityBin[]> {
+    const { data } = await this.client.get<VisibilityBin[]>(
+      `/v1/schedules/${scheduleId}/visibility-histogram`,
+      { params: query }
     );
     return data;
   }
