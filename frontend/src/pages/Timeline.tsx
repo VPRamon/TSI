@@ -29,25 +29,6 @@ function Timeline() {
     showLegend: false,
   });
 
-  // Override axes for calendar-style layout
-  const timelineLayout = {
-    ...layout,
-    xaxis: {
-      ...layout.xaxis,
-      title: { text: 'Day of Month' },
-      range: [0, 32],
-      dtick: 1,
-    },
-    yaxis: {
-      ...layout.yaxis,
-      title: { text: 'Month' },
-      tickmode: 'array' as const,
-      tickvals: data?.unique_months?.map((_, index) => index) || [],
-      ticktext: data?.unique_months || [],
-      autorange: 'reversed' as const,
-    },
-  };
-
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -76,8 +57,11 @@ function Timeline() {
     monthMap.set(month, index);
   });
 
-  // Create calendar-style timeline with scatter plot
-  const plotData: Plotly.Data[] = data.blocks.map((block) => {
+  // Height of each observation bar in data units (0.4 = 40% of row height)
+  const barHeight = 0.4;
+
+  // Create shapes for each observation block (renders reliably, no aliasing)
+  const shapes = data.blocks.map((block) => {
     const startDate = mjdToDate(block.scheduled_start_mjd);
     const stopDate = mjdToDate(block.scheduled_stop_mjd);
     const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
@@ -88,20 +72,70 @@ function Timeline() {
     const stopDay = stopDate.getDate() + stopDate.getHours() / 24 + stopDate.getMinutes() / 1440;
     
     return {
-      type: 'scatter',
-      mode: 'lines',
-      name: block.original_block_id,
-      x: [startDay, stopDay],
-      y: [monthIndex, monthIndex],
-      line: {
-        width: 20,
-        color: `hsl(${(block.priority / 10) * 240}, 70%, 50%)`,
-      },
-      text: `${block.original_block_id}<br>Start: ${startDate.toISOString()}<br>Priority: ${block.priority.toFixed(1)}<br>Duration: ${block.requested_hours.toFixed(1)}h`,
-      hoverinfo: 'text',
-      showlegend: false,
+      type: 'rect' as const,
+      xref: 'x' as const,
+      yref: 'y' as const,
+      x0: startDay,
+      x1: stopDay,
+      y0: monthIndex - barHeight / 2,
+      y1: monthIndex + barHeight / 2,
+      fillcolor: `hsl(${(block.priority / 10) * 240}, 70%, 50%)`,
+      line: { width: 0 },
+      layer: 'above' as const,
     };
   });
+
+  // Create hover trace (invisible scatter points at block centers for tooltips)
+  const hoverData = data.blocks.map((block) => {
+    const startDate = mjdToDate(block.scheduled_start_mjd);
+    const stopDate = mjdToDate(block.scheduled_stop_mjd);
+    const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+    const monthIndex = monthMap.get(monthKey) ?? 0;
+    
+    const startDay = startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
+    const stopDay = stopDate.getDate() + stopDate.getHours() / 24 + stopDate.getMinutes() / 1440;
+    const centerDay = (startDay + stopDay) / 2;
+    
+    return {
+      x: centerDay,
+      y: monthIndex,
+      text: `${block.original_block_id}<br>Start: ${startDate.toISOString()}<br>Priority: ${block.priority.toFixed(1)}<br>Duration: ${block.requested_hours.toFixed(1)}h`,
+    };
+  });
+
+  const plotData: Plotly.Data[] = [{
+    type: 'scatter',
+    mode: 'markers',
+    x: hoverData.map(d => d.x),
+    y: hoverData.map(d => d.y),
+    text: hoverData.map(d => d.text),
+    hoverinfo: 'text',
+    marker: {
+      size: 20,
+      opacity: 0, // Invisible but still capturable for hover
+    },
+    showlegend: false,
+  }];
+
+  // Final layout with shapes
+  const timelineLayout = {
+    ...layout,
+    xaxis: {
+      ...layout.xaxis,
+      title: { text: 'Day of Month' },
+      range: [0, 32],
+      dtick: 1,
+    },
+    yaxis: {
+      ...layout.yaxis,
+      title: { text: 'Month' },
+      tickmode: 'array' as const,
+      tickvals: data.unique_months.map((_, index) => index),
+      ticktext: data.unique_months,
+      autorange: 'reversed' as const,
+    },
+    shapes,
+  };
 
   return (
     <PageContainer>
@@ -121,23 +155,9 @@ function Timeline() {
 
       {/* Timeline chart */}
       <ChartPanel title="Schedule Timeline">
-        <PlotlyChart data={plotData} layout={timelineLayout} config={config} height="550px" />
+        <PlotlyChart data={plotData} layout={timelineLayout} config={config} height="800px" />
       </ChartPanel>
 
-      {/* Months list */}
-      <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-4">
-        <h3 className="mb-3 text-sm font-medium text-slate-300">Covered Months</h3>
-        <div className="flex flex-wrap gap-2">
-          {data.unique_months.map((month) => (
-            <span
-              key={month}
-              className="rounded-full bg-slate-700/50 px-3 py-1 text-sm text-slate-300"
-            >
-              {month}
-            </span>
-          ))}
-        </div>
-      </div>
     </PageContainer>
   );
 }
