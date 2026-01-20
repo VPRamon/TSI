@@ -1,5 +1,5 @@
 /**
- * Main layout component with navigation sidebar and top bar.
+ * Main layout component with modern top navigation bar.
  * Professional app shell for analysis workspace.
  */
 import { useState, useEffect } from 'react';
@@ -21,103 +21,36 @@ const scheduleNavItems = [
 
 function Layout() {
   const { scheduleId } = useParams();
-  const { sidebarOpen, toggleSidebar, selectedSchedule } = useAppStore();
+  const { selectedSchedule } = useAppStore();
   const { data: health } = useHealth();
   const location = useLocation();
   const isLanding = location.pathname === '/';
-  
+
   // Sync route scheduleId with Zustand store
   useScheduleSync();
-  
+
   // Compare picker state
   const [showComparePicker, setShowComparePicker] = useState(false);
-  
-  // Mobile drawer state
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
-  // Close mobile drawer on route change
+  // Mobile menu state
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Close mobile menu on route change
   useEffect(() => {
-    setMobileDrawerOpen(false);
+    setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // Close mobile drawer on escape key
+  // Close mobile menu on escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setMobileDrawerOpen(false);
+        setMobileMenuOpen(false);
+        setShowComparePicker(false);
       }
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
-
-  const NavContent = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <>
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        {/* Home link */}
-        <NavLink
-          to="/"
-          className={({ isActive }) =>
-            `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800 ${
-              isActive
-                ? 'bg-primary-600 text-white'
-                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-            }`
-          }
-        >
-          <span className="text-lg">🏠</span>
-          {(sidebarOpen || isMobile) && <span>Home</span>}
-        </NavLink>
-
-        {/* Schedule-specific navigation */}
-        {scheduleId && (
-          <>
-            <div className="pb-1 pt-4">
-              {(sidebarOpen || isMobile) && (
-                <span className="px-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                  Analysis
-                </span>
-              )}
-            </div>
-            {scheduleNavItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={`/schedules/${scheduleId}/${item.path}`}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800 ${
-                    isActive
-                      ? 'bg-primary-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                  }`
-                }
-              >
-                <span className="text-lg">{item.icon}</span>
-                {(sidebarOpen || isMobile) && <span>{item.label}</span>}
-              </NavLink>
-            ))}
-          </>
-        )}
-      </nav>
-
-      {/* Status footer */}
-      <div className="border-t border-slate-700 p-3">
-        <div className="flex items-center gap-2 rounded-lg px-3 py-2">
-          <span
-            className={`h-2 w-2 rounded-full ${
-              health?.database === 'connected' ? 'bg-emerald-500' : 'bg-red-500'
-            }`}
-            aria-hidden="true"
-          />
-          {(sidebarOpen || isMobile) && (
-            <span className="text-xs text-slate-400">
-              {health?.database === 'connected' ? 'Connected' : 'Disconnected'}
-            </span>
-          )}
-        </div>
-      </div>
-    </>
-  );
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-900">
@@ -129,167 +62,171 @@ function Layout() {
         Skip to main content
       </a>
 
-      {/* Top bar - only shown on non-landing pages */}
+      {/* Modern Top Navigation Bar - only shown on non-landing pages */}
       {!isLanding && (
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b border-slate-700 bg-slate-800/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-slate-800/80">
-          {/* Left section */}
-          <div className="flex items-center gap-3">
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileDrawerOpen(true)}
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white lg:hidden"
-              aria-label="Open navigation menu"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            
-            {/* App title */}
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🔭</span>
-              <span className="font-semibold text-white">TSI</span>
-            </div>
-          </div>
-
-          {/* Center - Current schedule indicator and Compare action */}
-          {scheduleId && (
-            <div className="hidden items-center gap-4 sm:flex">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-slate-400">Schedule</span>
-                <span className="rounded-md bg-slate-700 px-2.5 py-1 text-sm font-medium text-white">
-                  #{scheduleId}
-                  {selectedSchedule?.schedule_name && (
-                    <span className="ml-1.5 text-slate-400">• {selectedSchedule.schedule_name}</span>
-                  )}
-                </span>
-              </div>
-              
-              {/* Compare action */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowComparePicker(!showComparePicker)}
-                  className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700 hover:text-white"
+        <header className="sticky top-0 z-30 border-b border-slate-700 bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-slate-800/80">
+          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+            {/* Main header row */}
+            <div className="flex h-16 items-center justify-between">
+              {/* Left section - Logo & Brand */}
+              <div className="flex items-center gap-4">
+                <NavLink
+                  to="/"
+                  className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-700/50"
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  Compare
-                  <svg className={`h-3 w-3 transition-transform ${showComparePicker ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                
-                {/* Compare picker dropdown */}
-                {showComparePicker && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-64">
-                    <SchedulePicker
-                      excludeId={parseInt(scheduleId, 10)}
-                      navigateToCompare
-                      placeholder="Compare with..."
-                      onSelect={() => setShowComparePicker(false)}
-                    />
-                  </div>
+                  <span className="text-2xl">🔭</span>
+                  <span className="text-lg font-bold text-white">TSI</span>
+                </NavLink>
+
+                {/* Desktop Navigation Links */}
+                {scheduleId && (
+                  <nav className="hidden items-center gap-1 md:flex" role="navigation" aria-label="Main navigation">
+                    {scheduleNavItems.map((item) => (
+                      <NavLink
+                        key={item.path}
+                        to={`/schedules/${scheduleId}/${item.path}`}
+                        className={({ isActive }) =>
+                          `flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                            isActive
+                              ? 'bg-primary-600 text-white'
+                              : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                          }`
+                        }
+                      >
+                        <span className="text-base">{item.icon}</span>
+                        <span>{item.label}</span>
+                      </NavLink>
+                    ))}
+                  </nav>
                 )}
               </div>
-            </div>
-          )}
 
-          {/* Right section - Desktop sidebar toggle */}
-          <div className="hidden lg:block">
-            <button
-              onClick={toggleSidebar}
-              className="rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white"
-              aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-              aria-expanded={sidebarOpen}
-            >
-              <svg
-                className={`h-5 w-5 transition-transform ${sidebarOpen ? '' : 'rotate-180'}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+              {/* Right section - Schedule indicator, Compare, Status */}
+              <div className="flex items-center gap-3">
+                {/* Current schedule indicator */}
+                {scheduleId && (
+                  <div className="hidden items-center gap-3 lg:flex">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-slate-400">Schedule</span>
+                      <span className="rounded-md bg-slate-700 px-2.5 py-1 text-sm font-medium text-white">
+                        #{scheduleId}
+                        {selectedSchedule?.schedule_name && (
+                          <span className="ml-1.5 text-slate-400">• {selectedSchedule.schedule_name}</span>
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Compare action */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowComparePicker(!showComparePicker)}
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Compare
+                        <svg className={`h-3 w-3 transition-transform ${showComparePicker ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+
+                      {/* Compare picker dropdown */}
+                      {showComparePicker && (
+                        <div className="absolute right-0 top-full z-50 mt-2 w-64">
+                          <SchedulePicker
+                            excludeId={parseInt(scheduleId, 10)}
+                            navigateToCompare
+                            placeholder="Compare with..."
+                            onSelect={() => setShowComparePicker(false)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Connection status indicator */}
+                <div className="flex items-center gap-2 rounded-lg bg-slate-700/30 px-3 py-1.5">
+                  <span
+                    className={`h-2 w-2 rounded-full ${
+                      health?.database === 'connected' ? 'bg-emerald-500' : 'bg-red-500'
+                    }`}
+                    aria-hidden="true"
+                  />
+                  <span className="hidden text-xs text-slate-400 sm:inline">
+                    {health?.database === 'connected' ? 'Connected' : 'Disconnected'}
+                  </span>
+                </div>
+
+                {/* Mobile menu button */}
+                <button
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white md:hidden"
+                  aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+                  aria-expanded={mobileMenuOpen}
+                >
+                  {mobileMenuOpen ? (
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Mobile Navigation Menu */}
+            {mobileMenuOpen && scheduleId && (
+              <nav
+                className="border-t border-slate-700 py-3 md:hidden"
+                role="navigation"
+                aria-label="Mobile navigation"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-              </svg>
-            </button>
+                <div className="mb-3 flex items-center gap-2 px-1">
+                  <span className="text-xs text-slate-400">Schedule</span>
+                  <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs font-medium text-white">
+                    #{scheduleId}
+                    {selectedSchedule?.schedule_name && (
+                      <span className="ml-1 text-slate-400">• {selectedSchedule.schedule_name}</span>
+                    )}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {scheduleNavItems.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={`/schedules/${scheduleId}/${item.path}`}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                          isActive
+                            ? 'bg-primary-600 text-white'
+                            : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                        }`
+                      }
+                    >
+                      <span>{item.icon}</span>
+                      <span>{item.label}</span>
+                    </NavLink>
+                  ))}
+                </div>
+              </nav>
+            )}
           </div>
         </header>
       )}
 
-      <div className="flex flex-1">
-        {/* Desktop Sidebar */}
-        {!isLanding && (
-          <aside
-            className={`hidden lg:flex ${
-              sidebarOpen ? 'w-56' : 'w-16'
-            } flex-col border-r border-slate-700 bg-slate-800 transition-all duration-200`}
-            role="navigation"
-            aria-label="Main navigation"
-          >
-            <NavContent />
-          </aside>
-        )}
-
-        {/* Mobile Drawer Overlay */}
-        {!isLanding && mobileDrawerOpen && (
-          <div
-            className="fixed inset-0 z-40 bg-slate-900/80 backdrop-blur-sm lg:hidden"
-            onClick={() => setMobileDrawerOpen(false)}
-            aria-hidden="true"
-          />
-        )}
-
-        {/* Mobile Drawer */}
-        {!isLanding && (
-          <aside
-            className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-slate-800 transition-transform duration-200 lg:hidden ${
-              mobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
-            role="navigation"
-            aria-label="Mobile navigation"
-            aria-hidden={!mobileDrawerOpen}
-          >
-            {/* Drawer header */}
-            <div className="flex h-14 items-center justify-between border-b border-slate-700 px-4">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🔭</span>
-                <span className="font-semibold text-white">TSI</span>
-              </div>
-              <button
-                onClick={() => setMobileDrawerOpen(false)}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-700 hover:text-white"
-                aria-label="Close navigation menu"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            {/* Schedule indicator in drawer */}
-            {scheduleId && (
-              <div className="border-b border-slate-700 px-4 py-3">
-                <span className="text-xs text-slate-400">Current Schedule</span>
-                <p className="mt-0.5 font-medium text-white">
-                  #{scheduleId}
-                  {selectedSchedule?.schedule_name && (
-                    <span className="ml-1 text-slate-400">• {selectedSchedule.schedule_name}</span>
-                  )}
-                </p>
-              </div>
-            )}
-
-            <NavContent isMobile />
-          </aside>
-        )}
-
-        {/* Main content */}
-        <main
-          id="main-content"
-          className={`flex-1 overflow-auto ${isLanding ? '' : 'p-4 sm:p-6'}`}
-          role="main"
-          tabIndex={-1}
-        >
+      {/* Main content with centered container and side margins */}
+      <main
+        id="main-content"
+        className="flex-1 overflow-auto"
+        role="main"
+        tabIndex={-1}
+      >
+        <div className={isLanding ? '' : 'mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8'}>
           {/* Wrap schedule pages with AnalysisProvider for shared filter/selection state */}
           {scheduleId ? (
             <AnalysisProvider syncToUrl>
@@ -298,8 +235,8 @@ function Layout() {
           ) : (
             <Outlet />
           )}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }
