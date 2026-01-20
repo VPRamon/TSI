@@ -6,6 +6,9 @@ export { default as Card } from './Card';
 export { default as MetricCard } from './MetricCard';
 export { default as LogStream } from './LogStream';
 export { DataTable } from './DataTable';
+export { default as SkyMapFilters } from './SkyMapFilters';
+export type { SkyMapFilterState } from './SkyMapFilters';
+export { default as PriorityBinsLegend } from './PriorityBinsLegend';
 export type { TableColumn, DataTableProps } from './DataTable';
 export type { LogEntry, LogStreamProps } from './LogStream';
 
