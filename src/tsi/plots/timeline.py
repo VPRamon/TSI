@@ -2,6 +2,9 @@
 
 import plotly.graph_objects as go
 
+from tsi.config import PLOT_HEIGHT
+from tsi.plots.plot_theme import PlotTheme, apply_theme, get_colorscale_config
+
 
 def build_visibility_histogram_from_bins(
     bins: list[dict],
@@ -24,6 +27,7 @@ def build_visibility_histogram_from_bins(
     """
     if len(bins) == 0:
         fig = go.Figure()
+        apply_theme(fig, show_legend=False)
         fig.update_layout(title="No bins to display")
         return fig
 
@@ -48,6 +52,12 @@ def build_visibility_histogram_from_bins(
         bin_width_ms = (bin_end_unix - bin_start_unix) * 1000
         bin_widths.append(bin_width_ms)
 
+    # Get colorscale configuration
+    colorscale_config = get_colorscale_config(
+        colorscale="Viridis",
+        colorbar_title="Number of<br>Visible Blocks",
+    )
+
     # Create the histogram using bar chart with explicit width
     fig = go.Figure()
 
@@ -59,8 +69,8 @@ def build_visibility_histogram_from_bins(
             name="Visible Targets",
             marker=dict(
                 color=bin_counts,
-                colorscale="Viridis",
-                colorbar=dict(title="Number of<br>Visible Blocks"),
+                colorscale=colorscale_config["colorscale"],
+                colorbar=colorscale_config["colorbar"],
                 line=dict(
                     width=0.5, color="rgba(255, 255, 255, 0.15)"
                 ),  # Subtle border between bars
@@ -81,6 +91,14 @@ def build_visibility_histogram_from_bins(
 
     num_bins = len(bins)
 
+    # Apply standard theme with no legend (colorbar serves as legend)
+    apply_theme(
+        fig,
+        height=PLOT_HEIGHT,
+        margin=dict(l=80, r=80, t=100, b=80),
+        show_legend=False,
+    )
+
     fig.update_layout(
         title=(
             "Target Visibility Over Time "
@@ -89,21 +107,16 @@ def build_visibility_histogram_from_bins(
         xaxis=dict(
             title="Observation Period (UTC)",
             showgrid=True,
-            gridcolor="rgba(100, 100, 100, 0.3)",
+            gridcolor=PlotTheme.GRID_COLOR,
             type="date",
         ),
         yaxis=dict(
             title="Number of Visible Blocks",
             showgrid=True,
-            gridcolor="rgba(100, 100, 100, 0.3)",
+            gridcolor=PlotTheme.GRID_COLOR,
         ),
         bargap=0,  # No gap between bars
-        height=600,
-        margin=dict(l=80, r=80, t=100, b=80),
         hovermode="x unified",
-        plot_bgcolor="rgba(14, 17, 23, 0.3)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
-        showlegend=False,
     )
 
     return fig

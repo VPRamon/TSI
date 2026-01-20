@@ -7,6 +7,13 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from tsi.config import CACHE_TTL, PLOT_HEIGHT, PLOT_MARGIN
+from tsi.plots.plot_theme import (
+    SCHEDULED_COLOR,
+    UNSCHEDULED_COLOR,
+    PlotTheme,
+    apply_theme,
+    get_scatter_marker,
+)
 
 
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
@@ -35,8 +42,9 @@ def build_figure(
     blocks = list(_blocks)
 
     if len(blocks) == 0:
-        # Return empty figure
+        # Return empty figure with standard theme
         fig = go.Figure()
+        apply_theme(fig, show_legend=False)
         fig.update_layout(
             title="No data matching filters",
             xaxis_title="Right Ascension (deg)",
@@ -93,7 +101,7 @@ def build_figure(
 
     if color_by == "scheduled_flag":
         # Split by scheduled status for better legend
-        color_discrete_map: dict[bool, str] = {True: "#1f77b4", False: "#ff7f0e"}
+        color_discrete_map: dict[bool, str] = {True: SCHEDULED_COLOR, False: UNSCHEDULED_COLOR}
 
         for status, status_label in [(True, "Scheduled"), (False, "Unscheduled")]:
             indices = [i for i, flag in enumerate(scheduled_flags) if flag == status]
@@ -105,18 +113,18 @@ def build_figure(
             sizes = [size_normalized[i] for i in indices]
             custom = [customdata[i] for i in indices]
 
+            marker_config = get_scatter_marker(
+                size=sizes,
+                color=color_discrete_map.get(status, PlotTheme.GRAY),
+            )
+
             fig.add_trace(
                 go.Scatter(
                     x=x_data,
                     y=y_data,
                     mode="markers",
                     name=status_label,
-                    marker=dict(
-                        size=sizes,
-                        color=color_discrete_map.get(status, "#999999"),
-                        opacity=0.7,
-                        line=dict(width=0.5, color="white"),
-                    ),
+                    marker=marker_config,
                     customdata=custom,
                     hovertemplate=hover_template,
                 )
@@ -136,24 +144,27 @@ def build_figure(
             sizes = [size_normalized[i] for i in indices]
             custom = [customdata[i] for i in indices]
 
+            marker_config = get_scatter_marker(
+                size=sizes,
+                color=palette.get(bin_value, PlotTheme.GRAY),
+            )
+
             fig.add_trace(
                 go.Scatter(
                     x=x_data,
                     y=y_data,
                     mode="markers",
                     name=bin_value,
-                    marker=dict(
-                        size=sizes,
-                        color=palette.get(bin_value, "#999"),
-                        opacity=0.7,
-                        line=dict(width=0.5, color="white"),
-                    ),
+                    marker=marker_config,
                     customdata=custom,
                     hovertemplate=hover_template,
                 )
             )
 
-    # Update layout
+    # Apply standard theme with vertical legend for sky map
+    apply_theme(fig, height=PLOT_HEIGHT, margin=PLOT_MARGIN, legend_style="vertical")
+
+    # Update layout with sky map specific settings
     fig.update_layout(
         title=dict(
             text=f"Sky Map: Celestial Coordinates ({len(blocks)} observations)",
@@ -164,26 +175,15 @@ def build_figure(
             title="Right Ascension (degrees)",
             range=[360, 0] if flip_ra else [0, 360],
             showgrid=True,
-            gridcolor="rgba(100, 100, 100, 0.3)",
+            gridcolor=PlotTheme.GRID_COLOR,
         ),
         yaxis=dict(
             title="Declination (degrees)",
             range=[-90, 90],
             showgrid=True,
-            gridcolor="rgba(100, 100, 100, 0.3)",
+            gridcolor=PlotTheme.GRID_COLOR,
         ),
-        height=PLOT_HEIGHT,
-        margin=PLOT_MARGIN,
         hovermode="closest",
-        plot_bgcolor="rgba(14, 17, 23, 0.3)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
-        legend=dict(
-            orientation="v",
-            yanchor="top",
-            y=1,
-            xanchor="left",
-            x=1.02,
-        ),
     )
 
     return fig
@@ -191,19 +191,7 @@ def build_figure(
 
 def _default_palette(categories: Sequence[str]) -> dict[str, str]:
     """Generate default colors for categorical values."""
-    base_colors = [
-        "#1f77b4",
-        "#ff7f0e",
-        "#2ca02c",
-        "#d62728",
-        "#9467bd",
-        "#8c564b",
-        "#e377c2",
-        "#7f7f7f",
-        "#bcbd22",
-        "#17becf",
-    ]
-    palette = {}
-    for idx, category in enumerate(categories):
-        palette[category] = base_colors[idx % len(base_colors)]
-    return palette
+    return {
+        category: PlotTheme.COLOR_SEQUENCE[idx % len(PlotTheme.COLOR_SEQUENCE)]
+        for idx, category in enumerate(categories)
+    }
