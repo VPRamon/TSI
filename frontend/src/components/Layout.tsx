@@ -121,11 +121,11 @@ function Layout() {
       {/* Modern Top Navigation Bar - only shown on non-landing pages */}
       {!isLanding && (
         <header className="sticky top-0 z-30 border-b border-slate-700 bg-slate-800/95 backdrop-blur supports-[backdrop-filter]:bg-slate-800/80">
-          <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="px-4 sm:px-6 lg:px-8">
             {/* Main header row */}
             <div className="flex h-16 items-center justify-between gap-6">
               {/* Left section - Logo & Brand & Navigation */}
-              <div className="flex flex-1 items-center gap-6">
+              <div className="flex items-center gap-6">
                 <NavLink
                   to="/"
                   className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-700/50"
