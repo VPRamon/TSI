@@ -124,8 +124,8 @@ function Layout() {
           <div className="px-4 sm:px-6 lg:px-8">
             {/* Main header row */}
             <div className="flex h-16 items-center justify-between gap-6">
-              {/* Left section - Logo & Brand & Navigation */}
-              <div className="flex items-center gap-6">
+              {/* Left section - Logo & Brand */}
+              <div className="flex items-center">
                 <NavLink
                   to="/"
                   className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-700/50"
@@ -133,29 +133,29 @@ function Layout() {
                   <span className="text-2xl">🔭</span>
                   <span className="text-lg font-bold text-white">TSI</span>
                 </NavLink>
-
-                {/* Desktop Navigation Links */}
-                {scheduleId && (
-                  <nav className="hidden items-center gap-2 md:flex" role="navigation" aria-label="Main navigation">
-                    {scheduleNavItems.map((item) => (
-                      <NavLink
-                        key={item.path}
-                        to={`/schedules/${scheduleId}/${item.path}`}
-                        className={({ isActive }) =>
-                          `flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                            isActive
-                              ? 'bg-primary-600 text-white shadow-sm'
-                              : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                          }`
-                        }
-                      >
-                        {item.icon}
-                        <span>{item.label}</span>
-                      </NavLink>
-                    ))}
-                  </nav>
-                )}
               </div>
+
+              {/* Center section - Navigation Links */}
+              {scheduleId && (
+                <nav className="hidden flex-1 items-center justify-center gap-2 md:flex" role="navigation" aria-label="Main navigation">
+                  {scheduleNavItems.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={`/schedules/${scheduleId}/${item.path}`}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                          isActive
+                            ? 'bg-primary-600 text-white shadow-sm'
+                            : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                        }`
+                      }
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </NavLink>
+                  ))}
+                </nav>
+              )}
 
               {/* Right section - Schedule indicator, Compare, Status */}
               <div className="flex items-center gap-4">
