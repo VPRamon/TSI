@@ -10,6 +10,7 @@ from typing import Any
 import pandas as pd
 import plotly.graph_objects as go
 
+from tsi.plots.plot_theme import PlotTheme, get_colorscale_config, get_standard_layout
 from tsi.services.utils.time import format_datetime_utc, mjd_to_datetime
 
 
@@ -69,12 +70,18 @@ def build_monthly_timeline(
     num_months = len(ordered_months)
     height = max(600, num_months * 80)
 
+    # Apply standard layout from theme
+    standard_layout = get_standard_layout()
+    fig.update_layout(**standard_layout)
+
     fig.update_layout(
         title=f"Scheduled Timeline by Month ({len(blocks):,} observations)",
+        height=height,
+        margin=dict(l=100, r=120, t=80, b=80),
         xaxis=dict(
             title="Day of month",
             showgrid=True,
-            gridcolor="rgba(100, 100, 100, 0.3)",
+            gridcolor=PlotTheme.GRID_COLOR,
             range=[0.5, 31.5],
             tickmode="linear",
             tick0=1,
@@ -91,15 +98,11 @@ def build_monthly_timeline(
             tickvals=list(range(num_months)),
             ticktext=ordered_months,
             showgrid=True,
-            gridcolor="rgba(100, 100, 100, 0.3)",
+            gridcolor=PlotTheme.GRID_COLOR,
             range=[-0.5, num_months - 0.5] if num_months else [-0.5, 0.5],
         ),
-        height=height,
-        margin=dict(l=100, r=120, t=80, b=80),
         hovermode="closest",
         dragmode="pan",
-        plot_bgcolor="rgba(14, 17, 23, 0.3)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
     )
 
     fig.update_xaxes(
@@ -414,19 +417,22 @@ def _datetime_to_day_fraction(dt: pd.Timestamp) -> float:
 
 def _add_colorbar(fig: go.Figure, priority_min: float, priority_max: float) -> None:
     """Add dummy trace for colorbar legend."""
+    colorscale_config = get_colorscale_config(colorscale="Viridis", colorbar_title="Priority")
+
     fig.add_trace(
         go.Scatter(
             x=[None],
             y=[None],
             mode="markers",
             marker=dict(
-                colorscale="Viridis",
+                colorscale=colorscale_config["colorscale"],
                 cmin=priority_min,
                 cmax=priority_max,
                 colorbar=dict(
-                    title="Priority",
+                    title=colorscale_config["colorbar"]["title"],
                     thickness=15,
                     len=0.7,
+                    tickfont=dict(color=PlotTheme.TEXT_COLOR),
                 ),
                 showscale=True,
             ),

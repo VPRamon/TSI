@@ -6,6 +6,13 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from tsi.config import CACHE_TTL, PLOT_HEIGHT
+from tsi.plots.plot_theme import (
+    SCHEDULED_COLOR,
+    UNSCHEDULED_COLOR,
+    PlotTheme,
+    apply_theme,
+    get_histogram_marker,
+)
 
 
 @st.cache_data(show_spinner=False, ttl=CACHE_TTL)
@@ -62,9 +69,8 @@ def _build_priority_histogram(blocks: Any, distribution_data: Any, bins: int) ->
         go.Histogram(
             x=unscheduled_priorities,
             nbinsx=bins,
-            marker=dict(color="#ff7f0e", line=dict(color="white", width=1)),
+            **get_histogram_marker(color=UNSCHEDULED_COLOR),
             name="Unscheduled",
-            opacity=0.8,
         )
     )
 
@@ -73,24 +79,24 @@ def _build_priority_histogram(blocks: Any, distribution_data: Any, bins: int) ->
         go.Histogram(
             x=scheduled_priorities,
             nbinsx=bins,
-            marker=dict(color="#1f77b4", line=dict(color="white", width=1)),
+            **get_histogram_marker(color=SCHEDULED_COLOR),
             name="Scheduled",
-            opacity=0.8,
         )
     )
 
+    # Apply standard theme
+    apply_theme(fig, height=PLOT_HEIGHT - 100, legend_style="horizontal")
+
     fig.update_layout(
-        title=f"Priority Distribution<br><sub>Planificadas: {scheduled_count} de {total_count} ({scheduled_count/total_count*100:.1f}%)</sub>",
+        title=f"Priority Distribution<br><sub>Scheduled: {scheduled_count} of {total_count} ({scheduled_count/total_count*100:.1f}%)</sub>",
         xaxis_title="Priority",
         yaxis_title="Count",
-        barmode="stack",  # Stack the bars
-        height=PLOT_HEIGHT - 100,
-        margin=dict(l=60, r=60, t=80, b=60),
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        plot_bgcolor="rgba(14, 17, 23, 0.3)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
+        barmode="stack",
     )
+
+    # Update axes with grid styling
+    fig.update_xaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
+    fig.update_yaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
 
     return fig
 
@@ -111,9 +117,8 @@ def _build_visibility_histogram(blocks: Any, distribution_data: Any) -> go.Figur
         go.Histogram(
             x=unscheduled_visibility,
             nbinsx=30,
-            marker=dict(color="#ff7f0e", line=dict(color="white", width=1)),
+            **get_histogram_marker(color=UNSCHEDULED_COLOR),
             name="Unscheduled",
-            opacity=0.8,
         )
     )
 
@@ -122,24 +127,24 @@ def _build_visibility_histogram(blocks: Any, distribution_data: Any) -> go.Figur
         go.Histogram(
             x=scheduled_visibility,
             nbinsx=30,
-            marker=dict(color="#1f77b4", line=dict(color="white", width=1)),
+            **get_histogram_marker(color=SCHEDULED_COLOR),
             name="Scheduled",
-            opacity=0.8,
         )
     )
 
+    # Apply standard theme
+    apply_theme(fig, height=PLOT_HEIGHT - 100, legend_style="horizontal")
+
     fig.update_layout(
-        title=f"Total Visibility Hours Distribution<br><sub>Planificadas: {scheduled_count} de {total_count} ({scheduled_count/total_count*100:.1f}%)</sub>",
+        title=f"Total Visibility Hours Distribution<br><sub>Scheduled: {scheduled_count} of {total_count} ({scheduled_count/total_count*100:.1f}%)</sub>",
         xaxis_title="Total Visibility Hours",
         yaxis_title="Count",
         barmode="stack",
-        height=PLOT_HEIGHT - 100,
-        margin=dict(l=60, r=60, t=80, b=60),
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        plot_bgcolor="rgba(14, 17, 23, 0.3)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
     )
+
+    # Update axes with grid styling
+    fig.update_xaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
+    fig.update_yaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
 
     return fig
 
@@ -160,9 +165,8 @@ def _build_duration_histogram(blocks: Any, distribution_data: Any) -> go.Figure:
         go.Histogram(
             x=unscheduled_duration,
             nbinsx=25,
-            marker=dict(color="#ff7f0e", line=dict(color="white", width=1)),
+            **get_histogram_marker(color=UNSCHEDULED_COLOR),
             name="Unscheduled",
-            opacity=0.8,
         )
     )
 
@@ -171,24 +175,24 @@ def _build_duration_histogram(blocks: Any, distribution_data: Any) -> go.Figure:
         go.Histogram(
             x=scheduled_duration,
             nbinsx=25,
-            marker=dict(color="#1f77b4", line=dict(color="white", width=1)),
+            **get_histogram_marker(color=SCHEDULED_COLOR),
             name="Scheduled",
-            opacity=0.8,
         )
     )
 
+    # Apply standard theme
+    apply_theme(fig, height=PLOT_HEIGHT - 100, legend_style="horizontal")
+
     fig.update_layout(
-        title=f"Requested Duration Distribution<br><sub>Planificadas: {scheduled_count} de {total_count} ({scheduled_count/total_count*100:.1f}%)</sub>",
+        title=f"Requested Duration Distribution<br><sub>Scheduled: {scheduled_count} of {total_count} ({scheduled_count/total_count*100:.1f}%)</sub>",
         xaxis_title="Requested Hours",
         yaxis_title="Count",
         barmode="stack",
-        height=PLOT_HEIGHT - 100,
-        margin=dict(l=60, r=60, t=80, b=60),
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        plot_bgcolor="rgba(14, 17, 23, 0.3)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
     )
+
+    # Update axes with grid styling
+    fig.update_xaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
+    fig.update_yaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
 
     return fig
 
@@ -209,9 +213,8 @@ def _build_elevation_histogram(blocks: Any, distribution_data: Any) -> go.Figure
         go.Histogram(
             x=unscheduled_elevation,
             nbinsx=20,
-            marker=dict(color="#ff7f0e", line=dict(color="white", width=1)),
+            **get_histogram_marker(color=UNSCHEDULED_COLOR),
             name="Unscheduled",
-            opacity=0.8,
         )
     )
 
@@ -220,24 +223,24 @@ def _build_elevation_histogram(blocks: Any, distribution_data: Any) -> go.Figure
         go.Histogram(
             x=scheduled_elevation,
             nbinsx=20,
-            marker=dict(color="#1f77b4", line=dict(color="white", width=1)),
+            **get_histogram_marker(color=SCHEDULED_COLOR),
             name="Scheduled",
-            opacity=0.8,
         )
     )
 
+    # Apply standard theme
+    apply_theme(fig, height=PLOT_HEIGHT - 100, legend_style="horizontal")
+
     fig.update_layout(
-        title=f"Elevation Constraint Range Distribution<br><sub>Planificadas: {scheduled_count} de {total_count} ({scheduled_count/total_count*100:.1f}%)</sub>",
+        title=f"Elevation Constraint Range Distribution<br><sub>Scheduled: {scheduled_count} of {total_count} ({scheduled_count/total_count*100:.1f}%)</sub>",
         xaxis_title="Elevation Range (degrees)",
         yaxis_title="Count",
         barmode="stack",
-        height=PLOT_HEIGHT - 100,
-        margin=dict(l=60, r=60, t=80, b=60),
-        showlegend=True,
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        plot_bgcolor="rgba(14, 17, 23, 0.3)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
     )
+
+    # Update axes with grid styling
+    fig.update_xaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
+    fig.update_yaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
 
     return fig
 
@@ -254,9 +257,10 @@ def _build_scheduled_bar(distribution_data: Any) -> go.Figure:
             x=["Scheduled"],
             y=[scheduled_count],
             name="Scheduled",
-            marker=dict(color="#1f77b4"),
+            marker=dict(color=SCHEDULED_COLOR),
             text=[scheduled_count],
             textposition="outside",
+            textfont=dict(color=PlotTheme.TEXT_COLOR),
         )
     )
 
@@ -265,22 +269,25 @@ def _build_scheduled_bar(distribution_data: Any) -> go.Figure:
             x=["Unscheduled"],
             y=[unscheduled_count],
             name="Unscheduled",
-            marker=dict(color="#ff7f0e"),
+            marker=dict(color=UNSCHEDULED_COLOR),
             text=[unscheduled_count],
             textposition="outside",
+            textfont=dict(color=PlotTheme.TEXT_COLOR),
         )
     )
+
+    # Apply standard theme (no legend for this simple chart)
+    apply_theme(fig, height=PLOT_HEIGHT - 100, show_legend=False)
 
     fig.update_layout(
         title="Scheduled vs Unscheduled Observations",
         xaxis_title="Status",
         yaxis_title="Count",
-        height=PLOT_HEIGHT - 100,
-        margin=dict(l=60, r=60, t=60, b=60),
-        showlegend=False,
-        plot_bgcolor="rgba(14, 17, 23, 0.3)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
     )
+
+    # Update axes with grid styling
+    fig.update_xaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
+    fig.update_yaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
 
     return fig
 
@@ -300,7 +307,7 @@ def _build_priority_comparison(blocks: Any, distribution_data: Any) -> go.Figure
                 name="Scheduled",
                 box_visible=True,
                 meanline_visible=True,
-                marker=dict(color="#1f77b4"),
+                marker=dict(color=SCHEDULED_COLOR),
                 opacity=0.7,
             )
         )
@@ -312,19 +319,22 @@ def _build_priority_comparison(blocks: Any, distribution_data: Any) -> go.Figure
                 name="Unscheduled",
                 box_visible=True,
                 meanline_visible=True,
-                marker=dict(color="#ff7f0e"),
+                marker=dict(color=UNSCHEDULED_COLOR),
                 opacity=0.7,
             )
         )
 
+    # Apply standard theme
+    apply_theme(fig, height=PLOT_HEIGHT - 100, legend_style="horizontal")
+
     fig.update_layout(
         title="Priority Distribution by Scheduled Status",
         yaxis_title="Priority",
-        height=PLOT_HEIGHT - 100,
-        margin=dict(l=60, r=60, t=60, b=60),
-        plot_bgcolor="rgba(14, 17, 23, 0.3)",
-        paper_bgcolor="rgba(0, 0, 0, 0)",
     )
+
+    # Update axes with grid styling
+    fig.update_xaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
+    fig.update_yaxes(showgrid=True, gridcolor=PlotTheme.GRID_COLOR)
 
     return fig
 
@@ -353,15 +363,24 @@ def build_correlation_heatmap(corr_matrix: Any) -> go.Figure:
             zmid=0,
             text=corr_matrix.values,
             texttemplate="%{text:.2f}",
-            textfont={"size": 10},
-            colorbar=dict(title="Correlation"),
+            textfont={"size": 10, "color": PlotTheme.TEXT_COLOR},
+            colorbar=dict(
+                title=dict(text="Correlation", font=dict(color=PlotTheme.TEXT_COLOR)),
+                tickfont=dict(color=PlotTheme.TEXT_COLOR),
+            ),
         )
+    )
+
+    # Apply standard theme with custom margin for heatmap
+    apply_theme(
+        fig,
+        height=500,
+        margin=dict(l=100, r=60, t=80, b=100),
+        show_legend=False,
     )
 
     fig.update_layout(
         title="Spearman Correlation Heatmap",
-        height=500,
-        margin=dict(l=100, r=60, t=80, b=100),
         xaxis=dict(tickangle=-45),
     )
 
