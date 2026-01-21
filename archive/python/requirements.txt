@@ -1,4 +1,0 @@
--r requirements.base.txt
-
-# Install the local package so `import tsi` works on Streamlit Cloud
--e .
