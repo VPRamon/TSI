@@ -48,6 +48,7 @@ fn create_schedule_with_blocks(name: &str, block_count: usize) -> Schedule {
                 target_ra: qtty::Degrees::new(i as f64 * 10.0),
                 target_dec: qtty::Degrees::new(i as f64 * 5.0 - 45.0),
                 constraints,
+                constraint_tree: None,
                 priority: 5.0,
                 min_observation: qtty::Seconds::new(60.0),
                 requested_duration: qtty::Seconds::new(3600.0),

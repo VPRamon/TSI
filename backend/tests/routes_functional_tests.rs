@@ -34,6 +34,7 @@ fn create_schedule_with_visibility(name: &str, block_count: usize) -> Schedule {
                 target_ra: qtty::Degrees::new(i as f64 * 15.0),
                 target_dec: qtty::Degrees::new(i as f64 * 10.0 - 45.0),
                 constraints,
+                constraint_tree: None,
                 priority: (i as f64 + 1.0) * 2.0,
                 min_observation: qtty::Seconds::new(120.0),
                 requested_duration: qtty::Seconds::new(3600.0),

@@ -7,7 +7,7 @@
 //! - Period conversion: `Interval<Day>` (with `end`) -> `Period` (with `stop`)
 //! - Task conversion: `ObservationTask` -> `SchedulingBlock`
 //! - Priority conversion: `i32` -> `f64`
-//! - Constraint tree flattening: `ConstraintTree` -> simple altitude/azimuth ranges
+//! - Constraint tree preservation: `ConstraintTree` is preserved for accurate visibility computation
 
 use crate::api::{self, Constraints, GeographicLocation, ModifiedJulianDate, Period, SchedulingBlock};
 use anyhow::Result;
@@ -107,15 +107,18 @@ fn convert_location(geo: &Geographic) -> Result<GeographicLocation> {
 /// - `target.position` -> `target_ra`, `target_dec`
 /// - `duration_sec` -> `requested_duration`, `min_observation`
 /// - `priority` (i32) -> `priority` (f64)
-/// - `constraint` -> flattened `Constraints`
+/// - `constraint` -> preserved as `constraint_tree`, also flattened to `Constraints`
 fn convert_observation_task(task: &ObservationTask) -> Result<SchedulingBlock> {
     let coords = task.coordinates();
     let target_ra = coords.ra();
     let target_dec = coords.dec();
 
-    // Extract constraints from the task's constraint tree
-    let constraints = if let Some(constraint_tree) = task.constraint() {
-        flatten_constraints(constraint_tree)
+    // Get the original constraint tree (if any) for accurate visibility computation
+    let constraint_tree = task.constraint().cloned();
+
+    // Extract flattened constraints for database storage
+    let constraints = if let Some(ref tree) = constraint_tree {
+        flatten_constraints(tree)
     } else {
         // Default constraints if none specified
         Constraints::new(
@@ -129,17 +132,15 @@ fn convert_observation_task(task: &ObservationTask) -> Result<SchedulingBlock> {
 
     let duration_sec = task.duration_seconds();
 
-    Ok(SchedulingBlock::new(
+    Ok(SchedulingBlock::with_constraint_tree(
         task.id().to_string(),                          // original_block_id
         target_ra,                                       // target_ra
         target_dec,                                      // target_dec
-        constraints,                                     // constraints
+        constraints,                                     // constraints (flattened)
+        constraint_tree,                                 // constraint_tree (preserved)
         task.priority() as f64,                          // priority (i32 -> f64)
         qtty::Seconds::new(duration_sec),               // min_observation
         qtty::Seconds::new(duration_sec),               // requested_duration
-        None,                                            // id (assigned by DB)
-        None,                                            // visibility_periods (computed later)
-        None,                                            // scheduled_period
     ))
 }
 

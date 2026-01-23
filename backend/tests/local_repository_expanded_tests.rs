@@ -34,6 +34,7 @@ fn create_test_schedule(name: &str, block_count: usize) -> Schedule {
                 max_az: qtty::Degrees::new(360.0),
                 fixed_time: None,
             },
+            constraint_tree: None,
             priority: (i + 1) as f64,
             min_observation: qtty::Seconds::new(60.0),
             requested_duration: qtty::Seconds::new(3600.0),

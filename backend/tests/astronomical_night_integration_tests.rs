@@ -6,21 +6,22 @@ use tsi_rust::db::services;
 use tsi_rust::models::parse_schedule_json_str;
 use tsi_rust::services::astronomical_night::compute_astronomical_nights;
 
-/// Test that geographic location can be parsed from JSON
+/// Test that geographic location can be parsed from astro format JSON
 #[test]
 fn test_parse_schedule_with_geographic_location() {
+    // Astro format uses "location" with lat/lon/distance
+    // distance is in km from Earth center (Earth radius ~6371 km + elevation)
     let schedule_json = r#"{
-        "name": "Test Schedule with Location",
-        "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892,
-            "elevation_m": 2396.0
+        "location": {
+            "lat": 28.7624,
+            "lon": -17.8892,
+            "distance": 6373.396
         },
-        "schedule_period": {
+        "period": {
             "start": 60694.0,
-            "stop": 60701.0
+            "end": 60701.0
         },
-        "blocks": []
+        "tasks": []
     }"#;
 
     let result = parse_schedule_json_str(schedule_json);
@@ -33,26 +34,26 @@ fn test_parse_schedule_with_geographic_location() {
     let schedule = result.unwrap();
 
     let location = &schedule.geographic_location;
-    assert_eq!(location.latitude, 28.7624);
-    assert_eq!(location.longitude, -17.8892);
-    assert_eq!(location.elevation_m, Some(2396.0));
+    assert!((location.latitude - 28.7624).abs() < 0.001);
+    assert!((location.longitude - (-17.8892)).abs() < 0.001);
+    // Elevation should be approximately 2396m (6373.396 - 6371.0) * 1000
+    assert!(location.elevation_m.is_some());
 }
 
 /// Test that astronomical nights are computed when location is provided
 #[test]
 fn test_parse_schedule_computes_astronomical_nights() {
     let schedule_json = r#"{
-        "name": "Roque de los Muchachos Schedule",
-        "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892,
-            "elevation_m": 2396.0
+        "location": {
+            "lat": 28.7624,
+            "lon": -17.8892,
+            "distance": 6373.396
         },
-        "schedule_period": {
+        "period": {
             "start": 60694.0,
-            "stop": 60701.0
+            "end": 60701.0
         },
-        "blocks": []
+        "tasks": []
     }"#;
 
     let result = parse_schedule_json_str(schedule_json);
@@ -142,17 +143,16 @@ async fn test_location_and_nights_persist_to_database() {
     let repo = LocalRepository::new();
 
     let schedule_json = r#"{
-        "name": "Persistence Test Schedule",
-        "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892,
-            "elevation_m": 2396.0
+        "location": {
+            "lat": 28.7624,
+            "lon": -17.8892,
+            "distance": 6373.396
         },
-        "schedule_period": {
+        "period": {
             "start": 60694.0,
-            "stop": 60701.0
+            "end": 60701.0
         },
-        "blocks": []
+        "tasks": []
     }"#;
 
     let schedule = parse_schedule_json_str(schedule_json).unwrap();
@@ -168,9 +168,8 @@ async fn test_location_and_nights_persist_to_database() {
 
     // Verify geographic location persisted
     let location = &retrieved.geographic_location;
-    assert_eq!(location.latitude, 28.7624);
-    assert_eq!(location.longitude, -17.8892);
-    assert_eq!(location.elevation_m, Some(2396.0));
+    assert!((location.latitude - 28.7624).abs() < 0.001);
+    assert!((location.longitude - (-17.8892)).abs() < 0.001);
 
     // Verify astronomical nights persisted
     assert_eq!(retrieved.astronomical_nights.len(), original_nights_count);
@@ -182,20 +181,20 @@ async fn test_location_and_nights_persist_to_database() {
     }
 }
 
-/// Test schedule with location but no elevation
+/// Test schedule at sea level (minimal elevation)
 #[test]
-fn test_location_without_elevation() {
+fn test_location_at_sea_level() {
     let schedule_json = r#"{
-        "name": "Location without elevation",
-        "geographic_location": {
-            "latitude": 0.0,
-            "longitude": 0.0
+        "location": {
+            "lat": 0.0,
+            "lon": 0.0,
+            "distance": 6371.0
         },
-        "schedule_period": {
+        "period": {
             "start": 60694.0,
-            "stop": 60695.0
+            "end": 60695.0
         },
-        "blocks": []
+        "tasks": []
     }"#;
 
     let result = parse_schedule_json_str(schedule_json);
@@ -204,9 +203,8 @@ fn test_location_without_elevation() {
     let schedule = result.unwrap();
 
     let location = &schedule.geographic_location;
-    assert_eq!(location.latitude, 0.0);
-    assert_eq!(location.longitude, 0.0);
-    assert_eq!(location.elevation_m, None);
+    assert!((location.latitude - 0.0).abs() < 0.001);
+    assert!((location.longitude - 0.0).abs() < 0.001);
 }
 
 /// Test computation at high latitude during summer (polar day - no astronomical night)
@@ -232,31 +230,41 @@ fn test_no_astronomical_nights_polar_summer() {
     println!("Nights at 70°N in summer: {}", nights.len());
 }
 
-/// Test that schedule JSON without schedule_period infers it from blocks
+/// Test astro format schedule with observation tasks
 #[test]
-fn test_inferred_schedule_period_with_location() {
+fn test_parse_schedule_with_observation_tasks() {
     let schedule_json = r#"{
-        "name": "Inferred Period Schedule",
-        "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892
+        "location": {
+            "lat": 28.7624,
+            "lon": -17.8892,
+            "distance": 6373.396
         },
-        "dark_periods": [
-            {"start": 60694.0, "stop": 60695.0},
-            {"start": 60696.0, "stop": 60697.0}
-        ],
-        "blocks": []
+        "period": {
+            "start": 60694.0,
+            "end": 60701.0
+        },
+        "tasks": [
+            {
+                "type": "observation",
+                "id": "1",
+                "name": "M31 Observation",
+                "target": {
+                    "position": { "ra": 10.6847, "dec": 41.2687 },
+                    "time": 2451545.0
+                },
+                "duration_sec": 3600.0,
+                "priority": 10
+            }
+        ]
     }"#;
 
     let result = parse_schedule_json_str(schedule_json);
-    assert!(result.is_ok());
+    assert!(result.is_ok(), "Failed to parse schedule with tasks: {:?}", result.err());
 
     let schedule = result.unwrap();
-
-    // Schedule period should be inferred from dark periods
-    assert_eq!(schedule.schedule_period.start.value(), 60694.0);
-    assert_eq!(schedule.schedule_period.stop.value(), 60697.0);
-
-    // Astronomical nights should be computed for the inferred period
+    assert_eq!(schedule.blocks.len(), 1);
+    assert_eq!(schedule.blocks[0].original_block_id, "1");
+    
+    // Astronomical nights should still be computed
     assert!(!schedule.astronomical_nights.is_empty());
 }

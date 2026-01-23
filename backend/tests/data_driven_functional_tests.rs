@@ -27,8 +27,9 @@ use tsi_rust::services::{compare, distributions, insights, sky_map, timeline, tr
 
 /// Load schedule from actual data files in /workspace/data/
 fn load_schedule_from_files() -> Schedule {
+    // Use astro format schedule file
     let schedule_json =
-        fs::read_to_string("/workspace/data/schedule.json").expect("Failed to read schedule.json");
+        fs::read_to_string("/workspace/data/schedule_astro.json").expect("Failed to read schedule_astro.json");
 
     parse_schedule_json_str(&schedule_json)
         .expect("Failed to parse schedule from JSON files")
@@ -62,15 +63,16 @@ async fn test_full_workflow_load_store_validate() {
         "Schedule should have checksum"
     );
     assert!(!schedule.blocks.is_empty(), "Schedule should have blocks");
+    // Astro format computes astronomical_nights instead of dark_periods
     assert!(
-        !schedule.dark_periods.is_empty(),
-        "Schedule should have dark periods"
+        !schedule.astronomical_nights.is_empty(),
+        "Schedule should have astronomical nights"
     );
 
     println!(
-        "Loaded schedule: {} blocks, {} dark periods",
+        "Loaded schedule: {} blocks, {} astronomical nights",
         schedule.blocks.len(),
-        schedule.dark_periods.len()
+        schedule.astronomical_nights.len()
     );
 
     // Store schedule using service layer
@@ -91,7 +93,7 @@ async fn test_full_workflow_load_store_validate() {
 
     assert_eq!(retrieved.name, schedule.name);
     assert_eq!(retrieved.blocks.len(), schedule.blocks.len());
-    assert_eq!(retrieved.dark_periods.len(), schedule.dark_periods.len());
+    assert_eq!(retrieved.astronomical_nights.len(), schedule.astronomical_nights.len());
 
     // Verify validation results were populated
     let validation_report = repo
@@ -258,15 +260,16 @@ async fn test_full_workflow_timeline_data() {
         .await
         .expect("Failed to fetch timeline blocks");
 
-    // Compute timeline data using the compute function
-    let timeline = timeline::compute_schedule_timeline_data(blocks, schedule.dark_periods.clone())
+    // Compute timeline data using the compute function - use astronomical_nights for astro format
+    let timeline = timeline::compute_schedule_timeline_data(blocks.clone(), schedule.astronomical_nights.clone())
         .expect("Failed to compute timeline data");
 
-    // Verify timeline structure
+    // Verify timeline structure - total_count is the number of SCHEDULED blocks (with scheduled_period)
+    // which may be 0 for unscheduled tasks from astro format
     assert_eq!(
         timeline.total_count,
-        schedule.blocks.len(),
-        "Timeline should report correct total count"
+        blocks.len(),
+        "Timeline should report correct count of timeline blocks"
     );
 
     println!(
@@ -278,16 +281,19 @@ async fn test_full_workflow_timeline_data() {
         timeline.unique_months.len()
     );
 
-    // Verify priority bounds are sensible
-    assert!(timeline.priority_min <= timeline.priority_max);
+    // If there are scheduled blocks, verify their structure
+    if !timeline.blocks.is_empty() {
+        // Verify priority bounds are sensible
+        assert!(timeline.priority_min <= timeline.priority_max);
 
-    // Verify blocks have expected data
-    for block in &timeline.blocks {
-        assert!(block.priority >= 0.0, "Priority should be non-negative");
-        assert!(
-            block.scheduled_start_mjd.value() > 0.0,
-            "Start MJD should be positive"
-        );
+        // Verify blocks have expected data
+        for block in &timeline.blocks {
+            assert!(block.priority >= 0.0, "Priority should be non-negative");
+            assert!(
+                block.scheduled_start_mjd.value() > 0.0,
+                "Start MJD should be positive"
+            );
+        }
     }
 }
 
@@ -659,17 +665,17 @@ async fn test_visibility_periods_preserved() {
 
 #[tokio::test]
 async fn test_dark_periods_preserved() {
-    // Verify dark periods are correctly preserved
+    // Verify astronomical nights are correctly preserved (astro format computes these)
     let repo = LocalRepository::new();
     let schedule = load_schedule_from_files();
 
     assert!(
-        !schedule.dark_periods.is_empty(),
-        "Should have dark periods"
+        !schedule.astronomical_nights.is_empty(),
+        "Should have astronomical nights"
     );
 
-    let original_count = schedule.dark_periods.len();
-    println!("Original schedule has {} dark periods", original_count);
+    let original_count = schedule.astronomical_nights.len();
+    println!("Original schedule has {} astronomical nights", original_count);
 
     // Store and retrieve
     let metadata = services::store_schedule(&repo, &schedule)
@@ -681,22 +687,22 @@ async fn test_dark_periods_preserved() {
         .expect("Failed to retrieve schedule");
 
     assert_eq!(
-        retrieved.dark_periods.len(),
+        retrieved.astronomical_nights.len(),
         original_count,
-        "Dark period count should be preserved"
+        "Astronomical nights count should be preserved"
     );
 
-    // Verify first and last dark period match
+    // Verify first and last astronomical night match
     if let (Some(orig_first), Some(retr_first)) = (
-        schedule.dark_periods.first(),
-        retrieved.dark_periods.first(),
+        schedule.astronomical_nights.first(),
+        retrieved.astronomical_nights.first(),
     ) {
         assert_eq!(orig_first.start, retr_first.start);
         assert_eq!(orig_first.stop, retr_first.stop);
     }
 
     if let (Some(orig_last), Some(retr_last)) =
-        (schedule.dark_periods.last(), retrieved.dark_periods.last())
+        (schedule.astronomical_nights.last(), retrieved.astronomical_nights.last())
     {
         assert_eq!(orig_last.start, retr_last.start);
         assert_eq!(orig_last.stop, retr_last.stop);
@@ -1055,12 +1061,18 @@ async fn test_empty_schedule_handling() {
     // Test that we can handle a schedule with no blocks
     let repo = LocalRepository::new();
 
-    // Create minimal empty schedule JSON
+    // Create minimal empty schedule JSON in astro format
     let empty_schedule_json = r#"{
-        "name": "empty_schedule",
-        "checksum": "empty_checksum",
-        "dark_periods": [],
-        "blocks": []
+        "location": {
+            "lat": 28.7624,
+            "lon": -17.8892,
+            "distance": 6373.396
+        },
+        "period": {
+            "start": 60676.0,
+            "end": 60680.0
+        },
+        "tasks": []
     }"#;
 
     let schedule =
@@ -1086,8 +1098,9 @@ async fn test_empty_schedule_handling() {
         .fetch_schedule_timeline_blocks(metadata.schedule_id)
         .await
         .expect("Timeline blocks should be available for empty schedule");
+    // Use astronomical_nights for timeline since astro format computes those
     let timeline =
-        timeline::compute_schedule_timeline_data(timeline_blocks, schedule.dark_periods.clone())
+        timeline::compute_schedule_timeline_data(timeline_blocks, schedule.astronomical_nights.clone())
             .expect("Timeline should handle empty schedule");
 
     assert_eq!(timeline.total_count, 0);

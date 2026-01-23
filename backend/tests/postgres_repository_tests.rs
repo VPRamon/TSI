@@ -98,6 +98,7 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
                     max_az: 360.0.into(),
                     fixed_time: None,
                 },
+                constraint_tree: None,
                 priority: (i as f64 + 1.0) * 0.5,
                 min_observation: 300.0.into(),
                 requested_duration: 3600.0.into(),

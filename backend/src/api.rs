@@ -251,8 +251,12 @@ pub struct SchedulingBlock {
     pub target_ra: qtty::Degrees,
     /// Declination in degrees (ICRS)
     pub target_dec: qtty::Degrees,
-    /// Observing constraints
+    /// Observing constraints (flattened for database storage)
     pub constraints: Constraints,
+    /// Original astro constraint tree (for accurate visibility computation)
+    /// This is populated when parsing astro format and used for constraint evaluation.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub constraint_tree: Option<astro::constraints::ConstraintTree>,
     /// Observation priority
     pub priority: f64,
     /// Minimum observation duration in seconds
@@ -286,11 +290,39 @@ impl SchedulingBlock {
             target_ra,
             target_dec,
             constraints,
+            constraint_tree: None,
             priority,
             min_observation,
             requested_duration,
             visibility_periods: visibility_periods.unwrap_or_default(),
             scheduled_period,
+        }
+    }
+
+    /// Create a scheduling block with a constraint tree from astro format
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_constraint_tree(
+        original_block_id: String,
+        target_ra: qtty::Degrees,
+        target_dec: qtty::Degrees,
+        constraints: Constraints,
+        constraint_tree: Option<astro::constraints::ConstraintTree>,
+        priority: f64,
+        min_observation: qtty::Seconds,
+        requested_duration: qtty::Seconds,
+    ) -> Self {
+        Self {
+            id: None,
+            original_block_id,
+            target_ra,
+            target_dec,
+            constraints,
+            constraint_tree,
+            priority,
+            min_observation,
+            requested_duration,
+            visibility_periods: Vec::new(),
+            scheduled_period: None,
         }
     }
 }

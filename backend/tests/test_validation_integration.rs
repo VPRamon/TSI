@@ -50,6 +50,7 @@ fn create_test_block(
             max_az: Degrees::new(360.0),
             fixed_time: None,
         },
+        constraint_tree: None,
         priority,
         min_observation: Seconds::new(min_obs_sec),
         requested_duration: Seconds::new(req_dur_sec),

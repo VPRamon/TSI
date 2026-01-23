@@ -46,8 +46,8 @@ pub fn compute_schedule_visibility(schedule: &mut Schedule) -> Result<()> {
 
 /// Compute visibility periods for a single scheduling block.
 ///
-/// Builds a constraint tree from the block's constraints and target coordinates,
-/// then evaluates it over the schedule period to find visibility windows.
+/// Uses the block's constraint tree if available (from astro format), otherwise
+/// builds a constraint tree from the flattened constraints.
 ///
 /// # Arguments
 /// * `block` - The scheduling block to compute visibility for
@@ -67,8 +67,14 @@ pub fn compute_block_visibility(
         JulianDate::J2000,
     );
 
-    // Build constraint tree from block constraints
-    let constraint_tree = build_constraint_tree(block, &target, observer)?;
+    // Use the preserved constraint tree if available, otherwise build from flattened constraints
+    let constraint_tree = if let Some(ref tree) = block.constraint_tree {
+        // Use preserved constraint tree with nighttime constraint added
+        add_nighttime_constraint(tree.clone(), observer)
+    } else {
+        // Build constraint tree from flattened constraints
+        build_constraint_tree(block, &target, observer)?
+    };
 
     // Compute visibility intervals using the constraint tree
     let intervals = VrolaiConstraint::<Day>::compute_intervals(&constraint_tree, schedule_interval);
@@ -137,6 +143,18 @@ fn build_constraint_tree(
     } else {
         Ok(ConstraintExpr::intersection(leaves))
     }
+}
+
+/// Add a nighttime constraint to an existing constraint tree.
+///
+/// This wraps the existing tree in an intersection with a nighttime constraint,
+/// ensuring observations only happen during astronomical twilight.
+fn add_nighttime_constraint(tree: ConstraintTree, observer: &Geographic) -> ConstraintTree {
+    let nighttime = NighttimeConstraint::new(observer.clone());
+    let nighttime_leaf = ConstraintExpr::Leaf(ConstraintLeaf::Nighttime(nighttime));
+    
+    // Intersect the existing tree with the nighttime constraint
+    ConstraintExpr::intersection(vec![nighttime_leaf, tree])
 }
 
 /// Convert API `GeographicLocation` to siderust `Geographic`.

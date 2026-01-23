@@ -361,13 +361,13 @@ pub async fn has_analytics_data<R: FullRepository + ?Sized>(
 /// - The JSON parsing fails
 /// Parse a schedule from JSON string.
 ///
-/// This function takes a schedule JSON string and returns a fully parsed Schedule.
-/// The schedule JSON may optionally include a `possible_periods` field mapping
-/// block IDs to visibility periods.
+/// This function takes a schedule JSON string in astro format and returns a
+/// fully parsed Schedule. Visibility periods are computed on-the-fly from
+/// target constraints.
 ///
 /// # Arguments
 /// * `schedule_name` - Name to assign to the schedule
-/// * `schedule_json` - JSON string containing the schedule data
+/// * `schedule_json` - JSON string containing the schedule data in astro format
 ///
 /// # Returns
 /// * `Ok(Schedule)` - Successfully parsed schedule

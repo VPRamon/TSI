@@ -34,16 +34,11 @@ pub use crate::db::models::VisibilityBin;
 pub struct CreateScheduleRequest {
     /// Name for the schedule
     pub name: String,
-    /// Schedule JSON data.
+    /// Schedule JSON data in astro format.
     /// 
-    /// Accepts two formats:
-    /// 1. **Astro format** (recommended): Uses `tasks` and `location` fields.
-    ///    Visibility periods are computed on-the-fly from target constraints.
-    ///    See `backend/astro/schemas/schedule.schema.json` for the schema.
-    /// 
-    /// 2. **Legacy format** (deprecated): Uses `blocks` and `geographic_location`.
-    ///    May include `possible_periods` for pre-computed visibility windows.
-    ///    See `backend/docs/schedule.schema.json` for the schema (deprecated).
+    /// Uses `tasks` and `location` fields. Visibility periods are computed
+    /// on-the-fly from target constraints.
+    /// See `backend/astro/schemas/schedule.schema.json` for the schema.
     pub schedule_json: serde_json::Value,
     /// Whether to populate analytics after storing (default: true)
     #[serde(default = "default_true")]
