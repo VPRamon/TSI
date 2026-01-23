@@ -44,20 +44,24 @@ pub fn parse_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule
 ///
 /// A fully populated `Schedule` with computed visibility periods.
 fn parse_astro_schedule_json_str(json_str: &str) -> Result<api::Schedule> {
+    log::debug!("Deserializing astro schedule JSON...");
     // Parse using astro crate
     let astro_schedule = astro::schedule::import_schedule_raw(json_str)
         .map_err(|e| anyhow::anyhow!("Failed to parse astro schedule: {}", e))?;
     
+    log::debug!("Converting astro schedule to internal format...");
     // Convert to API types
     let mut schedule = crate::models::astro_adapter::convert_astro_schedule(
         &astro_schedule,
         "astro_schedule",
     )?;
     
+    log::info!("Computing visibility periods for {} blocks...", schedule.blocks.len());
     // Compute visibility periods for all blocks
     visibility_computer::compute_schedule_visibility(&mut schedule)
         .context("Failed to compute visibility periods")?;
     
+    log::debug!("Computing schedule checksum...");
     // Compute checksum
     schedule.checksum = compute_schedule_checksum(json_str);
     

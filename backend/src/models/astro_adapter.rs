@@ -45,12 +45,16 @@ pub fn convert_astro_schedule(
     };
 
     // Compute astronomical nights from location
+    log::debug!("Computing astronomical nights for period [{}, {}]", 
+        schedule_period.start.value(), schedule_period.stop.value());
     let astronomical_nights = crate::services::astronomical_night::compute_astronomical_nights(
         &geographic_location,
         &schedule_period,
     );
+    log::debug!("Computed {} astronomical night periods", astronomical_nights.len());
 
     // Convert tasks to blocks (filter out calibration tasks)
+    log::debug!("Converting {} tasks to scheduling blocks...", astro_schedule.tasks.len());
     let blocks: Vec<SchedulingBlock> = astro_schedule
         .tasks
         .iter()

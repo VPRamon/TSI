@@ -36,11 +36,18 @@ pub fn compute_schedule_visibility(schedule: &mut Schedule) -> Result<()> {
     let observer = convert_to_geographic(&schedule.geographic_location)?;
     let schedule_interval = period_to_interval(&schedule.schedule_period);
 
-    for block in &mut schedule.blocks {
+    let total_blocks = schedule.blocks.len();
+    for (idx, block) in schedule.blocks.iter_mut().enumerate() {
+        if total_blocks > 10 && (idx + 1) % 5 == 0 {
+            log::info!("Computing visibility for block {}/{} ({})", idx + 1, total_blocks, block.original_block_id);
+        } else {
+            log::debug!("Computing visibility for block {}/{} ({})", idx + 1, total_blocks, block.original_block_id);
+        }
         let visibility = compute_block_visibility(block, &observer, schedule_interval)?;
         block.visibility_periods = visibility;
     }
 
+    log::info!("Completed visibility computation for all {} blocks", total_blocks);
     Ok(())
 }
 

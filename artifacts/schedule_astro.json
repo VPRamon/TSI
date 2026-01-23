@@ -1,0 +1,85 @@
+{
+  "location": {
+    "lat": 28.7624,
+    "lon": 342.1108,
+    "distance": 6373.396
+  },
+  "period": {
+    "start": 60676.0,
+    "end": 60680.0
+  },
+  "tasks": [
+    {
+      "type": "observation",
+      "id": "obs_m31",
+      "name": "M31 Andromeda Galaxy",
+      "target": {
+        "position": {
+          "ra": 10.6847,
+          "dec": 41.2687
+        },
+        "time": 2451545.0
+      },
+      "duration_sec": 3600.0,
+      "priority": 10
+    },
+    {
+      "type": "observation",
+      "id": "obs_m42",
+      "name": "M42 Orion Nebula",
+      "target": {
+        "position": {
+          "ra": 83.8221,
+          "dec": -5.3911
+        },
+        "time": 2451545.0
+      },
+      "duration_sec": 2400.0,
+      "priority": 8
+    },
+    {
+      "type": "observation",
+      "id": "obs_ngc2244",
+      "name": "NGC 2244 Rosette Nebula Cluster",
+      "target": {
+        "position": {
+          "ra": 97.9567,
+          "dec": 4.9470
+        },
+        "time": 2451545.0
+      },
+      "duration_sec": 1800.0,
+      "priority": 6
+    },
+    {
+      "type": "observation",
+      "id": "obs_polaris",
+      "name": "Polaris (North Star)",
+      "target": {
+        "position": {
+          "ra": 37.9546,
+          "dec": 89.2641
+        },
+        "time": 2451545.0
+      },
+      "duration_sec": 600.0,
+      "priority": 3
+    },
+    {
+      "type": "calibration",
+      "id": "cal_flat",
+      "name": "Flat Field Calibration",
+      "duration_sec": 300.0,
+      "calibration_type": "flat",
+      "priority": -10
+    },
+    {
+      "type": "calibration",
+      "id": "cal_dark",
+      "name": "Dark Frame Calibration",
+      "duration_sec": 600.0,
+      "calibration_type": "dark",
+      "priority": -10
+    }
+  ]
+}

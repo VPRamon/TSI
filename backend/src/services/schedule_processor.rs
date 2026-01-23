@@ -37,6 +37,7 @@ pub async fn process_schedule_async(
     
     // Step 1: Parse schedule JSON
     tracker.log(&job_id, LogLevel::Info, "Parsing schedule JSON...");
+    tracker.log(&job_id, LogLevel::Info, "→ Deserializing JSON and converting to internal format...");
     let schedule = match tokio::task::spawn_blocking({
         let schedule_json = schedule_json.clone();
         let schedule_name = schedule_name.clone();
