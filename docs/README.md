@@ -79,3 +79,36 @@ See the backend source in `backend/src/routes/` for endpoint definitions:
 | `/api/validation` | Schedule validation |
 | `/api/visibility` | Visibility calculations |
 | `/api/insights` | Schedule insights |
+
+## Schedule Format
+
+The API accepts schedule data in two formats:
+
+### Astro Format (Recommended)
+
+The astro crate format uses `tasks` and `location` fields. Visibility periods are
+computed on-the-fly from target constraints. See [`backend/astro/schemas/schedule.schema.json`](../backend/astro/schemas/schedule.schema.json).
+
+```json
+{
+  "location": { "lat": 28.7624, "lon": -17.8892, "distance": 6373.396 },
+  "period": { "start": 60676.0, "end": 60677.0 },
+  "tasks": [
+    {
+      "type": "observation",
+      "id": "1",
+      "name": "M31 Observation",
+      "target": { "position": { "ra": 10.6847, "dec": 41.2687 }, "time": 2451545.0 },
+      "duration_sec": 3600.0,
+      "priority": 10
+    }
+  ]
+}
+```
+
+### Legacy Format (Deprecated)
+
+The legacy format uses `blocks` and `geographic_location`. See [`backend/docs/schedule.schema.json`](../backend/docs/schedule.schema.json).
+
+**Note**: The `possible_periods` field is deprecated. Visibility periods are now computed
+automatically from constraints during ingestion.

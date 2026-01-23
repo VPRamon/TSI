@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Schedule",
-  "description": "JSON schema describing a Schedule that maps directly to the domain models in `backend/src/db/models/schedule.rs`. Uses snake_case to match Rust conventions.",
+  "title": "Schedule (DEPRECATED)",
+  "description": "DEPRECATED: This schema is deprecated in favor of the astro crate schema. See `backend/astro/schemas/schedule.schema.json` for the new format. Visibility periods are now computed on-the-fly from constraints instead of being provided in `possible_periods`. This legacy schema is kept for backwards compatibility but will be removed in a future version. JSON schema describing a Schedule that maps directly to the domain models in `backend/src/db/models/schedule.rs`. Uses snake_case to match Rust conventions.",
   "type": "object",
   "properties": {
     "name": { "type": "string" },
@@ -20,7 +20,7 @@
     },
     "possible_periods": {
       "type": "object",
-      "description": "Optional map of SchedulingBlock original_block_id (string) to arrays of visibility periods.",
+      "description": "DEPRECATED: Visibility periods are now computed on-the-fly. Optional map of SchedulingBlock original_block_id (string) to arrays of visibility periods.",
       "additionalProperties": {
         "type": "array",
         "items": { "$ref": "#/definitions/Period" }

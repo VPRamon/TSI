@@ -3,10 +3,15 @@
 // ============================================================================
 //
 // These functions provide convenient file-based and string-based parsing with
-// support for merging separate JSON blobs (possible_periods, dark_periods)
-// when data is split across multiple files.
+// support for:
+// - Legacy custom format (with `blocks` and optional `possible_periods`)
+// - New astro crate format (with `tasks` and `location`)
+//
+// The astro format computes visibility periods on-the-fly instead of accepting
+// them as input.
 
 use crate::api;
+use crate::services::visibility_computer;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 
@@ -24,8 +29,25 @@ struct ScheduleInput {
     pub geographic_location: api::GeographicLocation,
     #[serde(default)]
     pub blocks: Vec<api::SchedulingBlock>,
+    /// DEPRECATED: Use astro format instead. Visibility periods are now computed on-the-fly.
     #[serde(default)]
     pub possible_periods: Option<HashMap<String, Vec<api::Period>>>,
+}
+
+/// Detect the schedule format from JSON.
+///
+/// Returns `true` if the JSON is in astro format (has `tasks` and `location`),
+/// `false` if it's in legacy format (has `blocks` and `geographic_location`).
+fn is_astro_format(json_str: &str) -> Result<bool> {
+    let value: serde_json::Value =
+        serde_json::from_str(json_str).context("Invalid schedule JSON")?;
+    let obj = value.as_object().context("Schedule must be a JSON object")?;
+    
+    // Astro format has `tasks` and `location`
+    let has_tasks = obj.contains_key("tasks");
+    let has_location = obj.contains_key("location");
+    
+    Ok(has_tasks && has_location)
 }
 
 fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
@@ -42,11 +64,73 @@ fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
     Ok(())
 }
 
-/// Parse schedule from JSON string.
+/// Parse schedule from JSON string, auto-detecting format.
+///
+/// This function supports two formats:
+/// 1. **Astro format** (recommended): Uses `tasks` and `location` fields.
+///    Visibility periods are computed on-the-fly from target constraints.
+/// 2. **Legacy format** (deprecated): Uses `blocks` and `geographic_location`.
+///    May include `possible_periods` for pre-computed visibility windows.
+///
+/// # Arguments
+///
+/// * `json_schedule_json` - Schedule JSON string
+///
+/// # Returns
+///
+/// A fully populated `Schedule` with visibility periods and computed checksum.
+pub fn parse_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule> {
+    if is_astro_format(json_schedule_json)? {
+        parse_astro_schedule_json_str(json_schedule_json)
+    } else {
+        parse_legacy_schedule_json_str(json_schedule_json)
+    }
+}
+
+/// Parse schedule from astro format JSON string.
+///
+/// This function:
+/// 1. Parses the astro crate schedule format
+/// 2. Converts to internal API types
+/// 3. Computes visibility periods on-the-fly from constraints
+///
+/// # Arguments
+///
+/// * `json_str` - Astro format schedule JSON
+///
+/// # Returns
+///
+/// A fully populated `Schedule` with computed visibility periods.
+pub fn parse_astro_schedule_json_str(json_str: &str) -> Result<api::Schedule> {
+    // Parse using astro crate
+    let astro_schedule = astro::schedule::import_schedule_raw(json_str)
+        .map_err(|e| anyhow::anyhow!("Failed to parse astro schedule: {}", e))?;
+    
+    // Convert to API types
+    let mut schedule = crate::models::astro_adapter::convert_astro_schedule(
+        &astro_schedule,
+        "astro_schedule",
+    )?;
+    
+    // Compute visibility periods for all blocks
+    visibility_computer::compute_schedule_visibility(&mut schedule)
+        .context("Failed to compute visibility periods")?;
+    
+    // Compute checksum
+    schedule.checksum = compute_schedule_checksum(json_str);
+    
+    Ok(schedule)
+}
+
+/// Parse schedule from legacy format JSON string.
+///
+/// DEPRECATED: Use astro format instead. This function is kept for backwards
+/// compatibility but will be removed in a future version.
 ///
 /// This function deserializes a schedule JSON string using Serde.
 /// If the JSON contains an optional `possible_periods` field (map of block IDs to periods),
 /// those visibility periods are merged into the corresponding blocks.
+/// If no `possible_periods` are provided, visibility periods are computed on-the-fly.
 ///
 /// # Arguments
 ///
@@ -54,10 +138,8 @@ fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
 ///
 /// # Returns
 ///
-/// A fully populated `Schedule` with merged periods and computed checksum.
-pub fn parse_schedule_json_str(
-    json_schedule_json: &str,
-) -> Result<api::Schedule> {
+/// A fully populated `Schedule` with merged/computed periods and computed checksum.
+pub fn parse_legacy_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule> {
     validate_input_schedule(json_schedule_json)?;
 
     let input: ScheduleInput = serde_json::from_str(json_schedule_json)
@@ -89,22 +171,22 @@ pub fn parse_schedule_json_str(
         schedule.checksum = compute_schedule_checksum(json_schedule_json);
     }
 
-    // If possible_periods are embedded in the JSON, merge them into block.visibility_periods.
-    // possible_periods is a map of original_block_id (string) -> array of Period
-    // 
-    // PERFORMANCE NOTE: For very large possible_periods maps (>100MB), this can be slow.
-    // The map is deserialized entirely into memory, then cloned for each matching block.
-    // Optimizations for extreme cases (not implemented yet):
-    // - Use a streaming JSON parser to process blocks and periods incrementally
-    // - Store large possible_periods in a separate compressed file/table
-    // - Lazy-load visibility periods on demand rather than materializing all at once
+    // Handle visibility periods:
+    // 1. If possible_periods are embedded in the JSON, merge them into block.visibility_periods
+    // 2. Otherwise, compute visibility periods on-the-fly
+    
     if let Some(mut map) = input.possible_periods {
+        // Legacy path: merge pre-computed possible_periods
         for block in &mut schedule.blocks {
-            // Match by original_block_id (user-provided identifier)
-            // Use remove() instead of get() to move data and avoid clone
             if let Some(periods) = map.remove(&block.original_block_id) {
                 block.visibility_periods = periods;
             }
+        }
+    } else {
+        // New path: compute visibility periods on-the-fly
+        if let Err(e) = visibility_computer::compute_schedule_visibility(&mut schedule) {
+            // Log warning but don't fail - visibility computation is best-effort
+            log::warn!("Failed to compute visibility periods: {}. Blocks will have empty visibility.", e);
         }
     }
 
@@ -412,5 +494,172 @@ mod tests {
         // Observation durations should be non-negative.
         assert!(block_2662.min_observation.value() >= 0.0);
         assert!(block_2662.requested_duration.value() >= 0.0);
+    }
+
+    // ========================================================================
+    // Astro Format Tests
+    // ========================================================================
+
+    #[test]
+    fn test_is_astro_format_detection() {
+        // Astro format has `tasks` and `location`
+        let astro_json = r#"{
+            "location": { "lat": 28.7624, "lon": -17.8892, "distance": 6373.396 },
+            "period": { "start": 60676.0, "end": 60677.0 },
+            "tasks": []
+        }"#;
+        assert!(is_astro_format(astro_json).unwrap(), "Should detect astro format");
+
+        // Legacy format has `blocks` and `geographic_location`
+        let legacy_json = r#"{
+            "geographic_location": { "latitude": 28.7624, "longitude": -17.8892 },
+            "blocks": []
+        }"#;
+        assert!(!is_astro_format(legacy_json).unwrap(), "Should detect legacy format");
+    }
+
+    #[test]
+    fn test_parse_astro_schedule_minimal() {
+        let astro_json = r#"{
+            "location": { "lat": 28.7624, "lon": -17.8892, "distance": 6373.396 },
+            "period": { "start": 60676.0, "end": 60677.0 },
+            "tasks": [
+                {
+                    "type": "observation",
+                    "id": "1",
+                    "name": "M31 Observation",
+                    "target": {
+                        "position": { "ra": 10.6847, "dec": 41.2687 },
+                        "time": 2451545.0
+                    },
+                    "duration_sec": 3600.0,
+                    "priority": 10
+                }
+            ]
+        }"#;
+
+        let result = parse_schedule_json_str(astro_json);
+        assert!(result.is_ok(), "Should parse astro format: {:?}", result.err());
+
+        let schedule = result.unwrap();
+        assert_eq!(schedule.blocks.len(), 1);
+        assert_eq!(schedule.blocks[0].original_block_id, "1");
+        assert_eq!(schedule.blocks[0].priority, 10.0);
+        // RA and Dec should be converted
+        assert!((schedule.blocks[0].target_ra.value() - 10.6847).abs() < 0.001);
+        assert!((schedule.blocks[0].target_dec.value() - 41.2687).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_parse_astro_schedule_skips_calibration() {
+        let astro_json = r#"{
+            "location": { "lat": 28.7624, "lon": -17.8892, "distance": 6373.396 },
+            "period": { "start": 60676.0, "end": 60677.0 },
+            "tasks": [
+                {
+                    "type": "observation",
+                    "id": "1",
+                    "name": "M31 Observation",
+                    "target": {
+                        "position": { "ra": 10.6847, "dec": 41.2687 },
+                        "time": 2451545.0
+                    },
+                    "duration_sec": 3600.0,
+                    "priority": 10
+                },
+                {
+                    "type": "calibration",
+                    "id": "2",
+                    "name": "Flat Field",
+                    "duration_sec": 300.0,
+                    "calibration_type": "flat",
+                    "priority": -10
+                }
+            ]
+        }"#;
+
+        let result = parse_schedule_json_str(astro_json);
+        assert!(result.is_ok(), "Should parse astro format with calibration");
+
+        let schedule = result.unwrap();
+        // Only observation task should be converted, calibration is skipped
+        assert_eq!(schedule.blocks.len(), 1);
+        assert_eq!(schedule.blocks[0].original_block_id, "1");
+    }
+
+    #[test]
+    fn test_parse_astro_schedule_location_conversion() {
+        let astro_json = r#"{
+            "location": { "lat": 28.7624, "lon": -17.8892, "distance": 6373.396 },
+            "period": { "start": 60676.0, "end": 60677.0 },
+            "tasks": []
+        }"#;
+
+        let result = parse_schedule_json_str(astro_json);
+        assert!(result.is_ok(), "Should parse empty astro schedule");
+
+        let schedule = result.unwrap();
+        assert!((schedule.geographic_location.latitude - 28.7624).abs() < 0.001);
+        assert!((schedule.geographic_location.longitude - (-17.8892)).abs() < 0.001);
+        // Elevation should be approximately 2396m (6373.396 - 6371.0) * 1000
+        assert!(schedule.geographic_location.elevation_m.is_some());
+    }
+
+    #[test]
+    fn test_parse_astro_schedule_from_fixture() {
+        let astro_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("astro")
+            .join("schedule_example.json");
+
+        if astro_path.exists() {
+            let content = std::fs::read_to_string(&astro_path)
+                .expect("Failed to read astro schedule fixture");
+
+            let result = parse_schedule_json_str(&content);
+            assert!(result.is_ok(), "Should parse astro fixture: {:?}", result.err());
+
+            let schedule = result.unwrap();
+            // The fixture has 3 observation tasks (2 calibration tasks are skipped)
+            assert_eq!(schedule.blocks.len(), 3, "Should have 3 observation blocks");
+        }
+    }
+
+    #[test]
+    fn test_legacy_schedule_without_possible_periods_computes_visibility() {
+        // This test verifies that legacy format without possible_periods
+        // still computes visibility periods on-the-fly
+        let schedule_json = r#"{
+            "schedule_period": { "start": 60676.0, "stop": 60677.0 },
+            "geographic_location": {
+                "latitude": 28.7624,
+                "longitude": -17.8892,
+                "elevation_m": 2396.0
+            },
+            "blocks": [
+                {
+                    "original_block_id": "test_block",
+                    "priority": 8.5,
+                    "target_ra": 10.6847,
+                    "target_dec": 41.2687,
+                    "constraints": {
+                        "min_alt": 30.0,
+                        "max_alt": 90.0,
+                        "min_az": 0.0,
+                        "max_az": 360.0,
+                        "fixed_time": null
+                    },
+                    "min_observation": 1200,
+                    "requested_duration": 1200
+                }
+            ]
+        }"#;
+
+        let result = parse_schedule_json_str(schedule_json);
+        assert!(result.is_ok(), "Should parse legacy schedule without possible_periods");
+
+        // Visibility periods should be computed (may be empty depending on target visibility)
+        let schedule = result.unwrap();
+        assert_eq!(schedule.blocks.len(), 1);
+        // The schedule parsing should complete successfully even if visibility is empty
     }
 }

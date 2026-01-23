@@ -20,6 +20,7 @@ pub mod trends;
 pub mod validation;
 pub mod validation_report;
 pub mod visibility;
+pub mod visibility_computer;
 
 // Async job processing
 pub mod job_tracker;
