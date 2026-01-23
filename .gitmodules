@@ -1,6 +1,6 @@
 [submodule "backend/qtty"]
 	path = backend/qtty
 	url = git@github.com:Siderust/qtty.git
-[submodule "backend/siderust"]
-	path = backend/siderust
-	url = git@github.com:Siderust/siderust.git
+[submodule "backend/astro"]
+	path = backend/astro
+	url = git@github.com:Siderust/ASTRO.git
