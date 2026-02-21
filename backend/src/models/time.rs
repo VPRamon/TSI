@@ -32,7 +32,7 @@ impl ModifiedJulianDate {
         let secs_i64 = secs.floor() as i64;
         let nanos = ((secs - secs.floor()) * 1e9) as u32;
         chrono::DateTime::from_timestamp(secs_i64, nanos)
-            .unwrap_or_else(|| chrono::DateTime::UNIX_EPOCH)
+            .unwrap_or(chrono::DateTime::UNIX_EPOCH)
     }
 
     /// Create from chrono DateTime<Utc>.

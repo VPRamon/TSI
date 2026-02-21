@@ -3,11 +3,13 @@
 //! Computes astronomical night periods (Sun altitude < -18°) for a given
 //! observer location and time period using the siderust astronomy library.
 
-use qtty::{Degrees, Meter, Quantity};
-use siderust::astro::ModifiedJulianDate as SiderustMJD;
-use siderust::calculus::solar::altitude_periods::{find_night_periods, twilight};
-use siderust::coordinates::centers::ObserverSite;
-use siderust::time::Period as SiderustPeriod;
+use qtty::{Degrees, Meters};
+use siderust::bodies::Sun;
+use siderust::calculus::solar::Twilight;
+use siderust::coordinates::centers::Geodetic;
+use siderust::coordinates::frames::ECEF;
+use siderust::time::{Interval, ModifiedJulianDate as SiderustMJD};
+use siderust::{below_threshold, SearchOpts};
 
 use crate::api::{GeographicLocation, Period};
 use crate::models::ModifiedJulianDate;
@@ -30,23 +32,28 @@ pub fn compute_astronomical_nights(
     time_period: &Period,
 ) -> Vec<Period> {
     // Create observer site from geographic location
-    let site = ObserverSite::new(
+    let site = Geodetic::<ECEF>::new(
         Degrees::new(location.longitude),
         Degrees::new(location.latitude),
-        Quantity::<Meter>::new(location.elevation_m.unwrap_or(0.0)),
+        Meters::new(location.elevation_m.unwrap_or(0.0)),
     );
 
-    // Convert our Period to siderust Period
+    // Convert our Period to siderust Interval<ModifiedJulianDate>
     let start_mjd = SiderustMJD::new(time_period.start.value());
     let stop_mjd = SiderustMJD::new(time_period.stop.value());
-    let search_period = SiderustPeriod::new(start_mjd, stop_mjd);
+    let search_period = Interval::new(start_mjd, stop_mjd);
 
-    // Find astronomical night periods
-    let nights = find_night_periods(site, search_period, twilight::ASTRONOMICAL);
+    // Find astronomical night periods (Sun below -18°)
+    let nights = below_threshold(
+        &Sun,
+        &site,
+        search_period,
+        Twilight::Astronomical.into(),
+        SearchOpts::default(),
+    );
 
-    // Convert siderust Periods back to our Period type
+    // Convert siderust Intervals back to our Period type
     nights
-        .unwrap_or_default()
         .into_iter()
         .map(|p| Period {
             start: ModifiedJulianDate::new(p.start.value()),

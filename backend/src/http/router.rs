@@ -34,15 +34,39 @@ pub fn create_router(state: AppState) -> Router {
         .route("/jobs/{job_id}", get(handlers::get_job_status))
         .route("/jobs/{job_id}/logs", get(handlers::stream_job_logs))
         // Visualization endpoints
-        .route("/schedules/{schedule_id}/sky-map", get(handlers::get_sky_map))
-        .route("/schedules/{schedule_id}/distributions", get(handlers::get_distributions))
-        .route("/schedules/{schedule_id}/visibility-map", get(handlers::get_visibility_map))
-        .route("/schedules/{schedule_id}/visibility-histogram", get(handlers::get_visibility_histogram))
-        .route("/schedules/{schedule_id}/timeline", get(handlers::get_timeline))
-        .route("/schedules/{schedule_id}/insights", get(handlers::get_insights))
+        .route(
+            "/schedules/{schedule_id}/sky-map",
+            get(handlers::get_sky_map),
+        )
+        .route(
+            "/schedules/{schedule_id}/distributions",
+            get(handlers::get_distributions),
+        )
+        .route(
+            "/schedules/{schedule_id}/visibility-map",
+            get(handlers::get_visibility_map),
+        )
+        .route(
+            "/schedules/{schedule_id}/visibility-histogram",
+            get(handlers::get_visibility_histogram),
+        )
+        .route(
+            "/schedules/{schedule_id}/timeline",
+            get(handlers::get_timeline),
+        )
+        .route(
+            "/schedules/{schedule_id}/insights",
+            get(handlers::get_insights),
+        )
         .route("/schedules/{schedule_id}/trends", get(handlers::get_trends))
-        .route("/schedules/{schedule_id}/validation-report", get(handlers::get_validation_report))
-        .route("/schedules/{schedule_id}/compare/{other_id}", get(handlers::compare_schedules));
+        .route(
+            "/schedules/{schedule_id}/validation-report",
+            get(handlers::get_validation_report),
+        )
+        .route(
+            "/schedules/{schedule_id}/compare/{other_id}",
+            get(handlers::compare_schedules),
+        );
 
     // Combine all routes
     Router::new()
@@ -59,12 +83,13 @@ pub fn create_router(state: AppState) -> Router {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Arc;
     use crate::db::repositories::LocalRepository;
+    use std::sync::Arc;
 
     #[test]
     fn test_router_creation() {
-        let repo = Arc::new(LocalRepository::new()) as Arc<dyn crate::db::repository::FullRepository>;
+        let repo =
+            Arc::new(LocalRepository::new()) as Arc<dyn crate::db::repository::FullRepository>;
         let state = AppState::new(repo);
         let _router = create_router(state);
         // If we got here, router was created successfully

@@ -359,7 +359,7 @@ pub async fn has_analytics_data<R: FullRepository + ?Sized>(
 /// Returns an error if:
 /// - The dark_periods.json file cannot be read
 /// - The JSON parsing fails
-/// Parse a schedule from JSON string.
+///   Parse a schedule from JSON string.
 ///
 /// This function takes a schedule JSON string and returns a fully parsed Schedule.
 /// The schedule JSON may optionally include a `possible_periods` field mapping
@@ -382,8 +382,7 @@ pub fn parse_schedule_from_json(
     use anyhow::Context;
 
     let mut schedule: crate::api::Schedule =
-        parse_schedule_json_str(schedule_json)
-            .context("Failed to parse schedule")?;
+        parse_schedule_json_str(schedule_json).context("Failed to parse schedule")?;
 
     schedule.name = schedule_name.to_string();
 

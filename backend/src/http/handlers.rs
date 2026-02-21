@@ -5,17 +5,16 @@
 
 use axum::{
     extract::{Path, Query, State},
-    Json,
     response::sse::{Event, Sse},
+    Json,
 };
 use futures::stream::Stream;
 use std::convert::Infallible;
 use std::time::Duration;
 
 use super::dto::{
-    CompareQuery, CreateScheduleRequest, CreateScheduleResponse, HealthResponse,
-    JobStatusResponse, ScheduleInfoDto, ScheduleListResponse, TrendsQuery,
-    VisibilityHistogramQuery, VisibilityBin,
+    CompareQuery, CreateScheduleRequest, CreateScheduleResponse, HealthResponse, JobStatusResponse,
+    ScheduleInfoDto, ScheduleListResponse, TrendsQuery, VisibilityBin, VisibilityHistogramQuery,
 };
 use super::error::AppError;
 use super::state::AppState;
@@ -55,7 +54,7 @@ pub async fn health_check(State(state): State<AppState>) -> HandlerResult<Health
 /// List all schedules in the database.
 pub async fn list_schedules(State(state): State<AppState>) -> HandlerResult<ScheduleListResponse> {
     let schedules = db_services::list_schedules(state.repository.as_ref()).await?;
-    
+
     let schedule_dtos: Vec<ScheduleInfoDto> = schedules.into_iter().map(Into::into).collect();
     let total = schedule_dtos.len();
 
@@ -79,13 +78,13 @@ pub async fn create_schedule(
     // Create a job for tracking progress
     let job_id = state.job_tracker.create_job();
     let response_job_id = job_id.clone();
-    
+
     // Spawn background task to process the schedule
     let tracker = state.job_tracker.clone();
     let repo = state.repository.clone();
     let schedule_name = request.name.clone();
     let populate_analytics = request.populate_analytics;
-    
+
     tokio::spawn(async move {
         let _ = crate::services::schedule_processor::process_schedule_async(
             job_id,
@@ -102,7 +101,10 @@ pub async fn create_schedule(
         axum::http::StatusCode::ACCEPTED,
         Json(CreateScheduleResponse {
             job_id: response_job_id.clone(),
-            message: format!("Schedule upload started. Track progress at /v1/jobs/{}/logs", response_job_id),
+            message: format!(
+                "Schedule upload started. Track progress at /v1/jobs/{}/logs",
+                response_job_id
+            ),
         }),
     ))
 }
@@ -119,7 +121,7 @@ pub async fn get_sky_map(
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::SkyMapData> {
     let schedule_id = ScheduleId::new(schedule_id);
-    
+
     // Use the sync version wrapped in spawn_blocking for CPU-intensive work
     let data = tokio::task::spawn_blocking(move || {
         crate::services::py_get_sky_map_data_analytics(schedule_id)
@@ -139,7 +141,7 @@ pub async fn get_distributions(
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::DistributionData> {
     let schedule_id = ScheduleId::new(schedule_id);
-    
+
     let data = tokio::task::spawn_blocking(move || {
         crate::services::py_get_distribution_data_analytics(schedule_id)
     })
@@ -158,7 +160,7 @@ pub async fn get_visibility_map(
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::VisibilityMapData> {
     let schedule_id = ScheduleId::new(schedule_id);
-    
+
     let data = state
         .repository
         .fetch_visibility_map_data(schedule_id)
@@ -177,21 +179,23 @@ pub async fn get_visibility_histogram(
 ) -> HandlerResult<Vec<VisibilityBin>> {
     use crate::db::models::BlockHistogramData;
     use crate::services::visibility::compute_visibility_histogram_rust;
-    
+
     let schedule_id = ScheduleId::new(schedule_id);
-    
+
     // Get schedule time range
     let time_range = state
         .repository
         .get_schedule_time_range(schedule_id)
         .await?
-        .ok_or_else(|| AppError::NotFound(format!("No time range found for schedule {}", schedule_id)))?;
-    
+        .ok_or_else(|| {
+            AppError::NotFound(format!("No time range found for schedule {}", schedule_id))
+        })?;
+
     // Convert MJD to Unix timestamps
     const MJD_EPOCH_UNIX: i64 = -3506716800;
     let start_unix = MJD_EPOCH_UNIX + (time_range.start.value() * 86400.0) as i64;
     let end_unix = MJD_EPOCH_UNIX + (time_range.stop.value() * 86400.0) as i64;
-    
+
     // Determine bin duration
     let bin_duration_seconds = if let Some(minutes) = query.bin_duration_minutes {
         minutes * 60
@@ -200,13 +204,13 @@ pub async fn get_visibility_histogram(
         let time_range_seconds = end_unix - start_unix;
         std::cmp::max(1, time_range_seconds / num_bins as i64)
     };
-    
+
     // Fetch blocks with visibility data
     let blocks = state
         .repository
         .get_blocks_for_schedule(schedule_id)
         .await?;
-    
+
     // Convert to histogram data format and apply filters
     let histogram_blocks: Vec<BlockHistogramData> = blocks
         .into_iter()
@@ -238,7 +242,7 @@ pub async fn get_visibility_histogram(
             visibility_periods: Some(b.visibility_periods),
         })
         .collect();
-    
+
     // Compute histogram using the service
     let bins = tokio::task::spawn_blocking(move || {
         compute_visibility_histogram_rust(
@@ -253,7 +257,7 @@ pub async fn get_visibility_histogram(
     .await
     .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
     .map_err(|e| AppError::Internal(format!("Histogram computation error: {}", e)))?;
-    
+
     Ok(Json(bins))
 }
 
@@ -265,7 +269,7 @@ pub async fn get_timeline(
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::ScheduleTimelineData> {
     let schedule_id = ScheduleId::new(schedule_id);
-    
+
     let data = tokio::task::spawn_blocking(move || {
         crate::services::py_get_schedule_timeline_data(schedule_id)
     })
@@ -284,13 +288,12 @@ pub async fn get_insights(
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::InsightsData> {
     let schedule_id = ScheduleId::new(schedule_id);
-    
-    let data = tokio::task::spawn_blocking(move || {
-        crate::services::py_get_insights_data(schedule_id)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let data =
+        tokio::task::spawn_blocking(move || crate::services::py_get_insights_data(schedule_id))
+            .await
+            .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(Json(data))
 }
@@ -307,7 +310,7 @@ pub async fn get_trends(
     let n_bins = query.bins.unwrap_or(10);
     let bandwidth = query.bandwidth.unwrap_or(0.5);
     let n_smooth_points = query.points.unwrap_or(12);
-    
+
     let data = tokio::task::spawn_blocking(move || {
         crate::services::py_get_trends_data(schedule_id, n_bins, bandwidth, n_smooth_points)
     })
@@ -326,13 +329,12 @@ pub async fn get_validation_report(
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::ValidationReport> {
     let schedule_id = ScheduleId::new(schedule_id);
-    
-    let data = tokio::task::spawn_blocking(move || {
-        crate::services::py_get_validation_report(schedule_id)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let data =
+        tokio::task::spawn_blocking(move || crate::services::py_get_validation_report(schedule_id))
+            .await
+            .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
+            .map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(Json(data))
 }
@@ -347,11 +349,20 @@ pub async fn compare_schedules(
 ) -> HandlerResult<crate::api::CompareData> {
     let current_id = ScheduleId::new(schedule_id);
     let comparison_id = ScheduleId::new(other_id);
-    let current_name = query.current_name.unwrap_or_else(|| "Schedule A".to_string());
-    let comparison_name = query.comparison_name.unwrap_or_else(|| "Schedule B".to_string());
-    
+    let current_name = query
+        .current_name
+        .unwrap_or_else(|| "Schedule A".to_string());
+    let comparison_name = query
+        .comparison_name
+        .unwrap_or_else(|| "Schedule B".to_string());
+
     let data = tokio::task::spawn_blocking(move || {
-        crate::services::py_get_compare_data(current_id, comparison_id, current_name, comparison_name)
+        crate::services::py_get_compare_data(
+            current_id,
+            comparison_id,
+            current_name,
+            comparison_name,
+        )
     })
     .await
     .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
@@ -402,7 +413,7 @@ pub async fn stream_job_logs(
         loop {
             // Get current logs
             let logs = tracker.get_logs(&job_id);
-            
+
             // Send new logs since last check
             for log in logs.iter().skip(last_log_count) {
                 let event_data = serde_json::to_string(log).unwrap_or_default();

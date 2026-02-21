@@ -142,12 +142,11 @@ pub async fn get_distribution_data(
 /// This is the main Python-callable function for the distributions feature.
 ///
 /// **Note**: Impossible blocks are automatically excluded.
-pub fn py_get_distribution_data(schedule_id: crate::api::ScheduleId) -> Result<DistributionData, String> {
-    let runtime = Runtime::new().map_err(|e| {
-        format!("Failed to create async runtime: {}", e)
-    })?;
-    runtime
-        .block_on(get_distribution_data(schedule_id))
+pub fn py_get_distribution_data(
+    schedule_id: crate::api::ScheduleId,
+) -> Result<DistributionData, String> {
+    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
+    runtime.block_on(get_distribution_data(schedule_id))
 }
 
 /// Alias for compatibility - uses analytics path.

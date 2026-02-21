@@ -55,9 +55,7 @@ fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
 /// # Returns
 ///
 /// A fully populated `Schedule` with merged periods and computed checksum.
-pub fn parse_schedule_json_str(
-    json_schedule_json: &str,
-) -> Result<api::Schedule> {
+pub fn parse_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule> {
     validate_input_schedule(json_schedule_json)?;
 
     let input: ScheduleInput = serde_json::from_str(json_schedule_json)
@@ -91,7 +89,7 @@ pub fn parse_schedule_json_str(
 
     // If possible_periods are embedded in the JSON, merge them into block.visibility_periods.
     // possible_periods is a map of original_block_id (string) -> array of Period
-    // 
+    //
     // PERFORMANCE NOTE: For very large possible_periods maps (>100MB), this can be slow.
     // The map is deserialized entirely into memory, then cloned for each matching block.
     // Optimizations for extreme cases (not implemented yet):

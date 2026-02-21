@@ -108,12 +108,9 @@ pub async fn get_schedule_timeline_data(
 pub fn py_get_schedule_timeline_data(
     schedule_id: crate::api::ScheduleId,
 ) -> Result<crate::api::ScheduleTimelineData, String> {
-    let runtime = Runtime::new().map_err(|e| {
-        format!("Failed to create async runtime: {}", e)
-    })?;
+    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
 
-    runtime
-        .block_on(get_schedule_timeline_data(schedule_id))
+    runtime.block_on(get_schedule_timeline_data(schedule_id))
 }
 
 #[cfg(test)]

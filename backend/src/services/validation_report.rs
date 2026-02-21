@@ -35,20 +35,15 @@ pub fn py_get_validation_report(
     schedule_id: crate::api::ScheduleId,
 ) -> Result<crate::api::ValidationReport, String> {
     // Get the initialized repository
-    let repo = get_repository()
-        .map_err(|e| e.to_string())?;
+    let repo = get_repository().map_err(|e| e.to_string())?;
 
     // Create Tokio runtime to bridge async database operations
-    let runtime = Runtime::new().map_err(|e| {
-        format!("Failed to create async runtime: {}", e)
-    })?;
+    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
 
     // Fetch validation results from repository
     let report_data = runtime
         .block_on(repo.fetch_validation_results(schedule_id))
-        .map_err(|e| {
-            format!("Failed to fetch validation report: {}", e)
-        })?;
+        .map_err(|e| format!("Failed to fetch validation report: {}", e))?;
 
     Ok(report_data)
 }

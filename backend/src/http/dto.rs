@@ -8,24 +8,44 @@ use serde::{Deserialize, Serialize};
 
 // Re-export existing DTOs that are already serializable
 pub use crate::api::{
-    // Compare
-    CompareBlock, CompareData, CompareStats, SchedulingChange,
-    // Distribution
-    DistributionBlock, DistributionData, DistributionStats,
     // Insights
-    AnalyticsMetrics, ConflictRecord, CorrelationEntry, InsightsBlock, InsightsData, TopObservation,
+    AnalyticsMetrics,
+    // Compare
+    CompareBlock,
+    CompareData,
+    CompareStats,
+    ConflictRecord,
+    CorrelationEntry,
+    // Distribution
+    DistributionBlock,
+    DistributionData,
+    DistributionStats,
+    // Trends
+    EmpiricalRatePoint,
+    HeatmapBin,
+    InsightsBlock,
+    InsightsData,
+    // Sky Map
+    LightweightBlock,
+    PriorityBinInfo,
     // Landing
     ScheduleInfo,
-    // Sky Map
-    LightweightBlock, PriorityBinInfo, SkyMapData,
     // Timeline
-    ScheduleTimelineBlock, ScheduleTimelineData,
-    // Trends
-    EmpiricalRatePoint, HeatmapBin, SmoothedPoint, TrendsBlock, TrendsData, TrendsMetrics,
+    ScheduleTimelineBlock,
+    ScheduleTimelineData,
+    SchedulingChange,
+    SkyMapData,
+    SmoothedPoint,
+    TopObservation,
+    TrendsBlock,
+    TrendsData,
+    TrendsMetrics,
     // Validation
-    ValidationIssue, ValidationReport,
+    ValidationIssue,
+    ValidationReport,
     // Visibility
-    VisibilityBlockSummary, VisibilityMapData,
+    VisibilityBlockSummary,
+    VisibilityMapData,
 };
 pub use crate::db::models::VisibilityBin;
 

@@ -350,12 +350,9 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 /// To see validation issues, use py_get_validation_report.
 pub fn py_get_insights_data(schedule_id: crate::api::ScheduleId) -> Result<InsightsData, String> {
-    let runtime = Runtime::new().map_err(|e| {
-        format!("Failed to create async runtime: {}", e)
-    })?;
+    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
 
-    runtime
-        .block_on(get_insights_data(schedule_id.0))
+    runtime.block_on(get_insights_data(schedule_id.0))
 }
 
 #[cfg(test)]

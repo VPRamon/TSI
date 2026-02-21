@@ -34,19 +34,20 @@ pub async fn process_schedule_async(
     populate_analytics: bool,
 ) -> Result<ScheduleId, String> {
     tracker.log(&job_id, LogLevel::Info, "Starting schedule processing...");
-    
+
     // Step 1: Parse schedule JSON
     tracker.log(&job_id, LogLevel::Info, "Parsing schedule JSON...");
     let schedule = match tokio::task::spawn_blocking({
         let schedule_json = schedule_json.clone();
         let schedule_name = schedule_name.clone();
-        move || models::schedule::parse_schedule_json_str(&schedule_json)
-            .map(|mut s| {
+        move || {
+            models::schedule::parse_schedule_json_str(&schedule_json).map(|mut s| {
                 if s.name.is_empty() {
                     s.name = schedule_name;
                 }
                 s
             })
+        }
     })
     .await
     {
@@ -134,9 +135,12 @@ pub async fn process_schedule_async(
     tracker.log(
         &job_id,
         LogLevel::Success,
-        format!("✅ Schedule processing complete! ID: {}", metadata.schedule_id.value()),
+        format!(
+            "✅ Schedule processing complete! ID: {}",
+            metadata.schedule_id.value()
+        ),
     );
-    
+
     let result = serde_json::json!({
         "schedule_id": metadata.schedule_id.value(),
         "schedule_name": metadata.schedule_name,

@@ -218,17 +218,14 @@ pub fn py_get_compare_data(
     current_name: String,
     comparison_name: String,
 ) -> Result<CompareData, String> {
-    let runtime = Runtime::new().map_err(|e| {
-        format!("Failed to create async runtime: {}", e)
-    })?;
+    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
 
-    runtime
-        .block_on(get_compare_data(
-            current_schedule_id,
-            comparison_schedule_id,
-            current_name,
-            comparison_name,
-        ))
+    runtime.block_on(get_compare_data(
+        current_schedule_id,
+        comparison_schedule_id,
+        current_name,
+        comparison_name,
+    ))
 }
 
 #[cfg(test)]

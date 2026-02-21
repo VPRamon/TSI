@@ -30,8 +30,7 @@ fn load_schedule_from_files() -> Schedule {
     let schedule_json =
         fs::read_to_string("/workspace/data/schedule.json").expect("Failed to read schedule.json");
 
-    parse_schedule_json_str(&schedule_json)
-        .expect("Failed to parse schedule from JSON files")
+    parse_schedule_json_str(&schedule_json).expect("Failed to parse schedule from JSON files")
 }
 
 /// Load the smaller test schedule (subset of main schedule for faster tests)

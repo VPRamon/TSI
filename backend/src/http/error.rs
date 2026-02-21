@@ -50,14 +50,10 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, error) = match self {
-            AppError::NotFound(msg) => (
-                StatusCode::NOT_FOUND,
-                ApiError::new("NOT_FOUND", msg),
-            ),
-            AppError::BadRequest(msg) => (
-                StatusCode::BAD_REQUEST,
-                ApiError::new("BAD_REQUEST", msg),
-            ),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, ApiError::new("NOT_FOUND", msg)),
+            AppError::BadRequest(msg) => {
+                (StatusCode::BAD_REQUEST, ApiError::new("BAD_REQUEST", msg))
+            }
             AppError::Internal(msg) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 ApiError::new("INTERNAL_ERROR", msg),
@@ -68,7 +64,10 @@ impl IntoResponse for AppError {
                 if msg.to_lowercase().contains("not found") {
                     (StatusCode::NOT_FOUND, ApiError::new("NOT_FOUND", msg))
                 } else {
-                    (StatusCode::INTERNAL_SERVER_ERROR, ApiError::new("REPOSITORY_ERROR", msg))
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        ApiError::new("REPOSITORY_ERROR", msg),
+                    )
                 }
             }
         };

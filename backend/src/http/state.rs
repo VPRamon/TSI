@@ -1,8 +1,8 @@
 //! Application state for the HTTP server.
 
-use std::sync::Arc;
 use crate::db::repository::FullRepository;
 use crate::services::job_tracker::JobTracker;
+use std::sync::Arc;
 
 /// Shared application state passed to all handlers.
 #[derive(Clone)]

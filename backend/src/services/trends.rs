@@ -455,25 +455,21 @@ pub fn py_get_trends_data(
     bandwidth: f64,
     n_smooth_points: usize,
 ) -> Result<TrendsData, String> {
-    let runtime = Runtime::new().map_err(|e| {
-        format!("Failed to create async runtime: {}", e)
-    })?;
+    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
 
     // Ensure analytics are populated (if missing) before computing trends.
-    let repo = crate::db::get_repository()
-        .map_err(|e| format!("{}", e))?;
+    let repo = crate::db::get_repository().map_err(|e| format!("{}", e))?;
 
     runtime
         .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
         .map_err(|e| format!("{}", e))?;
 
-    runtime
-        .block_on(get_trends_data(
-            schedule_id,
-            n_bins,
-            bandwidth,
-            n_smooth_points,
-        ))
+    runtime.block_on(get_trends_data(
+        schedule_id,
+        n_bins,
+        bandwidth,
+        n_smooth_points,
+    ))
 }
 
 #[cfg(test)]

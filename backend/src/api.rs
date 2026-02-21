@@ -36,9 +36,7 @@ pub use crate::routes::visibility::VisibilityMapData;
 use serde::{Deserialize, Serialize};
 
 /// Schedule identifier (database primary key).
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize,
-)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ScheduleId(pub i64);
 
 /// Target identifier.

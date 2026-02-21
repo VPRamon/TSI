@@ -150,16 +150,15 @@ pub async fn get_sky_map_data(schedule_id: crate::api::ScheduleId) -> Result<Sky
 
 /// Get complete sky map data with computed bins and metadata.
 pub fn py_get_sky_map_data(schedule_id: crate::api::ScheduleId) -> Result<SkyMapData, String> {
-    let runtime = Runtime::new().map_err(|e| {
-        format!("Failed to create async runtime: {}", e)
-    })?;
+    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
 
-    runtime
-        .block_on(get_sky_map_data(schedule_id))
+    runtime.block_on(get_sky_map_data(schedule_id))
 }
 
 /// Alias for compatibility - uses analytics path.
-pub fn py_get_sky_map_data_analytics(schedule_id: crate::api::ScheduleId) -> Result<SkyMapData, String> {
+pub fn py_get_sky_map_data_analytics(
+    schedule_id: crate::api::ScheduleId,
+) -> Result<SkyMapData, String> {
     py_get_sky_map_data(schedule_id)
 }
 
