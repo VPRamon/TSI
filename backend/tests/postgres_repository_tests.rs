@@ -21,8 +21,8 @@
 use std::sync::Arc;
 
 use tsi_rust::api::{
-    Constraints, ModifiedJulianDate, Period, Schedule, ScheduleId, SchedulingBlock,
-    SchedulingBlockId,
+    Constraints, GeographicLocation, ModifiedJulianDate, Period, Schedule, ScheduleId,
+    SchedulingBlock, SchedulingBlockId,
 };
 use tsi_rust::db::repositories::postgres::{PostgresConfig, PostgresRepository};
 use tsi_rust::db::{
@@ -117,6 +117,12 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
             start: ModifiedJulianDate::new(60000.0),
             stop: ModifiedJulianDate::new(60001.0),
         },
+        geographic_location: GeographicLocation {
+            latitude: 28.7624,
+            longitude: -17.8892,
+            elevation_m: Some(2396.0),
+        },
+        astronomical_nights: vec![],
     }
 }
 

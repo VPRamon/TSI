@@ -25,10 +25,21 @@ use tsi_rust::services::{compare, distributions, insights, sky_map, timeline, tr
 
 // ==================== Helper Functions ====================
 
-/// Load schedule from actual data files in /workspace/data/
+/// Resolve the workspace data directory regardless of Docker vs. local environment.
+fn data_path(filename: &str) -> std::path::PathBuf {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let local = manifest_dir.join("..").join("data").join(filename);
+    if local.exists() {
+        return local;
+    }
+    // Fall back to Docker container path
+    std::path::PathBuf::from("/workspace/data").join(filename)
+}
+
+/// Load schedule from actual data files in /workspace/data/ or ../data/
 fn load_schedule_from_files() -> Schedule {
     let schedule_json =
-        fs::read_to_string("/workspace/data/schedule.json").expect("Failed to read schedule.json");
+        fs::read_to_string(data_path("schedule.json")).expect("Failed to read schedule.json");
 
     parse_schedule_json_str(&schedule_json).expect("Failed to parse schedule from JSON files")
 }
@@ -1059,7 +1070,8 @@ async fn test_empty_schedule_handling() {
         "name": "empty_schedule",
         "checksum": "empty_checksum",
         "dark_periods": [],
-        "blocks": []
+        "blocks": [],
+        "geographic_location": { "latitude": 0.0, "longitude": 0.0 }
     }"#;
 
     let schedule =
