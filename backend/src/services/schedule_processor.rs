@@ -81,7 +81,7 @@ pub async fn process_schedule_async(
         ),
     );
 
-    // Log possible_periods handling if present
+    // Log visibility period counts (provided via possible_periods or computed in backend).
     let visibility_count: usize = schedule
         .blocks
         .iter()
@@ -92,9 +92,20 @@ pub async fn process_schedule_async(
             &job_id,
             LogLevel::Info,
             format!(
-                "✓ Loaded {} visibility periods from possible_periods map",
-                visibility_count
+                "✓ {} visibility periods ready ({} blocks with periods)",
+                visibility_count,
+                schedule
+                    .blocks
+                    .iter()
+                    .filter(|b| !b.visibility_periods.is_empty())
+                    .count()
             ),
+        );
+    } else {
+        tracker.log(
+            &job_id,
+            LogLevel::Info,
+            "✓ No visibility periods (all blocks without visibility data)",
         );
     }
 

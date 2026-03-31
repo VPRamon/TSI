@@ -25,6 +25,9 @@ pub mod visibility;
 pub mod job_tracker;
 pub mod schedule_processor;
 
+// Backend visibility fallback computation
+pub mod visibility_service;
+
 pub use compare::py_get_compare_data;
 pub use distributions::{py_get_distribution_data, py_get_distribution_data_analytics};
 pub use insights::py_get_insights_data;

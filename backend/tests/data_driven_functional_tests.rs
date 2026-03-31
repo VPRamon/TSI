@@ -1161,3 +1161,122 @@ async fn test_schedule_with_extreme_values() {
 
     println!("Extreme values handled correctly");
 }
+
+// ==================== Visibility Fallback Payload Tests ====================
+
+/// Payload WITH possible_periods: provided values must be preserved verbatim.
+#[tokio::test]
+async fn test_payload_with_possible_periods_preserved() {
+    let repo = LocalRepository::new();
+
+    let schedule_json = r#"{
+        "name": "with_possible_periods",
+        "geographic_location": {
+            "latitude": 28.7624,
+            "longitude": -17.8892,
+            "elevation_m": 2396.0
+        },
+        "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+        "blocks": [
+            {
+                "original_block_id": "blk1",
+                "priority": 5.0,
+                "target_ra": 95.988,
+                "target_dec": -52.696,
+                "constraints": {
+                    "min_alt": 0.0, "max_alt": 90.0,
+                    "min_az": 0.0, "max_az": 360.0,
+                    "fixed_time": null
+                },
+                "min_observation": 0,
+                "requested_duration": 600
+            }
+        ],
+        "possible_periods": {
+            "blk1": [
+                { "start": 60694.5, "stop": 60694.8 },
+                { "start": 60695.5, "stop": 60695.9 }
+            ]
+        }
+    }"#;
+
+    let schedule = tsi_rust::models::parse_schedule_json_str(schedule_json).expect("Should parse");
+
+    // Provided periods must be kept exactly.
+    let vp = &schedule.blocks[0].visibility_periods;
+    assert_eq!(vp.len(), 2, "Provided periods must be preserved");
+    assert!((vp[0].start.value() - 60694.5).abs() < 1e-9);
+    assert!((vp[0].stop.value() - 60694.8).abs() < 1e-9);
+
+    // Store and verify persistence.
+    let metadata = services::store_schedule(&repo, &schedule)
+        .await
+        .expect("Failed to store");
+    let retrieved = services::get_schedule(&repo, metadata.schedule_id)
+        .await
+        .expect("Failed to retrieve");
+    assert_eq!(
+        retrieved.blocks[0].visibility_periods.len(),
+        2,
+        "Provided periods must persist through store/retrieve"
+    );
+}
+
+/// Payload WITHOUT possible_periods: backend must compute visibility.
+#[tokio::test]
+async fn test_payload_without_possible_periods_computes_fallback() {
+    let repo = LocalRepository::new();
+
+    let schedule_json = r#"{
+        "name": "without_possible_periods",
+        "geographic_location": {
+            "latitude": 28.7624,
+            "longitude": -17.8892,
+            "elevation_m": 2396.0
+        },
+        "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+        "blocks": [
+            {
+                "original_block_id": "blk_computed",
+                "priority": 5.0,
+                "target_ra": 95.988,
+                "target_dec": -52.696,
+                "constraints": {
+                    "min_alt": 0.0, "max_alt": 90.0,
+                    "min_az": 0.0, "max_az": 360.0,
+                    "fixed_time": null
+                },
+                "min_observation": 0,
+                "requested_duration": 600
+            }
+        ]
+    }"#;
+
+    let schedule = tsi_rust::models::parse_schedule_json_str(schedule_json).expect("Should parse");
+
+    // Backend should have computed visibility for this target.
+    assert!(
+        !schedule.blocks[0].visibility_periods.is_empty(),
+        "Backend must compute visibility when possible_periods is absent"
+    );
+
+    // Verify all computed periods are valid (start < stop, within schedule window).
+    for p in &schedule.blocks[0].visibility_periods {
+        assert!(p.start.value() < p.stop.value(), "start must be < stop");
+        assert!(p.start.value() >= 60694.0);
+        assert!(p.stop.value() <= 60701.0);
+    }
+
+    // Store and verify persistence.
+    let metadata = services::store_schedule(&repo, &schedule)
+        .await
+        .expect("Failed to store");
+    let retrieved = services::get_schedule(&repo, metadata.schedule_id)
+        .await
+        .expect("Failed to retrieve");
+    assert_eq!(
+        retrieved.blocks[0].visibility_periods.len(),
+        schedule.blocks[0].visibility_periods.len(),
+        "Computed periods must persist through store/retrieve"
+    );
+}

@@ -7,6 +7,7 @@
 // when data is split across multiple files.
 
 use crate::api;
+use crate::services::visibility_service::{compute_block_visibility, VisibilityInput};
 use anyhow::{Context, Result};
 use std::collections::HashMap;
 
@@ -87,8 +88,11 @@ pub fn parse_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule
         schedule.checksum = compute_schedule_checksum(json_schedule_json);
     }
 
-    // If possible_periods are embedded in the JSON, merge them into block.visibility_periods.
-    // possible_periods is a map of original_block_id (string) -> array of Period
+    // Hybrid visibility assignment:
+    //
+    // - If `possible_periods` is present in the JSON, use provided values for each block.
+    //   For any block whose key is missing from the map, fall back to backend computation.
+    // - If `possible_periods` is absent entirely, compute visibility in backend for all blocks.
     //
     // PERFORMANCE NOTE: For very large possible_periods maps (>100MB), this can be slow.
     // The map is deserialized entirely into memory, then cloned for each matching block.
@@ -96,12 +100,36 @@ pub fn parse_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule
     // - Use a streaming JSON parser to process blocks and periods incrementally
     // - Store large possible_periods in a separate compressed file/table
     // - Lazy-load visibility periods on demand rather than materializing all at once
-    if let Some(mut map) = input.possible_periods {
-        for block in &mut schedule.blocks {
-            // Match by original_block_id (user-provided identifier)
-            // Use remove() instead of get() to move data and avoid clone
-            if let Some(periods) = map.remove(&block.original_block_id) {
-                block.visibility_periods = periods;
+    match input.possible_periods {
+        Some(mut map) => {
+            for block in &mut schedule.blocks {
+                if let Some(periods) = map.remove(&block.original_block_id) {
+                    // Provided: use as-is.
+                    block.visibility_periods = periods;
+                } else {
+                    // Key missing from map: compute fallback for this block.
+                    block.visibility_periods = compute_block_visibility(&VisibilityInput {
+                        location: &schedule.geographic_location,
+                        schedule_period: &schedule.schedule_period,
+                        target_ra: block.target_ra,
+                        target_dec: block.target_dec,
+                        constraints: &block.constraints,
+                        min_duration: block.min_observation,
+                    });
+                }
+            }
+        }
+        None => {
+            // No possible_periods at all: compute visibility for every block.
+            for block in &mut schedule.blocks {
+                block.visibility_periods = compute_block_visibility(&VisibilityInput {
+                    location: &schedule.geographic_location,
+                    schedule_period: &schedule.schedule_period,
+                    target_ra: block.target_ra,
+                    target_dec: block.target_dec,
+                    constraints: &block.constraints,
+                    min_duration: block.min_observation,
+                });
             }
         }
     }
@@ -317,6 +345,148 @@ mod tests {
         let schedule = result.unwrap();
         assert_eq!(schedule.blocks.len(), 1);
         assert_eq!(schedule.blocks[0].visibility_periods.len(), 2);
+    }
+
+    #[test]
+    fn test_provided_possible_periods_are_preserved() {
+        // When possible_periods is present and a key matches, the provided values
+        // must be used verbatim — no backend computation should replace them.
+        let schedule_json = r#"{
+            "geographic_location": {
+                "latitude": 28.7624,
+                "longitude": -17.8892,
+                "elevation_m": 2396.0
+            },
+            "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+            "blocks": [
+                {
+                    "original_block_id": "block_a",
+                    "priority": 5.0,
+                    "target_ra": 95.988,
+                    "target_dec": -52.696,
+                    "constraints": {
+                        "min_alt": 0.0, "max_alt": 90.0,
+                        "min_az": 0.0, "max_az": 360.0,
+                        "fixed_time": null
+                    },
+                    "min_observation": 600,
+                    "requested_duration": 600
+                }
+            ],
+            "possible_periods": {
+                "block_a": [
+                    { "start": 60694.5, "stop": 60694.8 },
+                    { "start": 60695.5, "stop": 60695.9 }
+                ]
+            }
+        }"#;
+
+        let schedule = parse_schedule_json_str(schedule_json).expect("Should parse");
+        let vp = &schedule.blocks[0].visibility_periods;
+        assert_eq!(vp.len(), 2, "Provided periods must be preserved exactly");
+        assert!((vp[0].start.value() - 60694.5).abs() < 1e-9);
+        assert!((vp[0].stop.value() - 60694.8).abs() < 1e-9);
+        assert!((vp[1].start.value() - 60695.5).abs() < 1e-9);
+        assert!((vp[1].stop.value() - 60695.9).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_fallback_computed_when_no_possible_periods() {
+        // When possible_periods is absent, backend must compute visibility.
+        // A target visible from Roque over a week should produce non-empty periods.
+        let schedule_json = r#"{
+            "geographic_location": {
+                "latitude": 28.7624,
+                "longitude": -17.8892,
+                "elevation_m": 2396.0
+            },
+            "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+            "blocks": [
+                {
+                    "original_block_id": "b1",
+                    "priority": 5.0,
+                    "target_ra": 95.988,
+                    "target_dec": -52.696,
+                    "constraints": {
+                        "min_alt": 0.0, "max_alt": 90.0,
+                        "min_az": 0.0, "max_az": 360.0,
+                        "fixed_time": null
+                    },
+                    "min_observation": 0,
+                    "requested_duration": 600
+                }
+            ]
+        }"#;
+
+        let schedule = parse_schedule_json_str(schedule_json).expect("Should parse");
+        assert!(
+            !schedule.blocks[0].visibility_periods.is_empty(),
+            "Backend should compute visibility periods when possible_periods is absent"
+        );
+    }
+
+    #[test]
+    fn test_partial_possible_periods_triggers_per_block_fallback() {
+        // possible_periods present but missing key for block_b → block_b gets computed.
+        let schedule_json = r#"{
+            "geographic_location": {
+                "latitude": 28.7624,
+                "longitude": -17.8892,
+                "elevation_m": 2396.0
+            },
+            "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+            "blocks": [
+                {
+                    "original_block_id": "block_provided",
+                    "priority": 5.0,
+                    "target_ra": 95.988,
+                    "target_dec": -52.696,
+                    "constraints": {
+                        "min_alt": 0.0, "max_alt": 90.0,
+                        "min_az": 0.0, "max_az": 360.0,
+                        "fixed_time": null
+                    },
+                    "min_observation": 0,
+                    "requested_duration": 600
+                },
+                {
+                    "original_block_id": "block_missing",
+                    "priority": 3.0,
+                    "target_ra": 95.988,
+                    "target_dec": -52.696,
+                    "constraints": {
+                        "min_alt": 0.0, "max_alt": 90.0,
+                        "min_az": 0.0, "max_az": 360.0,
+                        "fixed_time": null
+                    },
+                    "min_observation": 0,
+                    "requested_duration": 600
+                }
+            ],
+            "possible_periods": {
+                "block_provided": [
+                    { "start": 60694.5, "stop": 60694.8 }
+                ]
+            }
+        }"#;
+
+        let schedule = parse_schedule_json_str(schedule_json).expect("Should parse");
+
+        // block_provided: exactly the 1 provided period
+        let provided = &schedule.blocks[0].visibility_periods;
+        assert_eq!(
+            provided.len(),
+            1,
+            "Provided block must have exactly 1 period"
+        );
+        assert!((provided[0].start.value() - 60694.5).abs() < 1e-9);
+
+        // block_missing: computed by backend — should have periods for this visible target
+        let computed = &schedule.blocks[1].visibility_periods;
+        assert!(
+            !computed.is_empty(),
+            "Missing-key block must have backend-computed visibility periods"
+        );
     }
 
     #[test]
