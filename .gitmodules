@@ -1,3 +1,0 @@
-[submodule "backend/qtty"]
-	path = backend/qtty
-	url = git@github.com:Siderust/qtty.git
