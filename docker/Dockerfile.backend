@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y \
 
 # Copy manifests
 COPY backend/Cargo.toml backend/Cargo.lock* ./backend/
-COPY backend/siderust ./backend/siderust
 
 # Create dummy source to cache dependencies
 RUN mkdir -p backend/src/bin && \
