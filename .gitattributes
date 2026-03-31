@@ -1,3 +1,0 @@
-data/** filter=lfs diff=lfs merge=lfs -text
-data/possible_periods.json filter=lfs diff=lfs merge=lfs -text
-data/sensitive/*.json filter=lfs diff=lfs merge=lfs -text
