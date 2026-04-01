@@ -92,6 +92,7 @@ function SkyMap() {
   const { data, isLoading, error, refetch } = useSkyMap(id);
 
   const [filters, setFilters] = useState<SkyMapFilterState | null>(null);
+  const [showCoordinateGuide, setShowCoordinateGuide] = useState(true);
 
   const activeFilters = useMemo(() => {
     if (!data) return null;
@@ -181,7 +182,7 @@ function SkyMap() {
     <PageContainer>
       <PageHeader
         title="Sky Map"
-        description="All-sky Aitoff projection with Milky Way and observation targets"
+        description="All-sky Aitoff projection with Milky Way, observation targets, and RA/Dec graticule labels"
       />
 
       <MetricsGrid>
@@ -216,8 +217,27 @@ function SkyMap() {
           onReset={handleReset}
         />
 
-        <ChartPanel title="Celestial Coordinates (Aitoff)">
-          <CelestialSkyMap blocks={filteredBlocks.all} bins={data.priority_bins} />
+        <ChartPanel
+          title="Celestial Coordinates (Aitoff)"
+          headerActions={(
+            <button
+              type="button"
+              onClick={() => setShowCoordinateGuide((current) => !current)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800 ${
+                showCoordinateGuide
+                  ? 'bg-primary-600 text-white hover:bg-primary-700'
+                  : 'border border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700'
+              }`}
+            >
+              {showCoordinateGuide ? 'Hide RA/Dec Guide' : 'Show RA/Dec Guide'}
+            </button>
+          )}
+        >
+          <CelestialSkyMap
+            blocks={filteredBlocks.all}
+            bins={data.priority_bins}
+            showCoordinateGuide={showCoordinateGuide}
+          />
         </ChartPanel>
       </div>
     </PageContainer>

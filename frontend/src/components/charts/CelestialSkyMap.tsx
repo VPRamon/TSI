@@ -44,6 +44,7 @@ export interface CelestialSkyMapProps {
   bins: PriorityBinInfo[];
   /** Container element ID – must be unique per page. */
   containerId?: string;
+  showCoordinateGuide?: boolean;
 }
 
 /**
@@ -55,6 +56,7 @@ function CelestialSkyMap({
   blocks,
   bins,
   containerId = 'celestial-map',
+  showCoordinateGuide = true,
 }: CelestialSkyMapProps) {
   const blocksRef = useRef(blocks);
   const binsRef = useRef(bins);
@@ -144,8 +146,18 @@ function CelestialSkyMap({
           stroke: '#334155',
           width: 0.6,
           opacity: 0.8,
-          lon: { pos: [''], fill: '#64748b', font: '10px Helvetica, Arial, sans-serif' },
-          lat: { pos: [''], fill: '#64748b', font: '10px Helvetica, Arial, sans-serif' },
+          // Keep RA labels on the equator, but pin Dec labels to a single
+          // edge so the two coordinate guides do not collide at map center.
+          lon: {
+            pos: showCoordinateGuide ? ['center'] : [],
+            fill: '#94a3b8',
+            font: '10px Helvetica, Arial, sans-serif',
+          },
+          lat: {
+            pos: showCoordinateGuide ? [-179.99] : [],
+            fill: '#94a3b8',
+            font: '10px Helvetica, Arial, sans-serif',
+          },
         },
         equatorial:    { show: true,  stroke: '#475569', width: 1.3, opacity: 0.7 },
         ecliptic:      { show: false },
@@ -185,7 +197,7 @@ function CelestialSkyMap({
       document.getElementById(containerId)?.replaceChildren();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [containerId]);
+  }, [containerId, showCoordinateGuide]);
 
   // ── Redraw whenever the filtered block set changes ──────────────────────
   useEffect(() => {
