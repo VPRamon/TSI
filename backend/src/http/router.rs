@@ -84,7 +84,13 @@ pub fn create_router(state: AppState) -> Router {
 mod tests {
     use super::*;
     use crate::db::repositories::LocalRepository;
+    use crate::db::services as db_services;
+    use axum::{
+        body::{to_bytes, Body},
+        http::{Request, StatusCode},
+    };
     use std::sync::Arc;
+    use tower::util::ServiceExt;
 
     #[test]
     fn test_router_creation() {
@@ -93,5 +99,80 @@ mod tests {
         let state = AppState::new(repo);
         let _router = create_router(state);
         // If we got here, router was created successfully
+    }
+
+    #[tokio::test]
+    async fn default_router_accepts_native_schedule_uploads() {
+        let repo =
+            Arc::new(LocalRepository::new()) as Arc<dyn crate::db::repository::FullRepository>;
+        let state = AppState::new(Arc::clone(&repo));
+        let app = create_router(state.clone());
+
+        let request = Request::builder()
+            .method("POST")
+            .uri("/v1/schedules")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                serde_json::json!({
+                    "name": "router-upload",
+                    "populate_analytics": false,
+                    "schedule_json": {
+                        "name": "",
+                        "geographic_location": {
+                            "latitude": 28.7624,
+                            "longitude": -17.8892,
+                            "elevation_m": 2396.0
+                        },
+                        "blocks": [
+                            {
+                                "id": 1,
+                                "original_block_id": "block-1",
+                                "target_ra": 158.03,
+                                "target_dec": -68.03,
+                                "constraints": {
+                                    "min_alt": 60.0,
+                                    "max_alt": 90.0,
+                                    "min_az": 0.0,
+                                    "max_az": 360.0,
+                                    "fixed_time": null
+                                },
+                                "priority": 8.5,
+                                "min_observation": 3600.0,
+                                "requested_duration": 7200.0,
+                                "visibility_periods": [],
+                                "scheduled_period": null
+                            }
+                        ]
+                    }
+                })
+                .to_string(),
+            ))
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::ACCEPTED);
+
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let job_id = payload["job_id"].as_str().unwrap().to_string();
+
+        for _ in 0..20 {
+            if let Some(job) = state.job_tracker.get_job(&job_id) {
+                if job.status != crate::services::job_tracker::JobStatus::Running {
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+
+        let job = state.job_tracker.get_job(&job_id).unwrap();
+        assert_eq!(
+            job.status,
+            crate::services::job_tracker::JobStatus::Completed
+        );
+
+        let schedules = db_services::list_schedules(repo.as_ref()).await.unwrap();
+        assert_eq!(schedules.len(), 1);
+        assert_eq!(schedules[0].schedule_name, "router-upload");
     }
 }

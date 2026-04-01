@@ -52,9 +52,9 @@ function ScheduleListCard({ schedules, total, onScheduleClick }: ScheduleListCar
             <DatabaseIcon />
           </div>
           <div className="flex-1">
-            <h2 className="mb-2 text-2xl font-semibold text-white">Load from Database</h2>
+            <h2 className="mb-2 text-2xl font-semibold text-white">Open from Database</h2>
             <p className="text-sm leading-relaxed text-slate-400">
-              Access previously uploaded observation schedules
+              Access previously imported schedule datasets
             </p>
           </div>
         </div>

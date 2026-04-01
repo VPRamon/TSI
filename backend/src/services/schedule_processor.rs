@@ -6,8 +6,8 @@
 use crate::api::ScheduleId;
 use crate::db::repository::FullRepository;
 use crate::db::services as db_services;
-use crate::models;
 use crate::services::job_tracker::{JobTracker, LogLevel};
+use crate::services::ScheduleImportAdapter;
 use std::sync::Arc;
 
 /// Process a schedule asynchronously: parse, compute nights, store, and populate analytics.
@@ -29,19 +29,30 @@ pub async fn process_schedule_async(
     job_id: String,
     tracker: JobTracker,
     repo: Arc<dyn FullRepository>,
+    import_adapter: Arc<dyn ScheduleImportAdapter>,
     schedule_name: String,
     schedule_json: String,
     populate_analytics: bool,
 ) -> Result<ScheduleId, String> {
-    tracker.log(&job_id, LogLevel::Info, "Starting schedule processing...");
+    let adapter_name = import_adapter.name();
+    tracker.log(
+        &job_id,
+        LogLevel::Info,
+        format!("Starting schedule import via {adapter_name}..."),
+    );
 
     // Step 1: Parse schedule JSON
-    tracker.log(&job_id, LogLevel::Info, "Parsing schedule JSON...");
+    tracker.log(
+        &job_id,
+        LogLevel::Info,
+        format!("Parsing import payload with {adapter_name}..."),
+    );
     let schedule = match tokio::task::spawn_blocking({
         let schedule_json = schedule_json.clone();
         let schedule_name = schedule_name.clone();
+        let import_adapter = Arc::clone(&import_adapter);
         move || {
-            models::schedule::parse_schedule_json_str(&schedule_json).map(|mut s| {
+            import_adapter.parse_schedule(&schedule_json).map(|mut s| {
                 if s.name.is_empty() {
                     s.name = schedule_name;
                 }
@@ -60,7 +71,7 @@ pub async fn process_schedule_async(
             schedule
         }
         Ok(Err(e)) => {
-            let msg = format!("Failed to parse schedule: {}", e);
+            let msg = format!("Failed to import schedule: {}", e);
             tracker.fail_job(&job_id, &msg);
             return Err(msg);
         }
@@ -159,4 +170,113 @@ pub async fn process_schedule_async(
     tracker.complete_job(&job_id, Some(result));
 
     Ok(metadata.schedule_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::{GeographicLocation, ModifiedJulianDate, Period, Schedule};
+    use crate::db::repositories::LocalRepository;
+    use crate::services::job_tracker::JobStatus;
+
+    #[derive(Debug)]
+    struct StubImportAdapter {
+        schedule: Option<Schedule>,
+        error_message: Option<&'static str>,
+    }
+
+    impl ScheduleImportAdapter for StubImportAdapter {
+        fn name(&self) -> &'static str {
+            "stub-import"
+        }
+
+        fn parse_schedule(&self, _raw_payload: &str) -> anyhow::Result<Schedule> {
+            if let Some(message) = self.error_message {
+                anyhow::bail!(message);
+            }
+
+            self.schedule
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("missing stub schedule"))
+        }
+    }
+
+    fn make_schedule(name: &str) -> Schedule {
+        Schedule {
+            id: None,
+            name: name.to_string(),
+            checksum: format!("checksum-{name}"),
+            schedule_period: Period {
+                start: ModifiedJulianDate::new(60000.0),
+                stop: ModifiedJulianDate::new(60001.0),
+            },
+            dark_periods: vec![],
+            geographic_location: GeographicLocation {
+                latitude: 28.7624,
+                longitude: -17.8892,
+                elevation_m: Some(2396.0),
+            },
+            astronomical_nights: vec![],
+            blocks: vec![],
+        }
+    }
+
+    #[tokio::test]
+    async fn process_schedule_uses_injected_import_adapter() {
+        let tracker = JobTracker::new();
+        let job_id = tracker.create_job();
+        let repo = Arc::new(LocalRepository::new()) as Arc<dyn FullRepository>;
+        let adapter = Arc::new(StubImportAdapter {
+            schedule: Some(make_schedule("")),
+            error_message: None,
+        }) as Arc<dyn ScheduleImportAdapter>;
+
+        let result = process_schedule_async(
+            job_id.clone(),
+            tracker.clone(),
+            Arc::clone(&repo),
+            adapter,
+            "fallback-name".to_string(),
+            "not valid native schedule json".to_string(),
+            false,
+        )
+        .await;
+
+        assert!(result.is_ok());
+
+        let schedules = db_services::list_schedules(repo.as_ref()).await.unwrap();
+        assert_eq!(schedules.len(), 1);
+        assert_eq!(schedules[0].schedule_name, "fallback-name");
+
+        let job = tracker.get_job(&job_id).unwrap();
+        assert_eq!(job.status, JobStatus::Completed);
+    }
+
+    #[tokio::test]
+    async fn process_schedule_surfaces_adapter_errors() {
+        let tracker = JobTracker::new();
+        let job_id = tracker.create_job();
+        let repo = Arc::new(LocalRepository::new()) as Arc<dyn FullRepository>;
+        let adapter = Arc::new(StubImportAdapter {
+            schedule: None,
+            error_message: Some("adapter rejected payload"),
+        }) as Arc<dyn ScheduleImportAdapter>;
+
+        let result = process_schedule_async(
+            job_id.clone(),
+            tracker.clone(),
+            repo,
+            adapter,
+            "ignored-name".to_string(),
+            "{}".to_string(),
+            false,
+        )
+        .await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("adapter rejected payload"));
+
+        let job = tracker.get_job(&job_id).unwrap();
+        assert_eq!(job.status, JobStatus::Failed);
+    }
 }

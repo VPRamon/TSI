@@ -82,6 +82,7 @@ pub async fn create_schedule(
     // Spawn background task to process the schedule
     let tracker = state.job_tracker.clone();
     let repo = state.repository.clone();
+    let import_adapter = state.import_adapter.clone();
     let schedule_name = request.name.clone();
     let populate_analytics = request.populate_analytics;
 
@@ -90,6 +91,7 @@ pub async fn create_schedule(
             job_id,
             tracker,
             repo,
+            import_adapter,
             schedule_name,
             schedule_json_str,
             populate_analytics,

@@ -1,6 +1,6 @@
 # TSI Application Setup Guide
 
-Complete guide to run the TSI (Telescope Scheduling Intelligence) application locally with the Rust HTTP backend and React frontend.
+Complete guide to run the TSI (Telescope Scheduling Intelligence) schedule analysis application locally with the Rust HTTP backend and React frontend.
 
 ## Architecture Overview
 
@@ -62,6 +62,10 @@ cargo run --bin tsi-server --features "local-repo,http-server"
 ```
 
 The API will be available at `http://localhost:8080`.
+
+By default the backend uses the built-in native TSI JSON import adapter for uploads.
+Forked or embedded deployments can replace that backend adapter to normalize a
+different schedule schema before storage.
 
 ### 2. Start the Frontend
 
@@ -148,15 +152,16 @@ The backend exposes the following endpoints:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/health` | GET | Health check |
-| `/api/landing` | GET | Landing page statistics |
-| `/api/timeline` | POST | Timeline visualization data |
-| `/api/distribution` | POST | Distribution analysis |
-| `/api/trends` | POST | Trend analysis |
-| `/api/skymap` | POST | Sky map data |
-| `/api/compare` | POST | Schedule comparison |
-| `/api/validation` | POST | Schedule validation |
-| `/api/visibility` | POST | Visibility calculations |
-| `/api/insights` | POST | Schedule insights |
+| `/v1/schedules` | GET | List stored schedules |
+| `/v1/schedules` | POST | Import a schedule payload |
+| `/v1/schedules/{id}/sky-map` | GET | Sky map data |
+| `/v1/schedules/{id}/distributions` | GET | Distribution analysis |
+| `/v1/schedules/{id}/visibility-map` | GET | Visibility calculations |
+| `/v1/schedules/{id}/timeline` | GET | Timeline visualization data |
+| `/v1/schedules/{id}/insights` | GET | Schedule insights |
+| `/v1/schedules/{id}/trends` | GET | Trend analysis |
+| `/v1/schedules/{id}/validation-report` | GET | Schedule validation |
+| `/v1/schedules/{id}/compare/{other_id}` | GET | Schedule comparison |
 
 ---
 

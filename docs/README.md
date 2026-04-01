@@ -1,6 +1,6 @@
 # TSI Documentation
 
-This directory contains documentation for the Telescope Scheduling Intelligence (TSI) application.
+This directory contains documentation for the Telescope Scheduling Intelligence (TSI) schedule analysis application.
 
 ## Architecture
 
@@ -70,12 +70,12 @@ See the backend source in `backend/src/routes/` for endpoint definitions:
 | Endpoint | Description |
 |----------|-------------|
 | `/health` | Health check |
-| `/api/landing` | Landing page statistics |
-| `/api/timeline` | Timeline visualization |
-| `/api/distribution` | Distribution analysis |
-| `/api/trends` | Trend analysis |
-| `/api/skymap` | Sky map data |
-| `/api/compare` | Schedule comparison |
-| `/api/validation` | Schedule validation |
-| `/api/visibility` | Visibility calculations |
-| `/api/insights` | Schedule insights |
+| `/v1/schedules` | List or import schedules |
+| `/v1/schedules/{id}/sky-map` | Sky map data |
+| `/v1/schedules/{id}/distributions` | Distribution analysis |
+| `/v1/schedules/{id}/visibility-map` | Visibility calculations |
+| `/v1/schedules/{id}/timeline` | Timeline visualization |
+| `/v1/schedules/{id}/insights` | Schedule insights |
+| `/v1/schedules/{id}/trends` | Trend analysis |
+| `/v1/schedules/{id}/validation-report` | Schedule validation |
+| `/v1/schedules/{id}/compare/{other_id}` | Schedule comparison |

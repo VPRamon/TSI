@@ -8,6 +8,7 @@ pub mod astronomical_night;
 pub mod compare;
 
 pub mod distributions;
+pub mod import_adapter;
 
 pub mod insights;
 
@@ -30,6 +31,9 @@ pub mod visibility_service;
 
 pub use compare::py_get_compare_data;
 pub use distributions::{py_get_distribution_data, py_get_distribution_data_analytics};
+pub use import_adapter::{
+    default_schedule_import_adapter, NativeScheduleImportAdapter, ScheduleImportAdapter,
+};
 pub use insights::py_get_insights_data;
 pub use sky_map::{py_get_sky_map_data, py_get_sky_map_data_analytics};
 pub use timeline::py_get_schedule_timeline_data;

@@ -121,9 +121,9 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
             <UploadIcon />
           </div>
           <div className="flex-1">
-            <h2 className="mb-2 text-2xl font-semibold text-white">Upload Schedule</h2>
+            <h2 className="mb-2 text-2xl font-semibold text-white">Import Schedule</h2>
             <p className="text-sm leading-relaxed text-slate-400">
-              Import a new observation schedule from a JSON file
+              Import schedule analysis data from a JSON file
             </p>
           </div>
         </div>
@@ -211,7 +211,7 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
               Uploading...
             </span>
           ) : (
-            'Upload & Analyze'
+            'Import & Analyze'
           )}
         </button>
       </div>

@@ -29,6 +29,7 @@ use tracing_subscriber::FmtSubscriber;
 
 use tsi_rust::db;
 use tsi_rust::http::{create_router, AppState};
+use tsi_rust::services::default_schedule_import_adapter;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -52,7 +53,9 @@ async fn main() -> anyhow::Result<()> {
     info!("Repository initialized successfully");
 
     // Create application state
-    let state = AppState::new(repository);
+    let import_adapter = default_schedule_import_adapter();
+    info!("Using import adapter: {}", import_adapter.name());
+    let state = AppState::with_import_adapter(repository, import_adapter);
 
     // Create router with all endpoints
     let app = create_router(state);

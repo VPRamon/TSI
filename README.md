@@ -1,6 +1,6 @@
 # Telescope Scheduling Intelligence (TSI)
 
-Analyze and visualize astronomical scheduling outputs with an interactive web application.
+Analyze and visualize astronomical observation schedules with an interactive web application.
 
 ![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)
 ![TypeScript](https://img.shields.io/badge/typescript-5.0%2B-blue.svg)
@@ -34,6 +34,8 @@ TSI uses a modern client-server architecture:
 ```
 
 ## Features
+
+- **Configurable Imports**: The backend normalizes uploaded payloads through a pluggable import adapter. The built-in adapter keeps the native TSI JSON format unchanged, and downstream integrators can swap in their own adapter without changing the frontend.
 
 - **Sky Map**: RA/Dec visualization with priority coloring and status filtering
 - **Distributions**: Histograms for priority, visibility, duration, and elevation
@@ -107,6 +109,10 @@ This starts:
 - PostgreSQL on port 5432
 - Backend API on port 8080
 - Frontend on port 3000
+
+The default server wiring uses the native TSI JSON import adapter for uploads.
+Forks or embedded deployments can replace that backend adapter to normalize a
+different schedule schema before storage and analysis.
 
 ## API Endpoints
 

@@ -8,7 +8,7 @@ export interface LandingHeaderProps {
 
 function LandingHeader({
   title = 'Telescope Scheduling',
-  subtitle = 'Upload and analyze astronomical observation schedules with precision',
+  subtitle = 'Import and analyze astronomical observation schedules with precision',
 }: LandingHeaderProps) {
   return (
     <header className="mb-16 text-center sm:mb-20">
