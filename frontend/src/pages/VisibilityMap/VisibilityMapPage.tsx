@@ -14,7 +14,7 @@
  * - BlocksTable + BlockDetailsDrawer for drill-down
  * - AnalysisContext for cross-view filter/selection state
  */
-import { useState, useCallback, useMemo, memo } from 'react';
+import { useState, useCallback, useMemo, memo, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useVisibilityMap, useVisibilityHistogram } from '@/hooks';
 import {
@@ -27,7 +27,6 @@ import {
   MetricCard,
 } from '@/components';
 import {
-  FilterSettings,
   OpportunitiesHistogram,
   BlocksTable,
   BlockDetailsDrawer,
@@ -59,6 +58,10 @@ const DEFAULT_FILTERS: FilterParams = {
   useCustomDuration: false,
 };
 
+const FILTER_DEBOUNCE_MS = 150;
+const PRIORITY_SLIDER_CLASS =
+  'pointer-events-none absolute inset-x-0 top-1/2 h-6 w-full -translate-y-1/2 appearance-none bg-transparent focus:outline-none [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-slate-950 [&::-moz-range-thumb]:bg-primary-400 [&::-moz-range-track]:h-2 [&::-moz-range-track]:rounded-full [&::-moz-range-track]:border-0 [&::-moz-range-track]:bg-transparent [&::-webkit-slider-runnable-track]:h-2 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-runnable-track]:bg-transparent [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:mt-[-4px] [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-slate-950 [&::-webkit-slider-thumb]:bg-primary-400';
+
 // =============================================================================
 // Sub-Components
 // =============================================================================
@@ -78,6 +81,7 @@ const SummaryMetrics = memo(function SummaryMetrics({
     mapData.total_count > 0
       ? ((mapData.scheduled_count / mapData.total_count) * 100).toFixed(1)
       : '0';
+  const filteredOutCount = Math.max(mapData.total_count - filteredCount, 0);
 
   return (
     <>
@@ -101,9 +105,7 @@ const SummaryMetrics = memo(function SummaryMetrics({
           value={`${mapData.priority_min.toFixed(1)} – ${mapData.priority_max.toFixed(1)}`}
           icon={<Icon name="star" />}
         />
-        {filteredCount !== mapData.total_count && (
-          <MetricCard label="Filtered" value={filteredCount} icon={<Icon name="search" />} />
-        )}
+        <MetricCard label="Filtered" value={filteredOutCount} icon={<Icon name="search" />} />
         {selectionCount > 0 && (
           <MetricCard label="Selected" value={selectionCount} icon={<Icon name="check" />} />
         )}
@@ -120,6 +122,7 @@ interface VisibilityMapContentProps {
   mapData: VisibilityMapData;
   histogramData: VisibilityBin[] | undefined;
   histogramLoading: boolean;
+  filters: FilterParams;
   onFiltersChange: (params: FilterParams) => void;
 }
 
@@ -127,9 +130,16 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
   mapData,
   histogramData,
   histogramLoading,
+  filters,
   onFiltersChange,
 }: VisibilityMapContentProps) {
-  const { state, setActiveBlock, selectionCount } = useAnalysis();
+  const {
+    state,
+    setActiveBlock,
+    selectionCount,
+    setScheduledFilter,
+    setPriorityFilter,
+  } = useAnalysis();
   const [activeBlock, setActiveBlockLocal] = useState<VisibilityBlock | null>(null);
 
   // Convert API blocks to table format with filtering
@@ -183,6 +193,12 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
     setActiveBlock(null);
   }, [setActiveBlock]);
 
+  const handleResetFilters = useCallback(() => {
+    onFiltersChange(DEFAULT_FILTERS);
+    setScheduledFilter('all');
+    setPriorityFilter({});
+  }, [onFiltersChange, setPriorityFilter, setScheduledFilter]);
+
   return (
     <PageContainer>
       {/* Summary metrics */}
@@ -192,31 +208,17 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
         selectionCount={selectionCount}
       />
 
-      {/* Main content: histogram + controls */}
-      <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Left panel: Filters */}
-        <aside className="shrink-0 lg:w-72">
-          <div className="space-y-4">
-            {/* Histogram controls */}
-            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
-              <FilterSettings
-                defaultParams={DEFAULT_FILTERS}
-                mapPriorityMin={mapData.priority_min}
-                mapPriorityMax={mapData.priority_max}
-                onParamsChange={onFiltersChange}
-              />
-            </div>
+      <div className="flex flex-col gap-4">
+        <VisibilityFiltersBar
+          filters={filters}
+          priorityRange={{ min: mapData.priority_min, max: mapData.priority_max }}
+          scheduledFilter={state.scheduledFilter}
+          onFiltersChange={onFiltersChange}
+          onScheduledFilterChange={setScheduledFilter}
+          onReset={handleResetFilters}
+        />
 
-            {/* Quick filter: scheduled status */}
-            <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
-              <h3 className="mb-3 text-sm font-medium text-slate-200">Block Status</h3>
-              <ScheduledFilterButtons />
-            </div>
-          </div>
-        </aside>
-
-        {/* Right panel: Histogram */}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0">
           <OpportunitiesHistogram histogramData={histogramData} isLoading={histogramLoading} />
         </div>
       </div>
@@ -265,13 +267,220 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
   );
 });
 
+interface VisibilityFiltersBarProps {
+  filters: FilterParams;
+  priorityRange: { min: number; max: number };
+  scheduledFilter: 'all' | 'scheduled' | 'unscheduled';
+  onFiltersChange: (params: FilterParams) => void;
+  onScheduledFilterChange: (filter: 'all' | 'scheduled' | 'unscheduled') => void;
+  onReset: () => void;
+}
+
+const VisibilityFiltersBar = memo(function VisibilityFiltersBar({
+  filters,
+  priorityRange,
+  scheduledFilter,
+  onFiltersChange,
+  onScheduledFilterChange,
+  onReset,
+}: VisibilityFiltersBarProps) {
+  const [localFilters, setLocalFilters] = useState(filters);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setLocalFilters(filters);
+  }, [filters]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
+
+  const scheduleApply = useCallback((nextFilters: FilterParams) => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      onFiltersChange(nextFilters);
+    }, FILTER_DEBOUNCE_MS);
+  }, [onFiltersChange]);
+
+  const updateFilters = useCallback((patch: Partial<FilterParams>) => {
+    setLocalFilters((current) => {
+      const next = { ...current, ...patch };
+      scheduleApply(next);
+      return next;
+    });
+  }, [scheduleApply]);
+
+  const handleReset = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    setLocalFilters(DEFAULT_FILTERS);
+    onReset();
+  }, [onReset]);
+
+  const priorityMinDisplay = localFilters.priorityMin ?? priorityRange.min;
+  const priorityMaxDisplay = localFilters.priorityMax ?? priorityRange.max;
+  const prioritySpan = Math.max(priorityRange.max - priorityRange.min, 0.1);
+  const priorityMinPercent =
+    ((priorityMinDisplay - priorityRange.min) / prioritySpan) * 100;
+  const priorityMaxPercent =
+    ((priorityMaxDisplay - priorityRange.min) / prioritySpan) * 100;
+
+  return (
+    <div className="rounded-lg border border-slate-700 bg-slate-800/50 px-5 py-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Filters</h3>
+        <button
+          type="button"
+          onClick={handleReset}
+          className="rounded px-2 py-0.5 text-xs text-slate-500 transition-colors hover:bg-slate-700/50 hover:text-slate-300"
+        >
+          Reset
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[auto_1px_auto_1px_1fr] lg:items-start lg:gap-0">
+        <div className="flex flex-col gap-1.5 lg:pr-5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+            Block Status
+          </p>
+          <ScheduledFilterButtons
+            scheduledFilter={scheduledFilter}
+            onChange={onScheduledFilterChange}
+          />
+        </div>
+
+        <div className="hidden self-stretch bg-slate-700 lg:block" />
+
+        <div className="flex flex-col gap-1.5 lg:px-5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+            Binning Method
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(11rem,auto)_minmax(14rem,1fr)_auto] sm:items-center">
+            <select
+              value={localFilters.useCustomDuration ? 'duration' : 'bins'}
+              onChange={(event) =>
+                updateFilters({ useCustomDuration: event.target.value === 'duration' })
+              }
+              className="rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-xs text-slate-200 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="bins">Number of Bins</option>
+              <option value="duration">Bin Duration</option>
+            </select>
+
+            {!localFilters.useCustomDuration ? (
+              <input
+                type="range"
+                min="10"
+                max="200"
+                value={localFilters.numBins}
+                onChange={(event) =>
+                  updateFilters({ numBins: parseInt(event.target.value, 10) })
+                }
+                className="h-2 min-w-0 cursor-pointer appearance-none rounded-lg bg-slate-600"
+              />
+            ) : (
+              <input
+                type="range"
+                min="15"
+                max="10080"
+                step="15"
+                value={localFilters.binDurationMinutes ?? 60}
+                onChange={(event) =>
+                  updateFilters({
+                    binDurationMinutes: parseInt(event.target.value, 10),
+                  })
+                }
+                className="h-2 min-w-0 cursor-pointer appearance-none rounded-lg bg-slate-600"
+              />
+            )}
+
+            <span className="w-16 text-right text-sm font-medium text-white">
+              {!localFilters.useCustomDuration
+                ? localFilters.numBins
+                : `${localFilters.binDurationMinutes ?? 60}m`}
+            </span>
+          </div>
+        </div>
+
+        <div className="hidden self-stretch bg-slate-700 lg:block" />
+
+        <div className="flex min-w-0 flex-col gap-2 lg:pl-5">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+              Priority Range
+            </p>
+            <span className="text-[11px] tabular-nums text-slate-500">
+              {priorityMinDisplay.toFixed(1)} - {priorityMaxDisplay.toFixed(1)}
+            </span>
+          </div>
+          <div className="w-full">
+            <div className="relative h-6">
+              <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-slate-700" />
+              <div
+                className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-primary-500"
+                style={{
+                  left: `${priorityMinPercent}%`,
+                  width: `${Math.max(priorityMaxPercent - priorityMinPercent, 0)}%`,
+                }}
+              />
+              <input
+                aria-label="Minimum priority"
+                type="range"
+                min={priorityRange.min}
+                max={priorityRange.max}
+                step="0.1"
+                value={priorityMinDisplay}
+                onChange={(event) => {
+                  const nextMin = Math.min(parseFloat(event.target.value), priorityMaxDisplay);
+                  updateFilters({ priorityMin: nextMin });
+                }}
+                className={`${PRIORITY_SLIDER_CLASS} z-10`}
+              />
+              <input
+                aria-label="Maximum priority"
+                type="range"
+                min={priorityRange.min}
+                max={priorityRange.max}
+                step="0.1"
+                value={priorityMaxDisplay}
+                onChange={(event) => {
+                  const nextMax = Math.max(parseFloat(event.target.value), priorityMinDisplay);
+                  updateFilters({ priorityMax: nextMax });
+                }}
+                className={`${PRIORITY_SLIDER_CLASS} z-20`}
+              />
+            </div>
+            <div className="mt-0.5 flex items-center justify-between text-[11px] text-slate-600">
+              <span>{priorityRange.min.toFixed(1)}</span>
+              <span>{priorityRange.max.toFixed(1)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
 // =============================================================================
 // Scheduled Filter Buttons (uses AnalysisContext)
 // =============================================================================
 
-function ScheduledFilterButtons() {
-  const { state, setScheduledFilter } = useAnalysis();
+interface ScheduledFilterButtonsProps {
+  scheduledFilter: 'all' | 'scheduled' | 'unscheduled';
+  onChange: (filter: 'all' | 'scheduled' | 'unscheduled') => void;
+}
 
+function ScheduledFilterButtons({
+  scheduledFilter,
+  onChange,
+}: ScheduledFilterButtonsProps) {
   const options: { value: 'all' | 'scheduled' | 'unscheduled'; label: string }[] = [
     { value: 'all', label: 'All' },
     { value: 'scheduled', label: 'Scheduled' },
@@ -279,15 +488,16 @@ function ScheduledFilterButtons() {
   ];
 
   return (
-    <div className="flex gap-1">
+    <div className="inline-flex rounded-lg border border-slate-700 bg-slate-900/40 p-1">
       {options.map((opt) => (
         <button
+          type="button"
           key={opt.value}
-          onClick={() => setScheduledFilter(opt.value)}
-          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-            state.scheduledFilter === opt.value
-              ? 'bg-primary-600 text-white'
-              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+          onClick={() => onChange(opt.value)}
+          className={`rounded-md px-3 py-1.5 text-sm transition-colors ${
+            scheduledFilter === opt.value
+              ? 'bg-primary-600/15 text-primary-200'
+              : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           {opt.label}
@@ -407,6 +617,7 @@ function VisibilityMapPage() {
       mapData={mapData}
       histogramData={histogramData}
       histogramLoading={histogramLoading}
+      filters={appliedFilters}
       onFiltersChange={handleFiltersChange}
     />
   );
