@@ -131,7 +131,6 @@ function Layout() {
   const { data: health } = useHealth();
   const location = useLocation();
   const isLanding = location.pathname === '/';
-
   // Sync route scheduleId with Zustand store
   useScheduleSync();
 

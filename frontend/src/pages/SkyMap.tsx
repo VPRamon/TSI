@@ -207,22 +207,18 @@ function SkyMap() {
         />
       </MetricsGrid>
 
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-        <div className="order-2 lg:order-1">
-          <SkyMapFilters
-            filters={activeFilters}
-            onChange={setFilters}
-            scheduledTimeRange={scheduledTimeRange}
-            priorityRange={{ min: data.priority_min, max: data.priority_max }}
-            onReset={handleReset}
-          />
-        </div>
+      <div className="flex flex-col gap-4">
+        <SkyMapFilters
+          filters={activeFilters}
+          onChange={setFilters}
+          scheduledTimeRange={scheduledTimeRange}
+          priorityRange={{ min: data.priority_min, max: data.priority_max }}
+          onReset={handleReset}
+        />
 
-        <div className="order-1 flex flex-col gap-4 lg:order-2">
-          <ChartPanel title="Celestial Coordinates (Aitoff)">
-            <CelestialSkyMap blocks={filteredBlocks.all} bins={data.priority_bins} />
-          </ChartPanel>
-        </div>
+        <ChartPanel title="Celestial Coordinates (Aitoff)">
+          <CelestialSkyMap blocks={filteredBlocks.all} bins={data.priority_bins} />
+        </ChartPanel>
       </div>
     </PageContainer>
   );
