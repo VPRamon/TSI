@@ -26,9 +26,9 @@ const SplitPane = memo(function SplitPane({ controls, children, controlsWidth = 
     <div className={`flex flex-col gap-6 lg:flex-row ${className}`}>
       {/* Controls panel */}
       <aside
-        className={`shrink-0 ${widthClasses[controlsWidth]}`}
+        className={`w-full min-w-0 shrink-0 ${widthClasses[controlsWidth]}`}
       >
-        <div className="rounded-lg border border-slate-700 bg-slate-800/50 p-4">
+        <div className="max-w-full overflow-hidden rounded-lg border border-slate-700 bg-slate-800/50 p-4">
           {controls}
         </div>
       </aside>

@@ -62,3 +62,15 @@ body {
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
+
+/* Remove browser stepper controls that can overflow compact numeric inputs. */
+.no-spinner {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

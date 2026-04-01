@@ -2,7 +2,7 @@
  * Trends page - Scheduling trends and patterns.
  * Redesigned with controls alongside charts.
  */
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useTrends, usePlotlyTheme } from '@/hooks';
 import {
@@ -18,15 +18,42 @@ import {
 } from '@/components';
 import { STATUS_COLORS } from '@/constants/colors';
 
+/** Debounce delay before applying parameter changes */
+const DEBOUNCE_MS = 300;
+
 function Trends() {
   const { scheduleId } = useParams();
   const id = parseInt(scheduleId ?? '0', 10);
 
-  // Query parameters
-  const [bins, setBins] = useState(10);
-  const [bandwidth, setBandwidth] = useState(0.5);
+  // Applied query parameters (drive the API query)
+  const [appliedParams, setAppliedParams] = useState({ bins: 10, bandwidth: 0.5 });
 
-  const { data, isLoading, error, refetch } = useTrends(id, { bins, bandwidth });
+  // Local UI state (immediate feedback, debounced before apply)
+  const [bins, setBins] = useState(appliedParams.bins);
+  const [bandwidth, setBandwidth] = useState(appliedParams.bandwidth);
+
+  // Debounce timer
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const scheduleApply = useCallback((nextBins: number, nextBw: number) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setAppliedParams({ bins: nextBins, bandwidth: nextBw });
+    }, DEBOUNCE_MS);
+  }, []);
+
+  const handleBinsChange = useCallback((value: number) => {
+    setBins(value);
+    scheduleApply(value, bandwidth);
+  }, [bandwidth, scheduleApply]);
+
+  const handleBandwidthChange = useCallback((value: number) => {
+    setBandwidth(value);
+    scheduleApply(bins, value);
+  }, [bins, scheduleApply]);
+
+  const { data, isLoading, error, refetch } = useTrends(id, appliedParams);
 
   // Call hooks unconditionally (rules of hooks)
   const { layout: byPriorityLayout, config } = usePlotlyTheme({
@@ -109,22 +136,22 @@ function Trends() {
         <label className="mb-1.5 block text-xs font-medium text-slate-400">
           Number of Bins
         </label>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
           <input
             type="range"
             min="5"
             max="20"
             value={bins}
-            onChange={(e) => setBins(parseInt(e.target.value, 10))}
-            className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-600"
+            onChange={(e) => handleBinsChange(parseInt(e.target.value, 10))}
+            className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-600"
           />
           <input
             type="number"
             value={bins}
-            onChange={(e) => setBins(parseInt(e.target.value, 10) || 10)}
+            onChange={(e) => handleBinsChange(parseInt(e.target.value, 10) || 10)}
             min={5}
             max={20}
-            className="w-16 rounded-md border border-slate-600 bg-slate-700 px-2 py-1.5 text-center text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="no-spinner w-20 shrink-0 rounded-md border border-slate-600 bg-slate-700 px-2 py-1.5 text-center text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:w-16"
           />
         </div>
         <p className="mt-1 text-xs text-slate-500">Controls histogram resolution</p>
@@ -135,24 +162,24 @@ function Trends() {
         <label className="mb-1.5 block text-xs font-medium text-slate-400">
           Smoothing Bandwidth
         </label>
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
           <input
             type="range"
             min="0.1"
             max="2"
             step="0.1"
             value={bandwidth}
-            onChange={(e) => setBandwidth(parseFloat(e.target.value))}
-            className="h-2 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-600"
+            onChange={(e) => handleBandwidthChange(parseFloat(e.target.value))}
+            className="h-2 min-w-0 flex-1 cursor-pointer appearance-none rounded-lg bg-slate-600"
           />
           <input
             type="number"
             value={bandwidth}
-            onChange={(e) => setBandwidth(parseFloat(e.target.value) || 0.5)}
+            onChange={(e) => handleBandwidthChange(parseFloat(e.target.value) || 0.5)}
             min={0.1}
             max={2}
             step={0.1}
-            className="w-16 rounded-md border border-slate-600 bg-slate-700 px-2 py-1.5 text-center text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+            className="no-spinner w-20 shrink-0 rounded-md border border-slate-600 bg-slate-700 px-2 py-1.5 text-center text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:w-16"
           />
         </div>
         <p className="mt-1 text-xs text-slate-500">Kernel bandwidth for smoothed curve</p>

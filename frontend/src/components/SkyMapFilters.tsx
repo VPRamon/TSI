@@ -1,8 +1,11 @@
 /**
  * SkyMapFilters - Settings panel for filtering SkyMap visualization.
  * Allows filtering by scheduled status, scheduled period range, and priority.
+ *
+ * Checkboxes apply immediately. Numeric/datetime inputs are debounced
+ * to prevent expensive re-filtering of the scatter plot on every keystroke.
  */
-import { memo } from 'react';
+import { memo, useState, useRef, useCallback, useEffect } from 'react';
 
 export interface SkyMapFilterState {
   showScheduled: boolean;
@@ -24,6 +27,8 @@ interface SkyMapFiltersProps {
   onReset: () => void;
 }
 
+const DEBOUNCE_MS = 250;
+
 const SkyMapFilters = memo(function SkyMapFilters({
   filters,
   onChange,
@@ -31,16 +36,54 @@ const SkyMapFilters = memo(function SkyMapFilters({
   priorityRange,
   onReset,
 }: SkyMapFiltersProps) {
+  // Local state for debounced fields
+  const [localPriorityMin, setLocalPriorityMin] = useState(filters.priorityMin);
+  const [localPriorityMax, setLocalPriorityMax] = useState(filters.priorityMax);
+  const [localBeginUtc, setLocalBeginUtc] = useState(filters.scheduledBeginUtc);
+  const [localEndUtc, setLocalEndUtc] = useState(filters.scheduledEndUtc);
+
+  // Sync local state when parent resets filters
+  const prevFiltersRef = useRef(filters);
+  useEffect(() => {
+    const prev = prevFiltersRef.current;
+    if (prev.priorityMin !== filters.priorityMin) setLocalPriorityMin(filters.priorityMin);
+    if (prev.priorityMax !== filters.priorityMax) setLocalPriorityMax(filters.priorityMax);
+    if (prev.scheduledBeginUtc !== filters.scheduledBeginUtc) setLocalBeginUtc(filters.scheduledBeginUtc);
+    if (prev.scheduledEndUtc !== filters.scheduledEndUtc) setLocalEndUtc(filters.scheduledEndUtc);
+    prevFiltersRef.current = filters;
+  }, [filters]);
+
+  // Debounce helper
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const filtersRef = useRef(filters);
+  filtersRef.current = filters;
+
+  const debouncedApply = useCallback((patch: Partial<SkyMapFilterState>) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      onChangeRef.current({ ...filtersRef.current, ...patch });
+    }, DEBOUNCE_MS);
+  }, []);
+
+  // Checkboxes apply immediately (cheap toggle)
   const handleCheckboxChange = (field: 'showScheduled' | 'showUnscheduled') => {
     onChange({ ...filters, [field]: !filters[field] });
   };
 
   const handlePriorityChange = (field: 'priorityMin' | 'priorityMax', value: number) => {
-    onChange({ ...filters, [field]: value });
+    if (field === 'priorityMin') setLocalPriorityMin(value);
+    else setLocalPriorityMax(value);
+    debouncedApply({ [field]: value });
   };
 
   const handleScheduledTimeChange = (field: 'scheduledBeginUtc' | 'scheduledEndUtc', value: string) => {
-    onChange({ ...filters, [field]: value });
+    if (field === 'scheduledBeginUtc') setLocalBeginUtc(value);
+    else setLocalEndUtc(value);
+    debouncedApply({ [field]: value });
   };
 
   const hasScheduledTimeRange =
@@ -118,7 +161,7 @@ const SkyMapFilters = memo(function SkyMapFilters({
               <label className="mb-1 block text-xs text-slate-500">Begin</label>
               <input
                 type="datetime-local"
-                value={filters.scheduledBeginUtc}
+                value={localBeginUtc}
                 onChange={(e) => handleScheduledTimeChange('scheduledBeginUtc', e.target.value)}
                 className="w-full rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
@@ -127,7 +170,7 @@ const SkyMapFilters = memo(function SkyMapFilters({
               <label className="mb-1 block text-xs text-slate-500">End</label>
               <input
                 type="datetime-local"
-                value={filters.scheduledEndUtc}
+                value={localEndUtc}
                 onChange={(e) => handleScheduledTimeChange('scheduledEndUtc', e.target.value)}
                 className="w-full rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
               />
@@ -150,7 +193,7 @@ const SkyMapFilters = memo(function SkyMapFilters({
               step="0.1"
               min={priorityRange.min}
               max={priorityRange.max}
-              value={filters.priorityMin}
+              value={localPriorityMin}
               onChange={(e) => handlePriorityChange('priorityMin', parseFloat(e.target.value) || priorityRange.min)}
               className="w-full rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-sm text-slate-200 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
@@ -162,7 +205,7 @@ const SkyMapFilters = memo(function SkyMapFilters({
               step="0.1"
               min={priorityRange.min}
               max={priorityRange.max}
-              value={filters.priorityMax}
+              value={localPriorityMax}
               onChange={(e) => handlePriorityChange('priorityMax', parseFloat(e.target.value) || priorityRange.max)}
               className="w-full rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-sm text-slate-200 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />

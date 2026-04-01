@@ -13,6 +13,7 @@ const Trends = lazy(() => import('./pages/Trends'));
 const Validation = lazy(() => import('./pages/Validation'));
 const Compare = lazy(() => import('./pages/Compare'));
 const VisibilityMap = lazy(() => import('./pages/VisibilityMap'));
+const AltAz = lazy(() => import('./pages/AltAz'));
 
 // Loading fallback component
 function PageLoader() {
@@ -37,6 +38,7 @@ function App() {
               <Route path="timeline" element={<Timeline />} />
               <Route path="insights" element={<Insights />} />
               <Route path="trends" element={<Trends />} />
+              <Route path="alt-az" element={<AltAz />} />
               <Route path="validation" element={<Validation />} />
               <Route path="compare/:otherId" element={<Compare />} />
             </Route>
