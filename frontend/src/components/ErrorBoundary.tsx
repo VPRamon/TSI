@@ -3,6 +3,7 @@
  * Prevents entire app from crashing on unhandled errors.
  */
 import { Component, ErrorInfo, ReactNode } from 'react';
+import Icon from './Icon';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -51,7 +52,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         <div className="flex min-h-screen items-center justify-center bg-slate-900 p-4">
           <div className="max-w-md text-center">
             <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-red-500/10">
-              <span className="text-4xl">💥</span>
+              <Icon name="alert-octagon" className="h-10 w-10 text-red-400" />
             </div>
             <h1 className="mb-3 text-2xl font-bold text-white">Something went wrong</h1>
             <p className="mb-6 text-slate-400">

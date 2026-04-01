@@ -36,10 +36,21 @@ export const HORIZONTAL_LEGEND: Partial<Layout['legend']> = {
 
 /**
  * Default Plotly config for interactivity.
+ * Shows modebar only on hover with a minimal set of buttons.
  */
 export const DEFAULT_CONFIG: Partial<Config> = {
   responsive: true,
-  displayModeBar: true,
+  displayModeBar: 'hover',
+  modeBarButtonsToRemove: [
+    'lasso2d',
+    'select2d',
+    'zoomIn2d',
+    'zoomOut2d',
+    'autoScale2d',
+    'hoverClosestCartesian',
+    'hoverCompareCartesian',
+    'toggleSpikelines',
+  ] as Plotly.ModeBarDefaultButtons[],
 };
 
 /**
@@ -48,15 +59,6 @@ export const DEFAULT_CONFIG: Partial<Config> = {
 export const MINIMAL_CONFIG: Partial<Config> = {
   responsive: true,
   displayModeBar: false,
-};
-
-/**
- * Sky map specific config (removes some tools).
- */
-export const SKYMAP_CONFIG: Partial<Config> = {
-  responsive: true,
-  displayModeBar: true,
-  modeBarButtonsToRemove: ['lasso2d', 'select2d'],
 };
 
 /**

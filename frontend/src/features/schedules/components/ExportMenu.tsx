@@ -9,6 +9,7 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { Icon } from '@/components';
 import { useAppStore } from '@/store/appStore';
 import { useBlockSelection } from '../context/AnalysisContext';
 import {
@@ -80,7 +81,11 @@ export function ExportMenu<T extends ExportableBlock>({
   // Export handlers
   const handleExportCSV = useCallback(
     (blocksToExport: T[]) => {
-      const filename = generateExportFilename(currentId, hasSelection ? 'selection' : 'filtered', 'csv');
+      const filename = generateExportFilename(
+        currentId,
+        hasSelection ? 'selection' : 'filtered',
+        'csv'
+      );
       exportBlocksToCSV(blocksToExport, filename, columns);
       setIsOpen(false);
     },
@@ -89,7 +94,11 @@ export function ExportMenu<T extends ExportableBlock>({
 
   const handleExportJSON = useCallback(
     (blocksToExport: T[]) => {
-      const filename = generateExportFilename(currentId, hasSelection ? 'selection' : 'filtered', 'json');
+      const filename = generateExportFilename(
+        currentId,
+        hasSelection ? 'selection' : 'filtered',
+        'json'
+      );
       const metadata = buildMetadata(blocksToExport);
       exportBlocksToJSON(blocksToExport, metadata, filename);
       setIsOpen(false);
@@ -99,21 +108,22 @@ export function ExportMenu<T extends ExportableBlock>({
 
   const handleExportBlockIds = useCallback(
     (blocksToExport: T[]) => {
-      const filename = generateExportFilename(currentId, hasSelection ? 'selection' : 'filtered', 'txt');
+      const filename = generateExportFilename(
+        currentId,
+        hasSelection ? 'selection' : 'filtered',
+        'txt'
+      );
       exportBlockIds(blocksToExport, filename, 'txt');
       setIsOpen(false);
     },
     [currentId, hasSelection]
   );
 
-  const handleCopyBlockIds = useCallback(
-    async (blocksToExport: T[]) => {
-      await copyBlockIdsToClipboard(blocksToExport);
-      setCopied('ids');
-      setTimeout(() => setCopied(null), 2000);
-    },
-    []
-  );
+  const handleCopyBlockIds = useCallback(async (blocksToExport: T[]) => {
+    await copyBlockIdsToClipboard(blocksToExport);
+    setCopied('ids');
+    setTimeout(() => setCopied(null), 2000);
+  }, []);
 
   const handleCopyPermalink = useCallback(async () => {
     await copyPermalinkToClipboard();
@@ -158,21 +168,21 @@ export function ExportMenu<T extends ExportableBlock>({
             onClick={() => handleExportCSV(blocks)}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
           >
-            <span className="text-slate-400">📊</span>
+            <Icon name="chart-bar" className="h-4 w-4 text-slate-400" />
             Download as CSV
           </button>
           <button
             onClick={() => handleExportJSON(blocks)}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
           >
-            <span className="text-slate-400">📋</span>
+            <Icon name="brackets" className="h-4 w-4 text-slate-400" />
             Download as JSON
           </button>
           <button
             onClick={() => handleExportBlockIds(blocks)}
             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
           >
-            <span className="text-slate-400">📝</span>
+            <Icon name="list" className="h-4 w-4 text-slate-400" />
             Export Block IDs
           </button>
 
@@ -186,14 +196,14 @@ export function ExportMenu<T extends ExportableBlock>({
                 onClick={() => handleExportCSV(selectedBlocks)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
               >
-                <span className="text-slate-400">📊</span>
+                <Icon name="chart-bar" className="h-4 w-4 text-slate-400" />
                 Selection as CSV
               </button>
               <button
                 onClick={() => handleExportJSON(selectedBlocks)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
               >
-                <span className="text-slate-400">📋</span>
+                <Icon name="brackets" className="h-4 w-4 text-slate-400" />
                 Selection as JSON
               </button>
             </>
@@ -208,24 +218,20 @@ export function ExportMenu<T extends ExportableBlock>({
             className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
           >
             <span className="flex items-center gap-2">
-              <span className="text-slate-400">📋</span>
+              <Icon name="list" className="h-4 w-4 text-slate-400" />
               Copy Block IDs
             </span>
-            {copied === 'ids' && (
-              <span className="text-xs text-emerald-400">Copied!</span>
-            )}
+            {copied === 'ids' && <span className="text-xs text-emerald-400">Copied!</span>}
           </button>
           <button
             onClick={handleCopyPermalink}
             className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700"
           >
             <span className="flex items-center gap-2">
-              <span className="text-slate-400">🔗</span>
+              <Icon name="link" className="h-4 w-4 text-slate-400" />
               Copy Permalink
             </span>
-            {copied === 'link' && (
-              <span className="text-xs text-emerald-400">Copied!</span>
-            )}
+            {copied === 'link' && <span className="text-xs text-emerald-400">Copied!</span>}
           </button>
         </div>
       )}

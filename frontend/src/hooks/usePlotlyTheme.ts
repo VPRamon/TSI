@@ -9,7 +9,6 @@ import {
   DEFAULT_AXIS_STYLE,
   HORIZONTAL_LEGEND,
   DEFAULT_CONFIG,
-  SKYMAP_CONFIG,
 } from '@/constants/plotly';
 import { CHART_COLORS } from '@/constants/colors';
 
@@ -37,7 +36,7 @@ export interface PlotlyThemeOptions {
   /** Chart height in pixels */
   height?: number;
   /** Config preset */
-  configPreset?: 'default' | 'minimal' | 'skymap';
+  configPreset?: 'default' | 'minimal';
 }
 
 export interface PlotlyTheme {
@@ -121,8 +120,6 @@ export function usePlotlyTheme(options: PlotlyThemeOptions = {}): PlotlyTheme {
     switch (configPreset) {
       case 'minimal':
         return { responsive: true, displayModeBar: false };
-      case 'skymap':
-        return SKYMAP_CONFIG;
       default:
         return DEFAULT_CONFIG;
     }

@@ -8,6 +8,7 @@ import { useTrends, usePlotlyTheme } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
+  Icon,
   MetricCard,
   PlotlyChart,
   PageHeader,
@@ -34,7 +35,12 @@ function Trends() {
 
   // Debounce timer
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    },
+    []
+  );
 
   const scheduleApply = useCallback((nextBins: number, nextBw: number) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -43,15 +49,21 @@ function Trends() {
     }, DEBOUNCE_MS);
   }, []);
 
-  const handleBinsChange = useCallback((value: number) => {
-    setBins(value);
-    scheduleApply(value, bandwidth);
-  }, [bandwidth, scheduleApply]);
+  const handleBinsChange = useCallback(
+    (value: number) => {
+      setBins(value);
+      scheduleApply(value, bandwidth);
+    },
+    [bandwidth, scheduleApply]
+  );
 
-  const handleBandwidthChange = useCallback((value: number) => {
-    setBandwidth(value);
-    scheduleApply(bins, value);
-  }, [bins, scheduleApply]);
+  const handleBandwidthChange = useCallback(
+    (value: number) => {
+      setBandwidth(value);
+      scheduleApply(bins, value);
+    },
+    [bins, scheduleApply]
+  );
 
   const { data, isLoading, error, refetch } = useTrends(id, appliedParams);
 
@@ -133,9 +145,7 @@ function Trends() {
 
       {/* Number of bins */}
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-slate-400">
-          Number of Bins
-        </label>
+        <label className="mb-1.5 block text-xs font-medium text-slate-400">Number of Bins</label>
         <div className="flex min-w-0 flex-wrap items-center gap-3 sm:flex-nowrap">
           <input
             type="range"
@@ -187,9 +197,7 @@ function Trends() {
 
       {/* Summary stats */}
       <div className="border-t border-slate-700 pt-4">
-        <h4 className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">
-          Summary
-        </h4>
+        <h4 className="mb-3 text-xs font-medium uppercase tracking-wide text-slate-500">Summary</h4>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-slate-400">Scheduling Rate</span>
@@ -213,21 +221,30 @@ function Trends() {
   return (
     <PageContainer>
       {/* Header */}
-      <PageHeader
-        title="Trends"
-        description="Scheduling trends and patterns analysis"
-      />
+      <PageHeader title="Trends" description="Scheduling trends and patterns analysis" />
 
       {/* Metrics */}
       <MetricsGrid>
-        <MetricCard label="Total Blocks" value={metrics.total_count} icon="📊" />
+        <MetricCard
+          label="Total Blocks"
+          value={metrics.total_count}
+          icon={<Icon name="chart-bar" />}
+        />
         <MetricCard
           label="Scheduling Rate"
           value={`${(metrics.scheduling_rate * 100).toFixed(1)}%`}
-          icon="📈"
+          icon={<Icon name="chart-line" />}
         />
-        <MetricCard label="Zero Visibility" value={metrics.zero_visibility_count} icon="🚫" />
-        <MetricCard label="Priority Mean" value={metrics.priority_mean.toFixed(2)} icon="⭐" />
+        <MetricCard
+          label="Zero Visibility"
+          value={metrics.zero_visibility_count}
+          icon={<Icon name="ban" />}
+        />
+        <MetricCard
+          label="Priority Mean"
+          value={metrics.priority_mean.toFixed(2)}
+          icon={<Icon name="star" />}
+        />
       </MetricsGrid>
 
       {/* Split layout: controls left, charts right */}

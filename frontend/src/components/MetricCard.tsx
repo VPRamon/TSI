@@ -1,10 +1,12 @@
+import type { ReactNode } from 'react';
+
 /**
  * Metric card component for displaying single values.
  */
 interface MetricCardProps {
   label: string;
   value: string | number;
-  icon?: string;
+  icon?: ReactNode;
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
   className?: string;
@@ -35,7 +37,7 @@ function MetricCard({ label, value, icon, trend, trendValue, className = '' }: M
             </p>
           )}
         </div>
-        {icon && <span className="text-2xl">{icon}</span>}
+        {icon && <span className="text-slate-300">{icon}</span>}
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ export { default as LoadingSpinner } from './LoadingSpinner';
 export { default as ErrorMessage } from './ErrorMessage';
 export { default as ErrorBoundary } from './ErrorBoundary';
 export { default as Card } from './Card';
+export { default as Icon } from './Icon';
 export { default as MetricCard } from './MetricCard';
 export { default as LogStream } from './LogStream';
 export { DataTable } from './DataTable';

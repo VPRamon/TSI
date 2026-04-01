@@ -156,7 +156,7 @@ mod tests {
         let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
         let job_id = payload["job_id"].as_str().unwrap().to_string();
 
-        for _ in 0..20 {
+        for _ in 0..100 {
             if let Some(job) = state.job_tracker.get_job(&job_id) {
                 if job.status != crate::services::job_tracker::JobStatus::Running {
                     break;

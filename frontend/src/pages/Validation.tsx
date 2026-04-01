@@ -7,6 +7,7 @@ import { useValidationReport } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
+  Icon,
   MetricCard,
   PageHeader,
   PageContainer,
@@ -42,9 +43,7 @@ function Validation() {
   }
 
   const getCriticalityColor = (criticality: string) => {
-    return (
-      CRITICALITY_CLASSES[criticality as CriticalityKey] || 'bg-slate-500/20 text-slate-400'
-    );
+    return CRITICALITY_CLASSES[criticality as CriticalityKey] || 'bg-slate-500/20 text-slate-400';
   };
 
   const totalIssues =
@@ -53,18 +52,31 @@ function Validation() {
   return (
     <PageContainer>
       {/* Header */}
-      <PageHeader
-        title="Validation"
-        description="Schedule validation report and issues"
-      />
+      <PageHeader title="Validation" description="Schedule validation report and issues" />
 
       {/* Summary metrics */}
       <MetricsGrid columns={5}>
-        <MetricCard label="Total Blocks" value={data.total_blocks} icon="📦" />
-        <MetricCard label="Valid Blocks" value={data.valid_blocks} icon="✅" />
-        <MetricCard label="Impossible" value={data.impossible_blocks.length} icon="🚫" />
-        <MetricCard label="Errors" value={data.validation_errors.length} icon="❌" />
-        <MetricCard label="Warnings" value={data.validation_warnings.length} icon="⚠️" />
+        <MetricCard label="Total Blocks" value={data.total_blocks} icon={<Icon name="blocks" />} />
+        <MetricCard
+          label="Valid Blocks"
+          value={data.valid_blocks}
+          icon={<Icon name="check-circle" />}
+        />
+        <MetricCard
+          label="Impossible"
+          value={data.impossible_blocks.length}
+          icon={<Icon name="ban" />}
+        />
+        <MetricCard
+          label="Errors"
+          value={data.validation_errors.length}
+          icon={<Icon name="x-circle" />}
+        />
+        <MetricCard
+          label="Warnings"
+          value={data.validation_warnings.length}
+          icon={<Icon name="alert-triangle" />}
+        />
       </MetricsGrid>
 
       {/* Overall status */}
@@ -75,7 +87,11 @@ function Validation() {
           }`}
           aria-hidden="true"
         >
-          <span className="text-2xl">{totalIssues === 0 ? '✅' : '⚠️'}</span>
+          {totalIssues === 0 ? (
+            <Icon name="check-circle" className="h-7 w-7 text-emerald-400" />
+          ) : (
+            <Icon name="alert-triangle" className="h-7 w-7 text-amber-400" />
+          )}
         </div>
         <div>
           <h3 className="text-lg font-semibold text-white">

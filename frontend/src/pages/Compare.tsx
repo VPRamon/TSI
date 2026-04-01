@@ -1,12 +1,30 @@
 /**
  * Compare page - Compare two schedules.
+ * Uses consistent layout primitives and chart theming.
  */
-import { useParams } from 'react-router-dom';
-import { useCompare } from '@/hooks';
-import { Card, LoadingSpinner, ErrorMessage, MetricCard, PlotlyChart } from '@/components';
-import { CHANGE_TYPE_COLORS, type ChangeTypeKey } from '@/constants/colors';
-import { usePlotlyTheme } from '@/hooks/usePlotlyTheme';
 import { useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+import { useCompare, usePlotlyTheme } from '@/hooks';
+import {
+  LoadingSpinner,
+  ErrorMessage,
+  Icon,
+  MetricCard,
+  PlotlyChart,
+  PageHeader,
+  PageContainer,
+  MetricsGrid,
+  ChartPanel,
+} from '@/components';
+import { CHANGE_TYPE_COLORS, type ChangeTypeKey } from '@/constants/colors';
+
+/** Consistent pair of colors for current vs comparison schedule */
+const SCHEDULE_COLORS = {
+  current: '#3b82f6', // blue-500
+  currentEdge: '#2563eb', // blue-600
+  comparison: '#f59e0b', // amber-500
+  comparisonEdge: '#d97706', // amber-600
+} as const;
 
 function Compare() {
   const { scheduleId, otherId } = useParams();
@@ -14,23 +32,44 @@ function Compare() {
   const comparisonId = parseInt(otherId ?? '0', 10);
 
   const { data, isLoading, error, refetch } = useCompare(currentId, comparisonId);
-  const plotlyTheme = usePlotlyTheme();
 
-  // Prepare chart data - must be called unconditionally (rules of hooks)
-  const priorityDistributionData = useMemo(() => {
+  // ── Chart themes (called unconditionally) ────────────────────────
+  const { layout: priorityLayout, config } = usePlotlyTheme({
+    title: 'Priority Distribution',
+    xAxis: { title: 'Priority' },
+    yAxis: { title: 'Count' },
+    barMode: 'overlay',
+  });
+
+  const { layout: statusLayout } = usePlotlyTheme({
+    title: 'Scheduling Status',
+    yAxis: { title: 'Number of Blocks' },
+    barMode: 'group',
+  });
+
+  const { layout: changesLayout } = usePlotlyTheme({
+    title: 'Scheduling Changes',
+    yAxis: { title: 'Number of Blocks' },
+    showLegend: false,
+  });
+
+  const { layout: timeLayout } = usePlotlyTheme({
+    title: 'Requested Hours Distribution',
+    yAxis: { title: 'Requested Hours' },
+  });
+
+  // ── Chart data ───────────────────────────────────────────────────
+  const priorityDistributionData = useMemo((): Plotly.Data[] => {
     if (!data) return [];
     const currentPriorities = data.current_blocks.map((b) => b.priority);
     const comparisonPriorities = data.comparison_blocks.map((b) => b.priority);
-    
+
     const currentTrace = {
       x: currentPriorities,
       type: 'histogram' as const,
       name: data.current_name,
-      opacity: 1.0,
-      marker: {
-        color: '#1f77b4',
-        line: { color: '#0d5a9e', width: 2 },
-      },
+      opacity: 0.7,
+      marker: { color: SCHEDULE_COLORS.current },
       nbinsx: 30,
     };
 
@@ -38,115 +77,96 @@ function Compare() {
       x: comparisonPriorities,
       type: 'histogram' as const,
       name: data.comparison_name,
-      opacity: 1.0,
-      marker: {
-        color: '#ff7f0e',
-        line: { color: '#cc6600', width: 2 },
-      },
+      opacity: 0.7,
+      marker: { color: SCHEDULE_COLORS.comparison },
       nbinsx: 30,
     };
 
-    // Add larger dataset first for better visibility
-    const traces =
-      currentPriorities.length >= comparisonPriorities.length
-        ? [currentTrace, comparisonTrace]
-        : [comparisonTrace, currentTrace];
-
-    return traces;
+    // Larger dataset first for better visibility
+    return currentPriorities.length >= comparisonPriorities.length
+      ? [currentTrace, comparisonTrace]
+      : [comparisonTrace, currentTrace];
   }, [data]);
 
-  const schedulingStatusData = useMemo(() => {
+  const schedulingStatusData = useMemo((): Plotly.Data[] => {
     if (!data) return [];
     return [
       {
         name: data.current_name,
         x: ['Scheduled', 'Unscheduled'],
         y: [data.current_stats.scheduled_count, data.current_stats.unscheduled_count],
-        type: 'bar' as const,
-        marker: {
-          color: '#1f77b4',
-          line: { color: '#0d5a9e', width: 2 },
-        },
+        type: 'bar',
+        marker: { color: SCHEDULE_COLORS.current },
         text: [
           data.current_stats.scheduled_count.toLocaleString(),
           data.current_stats.unscheduled_count.toLocaleString(),
         ],
-        textposition: 'auto' as const,
+        textposition: 'auto',
         textfont: { color: 'white', size: 12 },
       },
       {
         name: data.comparison_name,
         x: ['Scheduled', 'Unscheduled'],
         y: [data.comparison_stats.scheduled_count, data.comparison_stats.unscheduled_count],
-        type: 'bar' as const,
-        marker: {
-          color: '#ff7f0e',
-          line: { color: '#cc6600', width: 2 },
-        },
+        type: 'bar',
+        marker: { color: SCHEDULE_COLORS.comparison },
         text: [
           data.comparison_stats.scheduled_count.toLocaleString(),
           data.comparison_stats.unscheduled_count.toLocaleString(),
         ],
-        textposition: 'auto' as const,
+        textposition: 'auto',
         textfont: { color: 'white', size: 12 },
       },
     ];
   }, [data]);
 
-  const changesData = useMemo(() => {
+  const changesData = useMemo((): Plotly.Data[] => {
     if (!data) return [];
-    const newlyScheduled = data.scheduling_changes.filter((c) => c.change_type === 'newly_scheduled').length;
-    const newlyUnscheduled = data.scheduling_changes.filter((c) => c.change_type === 'newly_unscheduled').length;
+    const newlyScheduled = data.scheduling_changes.filter(
+      (c) => c.change_type === 'newly_scheduled'
+    ).length;
+    const newlyUnscheduled = data.scheduling_changes.filter(
+      (c) => c.change_type === 'newly_unscheduled'
+    ).length;
 
     return [
       {
         x: ['Newly Scheduled', 'Newly Unscheduled'],
         y: [newlyScheduled, newlyUnscheduled],
-        type: 'bar' as const,
-        marker: {
-          color: ['#2ca02c', '#d62728'],
-          line: { color: ['#1a7a1a', '#8b1a1a'], width: 2 },
-        },
+        type: 'bar',
+        marker: { color: ['#22c55e', '#ef4444'] },
         text: [newlyScheduled.toLocaleString(), newlyUnscheduled.toLocaleString()],
-        textposition: 'auto' as const,
+        textposition: 'auto',
         textfont: { color: 'white', size: 14 },
       },
     ];
   }, [data]);
 
-  const timeDistributionData = useMemo(() => {
+  const timeDistributionData = useMemo((): Plotly.Data[] => {
     if (!data) return [];
-    const currentTimes = data.current_blocks.map((b) => b.requested_hours);
-    const comparisonTimes = data.comparison_blocks.map((b) => b.requested_hours);
-
     return [
       {
-        y: currentTimes,
-        type: 'box' as const,
+        y: data.current_blocks.map((b) => b.requested_hours),
+        type: 'box',
         name: data.current_name,
-        marker: {
-          color: '#1f77b4',
-          line: { color: '#0d5a9e', width: 2 },
-        },
-        fillcolor: '#1f77b4',
-        line: { color: '#0d5a9e', width: 2 },
-        boxmean: 'sd' as const,
+        marker: { color: SCHEDULE_COLORS.current },
+        fillcolor: SCHEDULE_COLORS.current,
+        line: { color: SCHEDULE_COLORS.currentEdge, width: 2 },
+        boxmean: 'sd',
       },
       {
-        y: comparisonTimes,
-        type: 'box' as const,
+        y: data.comparison_blocks.map((b) => b.requested_hours),
+        type: 'box',
         name: data.comparison_name,
-        marker: {
-          color: '#ff7f0e',
-          line: { color: '#cc6600', width: 2 },
-        },
-        fillcolor: '#ff7f0e',
-        line: { color: '#cc6600', width: 2 },
-        boxmean: 'sd' as const,
+        marker: { color: SCHEDULE_COLORS.comparison },
+        fillcolor: SCHEDULE_COLORS.comparison,
+        line: { color: SCHEDULE_COLORS.comparisonEdge, width: 2 },
+        boxmean: 'sd',
       },
     ];
   }, [data]);
 
+  // ── Loading / error states ───────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -170,162 +190,121 @@ function Compare() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Compare Schedules</h1>
-        <p className="mt-1 text-slate-400">
-          Comparing {data.current_name} vs {data.comparison_name}
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Compare Schedules"
+        description={`${data.current_name} vs ${data.comparison_name}`}
+      />
 
-      {/* Side by side stats */}
+      {/* Side-by-side stats */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Current schedule */}
-        <Card title={data.current_name}>
+        <ChartPanel title={data.current_name}>
           <div className="grid grid-cols-2 gap-4">
-            <MetricCard label="Scheduled" value={data.current_stats.scheduled_count} icon="✅" />
+            <MetricCard
+              label="Scheduled"
+              value={data.current_stats.scheduled_count}
+              icon={<Icon name="check-circle" />}
+            />
             <MetricCard
               label="Unscheduled"
               value={data.current_stats.unscheduled_count}
-              icon="❌"
+              icon={<Icon name="x-circle" />}
             />
             <MetricCard
               label="Mean Priority"
               value={data.current_stats.mean_priority.toFixed(2)}
-              icon="⭐"
+              icon={<Icon name="star" />}
             />
             <MetricCard
               label="Total Hours"
               value={`${data.current_stats.total_hours.toFixed(1)}h`}
-              icon="⏱️"
+              icon={<Icon name="clock" />}
             />
           </div>
-        </Card>
+        </ChartPanel>
 
-        {/* Comparison schedule */}
-        <Card title={data.comparison_name}>
+        <ChartPanel title={data.comparison_name}>
           <div className="grid grid-cols-2 gap-4">
-            <MetricCard label="Scheduled" value={data.comparison_stats.scheduled_count} icon="✅" />
+            <MetricCard
+              label="Scheduled"
+              value={data.comparison_stats.scheduled_count}
+              icon={<Icon name="check-circle" />}
+            />
             <MetricCard
               label="Unscheduled"
               value={data.comparison_stats.unscheduled_count}
-              icon="❌"
+              icon={<Icon name="x-circle" />}
             />
             <MetricCard
               label="Mean Priority"
               value={data.comparison_stats.mean_priority.toFixed(2)}
-              icon="⭐"
+              icon={<Icon name="star" />}
             />
             <MetricCard
               label="Total Hours"
               value={`${data.comparison_stats.total_hours.toFixed(1)}h`}
-              icon="⏱️"
+              icon={<Icon name="clock" />}
             />
           </div>
-        </Card>
+        </ChartPanel>
       </div>
 
       {/* Overlap summary */}
-      <Card title="Block Overlap">
-        <div className="grid grid-cols-3 gap-4">
-          <MetricCard label="Common Blocks" value={data.common_ids.length} icon="🔗" />
-          <MetricCard
-            label={`Only in ${data.current_name}`}
-            value={data.only_in_current.length}
-            icon="➡️"
-          />
-          <MetricCard
-            label={`Only in ${data.comparison_name}`}
-            value={data.only_in_comparison.length}
-            icon="⬅️"
-          />
-        </div>
-      </Card>
+      <MetricsGrid>
+        <MetricCard
+          label="Common Blocks"
+          value={data.common_ids.length}
+          icon={<Icon name="link" />}
+        />
+        <MetricCard
+          label={`Only in ${data.current_name}`}
+          value={data.only_in_current.length}
+          icon={<Icon name="arrow-right" />}
+        />
+        <MetricCard
+          label={`Only in ${data.comparison_name}`}
+          value={data.only_in_comparison.length}
+          icon={<Icon name="arrow-left" />}
+        />
+      </MetricsGrid>
 
-      {/* Visualizations */}
+      {/* Charts in 2×2 grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Priority Distribution */}
-        <Card title="Priority Distribution">
+        <ChartPanel title="Priority Distribution">
           <PlotlyChart
             data={priorityDistributionData}
-            layout={{
-              ...plotlyTheme,
-              barmode: 'overlay',
-              xaxis: { title: { text: 'Priority' } },
-              yaxis: { title: { text: 'Count' } },
-              height: 450,
-              legend: {
-                orientation: 'h',
-                yanchor: 'bottom',
-                y: 1.02,
-                xanchor: 'right',
-                x: 1,
-              },
-            }}
-            config={{ displayModeBar: false, responsive: true }}
+            layout={priorityLayout}
+            config={config}
+            height="400px"
           />
-        </Card>
+        </ChartPanel>
 
-        {/* Scheduling Status */}
-        <Card title="Scheduling Status">
+        <ChartPanel title="Scheduling Status">
           <PlotlyChart
             data={schedulingStatusData}
-            layout={{
-              ...plotlyTheme,
-              barmode: 'group',
-              yaxis: { title: { text: 'Number of Blocks' } },
-              height: 450,
-              legend: {
-                orientation: 'h',
-                yanchor: 'bottom',
-                y: 1.02,
-                xanchor: 'right',
-                x: 1,
-              },
-            }}
-            config={{ displayModeBar: false, responsive: true }}
+            layout={statusLayout}
+            config={config}
+            height="400px"
           />
-        </Card>
+        </ChartPanel>
 
-        {/* Scheduling Changes */}
-        <Card title="Scheduling Changes">
-          <PlotlyChart
-            data={changesData}
-            layout={{
-              ...plotlyTheme,
-              yaxis: { title: { text: 'Number of Blocks' } },
-              height: 350,
-              showlegend: false,
-            }}
-            config={{ displayModeBar: false, responsive: true }}
-          />
-        </Card>
+        <ChartPanel title="Scheduling Changes">
+          <PlotlyChart data={changesData} layout={changesLayout} config={config} height="350px" />
+        </ChartPanel>
 
-        {/* Time Distribution */}
-        <Card title="Time Distribution">
+        <ChartPanel title="Requested Hours">
           <PlotlyChart
             data={timeDistributionData}
-            layout={{
-              ...plotlyTheme,
-              yaxis: { title: { text: 'Requested Hours' } },
-              height: 350,
-              legend: {
-                orientation: 'h',
-                yanchor: 'bottom',
-                y: 1.02,
-                xanchor: 'right',
-                x: 1,
-              },
-            }}
-            config={{ displayModeBar: false, responsive: true }}
+            layout={timeLayout}
+            config={config}
+            height="350px"
           />
-        </Card>
+        </ChartPanel>
       </div>
 
-      {/* Scheduling changes */}
+      {/* Scheduling changes table */}
       {data.scheduling_changes.length > 0 && (
-        <Card title={`Scheduling Changes (${data.scheduling_changes.length})`}>
+        <ChartPanel title={`Scheduling Changes (${data.scheduling_changes.length})`}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -362,9 +341,9 @@ function Compare() {
               </p>
             )}
           </div>
-        </Card>
+        </ChartPanel>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

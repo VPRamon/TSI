@@ -3,6 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '../test/test-utils';
+import Icon from './Icon';
 import MetricCard from './MetricCard';
 
 describe('MetricCard', () => {
@@ -18,8 +19,10 @@ describe('MetricCard', () => {
   });
 
   it('renders icon when provided', () => {
-    render(<MetricCard label="Test" value={100} icon="🎯" />);
-    expect(screen.getByText('🎯')).toBeInTheDocument();
+    const { container } = render(
+      <MetricCard label="Test" value={100} icon={<Icon name="target" />} />
+    );
+    expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
   it('renders trend indicator when provided', () => {

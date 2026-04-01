@@ -18,11 +18,41 @@ use super::dto::{
 };
 use super::error::AppError;
 use super::state::AppState;
-use crate::api::ScheduleId;
+use crate::api::{ScheduleId, SchedulingBlock};
 use crate::db::services as db_services;
 
 /// Result type for handlers.
 pub type HandlerResult<T> = Result<Json<T>, AppError>;
+
+fn block_matches_visibility_histogram_query(
+    block: &SchedulingBlock,
+    query: &VisibilityHistogramQuery,
+) -> bool {
+    if let Some(min_p) = query.priority_min {
+        if block.priority < min_p as f64 {
+            return false;
+        }
+    }
+    if let Some(max_p) = query.priority_max {
+        if block.priority > max_p as f64 {
+            return false;
+        }
+    }
+    if let Some(ref ids) = query.block_ids {
+        if let Some(id) = block.id {
+            if !ids.contains(&id.value()) {
+                return false;
+            }
+        }
+    }
+    if let Some(scheduled) = query.scheduled {
+        if block.scheduled_period.is_some() != scheduled {
+            return false;
+        }
+    }
+
+    true
+}
 
 // =============================================================================
 // Health Check
@@ -221,28 +251,7 @@ pub async fn get_visibility_histogram(
     // Convert to histogram data format and apply filters
     let histogram_blocks: Vec<BlockHistogramData> = blocks
         .into_iter()
-        .filter(|b| {
-            // Apply priority filters
-            if let Some(min_p) = query.priority_min {
-                if b.priority < min_p as f64 {
-                    return false;
-                }
-            }
-            if let Some(max_p) = query.priority_max {
-                if b.priority > max_p as f64 {
-                    return false;
-                }
-            }
-            // Apply block ID filter
-            if let Some(ref ids) = query.block_ids {
-                if let Some(id) = b.id {
-                    if !ids.contains(&id.value()) {
-                        return false;
-                    }
-                }
-            }
-            true
-        })
+        .filter(|b| block_matches_visibility_histogram_query(b, &query))
         .map(|b| BlockHistogramData {
             scheduling_block_id: b.id.map(|id| id.value()).unwrap_or(0),
             priority: b.priority as i32,
@@ -457,4 +466,99 @@ pub async fn stream_job_logs(
             .interval(Duration::from_secs(1))
             .text("keep-alive"),
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::api::{Constraints, ModifiedJulianDate, Period, SchedulingBlockId};
+
+    fn make_block(id: i64, priority: f64, scheduled: bool) -> SchedulingBlock {
+        SchedulingBlock {
+            id: Some(SchedulingBlockId(id)),
+            original_block_id: format!("block-{id}"),
+            target_ra: 10.0.into(),
+            target_dec: 20.0.into(),
+            constraints: Constraints {
+                min_alt: 30.0.into(),
+                max_alt: 90.0.into(),
+                min_az: 0.0.into(),
+                max_az: 360.0.into(),
+                fixed_time: None,
+            },
+            priority,
+            min_observation: 300.0.into(),
+            requested_duration: 3600.0.into(),
+            visibility_periods: vec![Period {
+                start: ModifiedJulianDate::new(60000.0),
+                stop: ModifiedJulianDate::new(60000.5),
+            }],
+            scheduled_period: scheduled.then(|| Period {
+                start: ModifiedJulianDate::new(60000.1),
+                stop: ModifiedJulianDate::new(60000.2),
+            }),
+        }
+    }
+
+    #[test]
+    fn visibility_histogram_query_filters_scheduled_blocks() {
+        let scheduled_block = make_block(1, 8.0, true);
+        let unscheduled_block = make_block(2, 8.0, false);
+
+        let scheduled_query = VisibilityHistogramQuery {
+            scheduled: Some(true),
+            ..Default::default()
+        };
+        let unscheduled_query = VisibilityHistogramQuery {
+            scheduled: Some(false),
+            ..Default::default()
+        };
+
+        assert!(block_matches_visibility_histogram_query(
+            &scheduled_block,
+            &scheduled_query
+        ));
+        assert!(!block_matches_visibility_histogram_query(
+            &unscheduled_block,
+            &scheduled_query
+        ));
+        assert!(block_matches_visibility_histogram_query(
+            &unscheduled_block,
+            &unscheduled_query
+        ));
+        assert!(!block_matches_visibility_histogram_query(
+            &scheduled_block,
+            &unscheduled_query
+        ));
+    }
+
+    #[test]
+    fn visibility_histogram_query_combines_scheduled_with_other_filters() {
+        let matching_block = make_block(7, 6.0, true);
+        let wrong_status = make_block(7, 6.0, false);
+        let wrong_priority = make_block(7, 3.0, true);
+        let wrong_id = make_block(9, 6.0, true);
+
+        let query = VisibilityHistogramQuery {
+            priority_min: Some(5),
+            priority_max: Some(7),
+            block_ids: Some(vec![7]),
+            scheduled: Some(true),
+            ..Default::default()
+        };
+
+        assert!(block_matches_visibility_histogram_query(
+            &matching_block,
+            &query
+        ));
+        assert!(!block_matches_visibility_histogram_query(
+            &wrong_status,
+            &query
+        ));
+        assert!(!block_matches_visibility_histogram_query(
+            &wrong_priority,
+            &query
+        ));
+        assert!(!block_matches_visibility_histogram_query(&wrong_id, &query));
+    }
 }

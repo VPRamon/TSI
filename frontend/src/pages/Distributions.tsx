@@ -7,6 +7,7 @@ import { useDistributions, usePlotlyTheme } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
+  Icon,
   MetricCard,
   PlotlyChart,
   PageHeader,
@@ -97,17 +98,26 @@ function Distributions() {
   return (
     <PageContainer>
       {/* Header */}
-      <PageHeader
-        title="Distributions"
-        description="Statistical analysis of schedule properties"
-      />
+      <PageHeader title="Distributions" description="Statistical analysis of schedule properties" />
 
       {/* Summary metrics */}
       <MetricsGrid>
-        <MetricCard label="Total Blocks" value={data.total_count} icon="📊" />
-        <MetricCard label="Scheduled" value={data.scheduled_count} icon="✅" />
-        <MetricCard label="Unscheduled" value={data.unscheduled_count} icon="❌" />
-        <MetricCard label="Impossible" value={data.impossible_count} icon="🚫" />
+        <MetricCard
+          label="Total Blocks"
+          value={data.total_count}
+          icon={<Icon name="chart-bar" />}
+        />
+        <MetricCard
+          label="Scheduled"
+          value={data.scheduled_count}
+          icon={<Icon name="check-circle" />}
+        />
+        <MetricCard
+          label="Unscheduled"
+          value={data.unscheduled_count}
+          icon={<Icon name="x-circle" />}
+        />
+        <MetricCard label="Impossible" value={data.impossible_count} icon={<Icon name="ban" />} />
       </MetricsGrid>
 
       {/* Priority section */}

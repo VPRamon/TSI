@@ -99,11 +99,12 @@ describe('usePlotlyTheme', () => {
     expect(result.current.config.displayModeBar).toBe(false);
   });
 
-  it('returns skymap config when preset is skymap', () => {
+  it('returns default config with hover modebar and button removal', () => {
     const { result } = renderHook(() =>
-      usePlotlyTheme({ configPreset: 'skymap' })
+      usePlotlyTheme({ configPreset: 'default' })
     );
 
+    expect(result.current.config.displayModeBar).toBe('hover');
     expect(result.current.config.modeBarButtonsToRemove).toContain('lasso2d');
     expect(result.current.config.modeBarButtonsToRemove).toContain('select2d');
   });

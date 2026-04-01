@@ -373,6 +373,7 @@ export interface VisibilityHistogramQuery {
   priority_min?: number;
   priority_max?: number;
   block_ids?: number[];
+  scheduled?: boolean;
 }
 
 // =============================================================================

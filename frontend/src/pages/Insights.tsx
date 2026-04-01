@@ -7,6 +7,7 @@ import { useInsights } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
+  Icon,
   MetricCard,
   PageHeader,
   PageContainer,
@@ -45,20 +46,29 @@ function Insights() {
   return (
     <PageContainer>
       {/* Header */}
-      <PageHeader
-        title="Insights"
-        description="Key analytics and performance metrics"
-      />
+      <PageHeader title="Insights" description="Key analytics and performance metrics" />
 
       {/* Key metrics */}
       <MetricsGrid>
-        <MetricCard label="Total Observations" value={metrics.total_observations} icon="🎯" />
-        <MetricCard label="Scheduled" value={metrics.scheduled_count} icon="✅" />
-        <MetricCard label="Unscheduled" value={metrics.unscheduled_count} icon="❌" />
+        <MetricCard
+          label="Total Observations"
+          value={metrics.total_observations}
+          icon={<Icon name="target" />}
+        />
+        <MetricCard
+          label="Scheduled"
+          value={metrics.scheduled_count}
+          icon={<Icon name="check-circle" />}
+        />
+        <MetricCard
+          label="Unscheduled"
+          value={metrics.unscheduled_count}
+          icon={<Icon name="x-circle" />}
+        />
         <MetricCard
           label="Scheduling Rate"
           value={`${(metrics.scheduling_rate * 100).toFixed(1)}%`}
-          icon="📊"
+          icon={<Icon name="chart-bar" />}
         />
       </MetricsGrid>
 
@@ -70,9 +80,7 @@ function Insights() {
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-md bg-slate-700/30 p-3">
               <p className="text-xs text-slate-400">Mean Priority</p>
-              <p className="text-xl font-semibold text-white">
-                {metrics.mean_priority.toFixed(2)}
-              </p>
+              <p className="text-xl font-semibold text-white">{metrics.mean_priority.toFixed(2)}</p>
             </div>
             <div className="rounded-md bg-slate-700/30 p-3">
               <p className="text-xs text-slate-400">Median Priority</p>

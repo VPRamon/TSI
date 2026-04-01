@@ -117,7 +117,7 @@ Responsive grid for MetricCard components.
 
 ```tsx
 <MetricsGrid columns={3 | 4 | 5}>
-  <MetricCard label="Total" value={100} icon="📊" />
+  <MetricCard label="Total" value={100} icon={<Icon name="chart-bar" />} />
   ...
 </MetricsGrid>
 ```
@@ -204,13 +204,13 @@ Each redesigned page was verified to preserve:
 
 | Page | Routes | Controls | Data Display | Charts |
 |------|--------|----------|--------------|--------|
-| Validation | ✅ | N/A | ✅ Tables, metrics | N/A |
-| Distributions | ✅ | N/A | ✅ Stats grids | ✅ Priority & visibility histograms |
-| Insights | ✅ | N/A | ✅ Tables, correlations | N/A |
-| SkyMap | ✅ | N/A | ✅ Metrics, legend | ✅ Scatter plot |
-| Timeline | ✅ | N/A | ✅ Metrics, month tags | ✅ Gantt chart |
-| Trends | ✅ | ✅ Bins, bandwidth | ✅ Metrics | ✅ Bar + line charts |
-| VisibilityMap | ✅ | ✅ Binning, priority filters | ✅ Metrics | ✅ Bar histogram |
+| Validation | Yes | N/A | Yes, tables and metrics | N/A |
+| Distributions | Yes | N/A | Yes, stats grids | Yes, priority and visibility histograms |
+| Insights | Yes | N/A | Yes, tables and correlations | N/A |
+| SkyMap | Yes | N/A | Yes, metrics and legend | Yes, scatter plot |
+| Timeline | Yes | N/A | Yes, metrics and month tags | Yes, Gantt chart |
+| Trends | Yes | Yes, bins and bandwidth | Yes, metrics | Yes, bar and line charts |
+| VisibilityMap | Yes | Yes, binning and priority filters | Yes, metrics | Yes, bar histogram |
 
 ### Preserved Functionality
 - All route paths unchanged

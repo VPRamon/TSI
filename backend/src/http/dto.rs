@@ -130,6 +130,9 @@ pub struct VisibilityHistogramQuery {
     /// Filter by specific block IDs (optional)
     #[serde(default)]
     pub block_ids: Option<Vec<i64>>,
+    /// Filter by scheduled status (optional)
+    #[serde(default)]
+    pub scheduled: Option<bool>,
 }
 
 /// Health check response.

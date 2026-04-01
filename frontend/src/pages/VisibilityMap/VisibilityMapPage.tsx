@@ -20,6 +20,7 @@ import { useVisibilityMap, useVisibilityHistogram } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
+  Icon,
   PageContainer,
   PageHeader,
   MetricsGrid,
@@ -73,9 +74,10 @@ const SummaryMetrics = memo(function SummaryMetrics({
   filteredCount,
   selectionCount,
 }: SummaryMetricsProps) {
-  const schedulingRate = mapData.total_count > 0
-    ? ((mapData.scheduled_count / mapData.total_count) * 100).toFixed(1)
-    : '0';
+  const schedulingRate =
+    mapData.total_count > 0
+      ? ((mapData.scheduled_count / mapData.total_count) * 100).toFixed(1)
+      : '0';
 
   return (
     <>
@@ -84,22 +86,26 @@ const SummaryMetrics = memo(function SummaryMetrics({
         description="Target visibility over the observation period with block-level drill-down"
       />
       <MetricsGrid>
-        <MetricCard label="Total Blocks" value={mapData.total_count} icon="📊" />
+        <MetricCard
+          label="Total Blocks"
+          value={mapData.total_count}
+          icon={<Icon name="chart-bar" />}
+        />
         <MetricCard
           label="Scheduled"
           value={`${mapData.scheduled_count} (${schedulingRate}%)`}
-          icon="✅"
+          icon={<Icon name="check-circle" />}
         />
         <MetricCard
           label="Priority Range"
           value={`${mapData.priority_min.toFixed(1)} – ${mapData.priority_max.toFixed(1)}`}
-          icon="⭐"
+          icon={<Icon name="star" />}
         />
         {filteredCount !== mapData.total_count && (
-          <MetricCard label="Filtered" value={filteredCount} icon="🔍" />
+          <MetricCard label="Filtered" value={filteredCount} icon={<Icon name="search" />} />
         )}
         {selectionCount > 0 && (
-          <MetricCard label="Selected" value={selectionCount} icon="✓" />
+          <MetricCard label="Selected" value={selectionCount} icon={<Icon name="check" />} />
         )}
       </MetricsGrid>
     </>
@@ -159,13 +165,8 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
       result = result.filter((b) => !b.scheduled);
     }
 
-    // If blocks are selected, show only selected (or all if none selected)
-    if (state.selectedBlockIds.size > 0) {
-      result = result.filter((b) => state.selectedBlockIds.has(b.scheduling_block_id));
-    }
-
     return result;
-  }, [blocks, state.priorityFilter, state.scheduledFilter, state.selectedBlockIds]);
+  }, [blocks, state.priorityFilter, state.scheduledFilter]);
 
   // Handle block click for details drawer
   const handleBlockClick = useCallback(
@@ -216,10 +217,7 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
 
         {/* Right panel: Histogram */}
         <div className="min-w-0 flex-1">
-          <OpportunitiesHistogram
-            histogramData={histogramData}
-            isLoading={histogramLoading}
-          />
+          <OpportunitiesHistogram histogramData={histogramData} isLoading={histogramLoading} />
         </div>
       </div>
 
@@ -230,7 +228,13 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
           <ExportMenu
             blocks={filteredBlocks}
             totalBlocks={mapData.total_count}
-            columns={['scheduling_block_id', 'original_block_id', 'priority', 'scheduled', 'num_visibility_periods']}
+            columns={[
+              'scheduling_block_id',
+              'original_block_id',
+              'priority',
+              'scheduled',
+              'num_visibility_periods',
+            ]}
           />
         </div>
         <BlocksTable
@@ -308,11 +312,7 @@ function VisibilityMapPage() {
   const { state: analysisState } = useAnalysis();
 
   // Fetch visibility map data (includes blocks list)
-  const {
-    data: mapData,
-    isLoading: mapLoading,
-    error: mapError,
-  } = useVisibilityMap(currentId);
+  const { data: mapData, isLoading: mapLoading, error: mapError } = useVisibilityMap(currentId);
 
   // Build histogram query from applied filters + analysis context
   const histogramQuery = useMemo<VisibilityHistogramQuery>(() => {
@@ -336,13 +336,24 @@ function VisibilityMapPage() {
       query.priority_max = Math.ceil(priorityMax);
     }
 
+    if (analysisState.scheduledFilter === 'scheduled') {
+      query.scheduled = true;
+    } else if (analysisState.scheduledFilter === 'unscheduled') {
+      query.scheduled = false;
+    }
+
     // If blocks are selected, filter histogram to just those blocks
     if (analysisState.selectedBlockIds.size > 0 && analysisState.selectedBlockIds.size <= 100) {
       query.block_ids = Array.from(analysisState.selectedBlockIds);
     }
 
     return query;
-  }, [appliedFilters, analysisState.priorityFilter, analysisState.selectedBlockIds]);
+  }, [
+    appliedFilters,
+    analysisState.priorityFilter,
+    analysisState.scheduledFilter,
+    analysisState.selectedBlockIds,
+  ]);
 
   // Fetch histogram data
   const {

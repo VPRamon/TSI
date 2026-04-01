@@ -3,6 +3,7 @@
  * Displays list of existing schedules from the database.
  */
 import type { ScheduleInfo } from '@/api/types';
+import { Icon } from '@/components';
 
 // SVG Icons
 const DatabaseIcon = () => (
@@ -93,10 +94,10 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div
-        className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-700/30 text-3xl"
+        className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-700/30 text-slate-400"
         aria-hidden="true"
       >
-        📭
+        <Icon name="inbox" className="h-8 w-8" />
       </div>
       <p className="text-sm text-slate-400">No schedules yet</p>
       <p className="mt-1 text-xs text-slate-500">Upload one to get started</p>

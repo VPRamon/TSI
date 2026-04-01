@@ -7,6 +7,7 @@ import { useTimeline, usePlotlyTheme } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
+  Icon,
   MetricCard,
   PlotlyChart,
   PageHeader,
@@ -66,11 +67,12 @@ function Timeline() {
     const stopDate = mjdToDate(block.scheduled_stop_mjd);
     const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
     const monthIndex = monthMap.get(monthKey) ?? 0;
-    
+
     // Calculate fractional day positions for start and stop
-    const startDay = startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
+    const startDay =
+      startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
     const stopDay = stopDate.getDate() + stopDate.getHours() / 24 + stopDate.getMinutes() / 1440;
-    
+
     return {
       type: 'rect' as const,
       xref: 'x' as const,
@@ -91,11 +93,12 @@ function Timeline() {
     const stopDate = mjdToDate(block.scheduled_stop_mjd);
     const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
     const monthIndex = monthMap.get(monthKey) ?? 0;
-    
-    const startDay = startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
+
+    const startDay =
+      startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
     const stopDay = stopDate.getDate() + stopDate.getHours() / 24 + stopDate.getMinutes() / 1440;
     const centerDay = (startDay + stopDay) / 2;
-    
+
     return {
       x: centerDay,
       y: monthIndex,
@@ -103,19 +106,21 @@ function Timeline() {
     };
   });
 
-  const plotData: Plotly.Data[] = [{
-    type: 'scatter',
-    mode: 'markers',
-    x: hoverData.map(d => d.x),
-    y: hoverData.map(d => d.y),
-    text: hoverData.map(d => d.text),
-    hoverinfo: 'text',
-    marker: {
-      size: 20,
-      opacity: 0, // Invisible but still capturable for hover
+  const plotData: Plotly.Data[] = [
+    {
+      type: 'scatter',
+      mode: 'markers',
+      x: hoverData.map((d) => d.x),
+      y: hoverData.map((d) => d.y),
+      text: hoverData.map((d) => d.text),
+      hoverinfo: 'text',
+      marker: {
+        size: 20,
+        opacity: 0, // Invisible but still capturable for hover
+      },
+      showlegend: false,
     },
-    showlegend: false,
-  }];
+  ];
 
   // Final layout with shapes
   const timelineLayout = {
@@ -140,24 +145,32 @@ function Timeline() {
   return (
     <PageContainer>
       {/* Header */}
-      <PageHeader
-        title="Timeline"
-        description="Scheduled observations over time"
-      />
+      <PageHeader title="Timeline" description="Scheduled observations over time" />
 
       {/* Metrics */}
       <MetricsGrid>
-        <MetricCard label="Total Blocks" value={data.total_count} icon="📅" />
-        <MetricCard label="Scheduled" value={data.scheduled_count} icon="✅" />
-        <MetricCard label="Unique Months" value={data.unique_months.length} icon="📆" />
-        <MetricCard label="Dark Periods" value={data.dark_periods.length} icon="🌙" />
+        <MetricCard label="Total Blocks" value={data.total_count} icon={<Icon name="calendar" />} />
+        <MetricCard
+          label="Scheduled"
+          value={data.scheduled_count}
+          icon={<Icon name="check-circle" />}
+        />
+        <MetricCard
+          label="Unique Months"
+          value={data.unique_months.length}
+          icon={<Icon name="calendar-days" />}
+        />
+        <MetricCard
+          label="Dark Periods"
+          value={data.dark_periods.length}
+          icon={<Icon name="moon" />}
+        />
       </MetricsGrid>
 
       {/* Timeline chart */}
       <ChartPanel title="Schedule Timeline">
         <PlotlyChart data={plotData} layout={timelineLayout} config={config} height="800px" />
       </ChartPanel>
-
     </PageContainer>
   );
 }
