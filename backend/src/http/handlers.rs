@@ -75,6 +75,11 @@ pub async fn create_schedule(
     let schedule_json_str = serde_json::to_string(&request.schedule_json)
         .map_err(|e| AppError::BadRequest(format!("Invalid schedule JSON: {}", e)))?;
 
+    state
+        .import_adapter
+        .validate_schedule_payload(&schedule_json_str)
+        .map_err(|e| AppError::BadRequest(format!("Invalid schedule payload: {}", e)))?;
+
     // Create a job for tracking progress
     let job_id = state.job_tracker.create_job();
     let response_job_id = job_id.clone();

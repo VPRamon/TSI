@@ -1,0 +1,320 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siderust.org/schemas/coordinates.schema.json",
+  "title": "Siderust spherical coordinates",
+  "description": "Serialized representations of every spherical `Direction` and `Position` alias that siderust exposes, including frame-specific field names.",
+  "$defs": {
+    "observerSite": {
+      "type": "object",
+      "description": "Parameters for a Topocentric observer site (longitude, latitude, height).",
+      "properties": {
+        "lon_deg": {
+          "type": "number",
+          "description": "Geodetic longitude east of Greenwich in degrees [0, 360)."
+        },
+        "lat_deg": {
+          "type": "number",
+          "description": "Geodetic latitude north of the equator in degrees [-90, 90]."
+        },
+        "height_m": {
+          "type": "number",
+          "description": "Height above the WGS84 ellipsoid (unit depends on the length type; siderust `Geodetic<ECEF>` uses meters)."
+        }
+      },
+      "required": ["lon_deg", "lat_deg", "height_m"],
+      "additionalProperties": false
+    },
+    "directionRaDec": {
+      "type": "object",
+      "properties": {
+        "ra": {
+          "type": "number",
+          "description": "Right ascension in degrees, usually normalized to [0, 360)."
+        },
+        "dec": {
+          "type": "number",
+          "description": "Declination in degrees between -90 and +90."
+        }
+      },
+      "required": ["ra", "dec"]
+    },
+    "directionLonLat": {
+      "type": "object",
+      "properties": {
+        "lon_deg": {
+          "type": "number",
+          "description": "Longitude in degrees, positive eastward (0-360)."
+        },
+        "lat_deg": {
+          "type": "number",
+          "description": "Latitude in degrees north of the equator (-90 to +90)."
+        }
+      },
+      "required": ["lon_deg", "lat_deg"]
+    },
+    "directionAltAz": {
+      "type": "object",
+      "properties": {
+        "alt_deg": {
+          "type": "number",
+          "description": "Altitude above the horizon in degrees (-90 to +90)."
+        },
+        "az_deg": {
+          "type": "number",
+          "description": "Azimuth measured from north toward east in degrees [0, 360)."
+        }
+      },
+      "required": ["alt_deg", "az_deg"]
+    },
+    "directionLb": {
+      "type": "object",
+      "properties": {
+        "l_deg": {
+          "type": "number",
+          "description": "Galactic longitude in degrees [0, 360)."
+        },
+        "b_deg": {
+          "type": "number",
+          "description": "Galactic latitude in degrees between -90 and +90."
+        }
+      },
+      "required": ["l_deg", "b_deg"]
+    },
+    "directionICRS": {
+      "allOf": [
+        { "$ref": "#/$defs/directionRaDec" },
+        {
+          "title": "DirectionICRS",
+          "description": "International Celestial Reference System direction (RA/Dec).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "directionEquatorialMeanJ2000": {
+      "allOf": [
+        { "$ref": "#/$defs/directionRaDec" },
+        {
+          "title": "DirectionEquatorialMeanJ2000",
+          "description": "Geocentric equatorial direction referenced to the mean equinox/equinox of J2000.",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "directionEquatorialMeanOfDate": {
+      "allOf": [
+        { "$ref": "#/$defs/directionRaDec" },
+        {
+          "title": "DirectionEquatorialMeanOfDate",
+          "description": "Mean-of-date equatorial direction (precessed to the target epoch).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "directionEquatorialTrueOfDate": {
+      "allOf": [
+        { "$ref": "#/$defs/directionRaDec" },
+        {
+          "title": "DirectionEquatorialTrueOfDate",
+          "description": "True-of-date equatorial direction (precession + nutation).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "directionEcliptic": {
+      "allOf": [
+        { "$ref": "#/$defs/directionLonLat" },
+        {
+          "title": "DirectionEcliptic",
+          "description": "Ecliptic direction using longitude lambda and latitude beta.",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "directionHorizontal": {
+      "allOf": [
+        { "$ref": "#/$defs/directionAltAz" },
+        {
+          "title": "DirectionHorizontal",
+          "description": "Topocentric horizontal direction defined by altitude and azimuth.",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "directionGeographic": {
+      "allOf": [
+        { "$ref": "#/$defs/directionLonLat" },
+        {
+          "title": "DirectionGeographic",
+          "description": "ECEF geographic direction (longitude/latitude).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "directionGalactic": {
+      "allOf": [
+        { "$ref": "#/$defs/directionLb" },
+        {
+          "title": "DirectionGalactic",
+          "description": "Galactic coordinate direction (longitude l, latitude b).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionRaDec": {
+      "type": "object",
+      "properties": {
+        "ra_deg": {
+          "type": "number",
+          "description": "Right ascension in degrees."
+        },
+        "dec_deg": {
+          "type": "number",
+          "description": "Declination in degrees."
+        },
+        "distance_km": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Radial distance from the reference center in kilometers."
+        }
+      },
+      "required": ["ra_deg", "dec_deg", "distance_km"],
+      "additionalProperties": false 
+    },
+    "positionLonLat": {
+      "type": "object",
+      "properties": {
+        "lon_deg": {
+          "type": "number",
+          "description": "Longitude in degrees east.",
+          "minimum": 0,
+          "maximum": 360
+        },
+        "lat_deg": {
+          "type": "number",
+          "description": "Latitude in degrees north.",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "distance_km": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Radial distance from the chosen center in kilometers."
+        }
+      },
+      "required": ["lon_deg", "lat_deg", "distance_km"]
+    },
+    "positionAltAz": {
+      "type": "object",
+      "properties": {
+        "alt_deg": {
+          "type": "number",
+          "description": "Altitude in degrees (-90 to +90)."
+        },
+        "az_deg": {
+          "type": "number",
+          "description": "Azimuth in degrees [0, 360)."
+        },
+        "distance_km": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Straight-line distance from the observer in kilometers."
+        }
+      },
+      "required": ["alt_deg", "az_deg", "distance_km"]
+    },
+    "positionEcliptic": {
+      "allOf": [
+        { "$ref": "#/$defs/positionLonLat" },
+        {
+          "title": "PositionEcliptic",
+          "description": "Heliocentric ecliptic position (lambda, beta, R).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionEquatorialMeanJ2000": {
+      "allOf": [
+        { "$ref": "#/$defs/positionRaDec" },
+        {
+          "title": "PositionEquatorialMeanJ2000",
+          "description": "Geocentric equatorial mean-of-date J2000 position (alpha, delta, distance).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionEquatorialMeanOfDate": {
+      "allOf": [
+        { "$ref": "#/$defs/positionRaDec" },
+        {
+          "title": "PositionEquatorialMeanOfDate",
+          "description": "Geocentric equatorial position precessed to the observation epoch.",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionEquatorialTrueOfDate": {
+      "allOf": [
+        { "$ref": "#/$defs/positionRaDec" },
+        {
+          "title": "PositionEquatorialTrueOfDate",
+          "description": "True-of-date equatorial position including nutation.",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionHorizontal": {
+      "allOf": [
+        { "$ref": "#/$defs/positionAltAz" },
+        {
+          "title": "PositionHorizontal",
+          "description": "Topocentric horizontal position with explicit observer site.",
+          "properties": {
+            "center_params": { "$ref": "#/$defs/observerSite" }
+          },
+          "required": ["center_params"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionICRS": {
+      "allOf": [
+        { "$ref": "#/$defs/positionRaDec" },
+        {
+          "title": "PositionICRS",
+          "description": "Barycentric ICRS position (alpha, delta, r).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionHCRS": {
+      "allOf": [
+        { "$ref": "#/$defs/positionRaDec" },
+        {
+          "title": "PositionHCRS",
+          "description": "Heliocentric ICRS position (alpha, delta, r).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionGCRS": {
+      "allOf": [
+        { "$ref": "#/$defs/positionRaDec" },
+        {
+          "title": "PositionGCRS",
+          "description": "Geocentric ICRS position (alpha, delta, r).",
+          "additionalProperties": false
+        }
+      ]
+    },
+    "positionGeographic": {
+      "allOf": [
+        { "$ref": "#/$defs/positionLonLat" },
+        {
+          "title": "PositionGeographic",
+          "description": "Geographic ECEF position: longitude, latitude, altitude in kilometers.",
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

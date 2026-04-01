@@ -12,6 +12,13 @@ pub trait ScheduleImportAdapter: Send + Sync {
     /// Stable adapter identifier for logging and diagnostics.
     fn name(&self) -> &'static str;
 
+    /// Validate the raw payload before any async processing starts.
+    ///
+    /// Implementations can enforce adapter-specific schema requirements.
+    fn validate_schedule_payload(&self, _raw_payload: &str) -> anyhow::Result<()> {
+        Ok(())
+    }
+
     /// Parse and normalize a raw payload into the canonical schedule model.
     fn parse_schedule(&self, raw_payload: &str) -> anyhow::Result<Schedule>;
 }
@@ -23,6 +30,10 @@ pub struct NativeScheduleImportAdapter;
 impl ScheduleImportAdapter for NativeScheduleImportAdapter {
     fn name(&self) -> &'static str {
         "tsi-native-json"
+    }
+
+    fn validate_schedule_payload(&self, raw_payload: &str) -> anyhow::Result<()> {
+        crate::models::schedule::validate_schedule_json_str(raw_payload)
     }
 
     fn parse_schedule(&self, raw_payload: &str) -> anyhow::Result<Schedule> {
@@ -78,10 +89,29 @@ mod tests {
     }
 
     #[test]
+    fn native_adapter_validates_payload() {
+        let adapter = NativeScheduleImportAdapter;
+
+        adapter
+            .validate_schedule_payload(
+                r#"{
+                    "name": "native-fixture",
+                    "geographic_location": {
+                        "latitude": 28.7624,
+                        "longitude": -17.8892,
+                        "elevation_m": 2396.0
+                    },
+                    "blocks": []
+                }"#,
+            )
+            .expect("native payload validation should pass");
+    }
+
+    #[test]
     fn native_adapter_rejects_invalid_schedule_json() {
         let adapter = NativeScheduleImportAdapter;
         let err = adapter
-            .parse_schedule(r#"{"missing":"blocks"}"#)
+            .validate_schedule_payload(r#"{"missing":"blocks"}"#)
             .unwrap_err();
 
         assert!(err.to_string().contains("Missing required 'blocks' field"));

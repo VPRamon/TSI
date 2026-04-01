@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siderust.org/schemas/schedule.schema.json",
+  "title": "Schedule",
+  "description": "A simplified schedule containing only a list of astronomical tasks. Telescope, location, and period are provided separately to the scheduler.",
+  "type": "object",
+  "properties": {
+    "tasks": {
+      "type": "array",
+      "description": "List of observation or calibration tasks.",
+      "items": {
+        "$ref": "./tasks.schema.json"
+      }
+    }
+  },
+  "required": ["tasks"],
+  "additionalProperties": false
+}

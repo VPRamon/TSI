@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siderust.org/schemas/common.schema.json",
+  "title": "Shared scheduler primitives",
+  "description": "Reusable definitions for geographic locations, celestial targets, time intervals, and proper motion metadata.",
+  "$defs": {
+    "geographic": {
+      "type": "object",
+      "description": "Geographic coordinates (longitude/latitude in degrees, height above WGS84 ellipsoid in meters) — matches siderust Geodetic<ECEF> serialization.",
+      "properties": {
+        "lon_deg": {
+          "type": "number",
+          "description": "Geodetic longitude in degrees east."
+        },
+        "lat_deg": {
+          "type": "number",
+          "description": "Geodetic latitude in degrees north."
+        },
+        "height_m": {
+          "type": "number",
+          "description": "Height above the WGS84 ellipsoid (unit depends on the concrete length type; for Geodetic<ECEF> this is meters)."
+        }
+      },
+      "required": ["lon_deg", "lat_deg", "height"],
+      "additionalProperties": false
+    },
+    "targetPosition": {
+      "type": "object",
+      "description": "Celestial direction expressed as right ascension and declination in degrees.",
+      "properties": {
+        "ra_deg": {
+          "type": "number",
+          "description": "Right ascension in degrees (0 ≤ RA < 360)."
+        },
+        "dec_deg": {
+          "type": "number",
+          "description": "Declination in degrees (−90 ≤ Dec ≤ +90)."
+        }
+      },
+      "required": ["ra_deg", "dec_deg"],
+      "additionalProperties": false
+    },
+    "properMotion": {
+      "type": "object",
+      "description": "Proper motion in right ascension and declination (degrees per Julian year).",
+      "properties": {
+        "ra_μ": {
+          "type": "number",
+          "description": "Proper motion in RA (deg/Julian year), typically includes the cos(δ) term."
+        },
+        "dec_μ": {
+          "type": "number",
+          "description": "Proper motion in Dec (deg/Julian year)."
+        }
+      },
+      "required": ["ra_μ", "dec_μ"],
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "description": "Astronomical target with direction, epoch, and optional proper motion.",
+      "properties": {
+        "position": {
+          "$ref": "#/$defs/targetPosition"
+        },
+        "time": {
+          "type": "number",
+          "description": "Julian Date of the catalog epoch."
+        },
+        "proper_motion": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/properMotion"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Proper motion data (null when the target is assumed static)."
+        }
+      },
+      "required": ["position", "time", "proper_motion"],
+      "additionalProperties": false
+    },
+    "intervalScheduled": {
+      "type": "object",
+      "description": "A time window measured in Modified Julian Days. Field names match tempoch Period<MJD> serde output.",
+      "properties": {
+        "start_mjd": {
+          "type": "number",
+          "description": "Interval start expressed as an MJD."
+        },
+        "end_mjd": {
+          "type": "number",
+          "description": "Interval end expressed as an MJD."
+        }
+      },
+      "required": ["start_mjd", "end_mjd"],
+      "additionalProperties": false
+    }
+  }
+}

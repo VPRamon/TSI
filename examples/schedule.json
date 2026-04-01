@@ -1,0 +1,84 @@
+{
+  "name": "example-schedule-2026-04-01",
+  "schedule_period": {
+    "start": 60694.0,
+    "stop": 60701.0
+  },
+  "dark_periods": [
+    {
+      "start": 60694.10,
+      "stop": 60694.35
+    },
+    {
+      "start": 60695.10,
+      "stop": 60695.35
+    }
+  ],
+  "geographic_location": {
+    "latitude": 28.7624,
+    "longitude": -17.8892,
+    "elevation_m": 2396.0
+  },
+  "blocks": [
+    {
+      "id": 1000001,
+      "original_block_id": "block-1000001",
+      "target_ra": 83.6331,
+      "target_dec": 22.0145,
+      "constraints": {
+        "min_alt": 35.0,
+        "max_alt": 88.0,
+        "min_az": 0.0,
+        "max_az": 360.0,
+        "fixed_time": null
+      },
+      "priority": 9.0,
+      "min_observation": 900.0,
+      "requested_duration": 1800.0,
+      "visibility_periods": [],
+      "scheduled_period": null
+    },
+    {
+      "id": 1000002,
+      "original_block_id": "block-1000002",
+      "target_ra": 201.2983,
+      "target_dec": -11.1613,
+      "constraints": {
+        "min_alt": 30.0,
+        "max_alt": 85.0,
+        "min_az": 20.0,
+        "max_az": 340.0,
+        "fixed_time": {
+          "start": 60695.18,
+          "stop": 60695.26
+        }
+      },
+      "priority": 7.5,
+      "min_observation": 1200.0,
+      "requested_duration": 2400.0,
+      "visibility_periods": [],
+      "scheduled_period": {
+        "start": 60695.20,
+        "stop": 60695.24
+      }
+    }
+  ],
+  "possible_periods": {
+    "block-1000001": [
+      {
+        "start": 60694.19,
+        "stop": 60694.24
+      },
+      {
+        "start": 60696.12,
+        "stop": 60696.20
+      }
+    ],
+    "block-1000002": [
+      {
+        "start": 60695.18,
+        "stop": 60695.26
+      }
+    ]
+  }
+}

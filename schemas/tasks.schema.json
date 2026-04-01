@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siderust.org/schemas/tasks.schema.json",
+  "title": "AstronomicalTask",
+  "description": "Serialized task that can be scheduled via SchedulingBlock (observations or calibrations). All time values are in Modified Julian Days (MJD).",
+  "$defs": {
+    "observation": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "observation"
+        },
+        "id": {
+          "type": "string",
+          "description": "Task identifier."
+        },
+        "name": {
+          "type": "string",
+          "description": "Task name shown in reports."
+        },
+        "target": {
+          "$ref": "./common.schema.json#/$defs/target"
+        },
+        "duration_sec": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Requested observation duration in seconds."
+        },
+        "priority": {
+          "type": "integer",
+          "description": "Scheduling priority (higher values run earlier)."
+        },
+        "min_observation_sec": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum acceptable observation time in seconds. If omitted, defaults to duration_sec."
+        },
+        "constraint": {
+          "description": "Optional constraint tree that must be satisfied before executing this task.",
+          "anyOf": [
+            {
+              "$ref": "./constraint.schema.json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["type", "id", "name", "target", "duration_sec", "priority"],
+      "additionalProperties": false
+    },
+    "calibration": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "calibration"
+        },
+        "id": {
+          "type": "string",
+          "description": "Task identifier."
+        },
+        "name": {
+          "type": "string",
+          "description": "Calibration frame identifier."
+        },
+        "duration_sec": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Duration of the calibration in seconds."
+        },
+        "calibration_type": {
+          "type": "string",
+          "enum": ["flat", "dark", "bias", "focus"],
+          "description": "Calibration category."
+        }
+      },
+      "required": ["type", "id", "name", "duration_sec", "calibration_type"],
+      "additionalProperties": false
+    },
+    "astronomicalTask": {
+      "description": "Observation or calibration submitted to the scheduling block.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/observation"
+        },
+        {
+          "$ref": "#/$defs/calibration"
+        }
+      ]
+    }
+  },
+  "$ref": "#/$defs/astronomicalTask"
+}

@@ -29,10 +29,10 @@ struct ScheduleInput {
     pub possible_periods: Option<HashMap<String, Vec<api::Period>>>,
 }
 
-fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
+fn parse_input_schedule(schedule_json: &str) -> Result<ScheduleInput> {
     // TODO: original_block_id uniqueness & non empty strings
     let value: serde_json::Value =
-        serde_json::from_str(_schedule_json).context("Invalid schedule JSON")?;
+        serde_json::from_str(schedule_json).context("Invalid schedule JSON")?;
     let has_blocks = value
         .as_object()
         .and_then(|obj| obj.get("blocks"))
@@ -40,7 +40,16 @@ fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
     if !has_blocks {
         anyhow::bail!("Missing required 'blocks' field");
     }
-    Ok(())
+
+    serde_json::from_value(value).context("Failed to deserialize schedule JSON using Serde")
+}
+
+/// Validate schedule payload structure for the native TSI import format.
+///
+/// This performs structural validation only (JSON syntax + required fields + serde shape)
+/// without running expensive visibility computations.
+pub fn validate_schedule_json_str(schedule_json: &str) -> Result<()> {
+    parse_input_schedule(schedule_json).map(|_| ())
 }
 
 /// Parse schedule from JSON string.
@@ -57,10 +66,7 @@ fn validate_input_schedule(_schedule_json: &str) -> Result<()> {
 ///
 /// A fully populated `Schedule` with merged periods and computed checksum.
 pub fn parse_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule> {
-    validate_input_schedule(json_schedule_json)?;
-
-    let input: ScheduleInput = serde_json::from_str(json_schedule_json)
-        .context("Failed to deserialize schedule JSON using Serde")?;
+    let input = parse_input_schedule(json_schedule_json)?;
 
     let schedule_period = input
         .schedule_period

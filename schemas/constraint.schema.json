@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siderust.org/schemas/constraint.schema.json",
+  "title": "Constraint",
+  "description": "Recursive constraint tree used by the scheduler. Each node is tagged with a type discriminator. All time values are in Modified Julian Days (MJD).",
+  "$defs": {
+    "constraint": {
+      "type": "object",
+      "description": "Top-level schema for any node that implements Constraint.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/timeConstraint"
+        },
+        {
+          "$ref": "#/$defs/altitudeConstraint"
+        },
+        {
+          "$ref": "#/$defs/azimuthConstraint"
+        },
+        {
+          "$ref": "#/$defs/nighttimeConstraint"
+        },
+        {
+          "$ref": "#/$defs/moonAltitudeConstraint"
+        },
+        {
+          "$ref": "#/$defs/resourceConstraint"
+        },
+        {
+          "$ref": "#/$defs/coalitionConstraint"
+        },
+        {
+          "$ref": "#/$defs/notConstraint"
+        },
+        {
+          "$ref": "#/$defs/intersectionConstraint"
+        },
+        {
+          "$ref": "#/$defs/unionConstraint"
+        }
+      ]
+    },
+    "timeConstraint": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": ["time"],
+          "description": "Time window constraint discriminator"},
+        "start_mjd": {
+          "type": "number",
+          "description": "Start time as Modified Julian Day (MJD)."
+        },
+        "end_mjd": {
+          "type": "number",
+          "description": "End time as Modified Julian Day (MJD)."
+        }
+      },
+      "required": ["type", "start_mjd", "end_mjd"],
+      "additionalProperties": false
+    },
+    "altitudeConstraint": {
+      "type": "object",
+      "description": "Altitude range constraint. The evaluator computes the target's altitude at runtime using the telescope location — only the allowed range is stored.",
+      "properties": {
+        "type": { "const": "altitude" },
+        "min_deg": {
+          "type": "number",
+          "description": "Minimum allowed altitude in degrees above the horizon."
+        },
+        "max_deg": {
+          "type": "number",
+          "description": "Maximum allowed altitude in degrees above the horizon."
+        }
+      },
+      "required": ["type", "min_deg", "max_deg"],
+      "additionalProperties": false
+    },
+    "azimuthConstraint": {
+      "type": "object",
+      "description": "Azimuth range constraint. The evaluator computes the target's azimuth at runtime using the telescope location.",
+      "properties": {
+        "type": { "const": "azimuth" },
+        "min_deg": {
+          "type": "number",
+          "description": "Minimum azimuth in degrees measured from north through east."
+        },
+        "max_deg": {
+          "type": "number",
+          "description": "Maximum azimuth in degrees measured from north through east."
+        }
+      },
+      "required": ["type", "min_deg", "max_deg"],
+      "additionalProperties": false
+    },
+    "nighttimeConstraint": {
+      "type": "object",
+      "description": "Astronomical nighttime constraint (Sun below −18\u00b0). Unit struct — no extra fields are stored; the observer location is provided by the telescope at evaluation time.",
+      "properties": {
+        "type": { "const": "nighttime" }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "moonAltitudeConstraint": {
+      "type": "object",
+      "description": "Moon altitude range constraint. The evaluator computes the Moon's altitude at runtime using the telescope location.",
+      "properties": {
+        "type": { "const": "moon_altitude" },
+        "min_deg": {
+          "type": "number",
+          "description": "Minimum Moon altitude in degrees (-90 to 90)."
+        },
+        "max_deg": {
+          "type": "number",
+          "description": "Maximum Moon altitude in degrees (-90 to 90)."
+        }
+      },
+      "required": ["type", "min_deg", "max_deg"],
+      "additionalProperties": false
+    },
+    "notConstraint": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "not"
+        },
+        "child": {
+          "$ref": "#/$defs/constraint"
+        }
+      },
+      "required": ["type", "child"],
+      "additionalProperties": false
+    },
+    "intersectionConstraint": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "intersection"
+        },
+        "children": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/constraint"
+          },
+          "description": "All child constraints must be satisfied (logical AND)."
+        }
+      },
+      "required": ["type", "children"],
+      "additionalProperties": false
+    },
+    "unionConstraint": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "union"
+        },
+        "children": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/constraint"
+          },
+          "description": "At least one child constraint must be satisfied (logical OR)."
+        }
+      },
+      "required": ["type", "children"],
+      "additionalProperties": false
+    },
+    "resourceConstraint": {
+      "type": "object",
+      "description": "Resource constraint — restricts a task to eligible resources by ID and/or type. A resource matches if it appears in allowed_ids OR allowed_types (union semantics).",
+      "properties": {
+        "type": { "const": "resource" },
+        "allowed_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "If present, the task may only run on resources whose ID is in this list."
+        },
+        "allowed_types": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "If present, the task may only run on resources whose type is in this list."
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "coalitionConstraint": {
+      "type": "object",
+      "description": "Coalition constraint — requires minimum resources per type to be assigned simultaneously. Maps resource type names to minimum counts.",
+      "properties": {
+        "type": { "const": "coalition" },
+        "requirements": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 1 },
+          "description": "Map of resource type → minimum count required (e.g. {\"T1\": 2, \"T2\": 1})."
+        }
+      },
+      "required": ["type", "requirements"],
+      "additionalProperties": false
+    }
+  },
+  "$ref": "#/$defs/constraint"
+}

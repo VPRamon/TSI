@@ -175,4 +175,34 @@ mod tests {
         assert_eq!(schedules.len(), 1);
         assert_eq!(schedules[0].schedule_name, "router-upload");
     }
+
+    #[tokio::test]
+    async fn default_router_rejects_invalid_schedule_payloads() {
+        let repo =
+            Arc::new(LocalRepository::new()) as Arc<dyn crate::db::repository::FullRepository>;
+        let state = AppState::new(Arc::clone(&repo));
+        let app = create_router(state);
+
+        let request = Request::builder()
+            .method("POST")
+            .uri("/v1/schedules")
+            .header("content-type", "application/json")
+            .body(Body::from(
+                serde_json::json!({
+                    "name": "invalid-upload",
+                    "populate_analytics": false,
+                    "schedule_json": {
+                        "missing": "blocks"
+                    }
+                })
+                .to_string(),
+            ))
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let schedules = db_services::list_schedules(repo.as_ref()).await.unwrap();
+        assert!(schedules.is_empty());
+    }
 }

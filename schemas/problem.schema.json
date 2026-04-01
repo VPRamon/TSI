@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://siderust.org/schemas/problem.schema.json",
+  "title": "Problem",
+  "description": "A scheduling problem definition containing a time period, a global list of tasks, and one or more telescopes. Each telescope has its own location and optional constraints. An optional 'schedules' map can store computed solutions per telescope.",
+  "type": "object",
+  "properties": {
+    "period": {
+      "$ref": "./common.schema.json#/$defs/intervalDay",
+      "description": "Scheduling window (time period in MJD)."
+    },
+    "tasks": {
+      "type": "array",
+      "description": "Global list of observation or calibration tasks. Each task can run on any telescope if its constraints allow.",
+      "items": {
+        "$ref": "./tasks.schema.json"
+      }
+    },
+    "telescopes": {
+      "type": "array",
+      "description": "Set of telescopes/instruments, each with its own location and optional constraints.",
+      "items": {
+        "$ref": "#/$defs/telescope"
+      },
+      "minItems": 1
+    },
+    "schedules": {
+      "type": "object",
+      "description": "Optional map of telescope ID to scheduled assignments. Present when saving solutions, omitted when loading input-only problems.",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/assignment"
+        }
+      }
+    }
+  },
+  "required": ["period", "tasks", "telescopes"],
+  "additionalProperties": false,
+  "$defs": {
+    "telescope": {
+      "type": "object",
+      "description": "Telescope or instrument with its location and shared constraints that apply to all observations.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this telescope/instrument."
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-readable name for this telescope/instrument."
+        },
+        "location": {
+          "$ref": "./common.schema.json#/$defs/geographic",
+          "description": "Geographic location of the telescope."
+        },
+        "constraint": {
+          "$ref": "./constraint.schema.json#/$defs/constraint",
+          "description": "Instrument-level constraints (nighttime, moon altitude, etc.) that apply to all tasks scheduled on this telescope."
+        },
+        "resource_type": {
+          "type": "string",
+          "description": "Resource type for coalition scheduling (e.g. 'LST', 'MST', 'SST'). Defaults to 'telescope' if omitted.",
+          "default": "telescope"
+        }
+      },
+      "required": ["id", "name", "location"],
+      "additionalProperties": false
+    },
+    "assignment": {
+      "type": "object",
+      "description": "A scheduled task assignment: which task runs during which interval. Field names match virolai Schedule serde output.",
+      "properties": {
+        "task": {
+          "type": "string",
+          "description": "ID of the scheduled task (virolai serializes as 'task'; 'task_id' is accepted for backward compatibility)."
+        },
+        "interval": {
+          "$ref": "./common.schema.json#/$defs/intervalScheduled",
+          "description": "Numeric interval when this task is scheduled to run."
+        }
+      },
+      "required": ["task", "interval"],
+      "additionalProperties": false
+    }
+  }
+}
