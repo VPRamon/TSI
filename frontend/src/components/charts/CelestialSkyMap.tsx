@@ -9,7 +9,14 @@ import type { LightweightBlock, PriorityBinInfo } from '@/api/types';
 // ── Minimal type declaration for window.Celestial ─────────────────────────────
 declare global {
   interface Window {
+    d3?: {
+      geo?: {
+        projection?: unknown;
+        zoom?: unknown;
+      };
+    };
     Celestial?: {
+      container?: unknown;
       display: (config: object) => void;
       redraw: () => void;
       clear: () => void;
@@ -64,10 +71,20 @@ function CelestialSkyMap({
       console.error('[CelestialSkyMap] window.Celestial not found – make sure /celestial.js is loaded.');
       return;
     }
+    if (
+      typeof window.d3?.geo?.projection !== 'function' ||
+      typeof window.d3?.geo?.zoom !== 'function'
+    ) {
+      console.error(
+        '[CelestialSkyMap] d3-celestial dependencies missing – make sure d3 and d3.geo.projection load before /celestial.js.',
+      );
+      return;
+    }
 
     // Draw our targets on every Celestial redraw event.
     const redrawF = () => {
       const ctx = Celestial.context;
+      if (!ctx) return;
       const currentBlocks = blocksRef.current;
       const currentBins = binsRef.current;
 
@@ -119,7 +136,7 @@ function CelestialSkyMap({
       constellations: { show: false, names: false, lines: false },
       mw: {
         show: true,
-        style: { fill: '#ffffff', opacity: 0.10 },
+        style: { fill: '#ffffff', opacity: 0.15 },
       },
       lines: {
         graticule: {
@@ -135,24 +152,37 @@ function CelestialSkyMap({
         galactic:      { show: false },
         supergalactic: { show: false },
       },
-      datapath: 'https://ofrohn.github.io/data/',
+      // Keep celestial assets local so the Milky Way/background renders reliably.
+      datapath: '/galacticmap/',
       interactive: true,
       form: false,
       controls: false,
       container: containerId,
     };
 
-    Celestial.clear();
-    // callback is required by d3-celestial for type:'line' (no-op here – we only use redraw)
-    Celestial.add({ type: 'line', callback: () => {}, redraw: redrawF });
-    Celestial.display(celestialConfig);
-    // Force an immediate draw: d3-celestial only calls redraw() inside async data-load
-    // callbacks, so without this the canvas stays blank until network data arrives.
-    Celestial.redraw();
-    initializedRef.current = true;
+    try {
+      // d3-celestial stores its DOM container globally. Reset it before init so
+      // React StrictMode remounts do not keep writing into a detached node.
+      Celestial.container = undefined;
+      document.getElementById(containerId)?.replaceChildren();
+      Celestial.clear();
+      // callback is required by d3-celestial for type:'line' (no-op here – we only use redraw)
+      Celestial.add({ type: 'line', callback: () => {}, redraw: redrawF });
+      Celestial.display(celestialConfig);
+      // Force an immediate draw: d3-celestial only calls redraw() inside async data-load
+      // callbacks, so without this the canvas stays blank until network data arrives.
+      Celestial.redraw();
+      initializedRef.current = true;
+    } catch (error) {
+      console.error('[CelestialSkyMap] Failed to initialize sky map.', error);
+      initializedRef.current = false;
+    }
 
     return () => {
       initializedRef.current = false;
+      Celestial.clear();
+      Celestial.container = undefined;
+      document.getElementById(containerId)?.replaceChildren();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerId]);

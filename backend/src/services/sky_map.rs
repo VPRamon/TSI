@@ -50,8 +50,9 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
         if let Some(period) = &block.scheduled_period {
             scheduled_count += 1;
             let start_val = period.start.value();
+            let stop_val = period.stop.value();
             scheduled_time_min = Some(scheduled_time_min.map_or(start_val, |v| v.min(start_val)));
-            scheduled_time_max = Some(scheduled_time_max.map_or(start_val, |v| v.max(start_val)));
+            scheduled_time_max = Some(scheduled_time_max.map_or(stop_val, |v| v.max(stop_val)));
         }
     }
 
@@ -288,7 +289,7 @@ mod tests {
         assert!(data.scheduled_time_min.is_some());
         assert!(data.scheduled_time_max.is_some());
         assert_eq!(data.scheduled_time_min.unwrap(), 1000.0);
-        assert_eq!(data.scheduled_time_max.unwrap(), 1000.0);
+        assert_eq!(data.scheduled_time_max.unwrap(), 2000.0);
     }
 
     #[test]
