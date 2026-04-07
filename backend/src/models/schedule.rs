@@ -183,7 +183,7 @@ fn infer_schedule_period(
 }
 
 /// Compute a checksum for the schedule JSON
-fn compute_schedule_checksum(json_str: &str) -> String {
+pub fn compute_schedule_checksum(json_str: &str) -> String {
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(json_str.as_bytes());

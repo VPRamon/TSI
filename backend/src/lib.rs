@@ -49,3 +49,7 @@ pub mod services;
 
 #[cfg(feature = "http-server")]
 pub mod http;
+
+/// Re-export the exact `qtty` version used internally so downstream adapter
+/// crates avoid duplicate-type issues.
+pub use qtty;
