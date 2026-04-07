@@ -4,7 +4,7 @@
  * Uses siderust-js WASM to compute altitude curves for selected targets
  * as seen from a configurable observatory location over a custom UTC interval.
  */
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSkyMap, usePlotlyTheme } from '@/hooks';
 import { useSiderust } from '@/hooks/useSiderust';
@@ -200,19 +200,23 @@ function AltAz() {
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
-  // Compute altitude/azimuth curves
-  const handleCompute = useCallback(async () => {
-    if (!skyData || selectedIds.size === 0 || wasmStatus !== 'ready' || !hasValidWindow) return;
-    setComputing(true);
-    try {
-      const targets = skyData.blocks.filter((b) => selectedIds.has(b.original_block_id));
-      const result = await computeAltAzCurves(
-        targets, observatory.lon, observatory.lat, observatory.height, startDate, endDate,
-      );
-      setCurves(result);
-    } finally {
-      setComputing(false);
+  // Auto-compute altitude/azimuth curves on any input change
+  const computeIdRef = useRef(0);
+  useEffect(() => {
+    if (!skyData || selectedIds.size === 0 || wasmStatus !== 'ready' || !hasValidWindow) {
+      setCurves([]);
+      return;
     }
+    const id = ++computeIdRef.current;
+    setComputing(true);
+    const targets = skyData.blocks.filter((b) => selectedIds.has(b.original_block_id));
+    computeAltAzCurves(
+      targets, observatory.lon, observatory.lat, observatory.height, startDate, endDate,
+    ).then((result) => {
+      if (id === computeIdRef.current) setCurves(result);
+    }).finally(() => {
+      if (id === computeIdRef.current) setComputing(false);
+    });
   }, [skyData, selectedIds, wasmStatus, observatory, startDate, endDate, hasValidWindow]);
 
   // Chart theme
@@ -292,8 +296,8 @@ function AltAz() {
         description="Compute target altitude and azimuth from an observatory over a customizable time window"
       />
 
-      <ToolbarRow className="items-start">
-        <div className="min-w-[220px] flex-1">
+      <ToolbarRow className="!grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:items-start">
+        <div>
           <label className="mb-1.5 block text-xs font-medium text-slate-400">Observatory</label>
           <select
             value={useCustom ? 'custom' : String(presetIndex)}
@@ -312,12 +316,12 @@ function AltAz() {
             ))}
             <option value="custom">Custom Location</option>
           </select>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="mt-1.5 text-xs text-slate-500">
             {observatory.lat.toFixed(3)}° N, {observatory.lon.toFixed(3)}° E, {observatory.height} m
           </p>
         </div>
 
-        <div className="min-w-[220px] flex-1">
+        <div>
           <label className="mb-1.5 block text-xs font-medium text-slate-400">Start Time (UTC)</label>
           <input
             type="datetime-local"
@@ -327,7 +331,7 @@ function AltAz() {
           />
         </div>
 
-        <div className="min-w-[220px] flex-1">
+        <div>
           <label className="mb-1.5 block text-xs font-medium text-slate-400">End Time (UTC)</label>
           <input
             type="datetime-local"
@@ -335,30 +339,24 @@ function AltAz() {
             onChange={(e) => setEndTimeStr(e.target.value)}
             className="w-full rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           />
-          <p className="mt-2 text-xs text-slate-500">Default range is 24 hours.</p>
+          <p className="mt-1.5 text-xs text-slate-500">Default range is 24 hours.</p>
         </div>
 
-        <div className="min-w-[220px] flex-1">
-          <label className="mb-1.5 block text-xs font-medium text-slate-400">Actions</label>
-          <button
-            onClick={handleCompute}
-            disabled={selectedIds.size === 0 || wasmStatus !== 'ready' || computing || !hasValidWindow}
-            className="w-full rounded-md bg-primary-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {computing ? 'Computing...' : wasmStatus === 'loading' ? 'Loading WASM...' : 'Compute Alt/Az'}
-          </button>
-          {!hasValidWindow && (
-            <p className="mt-2 text-xs text-red-400">End time must be later than start time.</p>
-          )}
-          {wasmStatus === 'error' && (
-            <p className="mt-2 text-xs text-red-400">WASM error: {wasmError}</p>
-          )}
-        </div>
+        {(!hasValidWindow || wasmStatus === 'error') && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            {!hasValidWindow && (
+              <p className="text-xs text-red-400">End time must be later than start time.</p>
+            )}
+            {wasmStatus === 'error' && (
+              <p className="text-xs text-red-400">WASM error: {wasmError}</p>
+            )}
+          </div>
+        )}
       </ToolbarRow>
 
       {useCustom && (
-        <ToolbarRow className="items-start">
-          <div className="min-w-[160px] flex-1">
+        <ToolbarRow className="!grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div>
             <label className="mb-1 block text-xs text-slate-400">Lon (°)</label>
             <input
               type="number"
@@ -368,7 +366,7 @@ function AltAz() {
               className="w-full rounded border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none"
             />
           </div>
-          <div className="min-w-[160px] flex-1">
+          <div>
             <label className="mb-1 block text-xs text-slate-400">Lat (°)</label>
             <input
               type="number"
@@ -378,7 +376,7 @@ function AltAz() {
               className="w-full rounded border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none"
             />
           </div>
-          <div className="min-w-[160px] flex-1">
+          <div>
             <label className="mb-1 block text-xs text-slate-400">Height (m)</label>
             <input
               type="number"

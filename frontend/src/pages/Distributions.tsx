@@ -17,6 +17,53 @@ import {
 } from '@/components';
 import { STATUS_COLORS } from '@/constants/colors';
 
+interface DistributionDetail {
+  label: string;
+  value: string;
+}
+
+interface DistributionSectionProps {
+  title: string;
+  details: DistributionDetail[];
+  chartData: Plotly.Data[];
+  layout: Partial<Plotly.Layout>;
+  config: Partial<Plotly.Config>;
+}
+
+function DistributionSection({
+  title,
+  details,
+  chartData,
+  layout,
+  config,
+}: DistributionSectionProps) {
+  return (
+    <ChartPanel title={title}>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-center">
+        <aside className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 lg:self-center">
+          <div className="divide-y divide-slate-700/60">
+            {details.map((detail) => (
+              <div
+                key={detail.label}
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3 first:pt-0 last:pb-0"
+              >
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  {detail.label}
+                </p>
+                <p className="text-right text-lg font-semibold text-white">{detail.value}</p>
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <div className="min-w-0">
+          <PlotlyChart data={chartData} layout={layout} config={config} height="350px" />
+        </div>
+      </div>
+    </ChartPanel>
+  );
+}
+
 function Distributions() {
   const { scheduleId } = useParams();
   const id = parseInt(scheduleId ?? '0', 10);
@@ -24,14 +71,12 @@ function Distributions() {
 
   // Call hooks unconditionally (rules of hooks)
   const { layout: priorityLayout, config } = usePlotlyTheme({
-    title: 'Priority Distribution',
     xAxis: { title: 'Priority' },
     yAxis: { title: 'Count' },
     barMode: 'overlay',
   });
 
   const { layout: visibilityLayout } = usePlotlyTheme({
-    title: 'Visibility Distribution',
     xAxis: { title: 'Total Visibility (hours)' },
     yAxis: { title: 'Count' },
     barMode: 'overlay',
@@ -95,6 +140,26 @@ function Distributions() {
     },
   ];
 
+  const priorityDetails: DistributionDetail[] = [
+    { label: 'Mean', value: data.priority_stats.mean.toFixed(2) },
+    { label: 'Median', value: data.priority_stats.median.toFixed(2) },
+    { label: 'Std Dev', value: data.priority_stats.std_dev.toFixed(2) },
+    {
+      label: 'Range',
+      value: `${data.priority_stats.min.toFixed(1)} – ${data.priority_stats.max.toFixed(1)}`,
+    },
+  ];
+
+  const visibilityDetails: DistributionDetail[] = [
+    { label: 'Mean', value: `${data.visibility_stats.mean.toFixed(1)}h` },
+    { label: 'Median', value: `${data.visibility_stats.median.toFixed(1)}h` },
+    { label: 'Std Dev', value: `${data.visibility_stats.std_dev.toFixed(1)}h` },
+    {
+      label: 'Range',
+      value: `${data.visibility_stats.min.toFixed(0)} – ${data.visibility_stats.max.toFixed(0)}h`,
+    },
+  ];
+
   return (
     <PageContainer>
       {/* Header */}
@@ -120,93 +185,21 @@ function Distributions() {
         <MetricCard label="Impossible" value={data.impossible_count} icon={<Icon name="ban" />} />
       </MetricsGrid>
 
-      {/* Priority section */}
-      <section>
-        <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold text-white">Priority Distribution</h2>
-        </div>
+      <DistributionSection
+        title="Priority Distribution"
+        details={priorityDetails}
+        chartData={priorityHistogram}
+        layout={priorityLayout}
+        config={config}
+      />
 
-        {/* Priority stats */}
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-3">
-            <p className="text-xs text-slate-400">Mean</p>
-            <p className="text-lg font-semibold text-white">
-              {data.priority_stats.mean.toFixed(2)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-3">
-            <p className="text-xs text-slate-400">Median</p>
-            <p className="text-lg font-semibold text-white">
-              {data.priority_stats.median.toFixed(2)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-3">
-            <p className="text-xs text-slate-400">Std Dev</p>
-            <p className="text-lg font-semibold text-white">
-              {data.priority_stats.std_dev.toFixed(2)}
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-3">
-            <p className="text-xs text-slate-400">Range</p>
-            <p className="text-lg font-semibold text-white">
-              {data.priority_stats.min.toFixed(1)} – {data.priority_stats.max.toFixed(1)}
-            </p>
-          </div>
-        </div>
-
-        <ChartPanel>
-          <PlotlyChart
-            data={priorityHistogram}
-            layout={priorityLayout}
-            config={config}
-            height="350px"
-          />
-        </ChartPanel>
-      </section>
-
-      {/* Visibility section */}
-      <section>
-        <div className="mb-4 flex items-baseline justify-between">
-          <h2 className="text-lg font-semibold text-white">Visibility Distribution</h2>
-        </div>
-
-        {/* Visibility stats */}
-        <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-3">
-            <p className="text-xs text-slate-400">Mean</p>
-            <p className="text-lg font-semibold text-white">
-              {data.visibility_stats.mean.toFixed(1)}h
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-3">
-            <p className="text-xs text-slate-400">Median</p>
-            <p className="text-lg font-semibold text-white">
-              {data.visibility_stats.median.toFixed(1)}h
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-3">
-            <p className="text-xs text-slate-400">Std Dev</p>
-            <p className="text-lg font-semibold text-white">
-              {data.visibility_stats.std_dev.toFixed(1)}h
-            </p>
-          </div>
-          <div className="rounded-lg border border-slate-700 bg-slate-800/30 p-3">
-            <p className="text-xs text-slate-400">Range</p>
-            <p className="text-lg font-semibold text-white">
-              {data.visibility_stats.min.toFixed(0)} – {data.visibility_stats.max.toFixed(0)}h
-            </p>
-          </div>
-        </div>
-
-        <ChartPanel>
-          <PlotlyChart
-            data={visibilityHistogram}
-            layout={visibilityLayout}
-            config={config}
-            height="350px"
-          />
-        </ChartPanel>
-      </section>
+      <DistributionSection
+        title="Visibility Distribution"
+        details={visibilityDetails}
+        chartData={visibilityHistogram}
+        layout={visibilityLayout}
+        config={config}
+      />
     </PageContainer>
   );
 }
