@@ -99,8 +99,22 @@ pub async fn list_schedules(State(state): State<AppState>) -> HandlerResult<Sche
 /// Create a new schedule asynchronously. Returns a job ID for tracking progress.
 pub async fn create_schedule(
     State(state): State<AppState>,
-    Json(request): Json<CreateScheduleRequest>,
+    Json(mut request): Json<CreateScheduleRequest>,
 ) -> Result<(axum::http::StatusCode, Json<CreateScheduleResponse>), AppError> {
+    // Apply geographic location override when provided. This replaces any
+    // `geographic_location` embedded in the schedule JSON, allowing callers
+    // to select a well-known site (e.g. CTAO-N, CTAO-S) at load time.
+    if let Some(ref loc) = request.location_override {
+        let loc_value = serde_json::json!({
+            "latitude": loc.latitude,
+            "longitude": loc.longitude,
+            "elevation_m": loc.elevation_m,
+        });
+        if let Some(obj) = request.schedule_json.as_object_mut() {
+            obj.insert("geographic_location".to_string(), loc_value);
+        }
+    }
+
     // Convert JSON values to strings for the service layer
     let schedule_json_str = serde_json::to_string(&request.schedule_json)
         .map_err(|e| AppError::BadRequest(format!("Invalid schedule JSON: {}", e)))?;

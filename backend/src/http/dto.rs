@@ -59,6 +59,12 @@ pub struct CreateScheduleRequest {
     /// Whether to populate analytics after storing (default: true)
     #[serde(default = "default_true")]
     pub populate_analytics: bool,
+    /// Optional geographic location override. When provided, overrides any
+    /// `geographic_location` present in `schedule_json`. Intended for use
+    /// when loading a schedule that does not embed site coordinates, allowing
+    /// the caller to select a well-known observatory site.
+    #[serde(default)]
+    pub location_override: Option<crate::api::GeographicLocation>,
 }
 
 fn default_true() -> bool {

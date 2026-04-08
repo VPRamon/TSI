@@ -17,11 +17,21 @@ export interface ScheduleListResponse {
   total: number;
 }
 
+export interface GeographicLocation {
+  latitude: number;
+  longitude: number;
+  elevation_m?: number;
+}
+
 export interface CreateScheduleRequest {
   name: string;
   schedule_json: unknown;
   visibility_json?: unknown;
   populate_analytics?: boolean;
+  /** Optional geographic location override. When set, replaces any location
+   *  embedded in the schedule JSON. Use for selecting a known observatory
+   *  site (e.g. CTAO-N, CTAO-S) at import time. */
+  location_override?: GeographicLocation;
 }
 
 export interface CreateScheduleResponse {
