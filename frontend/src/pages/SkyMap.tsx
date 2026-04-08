@@ -22,16 +22,12 @@ import {
 } from '@/components';
 import type { SkyMapFilterState } from '@/components';
 import type { LightweightBlock } from '@/api/types';
+import { mjdToDate, dateToMjd } from '@/constants/dates';
 
 // ─── MJD conversion utilities ───────────────────────────────────────
 
-const MJD_EPOCH = 2400000.5;
-const UNIX_EPOCH_JD = 2440587.5;
-
 function mjdToUtc(mjd: number): string {
-  const jd = mjd + MJD_EPOCH;
-  const unixMs = (jd - UNIX_EPOCH_JD) * 86400000;
-  return new Date(unixMs).toISOString();
+  return mjdToDate(mjd).toISOString();
 }
 
 function utcToMjd(utcString: string): number {
@@ -40,9 +36,7 @@ function utcToMjd(utcString: string): number {
   const utc = /[Zz]$/.test(utcString) || /[+-]\d{2}:?\d{2}$/.test(utcString)
     ? utcString
     : utcString + 'Z';
-  const unixMs = new Date(utc).getTime();
-  const jd = unixMs / 86400000 + UNIX_EPOCH_JD;
-  return jd - MJD_EPOCH;
+  return dateToMjd(new Date(utc));
 }
 
 function toDatetimeLocal(utcIso: string): string {

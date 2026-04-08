@@ -19,8 +19,7 @@ export function loadSiderust(): Promise<SiderustModules> {
         import('@siderust/siderust-web'),
       ]);
 
-      await qtty.init();
-      await tempoch.init();
+      // siderust.init() also initializes qtty and tempoch internally
       await siderust.init();
 
       return { qtty, tempoch, siderust };

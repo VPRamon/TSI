@@ -14,15 +14,6 @@ use std::collections::HashSet;
 
 use crate::db::models::{BlockHistogramData, VisibilityBin};
 
-/// MJD epoch (1858-11-17 00:00:00 UTC) as Unix timestamp
-const MJD_EPOCH_UNIX: i64 = -3506716800;
-
-/// Convert Modified Julian Date to Unix timestamp (seconds since 1970-01-01)
-#[inline]
-fn mjd_to_unix(mjd: f64) -> i64 {
-    MJD_EPOCH_UNIX + (mjd * 86400.0) as i64
-}
-
 /// A parsed visibility period with Unix timestamps for efficient comparison
 #[derive(Debug, Clone, Copy)]
 struct VisibilityPeriod {
@@ -103,12 +94,10 @@ pub fn compute_visibility_histogram_rust(
         if let Some(periods) = &block.visibility_periods {
             // Convert Period to VisibilityPeriod with Unix timestamps
             for period in periods {
-                let start_unix = mjd_to_unix(period.start.value());
-                let end_unix = mjd_to_unix(period.stop.value());
                 all_periods.push(VisibilityPeriod {
                     block_id: block.scheduling_block_id,
-                    start_unix,
-                    end_unix,
+                    start_unix: period.start.to_unix_i64(),
+                    end_unix: period.stop.to_unix_i64(),
                 });
             }
         }
@@ -131,39 +120,21 @@ pub fn compute_visibility_histogram_rust(
     Ok(bins)
 }
 
-/// Parse visibility periods JSON array into VisibilityPeriod structs.
-///
-/// Expected JSON format: [{"start": mjd_float, "stop": mjd_float}, ...]
-///
-/// ## Arguments
-/// * `json_str` - JSON string to parse
-/// * `block_id` - Scheduling block ID for tracking
-///
-/// ## Returns
-/// Vector of parsed periods with Unix timestamps
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // Helper to convert Unix timestamp to MJD for round-trip tests
-    #[inline]
-    fn unix_to_mjd(unix: i64) -> f64 {
-        ((unix - MJD_EPOCH_UNIX) as f64) / 86400.0
-    }
+    use crate::models::ModifiedJulianDate;
 
     #[test]
     fn test_mjd_unix_conversion() {
-        // MJD 0 = 1858-11-17 00:00:00 UTC
-        assert_eq!(mjd_to_unix(0.0), MJD_EPOCH_UNIX);
-
         // MJD 40587 = 1970-01-01 00:00:00 UTC (Unix epoch)
-        assert_eq!(mjd_to_unix(40587.0), 0);
+        assert_eq!(ModifiedJulianDate::new(40587.0).to_unix_i64(), 0);
 
         // Round trip
         let mjd = 59000.5;
-        let unix = mjd_to_unix(mjd);
-        let back = unix_to_mjd(unix);
-        assert!((back - mjd).abs() < 0.0001);
+        let unix = ModifiedJulianDate::new(mjd).to_unix_i64();
+        let back = ModifiedJulianDate::from_unix_timestamp(unix as f64);
+        assert!((back.value() - mjd).abs() < 0.0001);
     }
 
     #[test]

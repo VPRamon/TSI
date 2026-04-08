@@ -21,6 +21,11 @@ impl ModifiedJulianDate {
         (self.value() - 40587.0) * 86400.0
     }
 
+    /// Convert to Unix timestamp as i64 (truncated to whole seconds).
+    pub fn to_unix_i64(&self) -> i64 {
+        self.to_unix_timestamp() as i64
+    }
+
     /// Create from Unix timestamp (seconds since 1970-01-01 00:00:00 UTC).
     pub fn from_unix_timestamp(timestamp: f64) -> Self {
         Self::new(timestamp / 86400.0 + 40587.0)

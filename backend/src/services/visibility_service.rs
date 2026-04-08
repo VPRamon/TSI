@@ -13,10 +13,12 @@ use siderust::calculus::azimuth::{AzimuthProvider, AzimuthQuery};
 use siderust::coordinates::centers::Geodetic;
 use siderust::coordinates::frames::ECEF;
 use siderust::coordinates::spherical::direction;
-use siderust::time::{Interval, ModifiedJulianDate};
+use siderust::time::{intersect_periods, Interval, ModifiedJulianDate};
 
 use crate::api::{Constraints, GeographicLocation, Period};
 use crate::models::ModifiedJulianDate as AppMJD;
+
+type MjdInterval = Interval<ModifiedJulianDate>;
 
 /// Input parameters for a single block's visibility computation.
 pub struct VisibilityInput<'a> {
@@ -71,14 +73,13 @@ pub fn compute_block_visibility(input: &VisibilityInput<'_>) -> Vec<Period> {
 
     // Compute altitude-valid periods for this RA/Dec direction.
     let icrs = direction::ICRS::new(input.target_ra, input.target_dec);
-    let raw_periods = icrs.altitude_periods(&query);
+    let altitude_intervals = icrs.altitude_periods(&query);
 
     let min_days = input.min_duration.value() / 86_400.0;
-    let altitude_periods = intervals_to_periods(raw_periods);
 
-    let position_periods =
+    let position_intervals =
         if is_full_azimuth_range(input.constraints.min_az, input.constraints.max_az) {
-            altitude_periods
+            altitude_intervals
         } else {
             let azimuth_query = AzimuthQuery {
                 observer: site,
@@ -86,52 +87,40 @@ pub fn compute_block_visibility(input: &VisibilityInput<'_>) -> Vec<Period> {
                 min_azimuth: input.constraints.min_az,
                 max_azimuth: input.constraints.max_az,
             };
-            let azimuth_periods = intervals_to_periods(icrs.azimuth_periods(&azimuth_query));
-            intersect_periods(&altitude_periods, &azimuth_periods)
+            let azimuth_intervals = icrs.azimuth_periods(&azimuth_query);
+            intersect_periods(&altitude_intervals, &azimuth_intervals)
         };
 
-    let constrained_periods = match input.astronomical_nights {
-        Some(nights) => intersect_periods(&position_periods, nights),
-        None => position_periods,
+    let constrained_intervals = match input.astronomical_nights {
+        Some(nights) => {
+            let night_intervals = periods_to_intervals(nights);
+            intersect_periods(&position_intervals, &night_intervals)
+        }
+        None => position_intervals,
     };
 
-    constrained_periods
+    constrained_intervals
         .into_iter()
-        .filter(|p| (p.stop.value() - p.start.value()) >= min_days)
+        .filter(|iv| (iv.end.value() - iv.start.value()) >= min_days)
+        .map(|iv| Period {
+            start: AppMJD::new(iv.start.value()),
+            stop: AppMJD::new(iv.end.value()),
+        })
         .collect()
 }
 
-fn intervals_to_periods(periods: Vec<Interval<ModifiedJulianDate>>) -> Vec<Period> {
+fn periods_to_intervals(periods: &[Period]) -> Vec<MjdInterval> {
     periods
-        .into_iter()
-        .map(|p| Period {
-            start: AppMJD::new(p.start.value()),
-            stop: AppMJD::new(p.end.value()),
-        })
+        .iter()
+        .map(|p| MjdInterval::new(
+            ModifiedJulianDate::new(p.start.value()),
+            ModifiedJulianDate::new(p.stop.value()),
+        ))
         .collect()
 }
 
 fn is_full_azimuth_range(min_az: Degrees, max_az: Degrees) -> bool {
     max_az.value() >= min_az.value() && (max_az.value() - min_az.value()) >= 360.0
-}
-
-fn intersect_periods(periods: &[Period], windows: &[Period]) -> Vec<Period> {
-    let mut intersections = Vec::new();
-
-    for period in periods {
-        for window in windows {
-            let start = period.start.value().max(window.start.value());
-            let stop = period.stop.value().min(window.stop.value());
-            if start < stop {
-                intersections.push(Period {
-                    start: AppMJD::new(start),
-                    stop: AppMJD::new(stop),
-                });
-            }
-        }
-    }
-
-    intersections
 }
 
 #[cfg(test)]

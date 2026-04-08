@@ -16,8 +16,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@siderust/siderust-web": ["node_modules/siderust-js/siderust-web"],
-      "@siderust/tempoch-web": ["node_modules/tempoch-js/tempoch-web"],
-      "@siderust/qtty-web": ["node_modules/qtty-js/qtty-web"]
+      "@siderust/tempoch-web": ["node_modules/siderust-js/tempoch-js/tempoch-web"],
+      "@siderust/qtty-web": ["node_modules/siderust-js/qtty-js/qtty-web"]
     },
     "types": ["vite/client", "vitest/globals"]
   },

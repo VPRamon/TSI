@@ -9,8 +9,8 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@siderust/siderust-web': path.resolve(__dirname, './node_modules/siderust-js/siderust-web'),
-      '@siderust/tempoch-web': path.resolve(__dirname, './node_modules/tempoch-js/tempoch-web'),
-      '@siderust/qtty-web': path.resolve(__dirname, './node_modules/qtty-js/qtty-web'),
+      '@siderust/tempoch-web': path.resolve(__dirname, './node_modules/siderust-js/tempoch-js/tempoch-web'),
+      '@siderust/qtty-web': path.resolve(__dirname, './node_modules/siderust-js/qtty-js/qtty-web'),
     },
   },
   server: {

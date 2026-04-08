@@ -8,7 +8,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { useSkyMap, usePlotlyTheme } from '@/hooks';
 import { useSiderust } from '@/hooks/useSiderust';
-import { loadSiderust } from '@/lib/siderust';
+import { loadSiderust, type SiderustModules } from '@/lib/siderust';
 import {
   LoadingSpinner,
   ErrorMessage,
@@ -27,13 +27,15 @@ interface ObservatoryPreset {
   lon: number;
   lat: number;
   height: number;
+  /** Build an Observer using the canonical siderust factory. */
+  factory: (siderust: SiderustModules['siderust']) => InstanceType<SiderustModules['siderust']['Observer']>;
 }
 
 const OBSERVATORIES: ObservatoryPreset[] = [
-  { label: 'Roque de los Muchachos (ORM)', lon: -17.879, lat: 28.764, height: 2396 },
-  { label: 'Paranal (VLT)', lon: -70.404, lat: -24.627, height: 2635 },
-  { label: 'Mauna Kea', lon: -155.468, lat: 19.826, height: 4205 },
-  { label: 'La Silla', lon: -70.730, lat: -29.257, height: 2347 },
+  { label: 'Roque de los Muchachos (ORM)', lon: -17.879, lat: 28.764, height: 2396, factory: (s) => s.Observer.roqueDeLasMuchachos() },
+  { label: 'Paranal (VLT)', lon: -70.404, lat: -24.627, height: 2635, factory: (s) => s.Observer.elParanal() },
+  { label: 'Mauna Kea', lon: -155.468, lat: 19.826, height: 4205, factory: (s) => s.Observer.maunaKea() },
+  { label: 'La Silla', lon: -70.730, lat: -29.257, height: 2347, factory: (s) => s.Observer.laSilla() },
 ];
 
 // ─── Computation helpers ─────────────────────────────────────────────
@@ -69,14 +71,17 @@ async function computeAltAzCurves(
   obsHeight: number,
   startDate: Date,
   endDate: Date,
+  presetFactory?: ObservatoryPreset['factory'],
 ): Promise<AltitudeCurve[]> {
   const { siderust, tempoch, qtty } = await loadSiderust();
 
-  const observer = new siderust.Observer(
-    new qtty.Quantity(obsLon, 'Degree'),
-    new qtty.Quantity(obsLat, 'Degree'),
-    new qtty.Quantity(obsHeight, 'Meter'),
-  );
+  const observer = presetFactory
+    ? presetFactory(siderust)
+    : new siderust.Observer(
+        new qtty.Quantity(obsLon, 'Degree'),
+        new qtty.Quantity(obsLat, 'Degree'),
+        new qtty.Quantity(obsHeight, 'Meter'),
+      );
 
   const windowDurationMs = endDate.getTime() - startDate.getTime();
   const windowDurationMinutes = windowDurationMs / 60000;
@@ -214,14 +219,15 @@ function AltAz() {
     const id = ++computeIdRef.current;
     setComputing(true);
     const targets = skyData.blocks.filter((b) => selectedIds.has(b.original_block_id));
+    const factory = !useCustom ? OBSERVATORIES[presetIndex].factory : undefined;
     computeAltAzCurves(
-      targets, observatory.lon, observatory.lat, observatory.height, startDate, endDate,
+      targets, observatory.lon, observatory.lat, observatory.height, startDate, endDate, factory,
     ).then((result) => {
       if (id === computeIdRef.current) setCurves(result);
     }).finally(() => {
       if (id === computeIdRef.current) setComputing(false);
     });
-  }, [skyData, selectedIds, wasmStatus, observatory, startDate, endDate, hasValidWindow]);
+  }, [skyData, selectedIds, wasmStatus, observatory, startDate, endDate, hasValidWindow, useCustom, presetIndex]);
 
   // Chart theme
   const { layout: altLayout, config } = usePlotlyTheme({
