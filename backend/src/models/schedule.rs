@@ -121,6 +121,7 @@ pub fn parse_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule
                         target_dec: block.target_dec,
                         constraints: &block.constraints,
                         min_duration: block.min_observation,
+                        astronomical_nights: Some(&schedule.astronomical_nights),
                     });
                 }
             }
@@ -135,6 +136,7 @@ pub fn parse_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule
                     target_dec: block.target_dec,
                     constraints: &block.constraints,
                     min_duration: block.min_observation,
+                    astronomical_nights: Some(&schedule.astronomical_nights),
                 });
             }
         }
@@ -166,6 +168,9 @@ fn infer_schedule_period(
             consider_period(period);
         }
         if let Some(period) = &block.scheduled_period {
+            consider_period(period);
+        }
+        if let Some(period) = &block.constraints.fixed_time {
             consider_period(period);
         }
     }

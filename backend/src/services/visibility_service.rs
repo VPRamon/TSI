@@ -1,14 +1,15 @@
 // ! Backend visibility computation service.
 //!
 //! Computes per-block visibility periods from observer location, schedule period,
-//! target RA/Dec, altitude/azimuth constraints, optional fixed_time window, and
-//! minimum duration filter.
+//! target RA/Dec, altitude/azimuth constraints, optional fixed_time window,
+//! optional astronomical-night windows, and minimum duration filter.
 //!
 //! This is the fallback path used when `possible_periods` is absent from the
 //! incoming JSON payload.
 
 use qtty::{Degrees, Meters, Seconds};
 use siderust::calculus::altitude::{AltitudePeriodsProvider, AltitudeQuery};
+use siderust::calculus::azimuth::{AzimuthProvider, AzimuthQuery};
 use siderust::coordinates::centers::Geodetic;
 use siderust::coordinates::frames::ECEF;
 use siderust::coordinates::spherical::direction;
@@ -25,18 +26,15 @@ pub struct VisibilityInput<'a> {
     pub target_dec: Degrees,
     pub constraints: &'a Constraints,
     pub min_duration: Seconds,
+    pub astronomical_nights: Option<&'a [Period]>,
 }
 
 /// Compute visibility periods for a single block.
 ///
-/// Returns intervals within `schedule_period` (intersected with `fixed_time` if
-/// present) where the target satisfies the altitude constraints and the duration
-/// is at least `min_duration`.
+/// Returns intervals within `schedule_period` (intersected with `fixed_time` and
+/// `astronomical_nights` if present) where the target satisfies the altitude
+/// constraints and the duration is at least `min_duration`.
 ///
-/// Azimuth constraints other than the full circle (0–360°) are currently not
-/// filtered at the sub-period level; only altitude is enforced by siderust.
-/// When `max_az - min_az < 360`, the returned periods are a superset (altitude
-/// only); callers that need strict azimuth filtering should post-process.
 pub fn compute_block_visibility(input: &VisibilityInput<'_>) -> Vec<Period> {
     let site = Geodetic::<ECEF>::new(
         Degrees::new(input.location.longitude),
@@ -75,16 +73,65 @@ pub fn compute_block_visibility(input: &VisibilityInput<'_>) -> Vec<Period> {
     let icrs = direction::ICRS::new(input.target_ra, input.target_dec);
     let raw_periods = icrs.altitude_periods(&query);
 
-    // Convert siderust Period<MJD> → api::Period, applying duration filter.
     let min_days = input.min_duration.value() / 86_400.0;
-    raw_periods
+    let altitude_periods = intervals_to_periods(raw_periods);
+
+    let position_periods =
+        if is_full_azimuth_range(input.constraints.min_az, input.constraints.max_az) {
+            altitude_periods
+        } else {
+            let azimuth_query = AzimuthQuery {
+                observer: site,
+                window,
+                min_azimuth: input.constraints.min_az,
+                max_azimuth: input.constraints.max_az,
+            };
+            let azimuth_periods = intervals_to_periods(icrs.azimuth_periods(&azimuth_query));
+            intersect_periods(&altitude_periods, &azimuth_periods)
+        };
+
+    let constrained_periods = match input.astronomical_nights {
+        Some(nights) => intersect_periods(&position_periods, nights),
+        None => position_periods,
+    };
+
+    constrained_periods
         .into_iter()
-        .filter(|p| (p.end.value() - p.start.value()) >= min_days)
+        .filter(|p| (p.stop.value() - p.start.value()) >= min_days)
+        .collect()
+}
+
+fn intervals_to_periods(periods: Vec<Interval<ModifiedJulianDate>>) -> Vec<Period> {
+    periods
+        .into_iter()
         .map(|p| Period {
             start: AppMJD::new(p.start.value()),
             stop: AppMJD::new(p.end.value()),
         })
         .collect()
+}
+
+fn is_full_azimuth_range(min_az: Degrees, max_az: Degrees) -> bool {
+    max_az.value() >= min_az.value() && (max_az.value() - min_az.value()) >= 360.0
+}
+
+fn intersect_periods(periods: &[Period], windows: &[Period]) -> Vec<Period> {
+    let mut intersections = Vec::new();
+
+    for period in periods {
+        for window in windows {
+            let start = period.start.value().max(window.start.value());
+            let stop = period.stop.value().min(window.stop.value());
+            if start < stop {
+                intersections.push(Period {
+                    start: AppMJD::new(start),
+                    stop: AppMJD::new(stop),
+                });
+            }
+        }
+    }
+
+    intersections
 }
 
 #[cfg(test)]
@@ -127,6 +174,7 @@ mod tests {
             target_dec: Degrees::new(-52.696),
             constraints: &full_sky_constraints(),
             min_duration: Seconds::new(0.0),
+            astronomical_nights: None,
         };
 
         let periods = compute_block_visibility(&input);
@@ -158,6 +206,7 @@ mod tests {
             target_dec: Degrees::new(-52.696),
             constraints: &full_sky_constraints(),
             min_duration: Seconds::new(0.0),
+            astronomical_nights: None,
         };
         let input_tight = VisibilityInput {
             location: &roque_location(),
@@ -166,6 +215,7 @@ mod tests {
             target_dec: Degrees::new(-52.696),
             constraints: &tight,
             min_duration: Seconds::new(0.0),
+            astronomical_nights: None,
         };
 
         let loose_total: f64 = compute_block_visibility(&input_loose)
@@ -180,6 +230,57 @@ mod tests {
         assert!(
             tight_total <= loose_total,
             "Tight altitude constraint should give ≤ total time vs loose"
+        );
+    }
+
+    #[test]
+    fn test_azimuth_constraint_reduces_periods() {
+        let full_az = Constraints {
+            min_alt: Degrees::new(-90.0),
+            max_alt: Degrees::new(90.0),
+            min_az: Degrees::new(0.0),
+            max_az: Degrees::new(360.0),
+            fixed_time: None,
+        };
+        let half_az = Constraints {
+            min_alt: Degrees::new(-90.0),
+            max_alt: Degrees::new(90.0),
+            min_az: Degrees::new(270.0),
+            max_az: Degrees::new(90.0),
+            fixed_time: None,
+        };
+
+        let full = VisibilityInput {
+            location: &roque_location(),
+            schedule_period: &one_week_period(),
+            target_ra: Degrees::new(95.988),
+            target_dec: Degrees::new(-52.696),
+            constraints: &full_az,
+            min_duration: Seconds::new(0.0),
+            astronomical_nights: None,
+        };
+        let constrained = VisibilityInput {
+            location: &roque_location(),
+            schedule_period: &one_week_period(),
+            target_ra: Degrees::new(95.988),
+            target_dec: Degrees::new(-52.696),
+            constraints: &half_az,
+            min_duration: Seconds::new(0.0),
+            astronomical_nights: None,
+        };
+
+        let full_total: f64 = compute_block_visibility(&full)
+            .iter()
+            .map(|p| p.stop.value() - p.start.value())
+            .sum();
+        let constrained_total: f64 = compute_block_visibility(&constrained)
+            .iter()
+            .map(|p| p.stop.value() - p.start.value())
+            .sum();
+
+        assert!(
+            constrained_total < full_total,
+            "Azimuth-constrained total should be less than full azimuth"
         );
     }
 
@@ -204,6 +305,7 @@ mod tests {
             target_dec: Degrees::new(-52.696),
             constraints: &full_sky_constraints(),
             min_duration: Seconds::new(0.0),
+            astronomical_nights: None,
         };
         let clipped = VisibilityInput {
             location: &roque_location(),
@@ -212,6 +314,7 @@ mod tests {
             target_dec: Degrees::new(-52.696),
             constraints: &fixed,
             min_duration: Seconds::new(0.0),
+            astronomical_nights: None,
         };
 
         let full_periods = compute_block_visibility(&full);
@@ -257,6 +360,7 @@ mod tests {
             target_dec: Degrees::new(-52.696),
             constraints: &outside,
             min_duration: Seconds::new(0.0),
+            astronomical_nights: None,
         };
 
         let periods = compute_block_visibility(&input);
@@ -276,6 +380,7 @@ mod tests {
             target_dec: Degrees::new(-52.696),
             constraints: &full_sky_constraints(),
             min_duration: Seconds::new(0.0),
+            astronomical_nights: None,
         };
         let input_filtered = VisibilityInput {
             location: &roque_location(),
@@ -284,6 +389,7 @@ mod tests {
             target_dec: Degrees::new(-52.696),
             constraints: &full_sky_constraints(),
             min_duration: Seconds::new(3600.0),
+            astronomical_nights: None,
         };
 
         let unfiltered = compute_block_visibility(&input_no_filter);
@@ -322,6 +428,7 @@ mod tests {
             target_dec: Degrees::new(-52.696),
             constraints: &constraints,
             min_duration: Seconds::new(600.0), // 10 minutes
+            astronomical_nights: None,
         };
 
         let periods = compute_block_visibility(&input);
@@ -337,5 +444,66 @@ mod tests {
         for p in &periods {
             assert!(p.stop.value() - p.start.value() >= min_days);
         }
+    }
+
+    #[test]
+    fn test_astronomical_night_clips_visibility() {
+        let constraints = Constraints {
+            min_alt: Degrees::new(-90.0),
+            max_alt: Degrees::new(90.0),
+            min_az: Degrees::new(0.0),
+            max_az: Degrees::new(360.0),
+            fixed_time: Some(Period {
+                start: ModifiedJulianDate::new(60694.2),
+                stop: ModifiedJulianDate::new(60694.8),
+            }),
+        };
+        let nights = vec![Period {
+            start: ModifiedJulianDate::new(60694.4),
+            stop: ModifiedJulianDate::new(60694.6),
+        }];
+
+        let input = VisibilityInput {
+            location: &roque_location(),
+            schedule_period: &one_week_period(),
+            target_ra: Degrees::new(95.988),
+            target_dec: Degrees::new(-52.696),
+            constraints: &constraints,
+            min_duration: Seconds::new(0.0),
+            astronomical_nights: Some(&nights),
+        };
+
+        let periods = compute_block_visibility(&input);
+
+        assert!(!periods.is_empty());
+        for p in &periods {
+            assert!(p.start.value() >= 60694.4);
+            assert!(p.stop.value() <= 60694.6);
+        }
+    }
+
+    #[test]
+    fn test_empty_astronomical_nights_returns_empty_visibility() {
+        let constraints = Constraints {
+            min_alt: Degrees::new(-90.0),
+            max_alt: Degrees::new(90.0),
+            min_az: Degrees::new(0.0),
+            max_az: Degrees::new(360.0),
+            fixed_time: None,
+        };
+        let nights = Vec::new();
+
+        let input = VisibilityInput {
+            location: &roque_location(),
+            schedule_period: &one_week_period(),
+            target_ra: Degrees::new(95.988),
+            target_dec: Degrees::new(-52.696),
+            constraints: &constraints,
+            min_duration: Seconds::new(0.0),
+            astronomical_nights: Some(&nights),
+        };
+
+        let periods = compute_block_visibility(&input);
+        assert!(periods.is_empty());
     }
 }

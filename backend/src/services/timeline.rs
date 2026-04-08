@@ -96,8 +96,16 @@ pub async fn get_schedule_timeline_data(
         .await
         .map_err(|e| format!("Failed to fetch timeline blocks: {}", e))?;
 
-    // LocalRepository does not persist dark periods; return empty list for now.
-    let dark_periods = vec![]; // TODO: Add dark periods support to LocalRepository
+    let schedule = repo
+        .get_schedule(schedule_id)
+        .await
+        .map_err(|e| format!("Failed to fetch schedule periods: {}", e))?;
+
+    let dark_periods = if schedule.dark_periods.is_empty() {
+        schedule.astronomical_nights
+    } else {
+        schedule.dark_periods
+    };
 
     compute_schedule_timeline_data(blocks, dark_periods)
 }
