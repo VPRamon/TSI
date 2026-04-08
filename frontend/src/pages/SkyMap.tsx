@@ -36,7 +36,11 @@ function mjdToUtc(mjd: number): string {
 
 function utcToMjd(utcString: string): number {
   if (!utcString) return 0;
-  const unixMs = new Date(utcString).getTime();
+  // datetime-local values lack a timezone suffix; treat them as UTC
+  const utc = /[Zz]$/.test(utcString) || /[+-]\d{2}:?\d{2}$/.test(utcString)
+    ? utcString
+    : utcString + 'Z';
+  const unixMs = new Date(utc).getTime();
   const jd = unixMs / 86400000 + UNIX_EPOCH_JD;
   return jd - MJD_EPOCH;
 }

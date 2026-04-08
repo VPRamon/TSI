@@ -142,6 +142,14 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
   } = useAnalysis();
   const [activeBlock, setActiveBlockLocal] = useState<VisibilityBlock | null>(null);
 
+  // Sync local priority filter → AnalysisContext so table and histogram agree
+  useEffect(() => {
+    setPriorityFilter({
+      min: filters.priorityMin,
+      max: filters.priorityMax,
+    });
+  }, [filters.priorityMin, filters.priorityMax, setPriorityFilter]);
+
   // Convert API blocks to table format with filtering
   const blocks = useMemo((): VisibilityBlock[] => {
     return mapData.blocks.map((b) => ({
@@ -540,10 +548,10 @@ function VisibilityMapPage() {
     const priorityMax = appliedFilters.priorityMax ?? analysisState.priorityFilter.max;
 
     if (priorityMin !== undefined) {
-      query.priority_min = Math.floor(priorityMin);
+      query.priority_min = priorityMin;
     }
     if (priorityMax !== undefined) {
-      query.priority_max = Math.ceil(priorityMax);
+      query.priority_max = priorityMax;
     }
 
     if (analysisState.scheduledFilter === 'scheduled') {

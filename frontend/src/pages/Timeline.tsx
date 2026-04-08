@@ -66,12 +66,21 @@ function Timeline() {
     const startDate = mjdToDate(block.scheduled_start_mjd);
     const stopDate = mjdToDate(block.scheduled_stop_mjd);
     const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+    const stopMonthKey = `${stopDate.getFullYear()}-${String(stopDate.getMonth() + 1).padStart(2, '0')}`;
     const monthIndex = monthMap.get(monthKey) ?? 0;
 
     // Calculate fractional day positions for start and stop
     const startDay =
       startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
-    const stopDay = stopDate.getDate() + stopDate.getHours() / 24 + stopDate.getMinutes() / 1440;
+
+    let stopDay: number;
+    if (monthKey === stopMonthKey) {
+      stopDay = stopDate.getDate() + stopDate.getHours() / 24 + stopDate.getMinutes() / 1440;
+    } else {
+      // Block crosses month boundary: clamp to end of start month
+      const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+      stopDay = daysInMonth + 1;
+    }
 
     return {
       type: 'rect' as const,
@@ -82,6 +91,7 @@ function Timeline() {
       y0: monthIndex - barHeight / 2,
       y1: monthIndex + barHeight / 2,
       fillcolor: `hsl(${(block.priority / 10) * 240}, 70%, 50%)`,
+      opacity: 0.7,
       line: { width: 0 },
       layer: 'above' as const,
     };
@@ -92,11 +102,20 @@ function Timeline() {
     const startDate = mjdToDate(block.scheduled_start_mjd);
     const stopDate = mjdToDate(block.scheduled_stop_mjd);
     const monthKey = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}`;
+    const stopMonthKey = `${stopDate.getFullYear()}-${String(stopDate.getMonth() + 1).padStart(2, '0')}`;
     const monthIndex = monthMap.get(monthKey) ?? 0;
 
     const startDay =
       startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
-    const stopDay = stopDate.getDate() + stopDate.getHours() / 24 + stopDate.getMinutes() / 1440;
+
+    let stopDay: number;
+    if (monthKey === stopMonthKey) {
+      stopDay = stopDate.getDate() + stopDate.getHours() / 24 + stopDate.getMinutes() / 1440;
+    } else {
+      const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+      stopDay = daysInMonth + 1;
+    }
+
     const centerDay = (startDay + stopDay) / 2;
 
     return {

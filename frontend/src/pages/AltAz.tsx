@@ -148,9 +148,13 @@ function AltAz() {
   const [customLat, setCustomLat] = useState(28.764);
   const [customHeight, setCustomHeight] = useState(2396);
 
-  const observatory = useCustom
-    ? { lon: customLon, lat: customLat, height: customHeight }
-    : OBSERVATORIES[presetIndex];
+  const observatory = useMemo(
+    () =>
+      useCustom
+        ? { lon: customLon, lat: customLat, height: customHeight }
+        : OBSERVATORIES[presetIndex],
+    [useCustom, customLon, customLat, customHeight, presetIndex],
+  );
 
   const [startTimeStr, setStartTimeStr] = useState(() => {
     const start = new Date();

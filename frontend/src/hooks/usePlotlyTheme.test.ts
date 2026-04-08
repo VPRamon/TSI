@@ -88,7 +88,7 @@ describe('usePlotlyTheme', () => {
     const { result } = renderHook(() => usePlotlyTheme());
 
     expect(result.current.config.responsive).toBe(true);
-    expect(result.current.config.displayModeBar).toBe(true);
+    expect(result.current.config.displayModeBar).toBe('hover');
   });
 
   it('returns minimal config when preset is minimal', () => {
