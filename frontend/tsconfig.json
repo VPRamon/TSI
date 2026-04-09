@@ -15,6 +15,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
+      "@root/*": ["../../*"],
       "@siderust/siderust-web": ["node_modules/siderust-js/siderust-web"],
       "@siderust/tempoch-web": ["node_modules/siderust-js/tempoch-js/tempoch-web"],
       "@siderust/qtty-web": ["node_modules/siderust-js/qtty-js/qtty-web"]

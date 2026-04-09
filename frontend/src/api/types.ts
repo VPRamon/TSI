@@ -30,7 +30,7 @@ export interface CreateScheduleRequest {
   populate_analytics?: boolean;
   /** Optional geographic location override. When set, replaces any location
    *  embedded in the schedule JSON. Use for selecting a known observatory
-   *  site (e.g. CTAO-N, CTAO-S) at import time. */
+   *  site (e.g. OBS-N, OBS-S) at import time. */
   location_override?: GeographicLocation;
 }
 

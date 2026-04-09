@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@root': path.resolve(__dirname, '../..'),
       '@siderust/siderust-web': path.resolve(__dirname, './node_modules/siderust-js/siderust-web'),
       '@siderust/tempoch-web': path.resolve(__dirname, './node_modules/siderust-js/tempoch-js/tempoch-web'),
       '@siderust/qtty-web': path.resolve(__dirname, './node_modules/siderust-js/qtty-js/qtty-web'),

@@ -3,8 +3,9 @@
  * render an interactive all-sky Aitoff projection with the real Milky Way,
  * equatorial grid, and our observation targets colored by priority bin.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import type { LightweightBlock, PriorityBinInfo } from '@/api/types';
+import { mjdToDate } from '@/constants/dates';
 
 // ── Minimal type declaration for window.Celestial ─────────────────────────────
 declare global {
@@ -47,6 +48,35 @@ export interface CelestialSkyMapProps {
   showCoordinateGuide?: boolean;
 }
 
+// ── Tooltip helpers ────────────────────────────────────────────────────────────
+
+interface DrawnPoint {
+  cx: number;
+  cy: number;
+  block: LightweightBlock;
+}
+
+interface TooltipState {
+  block: LightweightBlock;
+  x: number;
+  y: number;
+}
+
+/** Pixel distance (in canvas space) within which hovering snaps to a target. */
+const HOVER_RADIUS = 12;
+
+function formatMjd(mjd: number): string {
+  return mjdToDate(mjd).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+}
+
+function formatDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
 /**
  * Renders an interactive d3-celestial sky map.
  * The map is initialized once on mount; subsequent block/bin changes
@@ -61,6 +91,8 @@ function CelestialSkyMap({
   const blocksRef = useRef(blocks);
   const binsRef = useRef(bins);
   const initializedRef = useRef(false);
+  const drawnPointsRef = useRef<DrawnPoint[]>([]);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
   // Keep refs current on every render so redrawF always uses latest data.
   blocksRef.current = blocks;
@@ -90,6 +122,8 @@ function CelestialSkyMap({
       const currentBlocks = blocksRef.current;
       const currentBins = binsRef.current;
 
+      drawnPointsRef.current = [];
+
       for (const block of currentBlocks) {
         // d3-celestial uses geographic [-180,180] longitude convention.
         const lon = block.target_ra_deg > 180
@@ -100,6 +134,7 @@ function CelestialSkyMap({
         if (!Celestial.clip(coords)) continue;
 
         const [cx, cy] = Celestial.mapProjection(coords);
+        drawnPointsRef.current.push({ cx, cy, block });
         const bin = currentBins.find(
           (b) => block.priority >= b.min_priority && block.priority <= b.max_priority,
         );
@@ -205,12 +240,113 @@ function CelestialSkyMap({
     window.Celestial?.redraw();
   }, [blocks, bins]);
 
+  // ── Hover detection ─────────────────────────────────────────────────────
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const canvas = document.querySelector<HTMLCanvasElement>(`#${containerId} canvas`);
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const mouseX = (e.clientX - rect.left) * scaleX;
+    const mouseY = (e.clientY - rect.top) * scaleY;
+
+    let closest: DrawnPoint | null = null;
+    let minDist = HOVER_RADIUS * scaleX;
+
+    for (const pt of drawnPointsRef.current) {
+      const dist = Math.hypot(mouseX - pt.cx, mouseY - pt.cy);
+      if (dist < minDist) {
+        minDist = dist;
+        closest = pt;
+      }
+    }
+
+    if (closest) {
+      const wrapperRect = e.currentTarget.getBoundingClientRect();
+      setTooltip({
+        block: closest.block,
+        x: e.clientX - wrapperRect.left,
+        y: e.clientY - wrapperRect.top,
+      });
+    } else {
+      setTooltip(null);
+    }
+  }, [containerId]);
+
+  const handleMouseLeave = useCallback(() => {
+    setTooltip(null);
+  }, []);
+
+  // Flip tooltip to the left when it's in the right half of the container
+  const tooltipFlip = tooltip && tooltip.x > 400;
+
   return (
     <div
-      id={containerId}
-      className="w-full"
-      style={{ minHeight: '500px' }}
-    />
+      className="relative w-full"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div
+        id={containerId}
+        className="w-full"
+        style={{ minHeight: '500px' }}
+      />
+      {tooltip && (
+        <div
+          className="pointer-events-none absolute z-10 max-w-xs rounded-lg border border-slate-600 bg-slate-900/95 p-3 text-xs shadow-xl backdrop-blur-sm"
+          style={{
+            left: tooltipFlip ? undefined : tooltip.x + 12,
+            right: tooltipFlip ? `calc(100% - ${tooltip.x}px + 12px)` : undefined,
+            top: tooltip.y + 12,
+          }}
+        >
+          <p className="mb-1.5 truncate font-semibold text-slate-100">
+            {tooltip.block.original_block_id}
+          </p>
+          <div className="space-y-1 text-slate-300">
+            <div className="flex justify-between gap-4">
+              <span className="text-slate-400">Priority</span>
+              <span>
+                {tooltip.block.priority.toFixed(2)}
+                <span className="ml-1 text-slate-500">({tooltip.block.priority_bin})</span>
+              </span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-slate-400">Duration</span>
+              <span>{formatDuration(tooltip.block.requested_duration_seconds)}</span>
+            </div>
+            <div className="flex justify-between gap-4">
+              <span className="text-slate-400">RA / Dec</span>
+              <span>
+                {tooltip.block.target_ra_deg.toFixed(2)}° / {tooltip.block.target_dec_deg.toFixed(2)}°
+              </span>
+            </div>
+            {tooltip.block.scheduled_period ? (
+              <>
+                <div className="mt-1.5 flex items-center gap-1.5 border-t border-slate-700 pt-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="font-medium text-emerald-400">Scheduled</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-400">Start</span>
+                  <span>{formatMjd(tooltip.block.scheduled_period.start)}</span>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <span className="text-slate-400">End</span>
+                  <span>{formatMjd(tooltip.block.scheduled_period.stop)}</span>
+                </div>
+              </>
+            ) : (
+              <div className="mt-1.5 flex items-center gap-1.5 border-t border-slate-700 pt-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-slate-500" />
+                <span className="text-slate-500">Unscheduled</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

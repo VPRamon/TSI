@@ -103,7 +103,7 @@ pub async fn create_schedule(
 ) -> Result<(axum::http::StatusCode, Json<CreateScheduleResponse>), AppError> {
     // Apply geographic location override when provided. This replaces any
     // `geographic_location` embedded in the schedule JSON, allowing callers
-    // to select a well-known site (e.g. CTAO-N, CTAO-S) at load time.
+    // to select a well-known site (e.g. OBS-N, OBS-S) at load time.
     if let Some(ref loc) = request.location_override {
         let loc_value = serde_json::json!({
             "latitude": loc.latitude,
