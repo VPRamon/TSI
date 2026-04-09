@@ -7,6 +7,9 @@ use tsi_rust::db::services::{
     get_blocks_for_schedule, get_schedule, get_schedule_time_range, health_check, list_schedules,
     store_schedule, store_schedule_with_options,
 };
+use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
 
 fn create_minimal_schedule(name: &str) -> Schedule {
     Schedule {
@@ -14,11 +17,11 @@ fn create_minimal_schedule(name: &str) -> Schedule {
         name: name.to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: format!("test_checksum_{}", name),
         schedule_period: default_schedule_period(),
@@ -62,11 +65,11 @@ fn create_schedule_with_blocks(name: &str, block_count: usize) -> Schedule {
         name: name.to_string(),
         blocks,
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: format!("checksum_{}", name),
         schedule_period: default_schedule_period(),

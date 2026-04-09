@@ -105,11 +105,8 @@ pub async fn create_schedule(
     // `geographic_location` embedded in the schedule JSON, allowing callers
     // to select a well-known site (e.g. OBS-N, OBS-S) at load time.
     if let Some(ref loc) = request.location_override {
-        let loc_value = serde_json::json!({
-            "latitude": loc.latitude,
-            "longitude": loc.longitude,
-            "elevation_m": loc.elevation_m,
-        });
+        let loc_value = serde_json::to_value(loc)
+            .map_err(|e| AppError::BadRequest(format!("Invalid location: {}", e)))?;
         if let Some(obj) = request.schedule_json.as_object_mut() {
             obj.insert("geographic_location".to_string(), loc_value);
         }

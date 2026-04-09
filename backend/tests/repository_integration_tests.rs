@@ -5,6 +5,9 @@ use tsi_rust::api::{GeographicLocation, ModifiedJulianDate, Period, Schedule, Sc
 use tsi_rust::db::{
     AnalyticsRepository, LocalRepository, RepositoryError, ScheduleRepository, ValidationRepository,
 };
+use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
 
 fn default_schedule_period() -> Period {
     Period {
@@ -30,11 +33,11 @@ async fn test_store_and_retrieve_schedule() {
         name: "Integration Test Schedule".to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "integration_test_123".to_string(),
         schedule_period: default_schedule_period(),
@@ -66,11 +69,11 @@ async fn test_list_schedules() {
             name: format!("Schedule {}", i),
             blocks: vec![],
             dark_periods: vec![],
-            geographic_location: GeographicLocation {
-                latitude: 28.7624,
-                longitude: -17.8892,
-                elevation_m: Some(2396.0),
-            },
+            geographic_location: Geodetic::<ECEF>::new(
+                Degrees::new(-17.8892),
+                Degrees::new(28.7624),
+                Meters::new(2396.0),
+            ),
             astronomical_nights: vec![],
             checksum: format!("checksum_{}", i),
             schedule_period: default_schedule_period(),
@@ -105,11 +108,11 @@ async fn test_analytics_lifecycle() {
         name: "Analytics Test".to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "analytics_test".to_string(),
         schedule_period: default_schedule_period(),
@@ -141,11 +144,11 @@ async fn test_validation_lifecycle() {
         name: "Validation Test".to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "validation_test".to_string(),
         schedule_period: default_schedule_period(),
@@ -168,6 +171,9 @@ async fn test_validation_lifecycle() {
 #[tokio::test]
 async fn test_concurrent_access() {
     use tokio::task::JoinSet;
+use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
 
     let repo = Arc::new(LocalRepository::new());
     let mut set = JoinSet::new();
@@ -181,11 +187,11 @@ async fn test_concurrent_access() {
                 name: format!("Concurrent Schedule {}", i),
                 blocks: vec![],
                 dark_periods: vec![],
-                geographic_location: GeographicLocation {
-                    latitude: 28.7624,
-                    longitude: -17.8892,
-                    elevation_m: Some(2396.0),
-                },
+                geographic_location: Geodetic::<ECEF>::new(
+                    Degrees::new(-17.8892),
+                    Degrees::new(28.7624),
+                    Meters::new(2396.0),
+                ),
                 astronomical_nights: vec![],
                 checksum: format!("concurrent_{}", i),
                 schedule_period: default_schedule_period(),
@@ -223,11 +229,11 @@ async fn test_helper_methods() {
         name: "Helper Test".to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "helper".to_string(),
         schedule_period: default_schedule_period(),
@@ -256,11 +262,11 @@ async fn test_connection_unhealthy() {
         name: "Should Fail".to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "fail".to_string(),
         schedule_period: default_schedule_period(),

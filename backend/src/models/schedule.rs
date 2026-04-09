@@ -241,9 +241,9 @@ mod tests {
     fn test_parse_minimal_schedule() {
         let schedule_json = r#"{
             "geographic_location": {
-                "latitude": 28.7624,
-                "longitude": -17.8892,
-                "elevation_m": 2396.0
+                "lat_deg": 28.7624,
+                "lon_deg": -17.8892,
+                "height": 2396.0
             },
             "blocks": [
                 {
@@ -281,9 +281,9 @@ mod tests {
     fn test_parse_with_scheduled_period() {
         let schedule_json = r#"{
             "geographic_location": {
-                "latitude": 28.7624,
-                "longitude": -17.8892,
-                "elevation_m": 2396.0
+                "lat_deg": 28.7624,
+                "lon_deg": -17.8892,
+                "height": 2396.0
             },
             "blocks": [
                 {
@@ -321,9 +321,9 @@ mod tests {
     fn test_parse_with_possible_periods() {
         let schedule_json = r#"{
             "geographic_location": {
-                "latitude": 28.7624,
-                "longitude": -17.8892,
-                "elevation_m": 2396.0
+                "lat_deg": 28.7624,
+                "lon_deg": -17.8892,
+                "height": 2396.0
             },
             "blocks": [
                 {
@@ -364,9 +364,9 @@ mod tests {
         // must be used verbatim — no backend computation should replace them.
         let schedule_json = r#"{
             "geographic_location": {
-                "latitude": 28.7624,
-                "longitude": -17.8892,
-                "elevation_m": 2396.0
+                "lat_deg": 28.7624,
+                "lon_deg": -17.8892,
+                "height": 2396.0
             },
             "schedule_period": { "start": 60694.0, "stop": 60701.0 },
             "blocks": [
@@ -407,9 +407,9 @@ mod tests {
         // A target visible from Roque over a week should produce non-empty periods.
         let schedule_json = r#"{
             "geographic_location": {
-                "latitude": 28.7624,
-                "longitude": -17.8892,
-                "elevation_m": 2396.0
+                "lat_deg": 28.7624,
+                "lon_deg": -17.8892,
+                "height": 2396.0
             },
             "schedule_period": { "start": 60694.0, "stop": 60701.0 },
             "blocks": [
@@ -441,9 +441,9 @@ mod tests {
         // possible_periods present but missing key for block_b → block_b gets computed.
         let schedule_json = r#"{
             "geographic_location": {
-                "latitude": 28.7624,
-                "longitude": -17.8892,
-                "elevation_m": 2396.0
+                "lat_deg": 28.7624,
+                "lon_deg": -17.8892,
+                "height": 2396.0
             },
             "schedule_period": { "start": 60694.0, "stop": 60701.0 },
             "blocks": [

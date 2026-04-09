@@ -17,6 +17,7 @@ dependencies = [
  "affn-derive",
  "nalgebra",
  "qtty 0.4.1",
+ "serde",
 ]
 
 [[package]]
@@ -1031,6 +1032,7 @@ dependencies = [
  "num-complex",
  "num-rational",
  "num-traits",
+ "serde",
  "simba",
  "typenum",
 ]
@@ -1072,6 +1074,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73f88a1307638156682bada9d7604135552957b7818057dcef22705b4d509495"
 dependencies = [
  "num-traits",
+ "serde",
 ]
 
 [[package]]
@@ -1513,6 +1516,7 @@ dependencies = [
  "paste",
  "qtty 0.4.1",
  "regex",
+ "serde",
  "tempoch",
  "walkdir",
  "wide 1.2.0",
@@ -1609,6 +1613,7 @@ checksum = "ea3f7d4b6138b4144837ed3d38042737f16ce3d909661f193fdaf3f40faf7422"
 dependencies = [
  "chrono",
  "qtty 0.4.1",
+ "serde",
 ]
 
 [[package]]

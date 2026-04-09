@@ -34,6 +34,8 @@ pub use crate::routes::visibility::VisibilityBlockSummary;
 pub use crate::routes::visibility::VisibilityMapData;
 
 use serde::{Deserialize, Serialize};
+use siderust::coordinates::centers::Geodetic;
+use siderust::coordinates::frames::ECEF;
 
 /// Schedule identifier (database primary key).
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -120,33 +122,10 @@ impl From<ScheduleId> for i64 {
 
 pub use crate::models::ModifiedJulianDate;
 
-/// Geographic location (latitude, longitude, elevation).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct GeographicLocation {
-    /// Latitude in decimal degrees (-90 to 90)
-    pub latitude: f64,
-    /// Longitude in decimal degrees (-180 to 180)
-    pub longitude: f64,
-    /// Elevation in meters above sea level (optional)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub elevation_m: Option<f64>,
-}
-
-impl GeographicLocation {
-    pub fn new(latitude: f64, longitude: f64, elevation_m: Option<f64>) -> Result<Self, String> {
-        if !(-90.0..=90.0).contains(&latitude) {
-            return Err("Latitude must be between -90 and 90 degrees".to_string());
-        }
-        if !(-180.0..=180.0).contains(&longitude) {
-            return Err("Longitude must be between -180 and 180 degrees".to_string());
-        }
-        Ok(Self {
-            latitude,
-            longitude,
-            elevation_m,
-        })
-    }
-}
+/// Geographic location — alias for siderust's geodetic ECEF coordinates.
+///
+/// Serializes as `{ "lon_deg": <degrees>, "lat_deg": <degrees>, "height": <meters> }`.
+pub type GeographicLocation = Geodetic<ECEF>;
 
 /// Time period in Modified Julian Date (MJD) format.
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1071,7 +1071,7 @@ async fn test_empty_schedule_handling() {
         "checksum": "empty_checksum",
         "dark_periods": [],
         "blocks": [],
-        "geographic_location": { "latitude": 0.0, "longitude": 0.0 }
+        "geographic_location": { "lat_deg": 0.0, "lon_deg": 0.0, "height": 0.0 }
     }"#;
 
     let schedule =
@@ -1172,9 +1172,9 @@ async fn test_payload_with_possible_periods_preserved() {
     let schedule_json = r#"{
         "name": "with_possible_periods",
         "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892,
-            "elevation_m": 2396.0
+            "lat_deg": 28.7624,
+            "lon_deg": -17.8892,
+            "height": 2396.0
         },
         "schedule_period": { "start": 60694.0, "stop": 60701.0 },
         "blocks": [
@@ -1230,9 +1230,9 @@ async fn test_payload_without_possible_periods_computes_fallback() {
     let schedule_json = r#"{
         "name": "without_possible_periods",
         "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892,
-            "elevation_m": 2396.0
+            "lat_deg": 28.7624,
+            "lon_deg": -17.8892,
+            "height": 2396.0
         },
         "schedule_period": { "start": 60694.0, "stop": 60701.0 },
         "blocks": [

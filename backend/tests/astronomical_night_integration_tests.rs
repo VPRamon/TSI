@@ -5,6 +5,9 @@ use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::services;
 use tsi_rust::models::parse_schedule_json_str;
 use tsi_rust::services::astronomical_night::compute_astronomical_nights;
+use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
 
 /// Test that geographic location can be parsed from JSON
 #[test]
@@ -12,9 +15,9 @@ fn test_parse_schedule_with_geographic_location() {
     let schedule_json = r#"{
         "name": "Test Schedule with Location",
         "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892,
-            "elevation_m": 2396.0
+            "lat_deg": 28.7624,
+            "lon_deg": -17.8892,
+            "height": 2396.0
         },
         "schedule_period": {
             "start": 60694.0,
@@ -33,9 +36,9 @@ fn test_parse_schedule_with_geographic_location() {
     let schedule = result.unwrap();
 
     let location = &schedule.geographic_location;
-    assert_eq!(location.latitude, 28.7624);
-    assert_eq!(location.longitude, -17.8892);
-    assert_eq!(location.elevation_m, Some(2396.0));
+    assert_eq!(location.lat, 28.7624);
+    assert_eq!(location.lon, -17.8892);
+    assert_eq!(location.height, 2396.0);
 }
 
 /// Test that astronomical nights are computed when location is provided
@@ -44,9 +47,9 @@ fn test_parse_schedule_computes_astronomical_nights() {
     let schedule_json = r#"{
         "name": "Roque de los Muchachos Schedule",
         "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892,
-            "elevation_m": 2396.0
+            "lat_deg": 28.7624,
+            "lon_deg": -17.8892,
+            "height": 2396.0
         },
         "schedule_period": {
             "start": 60694.0,
@@ -75,11 +78,11 @@ fn test_parse_schedule_computes_astronomical_nights() {
 /// Test astronomical night computation service directly
 #[test]
 fn test_compute_astronomical_nights_greenwich() {
-    let location = GeographicLocation {
-        latitude: 51.4769,
-        longitude: 0.0,
-        elevation_m: Some(0.0),
-    };
+    let location = Geodetic::<ECEF>::new(
+        Degrees::new(0.0),
+        Degrees::new(51.4769),
+        Meters::new(0.0),
+    );
 
     let period = Period {
         start: ModifiedJulianDate::new(60694.0),
@@ -109,11 +112,11 @@ fn test_compute_astronomical_nights_greenwich() {
 /// Test astronomical night computation at Roque de los Muchachos
 #[test]
 fn test_compute_astronomical_nights_roque_de_los_muchachos() {
-    let location = GeographicLocation {
-        latitude: 28.7624,
-        longitude: -17.8892,
-        elevation_m: Some(2396.0),
-    };
+    let location = Geodetic::<ECEF>::new(
+        Degrees::new(-17.8892),
+        Degrees::new(28.7624),
+        Meters::new(2396.0),
+    );
 
     // One week in January 2026
     let period = Period {
@@ -144,9 +147,9 @@ async fn test_location_and_nights_persist_to_database() {
     let schedule_json = r#"{
         "name": "Persistence Test Schedule",
         "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892,
-            "elevation_m": 2396.0
+            "lat_deg": 28.7624,
+            "lon_deg": -17.8892,
+            "height": 2396.0
         },
         "schedule_period": {
             "start": 60694.0,
@@ -168,9 +171,9 @@ async fn test_location_and_nights_persist_to_database() {
 
     // Verify geographic location persisted
     let location = &retrieved.geographic_location;
-    assert_eq!(location.latitude, 28.7624);
-    assert_eq!(location.longitude, -17.8892);
-    assert_eq!(location.elevation_m, Some(2396.0));
+    assert_eq!(location.lat, 28.7624);
+    assert_eq!(location.lon, -17.8892);
+    assert_eq!(location.height, 2396.0);
 
     // Verify astronomical nights persisted
     assert_eq!(retrieved.astronomical_nights.len(), original_nights_count);
@@ -188,8 +191,9 @@ fn test_location_without_elevation() {
     let schedule_json = r#"{
         "name": "Location without elevation",
         "geographic_location": {
-            "latitude": 0.0,
-            "longitude": 0.0
+            "lat_deg": 0.0,
+            "lon_deg": 0.0,
+            "height": 0.0
         },
         "schedule_period": {
             "start": 60694.0,
@@ -204,19 +208,19 @@ fn test_location_without_elevation() {
     let schedule = result.unwrap();
 
     let location = &schedule.geographic_location;
-    assert_eq!(location.latitude, 0.0);
-    assert_eq!(location.longitude, 0.0);
-    assert_eq!(location.elevation_m, None);
+    assert_eq!(location.lat, 0.0);
+    assert_eq!(location.lon, 0.0);
+    assert_eq!(location.height, 0.0);
 }
 
 /// Test computation at high latitude during summer (polar day - no astronomical night)
 #[test]
 fn test_no_astronomical_nights_polar_summer() {
-    let location = GeographicLocation {
-        latitude: 70.0, // High northern latitude
-        longitude: 20.0,
-        elevation_m: Some(0.0),
-    };
+    let location = Geodetic::<ECEF>::new(
+        Degrees::new(20.0),
+        Degrees::new(70.0), // High northern latitude
+        Meters::new(0.0),
+    );
 
     // Summer period (around MJD 60500 ~ July 2024)
     let period = Period {
@@ -238,8 +242,9 @@ fn test_inferred_schedule_period_with_location() {
     let schedule_json = r#"{
         "name": "Inferred Period Schedule",
         "geographic_location": {
-            "latitude": 28.7624,
-            "longitude": -17.8892
+            "lat_deg": 28.7624,
+            "lon_deg": -17.8892,
+            "height": 0.0
         },
         "dark_periods": [
             {"start": 60694.0, "stop": 60695.0},

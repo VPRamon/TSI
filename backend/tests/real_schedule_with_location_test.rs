@@ -30,16 +30,16 @@ fn test_parse_real_ap_schedule_with_location() {
     // Verify geographic location was parsed
     let location = &schedule.geographic_location;
     assert_eq!(
-        location.latitude, 28.7624,
+        location.lat, 28.7624,
         "Wrong latitude for Roque de los Muchachos"
     );
     assert_eq!(
-        location.longitude, -17.8892,
+        location.lon, -17.8892,
         "Wrong longitude for Roque de los Muchachos"
     );
     assert_eq!(
-        location.elevation_m,
-        Some(2396.0),
+        location.height,
+        2396.0,
         "Wrong elevation for Roque de los Muchachos"
     );
 
@@ -53,9 +53,9 @@ fn test_parse_real_ap_schedule_with_location() {
     println!("   - Blocks: {}", schedule.blocks.len());
     println!(
         "   - Location: {:.4}°N, {:.4}°W, {} m",
-        location.latitude,
-        -location.longitude,
-        location.elevation_m.unwrap_or(0.0)
+        location.lat,
+        -location.lon,
+        location.height
     );
     println!(
         "   - Astronomical nights: {} periods",
@@ -122,8 +122,8 @@ fn test_parse_real_est_schedule_with_location() {
 
     // Verify geographic location
     let location = &schedule.geographic_location;
-    assert_eq!(location.latitude, 28.7624);
-    assert_eq!(location.longitude, -17.8892);
+    assert_eq!(location.lat, 28.7624);
+    assert_eq!(location.lon, -17.8892);
 
     // Verify astronomical nights
     assert!(!schedule.astronomical_nights.is_empty());

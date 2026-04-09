@@ -18,9 +18,9 @@ export interface ScheduleListResponse {
 }
 
 export interface GeographicLocation {
-  latitude: number;
-  longitude: number;
-  elevation_m?: number;
+  lon_deg: number;
+  lat_deg: number;
+  height: number;
 }
 
 export interface CreateScheduleRequest {

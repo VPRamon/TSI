@@ -7,11 +7,9 @@
 //! This is the fallback path used when `possible_periods` is absent from the
 //! incoming JSON payload.
 
-use qtty::{Degrees, Meters, Seconds};
+use qtty::{Degrees, Seconds};
 use siderust::calculus::altitude::{AltitudePeriodsProvider, AltitudeQuery};
 use siderust::calculus::azimuth::{AzimuthProvider, AzimuthQuery};
-use siderust::coordinates::centers::Geodetic;
-use siderust::coordinates::frames::ECEF;
 use siderust::coordinates::spherical::direction;
 use siderust::time::{intersect_periods, Interval, ModifiedJulianDate};
 
@@ -38,11 +36,7 @@ pub struct VisibilityInput<'a> {
 /// constraints and the duration is at least `min_duration`.
 ///
 pub fn compute_block_visibility(input: &VisibilityInput<'_>) -> Vec<Period> {
-    let site = Geodetic::<ECEF>::new(
-        Degrees::new(input.location.longitude),
-        Degrees::new(input.location.latitude),
-        Meters::new(input.location.elevation_m.unwrap_or(0.0)),
-    );
+    let site = *input.location;
 
     // Determine effective search window: schedule_period clipped to fixed_time.
     let window = match &input.constraints.fixed_time {
@@ -128,14 +122,17 @@ fn is_full_azimuth_range(min_az: Degrees, max_az: Degrees) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use qtty::{Degrees, Meters};
+    use siderust::coordinates::centers::Geodetic;
+    use siderust::coordinates::frames::ECEF;
     use crate::api::{Constraints, GeographicLocation, ModifiedJulianDate, Period};
 
     fn roque_location() -> GeographicLocation {
-        GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        }
+        Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        )
     }
 
     fn one_week_period() -> Period {

@@ -119,9 +119,9 @@ mod tests {
                     "schedule_json": {
                         "name": "",
                         "geographic_location": {
-                            "latitude": 28.7624,
-                            "longitude": -17.8892,
-                            "elevation_m": 2396.0
+                            "lat_deg": 28.7624,
+                            "lon_deg": -17.8892,
+                            "height": 2396.0
                         },
                         "blocks": [
                             {

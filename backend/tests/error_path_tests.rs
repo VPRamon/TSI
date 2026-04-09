@@ -8,6 +8,9 @@ use tsi_rust::db::factory::RepositoryType;
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::repository::{ErrorContext, RepositoryError};
 use tsi_rust::db::services;
+use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
 
 mod support;
 
@@ -46,6 +49,9 @@ async fn test_factory_postgres_without_config() {
 async fn test_factory_invalid_database_url() {
     use tsi_rust::db::PostgresConfig;
     use tsi_rust::db::RepositoryFactory;
+use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
 
     // Create config with invalid database URL
     let invalid_config = PostgresConfig {
@@ -149,11 +155,11 @@ async fn test_services_store_schedule_unhealthy_repo() {
         name: "test".to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "test_checksum".to_string(),
         schedule_period: default_schedule_period(),
@@ -222,11 +228,11 @@ async fn test_services_store_schedule_with_invalid_data() {
         name: "".to_string(), // Empty name
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "".to_string(), // Empty checksum
         schedule_period: default_schedule_period(),
@@ -463,11 +469,11 @@ async fn test_error_propagation_through_services() {
         name: "test".to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "test".to_string(),
         schedule_period: default_schedule_period(),
@@ -494,11 +500,11 @@ async fn test_error_propagation_multiple_operations() {
         name: "good".to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "good_checksum".to_string(),
         schedule_period: default_schedule_period(),

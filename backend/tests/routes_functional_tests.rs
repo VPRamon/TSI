@@ -9,6 +9,9 @@ use tsi_rust::api::{
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::services;
 use tsi_rust::models::ModifiedJulianDate;
+use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
 
 /// Helper to create a complete schedule with visibility periods
 fn create_schedule_with_visibility(name: &str, block_count: usize) -> Schedule {
@@ -58,11 +61,11 @@ fn create_schedule_with_visibility(name: &str, block_count: usize) -> Schedule {
             start: ModifiedJulianDate::new(59580.0),
             stop: ModifiedJulianDate::new(59590.0),
         }],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: format!("checksum_{}", name),
         schedule_period: Period {

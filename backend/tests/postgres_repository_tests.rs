@@ -117,11 +117,11 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
             start: ModifiedJulianDate::new(60000.0),
             stop: ModifiedJulianDate::new(60001.0),
         },
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
     }
 }
@@ -129,6 +129,9 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
 /// Generate a unique checksum for each test run.
 fn unique_checksum(base: &str) -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
+use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

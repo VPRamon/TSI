@@ -175,7 +175,10 @@ pub async fn process_schedule_async(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{GeographicLocation, ModifiedJulianDate, Period, Schedule};
+    use qtty::{Degrees, Meters};
+    use siderust::coordinates::centers::Geodetic;
+    use siderust::coordinates::frames::ECEF;
+    use crate::api::{ModifiedJulianDate, Period, Schedule};
     use crate::db::repositories::LocalRepository;
     use crate::services::job_tracker::JobStatus;
 
@@ -211,11 +214,11 @@ mod tests {
                 stop: ModifiedJulianDate::new(60001.0),
             },
             dark_periods: vec![],
-            geographic_location: GeographicLocation {
-                latitude: 28.7624,
-                longitude: -17.8892,
-                elevation_m: Some(2396.0),
-            },
+            geographic_location: Geodetic::<ECEF>::new(
+                Degrees::new(-17.8892),
+                Degrees::new(28.7624),
+                Meters::new(2396.0),
+            ),
             astronomical_nights: vec![],
             blocks: vec![],
         }

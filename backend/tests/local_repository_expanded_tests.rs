@@ -12,6 +12,9 @@ use tsi_rust::api::{
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::repository::{AnalyticsRepository, ScheduleRepository};
 use tsi_rust::models::ModifiedJulianDate;
+use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
 
 fn default_schedule_period() -> Period {
     Period {
@@ -57,11 +60,11 @@ fn create_test_schedule(name: &str, block_count: usize) -> Schedule {
         name: name.to_string(),
         blocks,
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: format!("checksum_{}", name),
         schedule_period: default_schedule_period(),
@@ -248,11 +251,11 @@ async fn test_empty_schedule_storage() {
         name: "empty".to_string(),
         blocks: vec![],
         dark_periods: vec![],
-        geographic_location: GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        },
+        geographic_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        ),
         astronomical_nights: vec![],
         checksum: "empty_checksum".to_string(),
         schedule_period: default_schedule_period(),

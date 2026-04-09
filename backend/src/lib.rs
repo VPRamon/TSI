@@ -53,3 +53,6 @@ pub mod http;
 /// Re-export the exact `qtty` version used internally so downstream adapter
 /// crates avoid duplicate-type issues.
 pub use qtty;
+
+/// Re-export `siderust` so adapter crates can use coordinate types directly.
+pub use siderust;

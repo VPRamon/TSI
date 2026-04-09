@@ -3,11 +3,8 @@
 //! Computes astronomical night periods (Sun altitude < -18°) for a given
 //! observer location and time period using the siderust astronomy library.
 
-use qtty::{Degrees, Meters};
 use siderust::bodies::Sun;
 use siderust::calculus::solar::Twilight;
-use siderust::coordinates::centers::Geodetic;
-use siderust::coordinates::frames::ECEF;
 use siderust::time::{Interval, ModifiedJulianDate as SiderustMJD};
 use siderust::{below_threshold, SearchOpts};
 
@@ -31,12 +28,7 @@ pub fn compute_astronomical_nights(
     location: &GeographicLocation,
     time_period: &Period,
 ) -> Vec<Period> {
-    // Create observer site from geographic location
-    let site = Geodetic::<ECEF>::new(
-        Degrees::new(location.longitude),
-        Degrees::new(location.latitude),
-        Meters::new(location.elevation_m.unwrap_or(0.0)),
-    );
+    let site = *location;
 
     // Convert our Period to siderust Interval<ModifiedJulianDate>
     let start_mjd = SiderustMJD::new(time_period.start.value());
@@ -68,12 +60,16 @@ mod tests {
 
     #[test]
     fn test_compute_astronomical_nights_roque_de_los_muchachos() {
+        use qtty::{Degrees, Meters};
+        use siderust::coordinates::centers::Geodetic;
+        use siderust::coordinates::frames::ECEF;
+
         // Roque de los Muchachos Observatory
-        let location = GeographicLocation {
-            latitude: 28.7624,
-            longitude: -17.8892,
-            elevation_m: Some(2396.0),
-        };
+        let location = Geodetic::<ECEF>::new(
+            Degrees::new(-17.8892),
+            Degrees::new(28.7624),
+            Meters::new(2396.0),
+        );
 
         // One week in January 2026
         let period = Period {
@@ -113,12 +109,16 @@ mod tests {
 
     #[test]
     fn test_compute_astronomical_nights_greenwich() {
+        use qtty::{Degrees, Meters};
+        use siderust::coordinates::centers::Geodetic;
+        use siderust::coordinates::frames::ECEF;
+
         // Greenwich Observatory
-        let location = GeographicLocation {
-            latitude: 51.4769,
-            longitude: 0.0,
-            elevation_m: Some(0.0),
-        };
+        let location = Geodetic::<ECEF>::new(
+            Degrees::new(0.0),
+            Degrees::new(51.4769),
+            Meters::new(0.0),
+        );
 
         // One day in January (winter)
         let period = Period {
