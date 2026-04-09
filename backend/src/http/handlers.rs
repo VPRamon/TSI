@@ -242,7 +242,7 @@ pub async fn get_visibility_histogram(
     // Convert MJD to Unix timestamps
     const MJD_EPOCH_UNIX: i64 = -3506716800;
     let start_unix = MJD_EPOCH_UNIX + (time_range.start.value() * 86400.0) as i64;
-    let end_unix = MJD_EPOCH_UNIX + (time_range.stop.value() * 86400.0) as i64;
+    let end_unix = MJD_EPOCH_UNIX + (time_range.end.value() * 86400.0) as i64;
 
     // Determine bin duration
     let bin_duration_seconds = if let Some(minutes) = query.bin_duration_minutes {
@@ -502,11 +502,11 @@ mod tests {
             requested_duration: 3600.0.into(),
             visibility_periods: vec![Period {
                 start: ModifiedJulianDate::new(60000.0),
-                stop: ModifiedJulianDate::new(60000.5),
+                end: ModifiedJulianDate::new(60000.5),
             }],
             scheduled_period: scheduled.then(|| Period {
                 start: ModifiedJulianDate::new(60000.1),
-                stop: ModifiedJulianDate::new(60000.2),
+                end: ModifiedJulianDate::new(60000.2),
             }),
         }
     }

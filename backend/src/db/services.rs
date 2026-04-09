@@ -434,13 +434,13 @@ pub fn store_schedule_sync(
 /// Returns an error if any scheduled block falls outside the schedule_period window.
 fn validate_schedule_period(schedule: &Schedule) -> RepositoryResult<()> {
     let schedule_start = schedule.schedule_period.start.value();
-    let schedule_stop = schedule.schedule_period.stop.value();
+    let schedule_stop = schedule.schedule_period.end.value();
 
     // Check each block's scheduled_period
     for (idx, block) in schedule.blocks.iter().enumerate() {
         if let Some(scheduled_period) = &block.scheduled_period {
             let block_start = scheduled_period.start.value();
-            let block_stop = scheduled_period.stop.value();
+            let block_stop = scheduled_period.end.value();
 
             // Add small epsilon tolerance for floating point comparisons (0.0001 days ≈ 8.64 seconds)
             let epsilon = 0.0001;

@@ -1,17 +1,17 @@
 {
   "name": "example-schedule-2026-04-01",
   "schedule_period": {
-    "start": 60694.0,
-    "stop": 60701.0
+    "start_mjd": 60694.0,
+    "end_mjd": 60701.0
   },
   "dark_periods": [
     {
-      "start": 60694.10,
-      "stop": 60694.35
+      "start_mjd": 60694.10,
+      "end_mjd": 60694.35
     },
     {
-      "start": 60695.10,
-      "stop": 60695.35
+      "start_mjd": 60695.10,
+      "end_mjd": 60695.35
     }
   ],
   "geographic_location": {
@@ -49,8 +49,8 @@
         "min_az": 20.0,
         "max_az": 340.0,
         "fixed_time": {
-          "start": 60695.18,
-          "stop": 60695.26
+          "start_mjd": 60695.18,
+          "end_mjd": 60695.26
         }
       },
       "priority": 7.5,
@@ -58,26 +58,26 @@
       "requested_duration": 2400.0,
       "visibility_periods": [],
       "scheduled_period": {
-        "start": 60695.20,
-        "stop": 60695.24
+        "start_mjd": 60695.20,
+        "end_mjd": 60695.24
       }
     }
   ],
   "possible_periods": {
     "block-1000001": [
       {
-        "start": 60694.19,
-        "stop": 60694.24
+        "start_mjd": 60694.19,
+        "end_mjd": 60694.24
       },
       {
-        "start": 60696.12,
-        "stop": 60696.20
+        "start_mjd": 60696.12,
+        "end_mjd": 60696.20
       }
     ],
     "block-1000002": [
       {
-        "start": 60695.18,
-        "stop": 60695.26
+        "start_mjd": 60695.18,
+        "end_mjd": 60695.26
       }
     ]
   }

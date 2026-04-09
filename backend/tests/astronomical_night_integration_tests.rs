@@ -20,8 +20,8 @@ fn test_parse_schedule_with_geographic_location() {
             "height": 2396.0
         },
         "schedule_period": {
-            "start": 60694.0,
-            "stop": 60701.0
+            "start_mjd": 60694.0,
+            "end_mjd": 60701.0
         },
         "blocks": []
     }"#;
@@ -52,8 +52,8 @@ fn test_parse_schedule_computes_astronomical_nights() {
             "height": 2396.0
         },
         "schedule_period": {
-            "start": 60694.0,
-            "stop": 60701.0
+            "start_mjd": 60694.0,
+            "end_mjd": 60701.0
         },
         "blocks": []
     }"#;
@@ -70,8 +70,8 @@ fn test_parse_schedule_computes_astronomical_nights() {
     // Verify nights are within the schedule period
     for night in &schedule.astronomical_nights {
         assert!(night.start.value() >= schedule.schedule_period.start.value());
-        assert!(night.stop.value() <= schedule.schedule_period.stop.value());
-        assert!(night.start.value() < night.stop.value());
+        assert!(night.end.value() <= schedule.schedule_period.end.value());
+        assert!(night.start.value() < night.end.value());
     }
 }
 
@@ -86,7 +86,7 @@ fn test_compute_astronomical_nights_greenwich() {
 
     let period = Period {
         start: ModifiedJulianDate::new(60694.0),
-        stop: ModifiedJulianDate::new(60701.0),
+        end: ModifiedJulianDate::new(60701.0),
     };
 
     let nights = compute_astronomical_nights(&location, &period);
@@ -98,9 +98,9 @@ fn test_compute_astronomical_nights_greenwich() {
 
     // Each night should be valid
     for night in &nights {
-        assert!(night.start.value() < night.stop.value());
+        assert!(night.start.value() < night.end.value());
         // Night duration should be reasonable (e.g., 4-12 hours in winter)
-        let duration_hours = (night.stop.value() - night.start.value()) * 24.0;
+        let duration_hours = (night.end.value() - night.start.value()) * 24.0;
         assert!(
             duration_hours > 1.0 && duration_hours < 24.0,
             "Unreasonable night duration: {:.1} hours",
@@ -121,7 +121,7 @@ fn test_compute_astronomical_nights_roque_de_los_muchachos() {
     // One week in January 2026
     let period = Period {
         start: ModifiedJulianDate::new(60694.0),
-        stop: ModifiedJulianDate::new(60701.0),
+        end: ModifiedJulianDate::new(60701.0),
     };
 
     let nights = compute_astronomical_nights(&location, &period);
@@ -152,8 +152,8 @@ async fn test_location_and_nights_persist_to_database() {
             "height": 2396.0
         },
         "schedule_period": {
-            "start": 60694.0,
-            "stop": 60701.0
+            "start_mjd": 60694.0,
+            "end_mjd": 60701.0
         },
         "blocks": []
     }"#;
@@ -181,7 +181,7 @@ async fn test_location_and_nights_persist_to_database() {
 
     // Verify nights are valid periods
     for night in &retrieved.astronomical_nights {
-        assert!(night.start.value() < night.stop.value());
+        assert!(night.start.value() < night.end.value());
     }
 }
 
@@ -196,8 +196,8 @@ fn test_location_without_elevation() {
             "height": 0.0
         },
         "schedule_period": {
-            "start": 60694.0,
-            "stop": 60695.0
+            "start_mjd": 60694.0,
+            "end_mjd": 60695.0
         },
         "blocks": []
     }"#;
@@ -225,7 +225,7 @@ fn test_no_astronomical_nights_polar_summer() {
     // Summer period (around MJD 60500 ~ July 2024)
     let period = Period {
         start: ModifiedJulianDate::new(60500.0),
-        stop: ModifiedJulianDate::new(60507.0),
+        end: ModifiedJulianDate::new(60507.0),
     };
 
     let nights = compute_astronomical_nights(&location, &period);
@@ -247,8 +247,8 @@ fn test_inferred_schedule_period_with_location() {
             "height": 0.0
         },
         "dark_periods": [
-            {"start": 60694.0, "stop": 60695.0},
-            {"start": 60696.0, "stop": 60697.0}
+            {"start_mjd": 60694.0, "end_mjd": 60695.0},
+            {"start_mjd": 60696.0, "end_mjd": 60697.0}
         ],
         "blocks": []
     }"#;
@@ -260,7 +260,7 @@ fn test_inferred_schedule_period_with_location() {
 
     // Schedule period should be inferred from dark periods
     assert_eq!(schedule.schedule_period.start.value(), 60694.0);
-    assert_eq!(schedule.schedule_period.stop.value(), 60697.0);
+    assert_eq!(schedule.schedule_period.end.value(), 60697.0);
 
     // Astronomical nights should be computed for the inferred period
     assert!(!schedule.astronomical_nights.is_empty());

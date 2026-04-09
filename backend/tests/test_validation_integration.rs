@@ -27,7 +27,7 @@ use siderust::coordinates::frames::ECEF;
 fn default_schedule_period() -> Period {
     Period {
         start: ModifiedJulianDate::new(60000.0),
-        stop: ModifiedJulianDate::new(60001.0),
+        end: ModifiedJulianDate::new(60001.0),
     }
 }
 
@@ -59,8 +59,7 @@ fn create_test_block(
             vec![Period::new(
                 ModifiedJulianDate::new(60000.0),
                 ModifiedJulianDate::new(60000.0 + visibility_hours / 24.0),
-            )
-            .unwrap()]
+            )]
         } else {
             vec![]
         },

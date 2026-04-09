@@ -19,7 +19,7 @@ use tsi_rust::siderust::coordinates::frames::ECEF;
 fn default_schedule_period() -> Period {
     Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59590.0),
+        end: ModifiedJulianDate::new(59590.0),
     }
 }
 
@@ -42,12 +42,12 @@ fn create_test_schedule(name: &str, block_count: usize) -> Schedule {
             requested_duration: qtty::Seconds::new(3600.0),
             visibility_periods: vec![Period {
                 start: ModifiedJulianDate::new(59580.0),
-                stop: ModifiedJulianDate::new(59581.0),
+                end: ModifiedJulianDate::new(59581.0),
             }],
             scheduled_period: if i % 2 == 0 {
                 Some(Period {
                     start: ModifiedJulianDate::new(59580.0),
-                    stop: ModifiedJulianDate::new(59580.5),
+                    end: ModifiedJulianDate::new(59580.5),
                 })
             } else {
                 None

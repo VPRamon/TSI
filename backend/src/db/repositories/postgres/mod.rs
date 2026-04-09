@@ -386,10 +386,7 @@ fn scheduled_period_to_json(period: &Option<Period>) -> Value {
 }
 
 fn period_to_json(period: &Period) -> Value {
-    json!({
-        "start": period.start.value(),
-        "stop": period.stop.value()
-    })
+    serde_json::to_value(period).unwrap_or_else(|_| json!(null))
 }
 
 fn value_to_periods(value: &Value) -> RepositoryResult<Vec<Period>> {
@@ -451,7 +448,7 @@ fn row_to_block(row: ScheduleBlockRow) -> RepositoryResult<SchedulingBlock> {
         fixed_time: match (row.constraint_start_mjd, row.constraint_stop_mjd) {
             (Some(start), Some(stop)) => Some(Period {
                 start: ModifiedJulianDate::new(start),
-                stop: ModifiedJulianDate::new(stop),
+                end: ModifiedJulianDate::new(stop),
             }),
             _ => None,
         },
@@ -621,17 +618,17 @@ fn compute_gap_statistics(
         if let Ok(json_val) = serde_json::from_value::<Value>(block.scheduled_periods_json.clone())
         {
             if let Some(obj) = json_val.as_object() {
-                // Single period: {"start": mjd, "stop": mjd}
-                if let (Some(start), Some(stop)) = (obj.get("start"), obj.get("stop")) {
+                // Single period: {"start_mjd": mjd, "end_mjd": mjd}
+                if let (Some(start), Some(stop)) = (obj.get("start_mjd"), obj.get("end_mjd")) {
                     if let (Some(start_f), Some(stop_f)) = (start.as_f64(), stop.as_f64()) {
                         scheduled_periods.push((start_f, stop_f));
                     }
                 }
             } else if let Some(arr) = json_val.as_array() {
-                // Array of periods: [{"start": mjd, "stop": mjd}, ...]
+                // Array of periods: [{"start_mjd": mjd, "end_mjd": mjd}, ...]
                 for period in arr {
                     if let Some(obj) = period.as_object() {
-                        if let (Some(start), Some(stop)) = (obj.get("start"), obj.get("stop")) {
+                        if let (Some(start), Some(stop)) = (obj.get("start_mjd"), obj.get("end_mjd")) {
                             if let (Some(start_f), Some(stop_f)) = (start.as_f64(), stop.as_f64()) {
                                 scheduled_periods.push((start_f, stop_f));
                             }
@@ -759,7 +756,7 @@ impl ScheduleRepository for PostgresRepository {
                             .constraints
                             .fixed_time
                             .as_ref()
-                            .map(|p| p.stop.value()),
+                            .map(|p| p.end.value()),
                         visibility_periods_json: periods_to_json(&b.visibility_periods),
                         scheduled_periods_json: scheduled_period_to_json(&b.scheduled_period),
                     })
@@ -975,7 +972,7 @@ impl AnalyticsRepository for PostgresRepository {
                     let scheduled_period = value_to_single_period(&row.scheduled_periods_json)?;
                     let (scheduled, scheduled_start, scheduled_stop) =
                         if let Some(p) = scheduled_period {
-                            (true, Some(p.start.value()), Some(p.stop.value()))
+                            (true, Some(p.start.value()), Some(p.end.value()))
                         } else {
                             (false, None, None)
                         };
@@ -1238,7 +1235,7 @@ impl AnalyticsRepository for PostgresRepository {
                         let scheduled_period = match (scheduled_start, scheduled_stop) {
                             (Some(s), Some(e)) => Some(Period {
                                 start: ModifiedJulianDate::new(s),
-                                stop: ModifiedJulianDate::new(e),
+                                end: ModifiedJulianDate::new(e),
                             }),
                             _ => None,
                         };

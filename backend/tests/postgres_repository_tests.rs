@@ -66,21 +66,21 @@ fn create_test_repo() -> Option<PostgresRepository> {
 fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedule {
     let dark_periods = vec![Period {
         start: ModifiedJulianDate::new(60000.0),
-        stop: ModifiedJulianDate::new(60001.0),
+        end: ModifiedJulianDate::new(60001.0),
     }];
 
     let blocks: Vec<SchedulingBlock> = (0..num_blocks)
         .map(|i| {
             let visibility_periods = vec![Period {
                 start: ModifiedJulianDate::new(60000.0 + (i as f64 * 0.1)),
-                stop: ModifiedJulianDate::new(60000.5 + (i as f64 * 0.1)),
+                end: ModifiedJulianDate::new(60000.5 + (i as f64 * 0.1)),
             }];
 
             let scheduled_period = if i % 2 == 0 {
                 // Scheduled period should match requested duration (1 hour = 1/24 days ≈ 0.0417 days)
                 Some(Period {
                     start: ModifiedJulianDate::new(60000.1 + (i as f64 * 0.1)),
-                    stop: ModifiedJulianDate::new(60000.1 + (i as f64 * 0.1) + (3600.0 / 86400.0)), // 1 hour in days
+                    end: ModifiedJulianDate::new(60000.1 + (i as f64 * 0.1) + (3600.0 / 86400.0)), // 1 hour in days
                 })
             } else {
                 None
@@ -115,7 +115,7 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
         blocks,
         schedule_period: Period {
             start: ModifiedJulianDate::new(60000.0),
-            stop: ModifiedJulianDate::new(60001.0),
+            end: ModifiedJulianDate::new(60001.0),
         },
         geographic_location: Geodetic::<ECEF>::new(
             Degrees::new(-17.8892),
@@ -377,7 +377,7 @@ async fn test_postgres_get_schedule_time_range() {
     assert!(time_range.is_some());
     let range = time_range.unwrap();
     assert!((range.start.value() - 60000.0).abs() < 0.001);
-    assert!((range.stop.value() - 60001.0).abs() < 0.001);
+    assert!((range.end.value() - 60001.0).abs() < 0.001);
 }
 
 // ============================================================================

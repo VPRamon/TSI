@@ -5,11 +5,9 @@
 
 use siderust::bodies::Sun;
 use siderust::calculus::solar::Twilight;
-use siderust::time::{Interval, ModifiedJulianDate as SiderustMJD};
 use siderust::{below_threshold, SearchOpts};
 
 use crate::api::{GeographicLocation, Period};
-use crate::models::ModifiedJulianDate;
 
 /// Compute astronomical night periods for a given observer location and time period.
 ///
@@ -28,35 +26,20 @@ pub fn compute_astronomical_nights(
     location: &GeographicLocation,
     time_period: &Period,
 ) -> Vec<Period> {
-    let site = *location;
-
-    // Convert our Period to siderust Interval<ModifiedJulianDate>
-    let start_mjd = SiderustMJD::new(time_period.start.value());
-    let stop_mjd = SiderustMJD::new(time_period.stop.value());
-    let search_period = Interval::new(start_mjd, stop_mjd);
-
-    // Find astronomical night periods (Sun below -18°)
-    let nights = below_threshold(
+    // `Period` is `siderust::time::Interval<ModifiedJulianDate>` — no conversion needed.
+    below_threshold(
         &Sun,
-        &site,
-        search_period,
+        location,
+        *time_period,
         Twilight::Astronomical.into(),
         SearchOpts::default(),
-    );
-
-    // Convert siderust Intervals back to our Period type
-    nights
-        .into_iter()
-        .map(|p| Period {
-            start: ModifiedJulianDate::new(p.start.value()),
-            stop: ModifiedJulianDate::new(p.end.value()),
-        })
-        .collect()
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::models::ModifiedJulianDate;
 
     #[test]
     fn test_compute_astronomical_nights_roque_de_los_muchachos() {
@@ -74,7 +57,7 @@ mod tests {
         // One week in January 2026
         let period = Period {
             start: ModifiedJulianDate::new(60694.0), // 2026-01-15
-            stop: ModifiedJulianDate::new(60701.0),  // 2026-01-22
+            end: ModifiedJulianDate::new(60701.0),  // 2026-01-22
         };
 
         let nights = compute_astronomical_nights(&location, &period);
@@ -85,7 +68,7 @@ mod tests {
         // Each night should be a valid period with start < stop
         for night in &nights {
             assert!(
-                night.start.value() < night.stop.value(),
+                night.start.value() < night.end.value(),
                 "Night period should have start < stop"
             );
             assert!(
@@ -93,7 +76,7 @@ mod tests {
                 "Night should start within search period"
             );
             assert!(
-                night.stop.value() <= period.stop.value(),
+                night.end.value() <= period.end.value(),
                 "Night should end within search period"
             );
         }
@@ -123,7 +106,7 @@ mod tests {
         // One day in January (winter)
         let period = Period {
             start: ModifiedJulianDate::new(60694.0), // 2026-01-15
-            stop: ModifiedJulianDate::new(60695.0),  // 2026-01-16
+            end: ModifiedJulianDate::new(60695.0),  // 2026-01-16
         };
 
         let nights = compute_astronomical_nights(&location, &period);
@@ -132,7 +115,7 @@ mod tests {
         assert!(!nights.is_empty(), "Expected to find astronomical night");
 
         // The night should be several hours long in winter
-        let duration_hours = (nights[0].stop.value() - nights[0].start.value()) * 24.0;
+        let duration_hours = (nights[0].end.value() - nights[0].start.value()) * 24.0;
         assert!(
             duration_hours > 4.0,
             "Expected night duration > 4 hours, got {:.1}",

@@ -17,7 +17,7 @@ mod support;
 fn default_schedule_period() -> Period {
     Period {
         start: ModifiedJulianDate::new(60000.0),
-        stop: ModifiedJulianDate::new(60001.0),
+        end: ModifiedJulianDate::new(60001.0),
     }
 }
 

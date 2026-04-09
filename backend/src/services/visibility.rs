@@ -96,8 +96,8 @@ pub fn compute_visibility_histogram_rust(
             for period in periods {
                 all_periods.push(VisibilityPeriod {
                     block_id: block.scheduling_block_id,
-                    start_unix: period.start.to_unix_i64(),
-                    end_unix: period.stop.to_unix_i64(),
+                    start_unix: ((period.start.value() - 40587.0) * 86400.0) as i64,
+                    end_unix: ((period.end.value() - 40587.0) * 86400.0) as i64,
                 });
             }
         }
@@ -123,18 +123,18 @@ pub fn compute_visibility_histogram_rust(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::ModifiedJulianDate;
 
     #[test]
     fn test_mjd_unix_conversion() {
         // MJD 40587 = 1970-01-01 00:00:00 UTC (Unix epoch)
-        assert_eq!(ModifiedJulianDate::new(40587.0).to_unix_i64(), 0);
+        let mjd_to_unix = |mjd: f64| -> i64 { ((mjd - 40587.0) * 86400.0) as i64 };
+        assert_eq!(mjd_to_unix(40587.0), 0);
 
-        // Round trip
+        // Round trip: unix → mjd → unix should be close
         let mjd = 59000.5;
-        let unix = ModifiedJulianDate::new(mjd).to_unix_i64();
-        let back = ModifiedJulianDate::from_unix_timestamp(unix as f64);
-        assert!((back.value() - mjd).abs() < 0.0001);
+        let unix = mjd_to_unix(mjd);
+        let back = unix as f64 / 86400.0 + 40587.0;
+        assert!((back - mjd).abs() < 0.0001);
     }
 
     #[test]
@@ -158,7 +158,7 @@ mod tests {
             priority: 5,
             visibility_periods: Some(vec![Period {
                 start: ModifiedJulianDate::new(40587.0),
-                stop: ModifiedJulianDate::new(40587.5),
+                end: ModifiedJulianDate::new(40587.5),
             }]),
         };
 
@@ -184,7 +184,7 @@ mod tests {
                 priority: 3,
                 visibility_periods: Some(vec![Period {
                     start: ModifiedJulianDate::new(40587.0),
-                    stop: ModifiedJulianDate::new(40587.5),
+                    end: ModifiedJulianDate::new(40587.5),
                 }]),
             },
             BlockHistogramData {
@@ -192,7 +192,7 @@ mod tests {
                 priority: 7,
                 visibility_periods: Some(vec![Period {
                     start: ModifiedJulianDate::new(40587.0),
-                    stop: ModifiedJulianDate::new(40587.5),
+                    end: ModifiedJulianDate::new(40587.5),
                 }]),
             },
         ];
@@ -219,11 +219,11 @@ mod tests {
             visibility_periods: Some(vec![
                 Period {
                     start: ModifiedJulianDate::new(40587.0),
-                    stop: ModifiedJulianDate::new(40587.1),
+                    end: ModifiedJulianDate::new(40587.1),
                 },
                 Period {
                     start: ModifiedJulianDate::new(40587.05),
-                    stop: ModifiedJulianDate::new(40587.15),
+                    end: ModifiedJulianDate::new(40587.15),
                 },
             ]),
         };

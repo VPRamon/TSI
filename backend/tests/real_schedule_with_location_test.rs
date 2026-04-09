@@ -64,7 +64,7 @@ fn test_parse_real_ap_schedule_with_location() {
     println!(
         "   - Schedule period: {:.1} to {:.1} MJD",
         schedule.schedule_period.start.value(),
-        schedule.schedule_period.stop.value()
+        schedule.schedule_period.end.value()
     );
 
     // Verify nights are within schedule period
@@ -75,24 +75,24 @@ fn test_parse_real_ap_schedule_with_location() {
             i
         );
         assert!(
-            night.stop.value() <= schedule.schedule_period.stop.value(),
+            night.end.value() <= schedule.schedule_period.end.value(),
             "Night {} ends after schedule period",
             i
         );
         assert!(
-            night.start.value() < night.stop.value(),
+            night.start.value() < night.end.value(),
             "Night {} has invalid period",
             i
         );
 
         // Log first few nights
         if i < 3 {
-            let duration_hours = (night.stop.value() - night.start.value()) * 24.0;
+            let duration_hours = (night.end.value() - night.start.value()) * 24.0;
             println!(
                 "   - Night {}: {:.1} to {:.1} MJD ({:.1} hours)",
                 i + 1,
                 night.start.value(),
-                night.stop.value(),
+                night.end.value(),
                 duration_hours
             );
         }

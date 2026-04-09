@@ -121,6 +121,7 @@ impl From<ScheduleId> for i64 {
 }
 
 pub use crate::models::ModifiedJulianDate;
+pub use siderust::time::Interval;
 
 /// Geographic location — alias for siderust's geodetic ECEF coordinates.
 ///
@@ -128,59 +129,10 @@ pub use crate::models::ModifiedJulianDate;
 pub type GeographicLocation = Geodetic<ECEF>;
 
 /// Time period in Modified Julian Date (MJD) format.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Period {
-    /// Start time in MJD
-    pub start: ModifiedJulianDate,
-    /// End time in MJD
-    pub stop: ModifiedJulianDate,
-}
-
-impl Period {
-    pub fn new(start: ModifiedJulianDate, stop: ModifiedJulianDate) -> Option<Self> {
-        if start.value() < stop.value() {
-            Some(Self { start, stop })
-        } else {
-            None
-        }
-    }
-
-    pub fn from_mjd(start: f64, stop: f64) -> Self {
-        Self {
-            start: ModifiedJulianDate::new(start),
-            stop: ModifiedJulianDate::new(stop),
-        }
-    }
-
-    pub fn start_mjd(&self) -> f64 {
-        self.start.value()
-    }
-
-    pub fn stop_mjd(&self) -> f64 {
-        self.stop.value()
-    }
-
-    pub fn contains_mjd(&self, mjd: f64) -> bool {
-        let min_mjd = self.start.value().min(self.stop.value());
-        let max_mjd = self.start.value().max(self.stop.value());
-        mjd >= min_mjd && mjd <= max_mjd
-    }
-
-    /// Length of the interval in days.
-    pub fn duration(&self) -> qtty::Days {
-        qtty::Days::new(self.stop.value() - self.start.value())
-    }
-
-    /// Check if a given MJD instant lies inside this interval (inclusive start, exclusive end).
-    pub fn contains(&self, t_mjd: ModifiedJulianDate) -> bool {
-        self.start.value() <= t_mjd.value() && t_mjd.value() < self.stop.value()
-    }
-
-    /// Check if this interval overlaps with another.
-    pub fn overlaps(&self, other: &Self) -> bool {
-        self.start.value() < other.stop.value() && other.start.value() < self.stop.value()
-    }
-}
+///
+/// Alias for `tempoch::Interval<ModifiedJulianDate>`.
+/// Serializes as `{ "start_mjd": <days>, "end_mjd": <days> }`.
+pub type Period = Interval<ModifiedJulianDate>;
 
 /// Observing constraints for a scheduling block.
 #[derive(Debug, Clone, Serialize, Deserialize)]

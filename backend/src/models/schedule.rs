@@ -154,7 +154,7 @@ fn infer_schedule_period(
 
     let mut consider_period = |period: &api::Period| {
         let start = period.start.value();
-        let stop = period.stop.value();
+        let stop = period.end.value();
         min_start = Some(min_start.map_or(start, |v| v.min(start)));
         max_stop = Some(max_stop.map_or(stop, |v| v.max(stop)));
     };
@@ -178,11 +178,11 @@ fn infer_schedule_period(
     match (min_start, max_stop) {
         (Some(start), Some(stop)) => api::Period {
             start: api::ModifiedJulianDate::new(start),
-            stop: api::ModifiedJulianDate::new(stop),
+            end: api::ModifiedJulianDate::new(stop),
         },
         _ => api::Period {
             start: api::ModifiedJulianDate::new(0.0),
-            stop: api::ModifiedJulianDate::new(0.0),
+            end: api::ModifiedJulianDate::new(0.0),
         },
     }
 }
@@ -289,7 +289,7 @@ mod tests {
                 {
                     "id": 1000004990,
                     "priority": 8.5,
-                    "scheduled_period": { "start": 61894.19429606479, "stop": 61894.20818495378 },
+                    "scheduled_period": { "start_mjd": 61894.19429606479, "end_mjd": 61894.20818495378 },
                     "target_ra": 158.03,
                     "target_dec": -68.03,
                     "constraints": {
@@ -344,8 +344,8 @@ mod tests {
             ],
             "possible_periods": {
                 "1000004990": [
-                    { "start": 61771.0, "stop": 61772.0 },
-                    { "start": 61773.0, "stop": 61774.0 }
+                    { "start_mjd": 61771.0, "end_mjd": 61772.0 },
+                    { "start_mjd": 61773.0, "end_mjd": 61774.0 }
                 ]
             }
         }"#;
@@ -368,7 +368,7 @@ mod tests {
                 "lon_deg": -17.8892,
                 "height": 2396.0
             },
-            "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+            "schedule_period": { "start_mjd": 60694.0, "end_mjd": 60701.0 },
             "blocks": [
                 {
                     "original_block_id": "block_a",
@@ -386,8 +386,8 @@ mod tests {
             ],
             "possible_periods": {
                 "block_a": [
-                    { "start": 60694.5, "stop": 60694.8 },
-                    { "start": 60695.5, "stop": 60695.9 }
+                    { "start_mjd": 60694.5, "end_mjd": 60694.8 },
+                    { "start_mjd": 60695.5, "end_mjd": 60695.9 }
                 ]
             }
         }"#;
@@ -396,9 +396,9 @@ mod tests {
         let vp = &schedule.blocks[0].visibility_periods;
         assert_eq!(vp.len(), 2, "Provided periods must be preserved exactly");
         assert!((vp[0].start.value() - 60694.5).abs() < 1e-9);
-        assert!((vp[0].stop.value() - 60694.8).abs() < 1e-9);
+        assert!((vp[0].end.value() - 60694.8).abs() < 1e-9);
         assert!((vp[1].start.value() - 60695.5).abs() < 1e-9);
-        assert!((vp[1].stop.value() - 60695.9).abs() < 1e-9);
+        assert!((vp[1].end.value() - 60695.9).abs() < 1e-9);
     }
 
     #[test]
@@ -411,7 +411,7 @@ mod tests {
                 "lon_deg": -17.8892,
                 "height": 2396.0
             },
-            "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+            "schedule_period": { "start_mjd": 60694.0, "end_mjd": 60701.0 },
             "blocks": [
                 {
                     "original_block_id": "b1",
@@ -445,7 +445,7 @@ mod tests {
                 "lon_deg": -17.8892,
                 "height": 2396.0
             },
-            "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+            "schedule_period": { "start_mjd": 60694.0, "end_mjd": 60701.0 },
             "blocks": [
                 {
                     "original_block_id": "block_provided",
@@ -476,7 +476,7 @@ mod tests {
             ],
             "possible_periods": {
                 "block_provided": [
-                    { "start": 60694.5, "stop": 60694.8 }
+                    { "start_mjd": 60694.5, "end_mjd": 60694.8 }
                 ]
             }
         }"#;
@@ -534,7 +534,7 @@ mod tests {
             .expect("Dark periods should not be empty");
         assert_close(first_dark.start.value(), 61771.0, "first dark period start");
         assert_close(
-            first_dark.stop.value(),
+            first_dark.end.value(),
             61771.276910532266,
             "first dark period stop",
         );
@@ -557,7 +557,7 @@ mod tests {
             "scheduled period start",
         );
         assert_close(
-            scheduled_period.stop.value(),
+            scheduled_period.end.value(),
             61894.20818495378,
             "scheduled period stop",
         );
@@ -585,7 +585,7 @@ mod tests {
         // Fixed window is optional in converted fixtures; if present, validate values.
         if let Some(fixed_window) = &block_2662.constraints.fixed_time {
             assert_close(fixed_window.start.value(), 61771.0, "fixed window start");
-            assert_close(fixed_window.stop.value(), 61778.0, "fixed window stop");
+            assert_close(fixed_window.end.value(), 61778.0, "fixed window stop");
         }
 
         // Observation durations should be non-negative.

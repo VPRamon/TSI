@@ -320,9 +320,9 @@ impl AnalyticsRepository for LocalRepository {
                         .fixed_time
                         .as_ref()
                         .map(|p| p.start.value()),
-                    constraint_stop_mjd: b.constraints.fixed_time.as_ref().map(|p| p.stop.value()),
+                    constraint_stop_mjd: b.constraints.fixed_time.as_ref().map(|p| p.end.value()),
                     scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start.value()),
-                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop.value()),
+                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.end.value()),
                     target_ra_deg: b.target_ra.value(),
                     target_dec_deg: b.target_dec.value(),
                 }
@@ -469,7 +469,7 @@ impl AnalyticsRepository for LocalRepository {
                     ),
                     scheduled: b.scheduled_period.is_some(),
                     scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start),
-                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.stop),
+                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.end),
                 }
             })
             .collect();
@@ -777,7 +777,7 @@ impl VisualizationRepository for LocalRepository {
                     original_block_id: b.original_block_id.clone(),
                     priority: b.priority,
                     scheduled_start_mjd: scheduled_period.start,
-                    scheduled_stop_mjd: scheduled_period.stop,
+                    scheduled_stop_mjd: scheduled_period.end,
                     ra_deg: b.target_ra,
                     dec_deg: b.target_dec,
                     requested_hours: qtty::time::Hours::new(requested_hours),
@@ -843,7 +843,7 @@ impl VisualizationRepository for LocalRepository {
             .blocks
             .iter()
             .filter_map(|b| b.scheduled_period.clone())
-            .map(|p| (p.start.value(), p.stop.value()))
+            .map(|p| (p.start.value(), p.end.value()))
             .collect();
 
         if periods.len() < 2 {
@@ -908,7 +908,7 @@ mod tests {
     fn default_schedule_period() -> Period {
         Period {
             start: ModifiedJulianDate::new(60000.0),
-            stop: ModifiedJulianDate::new(60001.0),
+            end: ModifiedJulianDate::new(60001.0),
         }
     }
 

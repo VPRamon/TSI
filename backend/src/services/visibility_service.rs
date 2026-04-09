@@ -11,12 +11,9 @@ use qtty::{Degrees, Seconds};
 use siderust::calculus::altitude::{AltitudePeriodsProvider, AltitudeQuery};
 use siderust::calculus::azimuth::{AzimuthProvider, AzimuthQuery};
 use siderust::coordinates::spherical::direction;
-use siderust::time::{intersect_periods, Interval, ModifiedJulianDate};
+use siderust::time::intersect_periods;
 
-use crate::api::{Constraints, GeographicLocation, Period};
-use crate::models::ModifiedJulianDate as AppMJD;
-
-type MjdInterval = Interval<ModifiedJulianDate>;
+use crate::api::{Constraints, GeographicLocation, ModifiedJulianDate, Period};
 
 /// Input parameters for a single block's visibility computation.
 pub struct VisibilityInput<'a> {
@@ -39,22 +36,16 @@ pub fn compute_block_visibility(input: &VisibilityInput<'_>) -> Vec<Period> {
     let site = *input.location;
 
     // Determine effective search window: schedule_period clipped to fixed_time.
-    let window = match &input.constraints.fixed_time {
+    let window: Period = match &input.constraints.fixed_time {
         Some(fixed) => {
             let start = input.schedule_period.start.value().max(fixed.start.value());
-            let stop = input.schedule_period.stop.value().min(fixed.stop.value());
-            if start >= stop {
+            let end = input.schedule_period.end.value().min(fixed.end.value());
+            if start >= end {
                 return Vec::new();
             }
-            Interval::<ModifiedJulianDate>::new(
-                ModifiedJulianDate::new(start),
-                ModifiedJulianDate::new(stop),
-            )
+            Period::new(ModifiedJulianDate::new(start), ModifiedJulianDate::new(end))
         }
-        None => Interval::<ModifiedJulianDate>::new(
-            ModifiedJulianDate::new(input.schedule_period.start.value()),
-            ModifiedJulianDate::new(input.schedule_period.stop.value()),
-        ),
+        None => *input.schedule_period,
     };
 
     // Build the altitude query with the block's altitude constraints.
@@ -86,32 +77,13 @@ pub fn compute_block_visibility(input: &VisibilityInput<'_>) -> Vec<Period> {
         };
 
     let constrained_intervals = match input.astronomical_nights {
-        Some(nights) => {
-            let night_intervals = periods_to_intervals(nights);
-            intersect_periods(&position_intervals, &night_intervals)
-        }
+        Some(nights) => intersect_periods(&position_intervals, nights),
         None => position_intervals,
     };
 
     constrained_intervals
         .into_iter()
         .filter(|iv| (iv.end.value() - iv.start.value()) >= min_days)
-        .map(|iv| Period {
-            start: AppMJD::new(iv.start.value()),
-            stop: AppMJD::new(iv.end.value()),
-        })
-        .collect()
-}
-
-fn periods_to_intervals(periods: &[Period]) -> Vec<MjdInterval> {
-    periods
-        .iter()
-        .map(|p| {
-            MjdInterval::new(
-                ModifiedJulianDate::new(p.start.value()),
-                ModifiedJulianDate::new(p.stop.value()),
-            )
-        })
         .collect()
 }
 
@@ -138,7 +110,7 @@ mod tests {
     fn one_week_period() -> Period {
         Period {
             start: ModifiedJulianDate::new(60694.0), // 2026-01-15
-            stop: ModifiedJulianDate::new(60701.0),  // 2026-01-22
+            end: ModifiedJulianDate::new(60701.0),  // 2026-01-22
         }
     }
 
@@ -170,7 +142,7 @@ mod tests {
 
         for p in &periods {
             assert!(
-                p.start.value() < p.stop.value(),
+                p.start.value() < p.end.value(),
                 "Each period must have start < stop"
             );
         }
@@ -208,11 +180,11 @@ mod tests {
 
         let loose_total: f64 = compute_block_visibility(&input_loose)
             .iter()
-            .map(|p| p.stop.value() - p.start.value())
+            .map(|p| p.end.value() - p.start.value())
             .sum();
         let tight_total: f64 = compute_block_visibility(&input_tight)
             .iter()
-            .map(|p| p.stop.value() - p.start.value())
+            .map(|p| p.end.value() - p.start.value())
             .sum();
 
         assert!(
@@ -259,11 +231,11 @@ mod tests {
 
         let full_total: f64 = compute_block_visibility(&full)
             .iter()
-            .map(|p| p.stop.value() - p.start.value())
+            .map(|p| p.end.value() - p.start.value())
             .sum();
         let constrained_total: f64 = compute_block_visibility(&constrained)
             .iter()
-            .map(|p| p.stop.value() - p.start.value())
+            .map(|p| p.end.value() - p.start.value())
             .sum();
 
         assert!(
@@ -282,7 +254,7 @@ mod tests {
             max_az: Degrees::new(360.0),
             fixed_time: Some(Period {
                 start: ModifiedJulianDate::new(60694.0),
-                stop: ModifiedJulianDate::new(60697.0), // 3 days only
+                end: ModifiedJulianDate::new(60697.0), // 3 days only
             }),
         };
 
@@ -311,16 +283,16 @@ mod tests {
         // All clipped periods must lie within the fixed window
         for p in &clipped_periods {
             assert!(p.start.value() >= 60694.0);
-            assert!(p.stop.value() <= 60697.0);
+            assert!(p.end.value() <= 60697.0);
         }
 
         let full_total: f64 = full_periods
             .iter()
-            .map(|p| p.stop.value() - p.start.value())
+            .map(|p| p.end.value() - p.start.value())
             .sum();
         let clipped_total: f64 = clipped_periods
             .iter()
-            .map(|p| p.stop.value() - p.start.value())
+            .map(|p| p.end.value() - p.start.value())
             .sum();
         assert!(
             clipped_total <= full_total,
@@ -337,7 +309,7 @@ mod tests {
             max_az: Degrees::new(360.0),
             fixed_time: Some(Period {
                 start: ModifiedJulianDate::new(60800.0), // outside week window
-                stop: ModifiedJulianDate::new(60801.0),
+                end: ModifiedJulianDate::new(60801.0),
             }),
         };
 
@@ -390,7 +362,7 @@ mod tests {
         let min_days = 3600.0 / 86_400.0;
         for p in &filtered {
             assert!(
-                p.stop.value() - p.start.value() >= min_days,
+                p.end.value() - p.start.value() >= min_days,
                 "Period duration must be ≥ min_duration"
             );
         }
@@ -405,7 +377,7 @@ mod tests {
             max_az: Degrees::new(360.0),
             fixed_time: Some(Period {
                 start: ModifiedJulianDate::new(60695.0),
-                stop: ModifiedJulianDate::new(60698.0),
+                end: ModifiedJulianDate::new(60698.0),
             }),
         };
 
@@ -424,13 +396,13 @@ mod tests {
         // All results must lie within fixed_time window
         for p in &periods {
             assert!(p.start.value() >= 60695.0);
-            assert!(p.stop.value() <= 60698.0);
+            assert!(p.end.value() <= 60698.0);
         }
 
         // All results must meet duration requirement
         let min_days = 600.0 / 86_400.0;
         for p in &periods {
-            assert!(p.stop.value() - p.start.value() >= min_days);
+            assert!(p.end.value() - p.start.value() >= min_days);
         }
     }
 
@@ -443,12 +415,12 @@ mod tests {
             max_az: Degrees::new(360.0),
             fixed_time: Some(Period {
                 start: ModifiedJulianDate::new(60694.2),
-                stop: ModifiedJulianDate::new(60694.8),
+                end: ModifiedJulianDate::new(60694.8),
             }),
         };
         let nights = vec![Period {
             start: ModifiedJulianDate::new(60694.4),
-            stop: ModifiedJulianDate::new(60694.6),
+            end: ModifiedJulianDate::new(60694.6),
         }];
 
         let input = VisibilityInput {
@@ -466,7 +438,7 @@ mod tests {
         assert!(!periods.is_empty());
         for p in &periods {
             assert!(p.start.value() >= 60694.4);
-            assert!(p.stop.value() <= 60694.6);
+            assert!(p.end.value() <= 60694.6);
         }
     }
 

@@ -702,14 +702,14 @@ async fn test_dark_periods_preserved() {
         retrieved.dark_periods.first(),
     ) {
         assert_eq!(orig_first.start, retr_first.start);
-        assert_eq!(orig_first.stop, retr_first.stop);
+        assert_eq!(orig_first.end, retr_first.end);
     }
 
     if let (Some(orig_last), Some(retr_last)) =
         (schedule.dark_periods.last(), retrieved.dark_periods.last())
     {
         assert_eq!(orig_last.start, retr_last.start);
-        assert_eq!(orig_last.stop, retr_last.stop);
+        assert_eq!(orig_last.end, retr_last.end);
     }
 }
 
@@ -886,7 +886,7 @@ async fn test_block_data_integrity() {
                 orig.original_block_id
             );
             assert!(
-                (orig_period.stop.value() - retr_period.stop.value()).abs() < 0.0001,
+                (orig_period.end.value() - retr_period.end.value()).abs() < 0.0001,
                 "Scheduled stop mismatch for block {}",
                 orig.original_block_id
             );
@@ -1176,7 +1176,7 @@ async fn test_payload_with_possible_periods_preserved() {
             "lon_deg": -17.8892,
             "height": 2396.0
         },
-        "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+        "schedule_period": { "start_mjd": 60694.0, "end_mjd": 60701.0 },
         "blocks": [
             {
                 "original_block_id": "blk1",
@@ -1194,8 +1194,8 @@ async fn test_payload_with_possible_periods_preserved() {
         ],
         "possible_periods": {
             "blk1": [
-                { "start": 60694.5, "stop": 60694.8 },
-                { "start": 60695.5, "stop": 60695.9 }
+                { "start_mjd": 60694.5, "end_mjd": 60694.8 },
+                { "start_mjd": 60695.5, "end_mjd": 60695.9 }
             ]
         }
     }"#;
@@ -1206,7 +1206,7 @@ async fn test_payload_with_possible_periods_preserved() {
     let vp = &schedule.blocks[0].visibility_periods;
     assert_eq!(vp.len(), 2, "Provided periods must be preserved");
     assert!((vp[0].start.value() - 60694.5).abs() < 1e-9);
-    assert!((vp[0].stop.value() - 60694.8).abs() < 1e-9);
+    assert!((vp[0].end.value() - 60694.8).abs() < 1e-9);
 
     // Store and verify persistence.
     let metadata = services::store_schedule(&repo, &schedule)
@@ -1234,7 +1234,7 @@ async fn test_payload_without_possible_periods_computes_fallback() {
             "lon_deg": -17.8892,
             "height": 2396.0
         },
-        "schedule_period": { "start": 60694.0, "stop": 60701.0 },
+        "schedule_period": { "start_mjd": 60694.0, "end_mjd": 60701.0 },
         "blocks": [
             {
                 "original_block_id": "blk_computed",
@@ -1262,9 +1262,9 @@ async fn test_payload_without_possible_periods_computes_fallback() {
 
     // Verify all computed periods are valid (start < stop, within schedule window).
     for p in &schedule.blocks[0].visibility_periods {
-        assert!(p.start.value() < p.stop.value(), "start must be < stop");
+        assert!(p.start.value() < p.end.value(), "start must be < stop");
         assert!(p.start.value() >= 60694.0);
-        assert!(p.stop.value() <= 60701.0);
+        assert!(p.end.value() <= 60701.0);
     }
 
     // Store and verify persistence.

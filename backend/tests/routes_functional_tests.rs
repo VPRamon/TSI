@@ -28,7 +28,7 @@ fn create_schedule_with_visibility(name: &str, block_count: usize) -> Schedule {
             // Create visibility periods
             let visibility_periods = vec![Period {
                 start: ModifiedJulianDate::new(59580.0 + i as f64),
-                stop: ModifiedJulianDate::new(59581.0 + i as f64),
+                end: ModifiedJulianDate::new(59581.0 + i as f64),
             }];
 
             SchedulingBlock {
@@ -44,7 +44,7 @@ fn create_schedule_with_visibility(name: &str, block_count: usize) -> Schedule {
                 scheduled_period: if i % 2 == 0 {
                     Some(Period {
                         start: ModifiedJulianDate::new(59580.0 + i as f64),
-                        stop: ModifiedJulianDate::new(59580.5 + i as f64),
+                        end: ModifiedJulianDate::new(59580.5 + i as f64),
                     })
                 } else {
                     None
@@ -59,7 +59,7 @@ fn create_schedule_with_visibility(name: &str, block_count: usize) -> Schedule {
         blocks,
         dark_periods: vec![Period {
             start: ModifiedJulianDate::new(59580.0),
-            stop: ModifiedJulianDate::new(59590.0),
+            end: ModifiedJulianDate::new(59590.0),
         }],
         geographic_location: Geodetic::<ECEF>::new(
             Degrees::new(-17.8892),
@@ -70,7 +70,7 @@ fn create_schedule_with_visibility(name: &str, block_count: usize) -> Schedule {
         checksum: format!("checksum_{}", name),
         schedule_period: Period {
             start: ModifiedJulianDate::new(59580.0),
-            stop: ModifiedJulianDate::new(59590.0),
+            end: ModifiedJulianDate::new(59590.0),
         },
     }
 }
@@ -251,11 +251,11 @@ async fn test_schedule_with_dark_periods() {
     schedule.dark_periods = vec![
         Period {
             start: ModifiedJulianDate::new(59580.0),
-            stop: ModifiedJulianDate::new(59582.0),
+            end: ModifiedJulianDate::new(59582.0),
         },
         Period {
             start: ModifiedJulianDate::new(59585.0),
-            stop: ModifiedJulianDate::new(59587.0),
+            end: ModifiedJulianDate::new(59587.0),
         },
     ];
 
@@ -268,7 +268,7 @@ async fn test_schedule_with_dark_periods() {
 
     // Verify dark period values
     assert_eq!(retrieved.dark_periods[0].start.value(), 59580.0);
-    assert_eq!(retrieved.dark_periods[0].stop.value(), 59582.0);
+    assert_eq!(retrieved.dark_periods[0].end.value(), 59582.0);
 }
 
 #[tokio::test]

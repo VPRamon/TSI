@@ -17,7 +17,7 @@ fn test_period_boundary_start_equals_stop() {
     // Period where start equals stop (zero duration)
     let period = Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59580.0),
+        end: ModifiedJulianDate::new(59580.0),
     };
 
     let duration = period.duration();
@@ -29,7 +29,7 @@ fn test_period_inverted_start_after_stop() {
     // Period where start is after stop (negative duration)
     let period = Period {
         start: ModifiedJulianDate::new(59582.0),
-        stop: ModifiedJulianDate::new(59580.0),
+        end: ModifiedJulianDate::new(59580.0),
     };
 
     let duration = period.duration();
@@ -39,18 +39,18 @@ fn test_period_inverted_start_after_stop() {
 
 #[test]
 fn test_period_new_validates_ordering() {
-    // Period::new should return None for invalid ordering
-    let valid = Period::new(
+    // Period::try_new returns Err for invalid ordering
+    let valid = Period::try_new(
         ModifiedJulianDate::new(59580.0),
         ModifiedJulianDate::new(59582.0),
     );
-    assert!(valid.is_some());
+    assert!(valid.is_ok());
 
-    let invalid = Period::new(
+    let invalid = Period::try_new(
         ModifiedJulianDate::new(59582.0),
         ModifiedJulianDate::new(59580.0),
     );
-    assert!(invalid.is_none());
+    assert!(invalid.is_err());
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn test_period_very_small_duration() {
     // Extremely small time period (microseconds in MJD)
     let period = Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59580.0 + 1e-9), // ~86 nanoseconds
+        end: ModifiedJulianDate::new(59580.0 + 1e-9), // ~86 nanoseconds
     };
 
     let duration = period.duration();
@@ -71,7 +71,7 @@ fn test_period_very_large_duration() {
     // Period spanning thousands of days
     let period = Period {
         start: ModifiedJulianDate::new(50000.0),
-        stop: ModifiedJulianDate::new(60000.0),
+        end: ModifiedJulianDate::new(60000.0),
     };
 
     let duration = period.duration();
@@ -82,33 +82,36 @@ fn test_period_very_large_duration() {
 fn test_period_contains_boundary_inclusive_start() {
     let period = Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59582.0),
+        end: ModifiedJulianDate::new(59582.0),
     };
 
     // Start is inclusive
-    assert!(period.contains(ModifiedJulianDate::new(59580.0)));
+    let t = ModifiedJulianDate::new(59580.0);
+    assert!(period.start <= t && t < period.end);
 }
 
 #[test]
 fn test_period_contains_boundary_exclusive_end() {
     let period = Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59582.0),
+        end: ModifiedJulianDate::new(59582.0),
     };
 
     // End is exclusive
-    assert!(!period.contains(ModifiedJulianDate::new(59582.0)));
+    let t = ModifiedJulianDate::new(59582.0);
+    assert!(!(period.start <= t && t < period.end));
 }
 
 #[test]
 fn test_period_contains_just_before_end() {
     let period = Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59582.0),
+        end: ModifiedJulianDate::new(59582.0),
     };
 
     // Just before end should be included
-    assert!(period.contains(ModifiedJulianDate::new(59581.9999)));
+    let t = ModifiedJulianDate::new(59581.9999);
+    assert!(period.start <= t && t < period.end);
 }
 
 #[test]
@@ -116,50 +119,50 @@ fn test_period_overlaps_exact_boundaries() {
     // Periods that touch at boundaries
     let period1 = Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59582.0),
+        end: ModifiedJulianDate::new(59582.0),
     };
 
     let period2 = Period {
         start: ModifiedJulianDate::new(59582.0),
-        stop: ModifiedJulianDate::new(59584.0),
+        end: ModifiedJulianDate::new(59584.0),
     };
 
     // Should not overlap (period1 ends where period2 starts)
-    assert!(!period1.overlaps(&period2));
-    assert!(!period2.overlaps(&period1));
+    assert!(period1.intersection(&period2).is_none());
+    assert!(period2.intersection(&period1).is_none());
 }
 
 #[test]
 fn test_period_overlaps_partial() {
     let period1 = Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59582.0),
+        end: ModifiedJulianDate::new(59582.0),
     };
 
     let period2 = Period {
         start: ModifiedJulianDate::new(59581.0),
-        stop: ModifiedJulianDate::new(59583.0),
+        end: ModifiedJulianDate::new(59583.0),
     };
 
-    assert!(period1.overlaps(&period2));
-    assert!(period2.overlaps(&period1));
+    assert!(period1.intersection(&period2).is_some());
+    assert!(period2.intersection(&period1).is_some());
 }
 
 #[test]
 fn test_period_overlaps_complete_containment() {
     let period1 = Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59585.0),
+        end: ModifiedJulianDate::new(59585.0),
     };
 
     let period2 = Period {
         start: ModifiedJulianDate::new(59581.0),
-        stop: ModifiedJulianDate::new(59582.0),
+        end: ModifiedJulianDate::new(59582.0),
     };
 
     // period2 is completely inside period1
-    assert!(period1.overlaps(&period2));
-    assert!(period2.overlaps(&period1));
+    assert!(period1.intersection(&period2).is_some());
+    assert!(period2.intersection(&period1).is_some());
 }
 
 #[test]
@@ -167,7 +170,7 @@ fn test_period_negative_mjd() {
     // MJD can be negative for dates before 1858-11-17
     let period = Period {
         start: ModifiedJulianDate::new(-1000.0),
-        stop: ModifiedJulianDate::new(-500.0),
+        end: ModifiedJulianDate::new(-500.0),
     };
 
     let duration = period.duration();
@@ -179,10 +182,11 @@ fn test_period_extreme_mjd_values() {
     // Test with very large MJD values
     let period = Period {
         start: ModifiedJulianDate::new(100000.0),
-        stop: ModifiedJulianDate::new(100001.0),
+        end: ModifiedJulianDate::new(100001.0),
     };
 
-    assert!(period.contains(ModifiedJulianDate::new(100000.5)));
+    let t = ModifiedJulianDate::new(100000.5);
+    assert!(period.start <= t && t < period.end);
 }
 
 // =========================================================
@@ -336,7 +340,7 @@ fn test_constraints_with_fixed_time_zero_duration() {
     // Fixed time with zero duration
     let fixed = Period {
         start: ModifiedJulianDate::new(59580.0),
-        stop: ModifiedJulianDate::new(59580.0),
+        end: ModifiedJulianDate::new(59580.0),
     };
 
     let c = Constraints {
@@ -609,7 +613,7 @@ fn test_scheduling_block_many_visibility_periods() {
     let visibility_periods: Vec<Period> = (0..500)
         .map(|i| Period {
             start: ModifiedJulianDate::new(59580.0 + i as f64),
-            stop: ModifiedJulianDate::new(59580.5 + i as f64),
+            end: ModifiedJulianDate::new(59580.5 + i as f64),
         })
         .collect();
 

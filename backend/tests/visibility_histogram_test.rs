@@ -3,22 +3,13 @@
 
 #[cfg(test)]
 mod visibility_histogram_tests {
-    use tsi_rust::api::{ModifiedJulianDate, Period};
+    use tsi_rust::api::Period;
     use tsi_rust::db::models::BlockHistogramData;
     use tsi_rust::services::visibility::compute_visibility_histogram_rust;
 
     /// Helper to create test block with visibility periods
     fn make_block_from_json(id: i64, priority: i32, vis_json: &str) -> BlockHistogramData {
-        // Parse JSON to Vec<Period>
-        let periods: Vec<serde_json::Value> = serde_json::from_str(vis_json).unwrap();
-        let visibility_periods: Vec<Period> = periods
-            .iter()
-            .map(|p| Period {
-                start: ModifiedJulianDate::new(p["start"].as_f64().unwrap()),
-                stop: ModifiedJulianDate::new(p["stop"].as_f64().unwrap()),
-            })
-            .collect();
-
+        let visibility_periods: Vec<Period> = serde_json::from_str(vis_json).unwrap();
         BlockHistogramData {
             scheduling_block_id: id,
             priority,
@@ -46,7 +37,7 @@ mod visibility_histogram_tests {
     #[test]
     fn test_single_block_full_day() {
         // MJD 40587 = Unix epoch (1970-01-01)
-        let block = make_block_from_json(1, 5, r#"[{"start": 40587.0, "stop": 40588.0}]"#);
+        let block = make_block_from_json(1, 5, r#"[{"start_mjd": 40587.0, "end_mjd": 40588.0}]"#);
 
         let bins = compute_visibility_histogram_rust(
             vec![block].into_iter(),
@@ -66,10 +57,10 @@ mod visibility_histogram_tests {
     #[test]
     fn test_priority_filtering() {
         let blocks = vec![
-            make_block_from_json(1, 3, r#"[{"start": 40587.0, "stop": 40587.5}]"#),
-            make_block_from_json(2, 5, r#"[{"start": 40587.0, "stop": 40587.5}]"#),
-            make_block_from_json(3, 7, r#"[{"start": 40587.0, "stop": 40587.5}]"#),
-            make_block_from_json(4, 10, r#"[{"start": 40587.0, "stop": 40587.5}]"#),
+            make_block_from_json(1, 3, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.5}]"#),
+            make_block_from_json(2, 5, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.5}]"#),
+            make_block_from_json(3, 7, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.5}]"#),
+            make_block_from_json(4, 10, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.5}]"#),
         ];
 
         // Filter for priority >= 5 and <= 8
@@ -89,9 +80,9 @@ mod visibility_histogram_tests {
             1,
             5,
             r#"[
-                {"start": 40587.0, "stop": 40587.1},
-                {"start": 40587.3, "stop": 40587.4},
-                {"start": 40587.7, "stop": 40587.8}
+                {"start_mjd": 40587.0, "end_mjd": 40587.1},
+                {"start_mjd": 40587.3, "end_mjd": 40587.4},
+                {"start_mjd": 40587.7, "end_mjd": 40587.8}
             ]"#,
         );
 
@@ -116,9 +107,9 @@ mod visibility_histogram_tests {
     #[test]
     fn test_overlapping_blocks_different_ids() {
         let blocks = vec![
-            make_block_from_json(1, 5, r#"[{"start": 40587.0, "stop": 40587.25}]"#),
-            make_block_from_json(2, 5, r#"[{"start": 40587.1, "stop": 40587.35}]"#),
-            make_block_from_json(3, 5, r#"[{"start": 40587.2, "stop": 40587.45}]"#),
+            make_block_from_json(1, 5, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.25}]"#),
+            make_block_from_json(2, 5, r#"[{"start_mjd": 40587.1, "end_mjd": 40587.35}]"#),
+            make_block_from_json(3, 5, r#"[{"start_mjd": 40587.2, "end_mjd": 40587.45}]"#),
         ];
 
         let bins =
@@ -134,7 +125,7 @@ mod visibility_histogram_tests {
     #[test]
     fn test_edge_case_period_touches_bin_boundary() {
         // Period that exactly touches bin boundaries
-        let block = make_block_from_json(1, 5, r#"[{"start": 40587.0, "stop": 40587.041666667}]"#);
+        let block = make_block_from_json(1, 5, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.041666667}]"#);
         // 0.041666667 days = 1 hour
 
         let bins = compute_visibility_histogram_rust(
@@ -156,7 +147,7 @@ mod visibility_histogram_tests {
     #[test]
     fn test_period_spanning_multiple_bins() {
         // Period spanning 5 hours
-        let block = make_block_from_json(1, 5, r#"[{"start": 40587.0, "stop": 40587.208333333}]"#);
+        let block = make_block_from_json(1, 5, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.208333333}]"#);
         // 0.208333333 days = 5 hours
 
         let bins = compute_visibility_histogram_rust(
@@ -185,8 +176,8 @@ mod visibility_histogram_tests {
             1,
             5,
             r#"[
-                {"start": 40587.5, "stop": 40587.2},
-                {"start": 40587.0, "stop": 40587.1}
+                {"start_mjd": 40587.5, "end_mjd": 40587.2},
+                {"start_mjd": 40587.0, "end_mjd": 40587.1}
             ]"#,
         );
 
@@ -236,9 +227,9 @@ mod visibility_histogram_tests {
     #[test]
     fn test_block_ids_filter() {
         let blocks = vec![
-            make_block_from_json(100, 5, r#"[{"start": 40587.0, "stop": 40587.5}]"#),
-            make_block_from_json(200, 5, r#"[{"start": 40587.0, "stop": 40587.5}]"#),
-            make_block_from_json(300, 5, r#"[{"start": 40587.0, "stop": 40587.5}]"#),
+            make_block_from_json(100, 5, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.5}]"#),
+            make_block_from_json(200, 5, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.5}]"#),
+            make_block_from_json(300, 5, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.5}]"#),
         ];
 
         // Note: block_ids filtering happens at DB level, not in compute function
@@ -264,7 +255,7 @@ mod visibility_histogram_tests {
 
     #[test]
     fn test_variable_bin_sizes() {
-        let block = make_block_from_json(1, 5, r#"[{"start": 40587.0, "stop": 40587.5}]"#);
+        let block = make_block_from_json(1, 5, r#"[{"start_mjd": 40587.0, "end_mjd": 40587.5}]"#);
 
         // Test with 30-minute bins
         let bins_30min = compute_visibility_histogram_rust(
@@ -320,7 +311,7 @@ mod visibility_histogram_tests {
         for i in 0..10 {
             let start_mjd = 40587.0 + (i as f64) * 0.1; // Staggered start times
             let stop_mjd = start_mjd + 0.3; // Each visible for ~7.2 hours
-            let json = format!(r#"[{{"start": {}, "stop": {}}}]"#, start_mjd, stop_mjd);
+            let json = format!(r#"[{{"start_mjd": {}, "end_mjd": {}}}]"#, start_mjd, stop_mjd);
             blocks.push(make_block_from_json(i, 5 + (i % 5) as i32, &json));
         }
 

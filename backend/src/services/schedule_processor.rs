@@ -211,7 +211,7 @@ mod tests {
             checksum: format!("checksum-{name}"),
             schedule_period: Period {
                 start: ModifiedJulianDate::new(60000.0),
-                stop: ModifiedJulianDate::new(60001.0),
+                end: ModifiedJulianDate::new(60001.0),
             },
             dark_periods: vec![],
             geographic_location: Geodetic::<ECEF>::new(

@@ -6,56 +6,60 @@ use tsi_rust::models::ModifiedJulianDate;
 #[test]
 fn test_period_creation() {
     let start = ModifiedJulianDate::new(59000.0);
-    let stop = ModifiedJulianDate::new(59001.0);
+    let end = ModifiedJulianDate::new(59001.0);
 
-    let period = Period::new(start, stop);
-    assert!(period.is_some());
-
-    let period = period.unwrap();
+    let period = Period::new(start, end);
     assert_eq!(period.start.value(), 59000.0);
-    assert_eq!(period.stop.value(), 59001.0);
+    assert_eq!(period.end.value(), 59001.0);
 }
 
 #[test]
-fn test_period_invalid_order() {
+fn test_period_try_new_invalid_order() {
     let start = ModifiedJulianDate::new(59001.0);
-    let stop = ModifiedJulianDate::new(59000.0);
+    let end = ModifiedJulianDate::new(59000.0);
 
-    let period = Period::new(start, stop);
-    assert!(period.is_none());
+    assert!(Period::try_new(start, end).is_err());
 }
 
 #[test]
 fn test_period_duration() {
-    let start = ModifiedJulianDate::new(59000.0);
-    let stop = ModifiedJulianDate::new(59003.5);
-
-    let period = Period::new(start, stop).unwrap();
+    let period = Period::new(
+        ModifiedJulianDate::new(59000.0),
+        ModifiedJulianDate::new(59003.5),
+    );
     let duration = period.duration();
     assert_eq!(duration.value(), 3.5);
 }
 
 #[test]
 fn test_period_contains() {
-    let start = ModifiedJulianDate::new(59000.0);
-    let stop = ModifiedJulianDate::new(59001.0);
-    let period = Period::new(start, stop).unwrap();
+    let period = Period::new(
+        ModifiedJulianDate::new(59000.0),
+        ModifiedJulianDate::new(59001.0),
+    );
+    let t_in = ModifiedJulianDate::new(59000.5);
+    let t_at_start = ModifiedJulianDate::new(59000.0);
+    let t_at_end = ModifiedJulianDate::new(59001.0);
+    let t_before = ModifiedJulianDate::new(58999.0);
 
-    assert!(period.contains(ModifiedJulianDate::new(59000.0)));
-    assert!(period.contains(ModifiedJulianDate::new(59000.5)));
-    assert!(!period.contains(ModifiedJulianDate::new(59001.0))); // Exclusive end
-    assert!(!period.contains(ModifiedJulianDate::new(58999.0)));
+    assert!(period.start <= t_in && t_in < period.end);
+    assert!(period.start <= t_at_start && t_at_start < period.end);
+    assert!(!(period.start <= t_at_end && t_at_end < period.end)); // Exclusive end
+    assert!(!(period.start <= t_before && t_before < period.end));
 }
 
 #[test]
-fn test_period_contains_mjd() {
-    let period = Period::from_mjd(59000.0, 59001.0);
-
-    assert!(period.contains_mjd(59000.0));
-    assert!(period.contains_mjd(59000.5));
-    assert!(period.contains_mjd(59001.0)); // Python version is inclusive
-    assert!(!period.contains_mjd(58999.0));
-    assert!(!period.contains_mjd(59002.0));
+fn test_period_contains_range() {
+    let period = Period::new(
+        ModifiedJulianDate::new(59000.0),
+        ModifiedJulianDate::new(59001.0),
+    );
+    // Inclusive range using start <= t <= end
+    assert!(period.start.value() <= 59000.0 && 59000.0 <= period.end.value());
+    assert!(period.start.value() <= 59000.5 && 59000.5 <= period.end.value());
+    assert!(period.start.value() <= 59001.0 && 59001.0 <= period.end.value());
+    assert!(!(period.start.value() <= 58999.0 && 58999.0 <= period.end.value()));
+    assert!(!(period.start.value() <= 59002.0 && 59002.0 <= period.end.value()));
 }
 
 #[test]
@@ -63,33 +67,30 @@ fn test_period_overlaps() {
     let period1 = Period::new(
         ModifiedJulianDate::new(59000.0),
         ModifiedJulianDate::new(59002.0),
-    )
-    .unwrap();
-
+    );
     let period2 = Period::new(
         ModifiedJulianDate::new(59001.0),
         ModifiedJulianDate::new(59003.0),
-    )
-    .unwrap();
-
-    assert!(period1.overlaps(&period2));
-    assert!(period2.overlaps(&period1));
-
+    );
     let period3 = Period::new(
         ModifiedJulianDate::new(59005.0),
         ModifiedJulianDate::new(59006.0),
-    )
-    .unwrap();
+    );
 
-    assert!(!period1.overlaps(&period3));
-    assert!(!period3.overlaps(&period1));
+    assert!(period1.intersection(&period2).is_some());
+    assert!(period2.intersection(&period1).is_some());
+    assert!(period1.intersection(&period3).is_none());
+    assert!(period3.intersection(&period1).is_none());
 }
 
 #[test]
 fn test_period_from_mjd() {
-    let period = Period::from_mjd(59000.0, 59001.0);
-    assert_eq!(period.start_mjd(), 59000.0);
-    assert_eq!(period.stop_mjd(), 59001.0);
+    let period = Period::new(
+        ModifiedJulianDate::new(59000.0),
+        ModifiedJulianDate::new(59001.0),
+    );
+    assert_eq!(period.start.value(), 59000.0);
+    assert_eq!(period.end.value(), 59001.0);
 }
 
 #[test]
@@ -111,7 +112,7 @@ fn test_constraints_creation() {
 
 #[test]
 fn test_constraints_with_fixed_time() {
-    let period = Period::from_mjd(59000.0, 59001.0);
+    let period = Period::new(ModifiedJulianDate::new(59000.0), ModifiedJulianDate::new(59001.0));
     let constraints = Constraints::new(
         qtty::Degrees::new(20.0),
         qtty::Degrees::new(80.0),
@@ -122,7 +123,7 @@ fn test_constraints_with_fixed_time() {
 
     assert!(constraints.fixed_time.is_some());
     let fixed_time = constraints.fixed_time.unwrap();
-    assert_eq!(fixed_time.start_mjd(), 59000.0);
+    assert_eq!(fixed_time.start.value(), 59000.0);
 }
 
 #[test]
@@ -185,7 +186,7 @@ fn test_all_id_types_value_getter() {
 
 #[test]
 fn test_period_serialization() {
-    let period = Period::from_mjd(59000.0, 59001.0);
+    let period = Period::new(ModifiedJulianDate::new(59000.0), ModifiedJulianDate::new(59001.0));
     let json = serde_json::to_string(&period).unwrap();
     assert!(json.contains("59000"));
     assert!(json.contains("59001"));
@@ -193,10 +194,10 @@ fn test_period_serialization() {
 
 #[test]
 fn test_period_deserialization() {
-    let json = r#"{"start":59000.0,"stop":59001.0}"#;
+    let json = r#"{"start_mjd":59000.0,"end_mjd":59001.0}"#;
     let period: Period = serde_json::from_str(json).unwrap();
-    assert_eq!(period.start_mjd(), 59000.0);
-    assert_eq!(period.stop_mjd(), 59001.0);
+    assert_eq!(period.start.value(), 59000.0);
+    assert_eq!(period.end.value(), 59001.0);
 }
 
 #[test]
