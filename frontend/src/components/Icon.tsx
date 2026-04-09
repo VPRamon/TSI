@@ -210,10 +210,37 @@ function Icon({ name, className = 'h-6 w-6', title, ...props }: IconProps) {
       case 'telescope':
         return (
           <>
-            <path d="M6 3l6 6" />
-            <path d="M21 12l-9 9-3-3 9-9 3 3z" />
-            <path d="M3 21l3-3" />
-            <circle cx="4" cy="4" r="2" />
+            <circle cx="12" cy="12" r="9" fill="currentColor" fillOpacity="0.12" stroke="none" />
+            <path d="M4.8 14.1c2.5-2.2 5-3.2 7.8-2.9 2.5.2 4.8 1.2 6.5 2.9" strokeOpacity="0.55" />
+            <g transform="rotate(-24 11 10)">
+              <rect
+                x="7"
+                y="8.1"
+                width="7.8"
+                height="3.1"
+                rx="1.55"
+                fill="currentColor"
+                stroke="none"
+              />
+              <rect
+                x="5.1"
+                y="8.7"
+                width="2.1"
+                height="1.9"
+                rx="0.95"
+                fill="currentColor"
+                stroke="none"
+                fillOpacity="0.78"
+              />
+              <circle cx="15.4" cy="9.65" r="2.35" />
+              <circle cx="15.4" cy="9.65" r="0.78" fill="currentColor" stroke="none" />
+            </g>
+            <circle cx="11" cy="12.9" r="1.45" fill="currentColor" stroke="none" />
+            <path d="M11 14.4v3.4" />
+            <path d="M11 14.4 7.2 19.2" />
+            <path d="M11 14.4 15.1 19.2" />
+            <path d="M6 19.2h10.5" />
+            <path d="M18 4.1v1.8M17.1 5h1.8" />
           </>
         );
       case 'x-circle':

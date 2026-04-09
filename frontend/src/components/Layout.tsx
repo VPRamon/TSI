@@ -7,6 +7,7 @@ import { Outlet, NavLink, useParams, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/store';
 import { useHealth } from '@/hooks';
 import { useScheduleSync, SchedulePicker, AnalysisProvider } from '@/features/schedules';
+import BrandMark from './BrandMark';
 import Icon from './Icon';
 
 // Navigation items for schedule-specific views
@@ -177,10 +178,12 @@ function Layout() {
               <div className="flex items-center">
                 <NavLink
                   to="/"
-                  className="flex shrink-0 items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-700/50"
+                  className="group flex shrink-0 items-center gap-3 rounded-2xl border border-sky-400/15 bg-slate-950/55 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(224,242,254,0.06)] transition-all hover:border-sky-300/30 hover:bg-slate-800/70"
                 >
-                  <Icon name="telescope" className="h-7 w-7 text-primary-400" />
-                  <span className="text-lg font-bold text-white">TSI</span>
+                  <BrandMark className="h-10 w-10 shrink-0 drop-shadow-[0_0_14px_rgba(125,211,252,0.28)]" />
+                  <span className="pr-2 text-sm font-semibold uppercase tracking-[0.28em] text-white">
+                    Home
+                  </span>
                 </NavLink>
               </div>
 

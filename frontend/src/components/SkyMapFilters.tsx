@@ -6,6 +6,7 @@
  * to prevent expensive re-filtering of the scatter plot on every keystroke.
  */
 import { memo, useState, useRef, useCallback, useEffect } from 'react';
+import type { PriorityBinInfo } from '@/api/types';
 
 export interface SkyMapFilterState {
   showScheduled: boolean;
@@ -23,6 +24,8 @@ interface SkyMapFiltersProps {
   scheduledTimeRange: { min: string | null; max: string | null };
   /** Min/max priority from the data (for slider bounds) */
   priorityRange: { min: number; max: number };
+  /** Priority bins for the color legend */
+  bins?: PriorityBinInfo[];
   /** Callback to reset filters to defaults */
   onReset: () => void;
 }
@@ -36,6 +39,7 @@ const SkyMapFilters = memo(function SkyMapFilters({
   onChange,
   scheduledTimeRange,
   priorityRange,
+  bins,
   onReset,
 }: SkyMapFiltersProps) {
   // Local state for debounced fields
@@ -193,7 +197,8 @@ const SkyMapFilters = memo(function SkyMapFilters({
         <div className="hidden self-stretch bg-slate-700 sm:block" />
 
         {/* Priority Range */}
-        <div className="flex min-w-0 flex-col gap-1.5 sm:pl-5">
+        <div className="flex items-start gap-4 sm:pl-5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
               Priority Range
@@ -238,6 +243,21 @@ const SkyMapFilters = memo(function SkyMapFilters({
               <span>{priorityRange.max.toFixed(1)}</span>
             </div>
           </div>
+          </div>
+          {bins && bins.length > 0 && (
+            <div className="flex flex-shrink-0 flex-col gap-1 self-center">
+              {bins.map((bin) => (
+                <div key={bin.label} className="flex items-center gap-1.5">
+                  <div
+                    className="h-2 w-2 flex-shrink-0 rounded-sm"
+                    style={{ backgroundColor: bin.color }}
+                    aria-hidden="true"
+                  />
+                  <span className="text-[11px] text-slate-400 whitespace-nowrap">{bin.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

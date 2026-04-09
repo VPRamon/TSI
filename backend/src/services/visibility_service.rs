@@ -112,10 +112,12 @@ pub fn compute_block_visibility(input: &VisibilityInput<'_>) -> Vec<Period> {
 fn periods_to_intervals(periods: &[Period]) -> Vec<MjdInterval> {
     periods
         .iter()
-        .map(|p| MjdInterval::new(
-            ModifiedJulianDate::new(p.start.value()),
-            ModifiedJulianDate::new(p.stop.value()),
-        ))
+        .map(|p| {
+            MjdInterval::new(
+                ModifiedJulianDate::new(p.start.value()),
+                ModifiedJulianDate::new(p.stop.value()),
+            )
+        })
         .collect()
 }
 

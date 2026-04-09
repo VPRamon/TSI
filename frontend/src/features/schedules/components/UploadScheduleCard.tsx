@@ -6,7 +6,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateSchedule } from '@/hooks';
 import { LoadingSpinner, LogStream } from '@/components';
-import { OBSERVATORY_SITES, SITE_FROM_FILE } from '@/constants';
+import { OBSERVATORY_SITES, SITE_FROM_FILE, formatSiteLabel } from '@/constants';
 
 // SVG Icons
 const UploadIcon = () => (
@@ -45,7 +45,7 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>(OBSERVATORY_SITES[0].id);
+  const [selectedSiteIdx, setSelectedSiteIdx] = useState<string>('0');
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -72,9 +72,10 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
       }
       const name = uploadName || selectedFile.name.replace('.json', '');
 
-      const selectedSite = OBSERVATORY_SITES.find((s) => s.id === selectedSiteId);
       const locationOverride =
-        selectedSiteId !== SITE_FROM_FILE && selectedSite ? selectedSite.location : undefined;
+        selectedSiteIdx !== SITE_FROM_FILE
+          ? OBSERVATORY_SITES[parseInt(selectedSiteIdx, 10)]?.location
+          : undefined;
 
       const response = await createSchedule.mutateAsync({
         name,
@@ -165,14 +166,14 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
             </label>
             <select
               id="observatory-site"
-              value={selectedSiteId}
-              onChange={(e) => setSelectedSiteId(e.target.value)}
+              value={selectedSiteIdx}
+              onChange={(e) => setSelectedSiteIdx(e.target.value)}
               disabled={isUploading}
               className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-white transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {OBSERVATORY_SITES.map((site) => (
-                <option key={site.id} value={site.id}>
-                  {site.label}
+              {OBSERVATORY_SITES.map((site, i) => (
+                <option key={i} value={String(i)}>
+                  {formatSiteLabel(site)}
                 </option>
               ))}
               <option value={SITE_FROM_FILE}>Use location from file</option>

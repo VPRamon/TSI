@@ -26,20 +26,18 @@ const PriorityBinsLegend = memo(function PriorityBinsLegend({
 
   return (
     <div className={containerClasses}>
-      <h4 className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-400">
-        Priority Bins
-      </h4>
-      <div className="flex flex-col gap-1.5">
+      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
+        Priority
+      </p>
+      <div className="flex flex-col gap-1">
         {bins.map((bin) => (
-          <div key={bin.label} className="flex items-center gap-2">
+          <div key={bin.label} className="flex items-center gap-1.5">
             <div
-              className="h-2.5 w-2.5 flex-shrink-0 rounded-sm"
+              className="h-2 w-2 flex-shrink-0 rounded-sm"
               style={{ backgroundColor: bin.color }}
               aria-hidden="true"
             />
-            <span className="text-xs text-slate-300 whitespace-nowrap">
-              {bin.label}: {bin.min_priority.toFixed(1)} – {bin.max_priority.toFixed(1)}
-            </span>
+            <span className="text-xs text-slate-300 whitespace-nowrap">{bin.label}</span>
           </div>
         ))}
       </div>

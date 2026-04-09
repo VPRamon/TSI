@@ -212,6 +212,7 @@ function SkyMap() {
           onChange={setFilters}
           scheduledTimeRange={scheduledTimeRange}
           priorityRange={{ min: data.priority_min, max: data.priority_max }}
+          bins={data.priority_bins}
           onReset={handleReset}
         />
 

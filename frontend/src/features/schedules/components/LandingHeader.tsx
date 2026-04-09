@@ -1,6 +1,7 @@
 /**
  * Landing page header component.
  */
+
 export interface LandingHeaderProps {
   title?: string;
   subtitle?: string;
