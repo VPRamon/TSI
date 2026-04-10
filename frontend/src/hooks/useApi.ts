@@ -3,7 +3,7 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api';
-import type { CreateScheduleRequest, TrendsQuery, CompareQuery, VisibilityHistogramQuery } from '@/api/types';
+import type { CreateScheduleRequest, TrendsQuery, CompareQuery, VisibilityHistogramQuery, UpdateScheduleRequest } from '@/api/types';
 
 // Query keys factory
 export const queryKeys = {
@@ -48,6 +48,31 @@ export function useCreateSchedule() {
     mutationFn: (request: CreateScheduleRequest) => api.createSchedule(request),
     onSuccess: () => {
       // Invalidate schedules list to refetch
+      queryClient.invalidateQueries({ queryKey: queryKeys.schedules });
+    },
+  });
+}
+
+// Delete schedule mutation
+export function useDeleteSchedule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (scheduleId: number) => api.deleteSchedule(scheduleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.schedules });
+    },
+  });
+}
+
+// Update schedule mutation
+export function useUpdateSchedule() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ scheduleId, request }: { scheduleId: number; request: UpdateScheduleRequest }) =>
+      api.updateSchedule(scheduleId, request),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.schedules });
     },
   });

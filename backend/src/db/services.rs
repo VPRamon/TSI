@@ -292,6 +292,52 @@ pub async fn fetch_possible_periods<R: FullRepository + ?Sized>(
     repo.fetch_possible_periods(schedule_id).await
 }
 
+// ==================== Schedule Management ====================
+
+/// Delete a schedule and all associated data.
+///
+/// # Arguments
+/// * `repo` - Repository implementation
+/// * `schedule_id` - The ID of the schedule to delete
+///
+/// # Returns
+/// * `Ok(())` - Schedule was deleted
+/// * `Err` if schedule not found or deletion fails
+pub async fn delete_schedule<R: FullRepository + ?Sized>(
+    repo: &R,
+    schedule_id: crate::api::ScheduleId,
+) -> RepositoryResult<()> {
+    info!("Service layer: deleting schedule {}", schedule_id);
+    repo.delete_schedule(schedule_id).await
+}
+
+/// Update schedule metadata (name and/or observer location).
+///
+/// # Arguments
+/// * `repo` - Repository implementation
+/// * `schedule_id` - The ID of the schedule to update
+/// * `new_name` - Optional new name
+/// * `new_location` - Optional new observer location
+///
+/// # Returns
+/// * `Ok(ScheduleInfo)` - Updated schedule metadata
+/// * `Err` if schedule not found or update fails
+pub async fn update_schedule_metadata<R: FullRepository + ?Sized>(
+    repo: &R,
+    schedule_id: crate::api::ScheduleId,
+    new_name: Option<String>,
+    new_location: Option<crate::api::GeographicLocation>,
+) -> RepositoryResult<crate::api::ScheduleInfo> {
+    info!(
+        "Service layer: updating metadata for schedule {} (name={:?}, location={})",
+        schedule_id,
+        new_name,
+        new_location.is_some()
+    );
+    repo.update_schedule_metadata(schedule_id, new_name, new_location)
+        .await
+}
+
 // ==================== Analytics Operations ====================
 
 /// Ensure analytics are populated for a schedule.

@@ -131,4 +131,38 @@ pub trait ScheduleRepository: Send + Sync {
         &self,
         schedule_id: crate::api::ScheduleId,
     ) -> RepositoryResult<Vec<Period>>;
+
+    // ==================== Schedule Management ====================
+
+    /// Delete a schedule and all associated data (blocks, analytics, validation results).
+    ///
+    /// # Arguments
+    /// * `schedule_id` - The ID of the schedule to delete
+    ///
+    /// # Returns
+    /// * `Ok(())` - Schedule was successfully deleted
+    /// * `Err(RepositoryError::NotFound)` - If the schedule doesn't exist
+    /// * `Err(RepositoryError)` - If the operation fails
+    async fn delete_schedule(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<()>;
+
+    /// Update schedule metadata (name and/or observer location).
+    ///
+    /// # Arguments
+    /// * `schedule_id` - The ID of the schedule to update
+    /// * `new_name` - Optional new name for the schedule
+    /// * `new_location` - Optional new observer location
+    ///
+    /// # Returns
+    /// * `Ok(ScheduleInfo)` - Updated schedule metadata
+    /// * `Err(RepositoryError::NotFound)` - If the schedule doesn't exist
+    /// * `Err(RepositoryError)` - If the operation fails
+    async fn update_schedule_metadata(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+        new_name: Option<String>,
+        new_location: Option<crate::api::GeographicLocation>,
+    ) -> RepositoryResult<crate::api::ScheduleInfo>;
 }

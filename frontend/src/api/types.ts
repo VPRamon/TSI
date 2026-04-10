@@ -61,6 +61,15 @@ export interface HealthResponse {
   database: string;
 }
 
+export interface UpdateScheduleRequest {
+  name?: string;
+  location?: GeographicLocation;
+}
+
+export interface DeleteScheduleResponse {
+  message: string;
+}
+
 // =============================================================================
 // Visualization Types
 // =============================================================================

@@ -5,7 +5,7 @@
 
 use axum::{
     extract::DefaultBodyLimit,
-    routing::{get, post},
+    routing::{delete, get, patch, post},
     Router,
 };
 use tower_http::{
@@ -30,6 +30,14 @@ pub fn create_router(state: AppState) -> Router {
         // Schedule CRUD
         .route("/schedules", get(handlers::list_schedules))
         .route("/schedules", post(handlers::create_schedule))
+        .route(
+            "/schedules/{schedule_id}",
+            delete(handlers::delete_schedule),
+        )
+        .route(
+            "/schedules/{schedule_id}",
+            patch(handlers::update_schedule),
+        )
         // Job management
         .route("/jobs/{job_id}", get(handlers::get_job_status))
         .route("/jobs/{job_id}/logs", get(handlers::stream_job_logs))

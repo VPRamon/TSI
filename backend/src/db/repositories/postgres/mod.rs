@@ -926,6 +926,79 @@ impl ScheduleRepository for PostgresRepository {
         })
         .await
     }
+
+    async fn delete_schedule(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+    ) -> RepositoryResult<()> {
+        self.with_conn(move |conn| {
+            let deleted = diesel::delete(
+                schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)),
+            )
+            .execute(conn)
+            .map_err(map_diesel_error)?;
+
+            if deleted == 0 {
+                return Err(RepositoryError::NotFound(format!(
+                    "Schedule {} not found",
+                    schedule_id
+                )));
+            }
+            // CASCADE deletes handle related tables (blocks, analytics, validation, summary)
+            Ok(())
+        })
+        .await
+    }
+
+    async fn update_schedule_metadata(
+        &self,
+        schedule_id: crate::api::ScheduleId,
+        new_name: Option<String>,
+        new_location: Option<crate::api::GeographicLocation>,
+    ) -> RepositoryResult<crate::api::ScheduleInfo> {
+        self.with_conn(move |conn| {
+            // Check schedule exists first
+            let _existing = schedules::table
+                .filter(schedules::schedule_id.eq(schedule_id.0))
+                .select(schedules::schedule_id)
+                .first::<i64>(conn)
+                .map_err(map_diesel_error)?;
+
+            if let Some(ref name) = new_name {
+                diesel::update(
+                    schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)),
+                )
+                .set(schedules::schedule_name.eq(name))
+                .execute(conn)
+                .map_err(map_diesel_error)?;
+            }
+
+            if let Some(ref location) = new_location {
+                let loc_json = serde_json::to_value(location).map_err(|e| {
+                    map_diesel_error(diesel::result::Error::SerializationError(Box::new(e)))
+                })?;
+                diesel::update(
+                    schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)),
+                )
+                .set(schedules::observer_location_json.eq(loc_json))
+                .execute(conn)
+                .map_err(map_diesel_error)?;
+            }
+
+            // Fetch updated metadata
+            let (id, name) = schedules::table
+                .filter(schedules::schedule_id.eq(schedule_id.0))
+                .select((schedules::schedule_id, schedules::schedule_name))
+                .first::<(i64, String)>(conn)
+                .map_err(map_diesel_error)?;
+
+            Ok(ScheduleInfo {
+                schedule_id: ScheduleId(id),
+                schedule_name: name,
+            })
+        })
+        .await
+    }
 }
 
 #[async_trait]

@@ -21,6 +21,9 @@ import type {
   VisibilityBin,
   VisibilityHistogramQuery,
   ApiError as ApiErrorResponse,
+  UpdateScheduleRequest,
+  DeleteScheduleResponse,
+  ScheduleInfo,
 } from './types';
 import {
   ApiRequestError,
@@ -118,6 +121,21 @@ class ApiClient {
 
   async createSchedule(request: CreateScheduleRequest): Promise<CreateScheduleResponse> {
     const { data } = await this.client.post<CreateScheduleResponse>('/v1/schedules', request);
+    return data;
+  }
+
+  async deleteSchedule(scheduleId: number): Promise<DeleteScheduleResponse> {
+    const { data } = await this.client.delete<DeleteScheduleResponse>(
+      `/v1/schedules/${scheduleId}`
+    );
+    return data;
+  }
+
+  async updateSchedule(scheduleId: number, request: UpdateScheduleRequest): Promise<ScheduleInfo> {
+    const { data } = await this.client.patch<ScheduleInfo>(
+      `/v1/schedules/${scheduleId}`,
+      request
+    );
     return data;
   }
 

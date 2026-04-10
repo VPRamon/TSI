@@ -13,8 +13,9 @@ use std::convert::Infallible;
 use std::time::Duration;
 
 use super::dto::{
-    CompareQuery, CreateScheduleRequest, CreateScheduleResponse, HealthResponse, JobStatusResponse,
-    ScheduleInfoDto, ScheduleListResponse, TrendsQuery, VisibilityBin, VisibilityHistogramQuery,
+    CompareQuery, CreateScheduleRequest, CreateScheduleResponse, DeleteScheduleResponse,
+    HealthResponse, JobStatusResponse, ScheduleInfoDto, ScheduleListResponse, TrendsQuery,
+    UpdateScheduleRequest, VisibilityBin, VisibilityHistogramQuery,
 };
 use super::error::AppError;
 use super::state::AppState;
@@ -155,6 +156,47 @@ pub async fn create_schedule(
             ),
         }),
     ))
+}
+
+/// DELETE /v1/schedules/{schedule_id}
+///
+/// Delete a schedule and all associated data.
+pub async fn delete_schedule(
+    State(state): State<AppState>,
+    Path(schedule_id): Path<i64>,
+) -> HandlerResult<DeleteScheduleResponse> {
+    let schedule_id = ScheduleId::new(schedule_id);
+    db_services::delete_schedule(state.repository.as_ref(), schedule_id).await?;
+
+    Ok(Json(DeleteScheduleResponse {
+        message: format!("Schedule {} deleted successfully", schedule_id),
+    }))
+}
+
+/// PATCH /v1/schedules/{schedule_id}
+///
+/// Update schedule metadata (name and/or observer location).
+pub async fn update_schedule(
+    State(state): State<AppState>,
+    Path(schedule_id): Path<i64>,
+    Json(request): Json<UpdateScheduleRequest>,
+) -> HandlerResult<ScheduleInfoDto> {
+    if request.name.is_none() && request.location.is_none() {
+        return Err(AppError::BadRequest(
+            "At least one of 'name' or 'location' must be provided".to_string(),
+        ));
+    }
+
+    let schedule_id = ScheduleId::new(schedule_id);
+    let info = db_services::update_schedule_metadata(
+        state.repository.as_ref(),
+        schedule_id,
+        request.name,
+        request.location,
+    )
+    .await?;
+
+    Ok(Json(info.into()))
 }
 
 // =============================================================================

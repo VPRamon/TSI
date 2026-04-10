@@ -178,3 +178,21 @@ impl From<crate::api::ScheduleInfo> for ScheduleInfoDto {
         }
     }
 }
+
+/// Request body for updating schedule metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateScheduleRequest {
+    /// New name for the schedule (optional)
+    #[serde(default)]
+    pub name: Option<String>,
+    /// New geographic location override (optional)
+    #[serde(default)]
+    pub location: Option<crate::api::GeographicLocation>,
+}
+
+/// Response for successful deletion.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteScheduleResponse {
+    /// Confirmation message
+    pub message: String,
+}

@@ -14,6 +14,7 @@ const Validation = lazy(() => import('./pages/Validation'));
 const Compare = lazy(() => import('./pages/Compare'));
 const VisibilityMap = lazy(() => import('./pages/VisibilityMap'));
 const AltAz = lazy(() => import('./pages/AltAz'));
+const ScheduleManagement = lazy(() => import('./pages/ScheduleManagement'));
 
 // Loading fallback component
 function PageLoader() {
@@ -31,6 +32,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Landing />} />
+            <Route path="manage" element={<ScheduleManagement />} />
             <Route path="schedules/:scheduleId">
               <Route path="sky-map" element={<SkyMap />} />
               <Route path="distributions" element={<Distributions />} />
