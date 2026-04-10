@@ -22,24 +22,28 @@ import {
 } from '@/components';
 import type { SkyMapFilterState } from '@/components';
 import type { LightweightBlock } from '@/api/types';
-import { mjdToDate, dateToMjd } from '@/constants/dates';
+import { mjdToDate, dateToMjd, isValidDate } from '@/constants/dates';
 
 // ─── MJD conversion utilities ───────────────────────────────────────
 
-function mjdToUtc(mjd: number): string {
-  return mjdToDate(mjd).toISOString();
+function mjdToUtc(mjd: number | null | undefined): string | null {
+  if (!Number.isFinite(mjd)) return null;
+  const finiteMjd = mjd as number;
+  const date = mjdToDate(finiteMjd);
+  return isValidDate(date) ? date.toISOString() : null;
 }
 
-function utcToMjd(utcString: string): number {
-  if (!utcString) return 0;
+function utcToMjd(utcString: string): number | null {
+  if (!utcString) return null;
   // datetime-local values lack a timezone suffix; treat them as UTC
   const utc = /[Zz]$/.test(utcString) || /[+-]\d{2}:?\d{2}$/.test(utcString)
     ? utcString
     : utcString + 'Z';
-  return dateToMjd(new Date(utc));
+  const date = new Date(utc);
+  return isValidDate(date) ? dateToMjd(date) : null;
 }
 
-function toDatetimeLocal(utcIso: string): string {
+function toDatetimeLocal(utcIso: string | null): string {
   if (!utcIso) return '';
   return utcIso.slice(0, 16);
 }
@@ -53,8 +57,8 @@ function createDefaultFilters(
   return {
     showScheduled: true,
     showUnscheduled: true,
-    scheduledBeginUtc: scheduledTimeMin ? toDatetimeLocal(mjdToUtc(scheduledTimeMin)) : '',
-    scheduledEndUtc: scheduledTimeMax ? toDatetimeLocal(mjdToUtc(scheduledTimeMax)) : '',
+    scheduledBeginUtc: toDatetimeLocal(mjdToUtc(scheduledTimeMin)),
+    scheduledEndUtc: toDatetimeLocal(mjdToUtc(scheduledTimeMax)),
     priorityMin,
     priorityMax,
   };
@@ -69,13 +73,13 @@ function filterBlocks(blocks: LightweightBlock[], filters: SkyMapFilterState): L
     if (
       isScheduled &&
       block.scheduled_period &&
-      filters.scheduledBeginUtc &&
-      filters.scheduledEndUtc
+      (filters.scheduledBeginUtc || filters.scheduledEndUtc)
     ) {
       const { start, stop } = block.scheduled_period;
       const filterBeginMjd = utcToMjd(filters.scheduledBeginUtc);
       const filterEndMjd = utcToMjd(filters.scheduledEndUtc);
-      if (stop < filterBeginMjd || start > filterEndMjd) return false;
+      if (filterBeginMjd !== null && stop < filterBeginMjd) return false;
+      if (filterEndMjd !== null && start > filterEndMjd) return false;
     }
     return true;
   });
@@ -172,8 +176,8 @@ function SkyMap() {
     totalFiltered > 0 ? ((scheduled.length / totalFiltered) * 100).toFixed(1) : '0';
 
   const scheduledTimeRange = {
-    min: data.scheduled_time_min ? mjdToUtc(data.scheduled_time_min) : null,
-    max: data.scheduled_time_max ? mjdToUtc(data.scheduled_time_max) : null,
+    min: mjdToUtc(data.scheduled_time_min),
+    max: mjdToUtc(data.scheduled_time_max),
   };
 
   return (

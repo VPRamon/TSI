@@ -155,12 +155,6 @@ TSI/
 │   ├── Dockerfile.backend      # Rust backend
 │   ├── Dockerfile.frontend     # React frontend
 │   └── nginx.conf              # Frontend nginx config
-└── archive/                    # Archived deprecated code
-    ├── python/                 # Old Streamlit app
-    ├── docker/                 # Legacy Docker configs
-    ├── tests/                  # Old Python tests
-    ├── examples/               # Old Python examples
-    └── scripts/                # Deprecated scripts
 ```
 
 ## Testing

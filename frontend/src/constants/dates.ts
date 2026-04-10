@@ -23,6 +23,15 @@ export function mjdToDate(mjd: number): Date {
 }
 
 /**
+ * Check whether a JavaScript Date is valid.
+ * @param date - JavaScript Date object
+ * @returns True when the date has a finite timestamp
+ */
+export function isValidDate(date: Date): boolean {
+  return Number.isFinite(date.getTime());
+}
+
+/**
  * Convert JavaScript Date to Modified Julian Date.
  * @param date - JavaScript Date object
  * @returns Modified Julian Date value

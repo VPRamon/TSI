@@ -25,8 +25,7 @@ src/
 │   │   ├── SplitPane.tsx
 │   │   ├── ToolbarRow.tsx
 │   │   ├── MetricsGrid.tsx
-│   │   ├── ChartPanel.tsx
-│   │   └── index.ts
+│   │   └── ChartPanel.tsx
 │   ├── charts/            # Chart components
 │   │   └── PlotlyChart.tsx
 │   ├── landing/           # Landing page components

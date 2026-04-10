@@ -11,24 +11,32 @@ import { describe, it, expect } from 'vitest';
 const MJD_EPOCH = 2400000.5;
 const UNIX_EPOCH_JD = 2440587.5;
 
-function mjdToUtc(mjd: number): string {
-  const jd = mjd + MJD_EPOCH;
-  const unixMs = (jd - UNIX_EPOCH_JD) * 86400000;
-  return new Date(unixMs).toISOString();
+function isValidDate(date: Date): boolean {
+  return Number.isFinite(date.getTime());
 }
 
-function utcToMjd(utcString: string): number {
-  if (!utcString) return 0;
+function mjdToUtc(mjd: number): string | null {
+  if (!Number.isFinite(mjd)) return null;
+  const jd = mjd + MJD_EPOCH;
+  const unixMs = (jd - UNIX_EPOCH_JD) * 86400000;
+  const date = new Date(unixMs);
+  return isValidDate(date) ? date.toISOString() : null;
+}
+
+function utcToMjd(utcString: string): number | null {
+  if (!utcString) return null;
   const utc =
     /[Zz]$/.test(utcString) || /[+-]\d{2}:?\d{2}$/.test(utcString)
       ? utcString
       : utcString + 'Z';
-  const unixMs = new Date(utc).getTime();
+  const date = new Date(utc);
+  if (!isValidDate(date)) return null;
+  const unixMs = date.getTime();
   const jd = unixMs / 86400000 + UNIX_EPOCH_JD;
   return jd - MJD_EPOCH;
 }
 
-function toDatetimeLocal(utcIso: string): string {
+function toDatetimeLocal(utcIso: string | null): string {
   if (!utcIso) return '';
   return utcIso.slice(0, 16);
 }
@@ -43,24 +51,38 @@ describe('SkyMap UTC helpers', () => {
     const recoveredMjd = utcToMjd(dtLocal);
 
     // Allow 1-minute precision loss from slicing seconds
-    expect(Math.abs(recoveredMjd - originalMjd)).toBeLessThan(1 / 1440);
+    expect(recoveredMjd).not.toBeNull();
+    expect(Math.abs(recoveredMjd! - originalMjd)).toBeLessThan(1 / 1440);
   });
 
   it('treats bare datetime-local strings as UTC, not local', () => {
     // "2024-01-15T12:00" has no timezone suffix
     const mjd = utcToMjd('2024-01-15T12:00');
-    const utcIso = mjdToUtc(mjd);
+    expect(mjd).not.toBeNull();
+    const utcIso = mjdToUtc(mjd!);
 
-    expect(utcIso).toContain('2024-01-15T12:00');
+    expect(utcIso).not.toBeNull();
+    expect(utcIso!).toContain('2024-01-15T12:00');
   });
 
   it('handles explicit Z suffix correctly', () => {
     const mjdBare = utcToMjd('2024-06-01T00:00');
     const mjdZ = utcToMjd('2024-06-01T00:00Z');
-    expect(mjdBare).toBeCloseTo(mjdZ, 8);
+    expect(mjdBare).not.toBeNull();
+    expect(mjdZ).not.toBeNull();
+    expect(mjdBare!).toBeCloseTo(mjdZ!, 8);
   });
 
-  it('returns 0 for empty string', () => {
-    expect(utcToMjd('')).toBe(0);
+  it('returns null for empty string', () => {
+    expect(utcToMjd('')).toBeNull();
+  });
+
+  it('returns null for invalid UTC strings', () => {
+    expect(utcToMjd('not-a-date')).toBeNull();
+  });
+
+  it('returns null for non-finite MJDs', () => {
+    expect(mjdToUtc(Number.NaN)).toBeNull();
+    expect(mjdToUtc(Number.POSITIVE_INFINITY)).toBeNull();
   });
 });

@@ -99,13 +99,6 @@ if [ "$RUN_COVERAGE" = true ]; then
 fi
 
 echo -e "${GREEN}=== Test Summary ===${NC}"
-echo "Test files implemented:"
-echo "  ✓ parsing/json_parser_tests.rs (15 tests)"
-echo "  ✓ parsing/csv_parser_tests.rs (18 tests)"
-echo "  ✓ parsing/dark_periods_parser_tests.rs (31 tests)"
-echo "  ✓ io/loaders_tests.rs (21 tests)"
-echo ""
-echo "Total: 85 tests implemented"
-echo ""
-echo "See TEST_COVERAGE_REPORT.md for detailed documentation"
-echo "See TEST_IMPLEMENTATION_GUIDE.md for implementing remaining tests"
+echo "Library test suite completed successfully."
+echo "For full backend coverage, run:"
+echo "  cargo test --all-targets --all-features"

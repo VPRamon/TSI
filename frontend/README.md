@@ -88,8 +88,7 @@ src/
 │   ├── Insights.tsx      # Analytics dashboard
 │   ├── Trends.tsx        # Scheduling trends
 │   ├── Validation.tsx    # Validation report
-│   ├── Compare.tsx       # Schedule comparison
-│   └── index.ts          # Barrel export
+│   └── Compare.tsx       # Schedule comparison
 │
 ├── store/                # Global state (Zustand)
 │   ├── appStore.ts       # UI state (sidebar, etc.)
@@ -136,9 +135,8 @@ function MyComponent() {
 ### Adding a New Page
 
 1. Create `src/pages/MyPage.tsx`
-2. Export from `src/pages/index.ts`
-3. Add route in `src/App.tsx`
-4. Add navigation link in `src/components/Layout.tsx` (if needed)
+2. Add route in `src/App.tsx`
+3. Add navigation link in `src/components/Layout.tsx` (if needed)
 
 ### Adding a New API Endpoint
 

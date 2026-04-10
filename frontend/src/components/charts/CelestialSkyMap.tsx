@@ -5,7 +5,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { LightweightBlock, PriorityBinInfo } from '@/api/types';
-import { mjdToDate } from '@/constants/dates';
+import { mjdToDate, isValidDate } from '@/constants/dates';
 
 // ── Minimal type declaration for window.Celestial ─────────────────────────────
 declare global {
@@ -66,7 +66,11 @@ interface TooltipState {
 const HOVER_RADIUS = 12;
 
 function formatMjd(mjd: number): string {
-  return mjdToDate(mjd).toISOString().replace('T', ' ').slice(0, 16) + ' UTC';
+  if (!Number.isFinite(mjd)) return 'Unknown';
+  const date = mjdToDate(mjd);
+  return isValidDate(date)
+    ? date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
+    : 'Unknown';
 }
 
 function formatDuration(seconds: number): string {
