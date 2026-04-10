@@ -5,7 +5,7 @@ use crate::api::{DistributionBlock, DistributionData, DistributionStats};
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
-use crate::db::get_repository;
+use crate::db::{get_repository, services as db_services};
 
 /// Compute statistics for a set of values.
 /// This is a helper function that calculates mean, median, std dev, min, max, and sum.
@@ -106,6 +106,10 @@ pub async fn get_distribution_data(
 ) -> Result<DistributionData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
+
+    db_services::ensure_analytics(repo.as_ref(), schedule_id)
+        .await
+        .map_err(|e| format!("Failed to ensure analytics: {}", e))?;
 
     let mut blocks = repo
         .fetch_analytics_blocks_for_distribution(schedule_id)

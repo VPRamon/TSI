@@ -129,6 +129,26 @@ fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
     Ok(RepositoryFactory::create_local())
 }
 
+/// Initialize the global repository singleton for the selected backend from an async context.
+#[cfg(feature = "postgres-repo")]
+pub async fn init_repository_async() -> Result<()> {
+    if REPOSITORY.get().is_some() {
+        return Ok(());
+    }
+
+    let repo = create_selected_repository()
+        .await
+        .map_err(|e| anyhow::Error::msg(e.to_string()))?;
+    let _ = REPOSITORY.set(repo);
+    Ok(())
+}
+
+/// Initialize the global repository singleton for the selected backend from an async context.
+#[cfg(all(feature = "local-repo", not(feature = "postgres-repo")))]
+pub async fn init_repository_async() -> Result<()> {
+    init_repository()
+}
+
 /// Initialize the global repository singleton for the selected backend.
 #[cfg(feature = "postgres-repo")]
 pub fn init_repository() -> Result<()> {

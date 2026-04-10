@@ -8,7 +8,7 @@ use crate::db::models::{
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor
-use crate::db::get_repository;
+use crate::db::{get_repository, services as db_services};
 use qtty::time::Hours;
 
 /// Compute analytics metrics from insights blocks.
@@ -315,10 +315,15 @@ pub fn compute_insights_data(blocks: Vec<InsightsBlock>) -> Result<InsightsData,
 pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String> {
     // Get the initialized repository
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
+    let schedule_id = crate::api::ScheduleId(schedule_id);
+
+    db_services::ensure_analytics(repo.as_ref(), schedule_id)
+        .await
+        .map_err(|e| format!("Failed to ensure analytics: {}", e))?;
 
     // Fetch insights-ready analytics blocks
     let mut blocks = repo
-        .fetch_analytics_blocks_for_insights(crate::api::ScheduleId(schedule_id))
+        .fetch_analytics_blocks_for_insights(schedule_id)
         .await
         .map_err(|e| format!("Failed to fetch insights blocks: {}", e))?;
 

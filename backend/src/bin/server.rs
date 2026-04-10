@@ -48,7 +48,9 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting TSI HTTP Server");
 
     // Initialize global repository once and reuse it across the app
-    db::init_repository().map_err(|e| anyhow::anyhow!(e))?;
+    db::init_repository_async()
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
     let repository = std::sync::Arc::clone(db::get_repository()?);
     info!("Repository initialized successfully");
 

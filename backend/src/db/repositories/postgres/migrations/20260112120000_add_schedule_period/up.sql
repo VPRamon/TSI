@@ -8,11 +8,11 @@ ALTER TABLE schedules
 ADD CONSTRAINT schedule_period_is_valid
 CHECK (
   jsonb_typeof(schedule_period_json) = 'object'
-  AND schedule_period_json ? 'start'
-  AND schedule_period_json ? 'stop'
-  AND jsonb_typeof(schedule_period_json->'start') = 'number'
-  AND jsonb_typeof(schedule_period_json->'stop') = 'number'
+  AND schedule_period_json ? 'start_mjd'
+  AND schedule_period_json ? 'end_mjd'
+  AND jsonb_typeof(schedule_period_json->'start_mjd') = 'number'
+  AND jsonb_typeof(schedule_period_json->'end_mjd') = 'number'
 );
 
 -- Add comment for documentation
-COMMENT ON COLUMN schedules.schedule_period_json IS 'Overall time window for the schedule in MJD format. Required for visibility map rendering. Example: {"start": 62115.0, "stop": 62121.0}';
+COMMENT ON COLUMN schedules.schedule_period_json IS 'Overall time window for the schedule in MJD format. Required for visibility map rendering. Example: {"start_mjd": 62115.0, "end_mjd": 62121.0}';

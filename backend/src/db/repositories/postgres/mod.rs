@@ -1848,3 +1848,39 @@ impl VisualizationRepository for PostgresRepository {
         .await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{json_to_period, period_to_json};
+    use crate::api::{ModifiedJulianDate, Period};
+
+    #[test]
+    fn period_json_uses_mjd_field_names() {
+        let period = Period {
+            start: ModifiedJulianDate::new(60694.0),
+            end: ModifiedJulianDate::new(60701.0),
+        };
+
+        let value = period_to_json(&period);
+
+        assert_eq!(value.get("start_mjd").and_then(|v| v.as_f64()), Some(60694.0));
+        assert_eq!(value.get("end_mjd").and_then(|v| v.as_f64()), Some(60701.0));
+        assert!(value.get("start").is_none());
+        assert!(value.get("stop").is_none());
+    }
+
+    #[test]
+    fn period_json_round_trips() {
+        let period = Period {
+            start: ModifiedJulianDate::new(60694.0),
+            end: ModifiedJulianDate::new(60701.0),
+        };
+
+        let decoded = json_to_period(&period_to_json(&period))
+            .expect("period JSON should deserialize")
+            .expect("period JSON should not be null");
+
+        assert_eq!(decoded.start.value(), period.start.value());
+        assert_eq!(decoded.end.value(), period.end.value());
+    }
+}

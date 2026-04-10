@@ -5,7 +5,7 @@
 use tokio::runtime::Runtime;
 
 // Import the global repository accessor from python/database module
-use crate::db::get_repository;
+use crate::db::{get_repository, services as db_services};
 
 /// Get validation report data for a schedule (Python binding).
 ///
@@ -39,6 +39,10 @@ pub fn py_get_validation_report(
 
     // Create Tokio runtime to bridge async database operations
     let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
+
+    runtime
+        .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
+        .map_err(|e| format!("Failed to ensure analytics for validation report: {}", e))?;
 
     // Fetch validation results from repository
     let report_data = runtime
