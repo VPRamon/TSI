@@ -18,7 +18,6 @@ import {
   ChartPanel,
   ToolbarRow,
 } from '@/components';
-import type { LightweightBlock } from '@/api/types';
 
 // ─── Observatory presets ─────────────────────────────────────────────
 
@@ -28,17 +27,52 @@ interface ObservatoryPreset {
   lat: number;
   height: number;
   /** Build an Observer using the canonical siderust factory. */
-  factory: (siderust: SiderustModules['siderust']) => InstanceType<SiderustModules['siderust']['Observer']>;
+  factory: (
+    siderust: SiderustModules['siderust']
+  ) => InstanceType<SiderustModules['siderust']['Observer']>;
 }
 
 const OBSERVATORIES: ObservatoryPreset[] = [
-  { label: 'Roque de los Muchachos (ORM)', lon: -17.879, lat: 28.764, height: 2396, factory: (s) => s.Observer.roqueDeLasMuchachos() },
-  { label: 'Paranal (VLT)', lon: -70.404, lat: -24.627, height: 2635, factory: (s) => s.Observer.elParanal() },
-  { label: 'Mauna Kea', lon: -155.468, lat: 19.826, height: 4205, factory: (s) => s.Observer.maunaKea() },
-  { label: 'La Silla', lon: -70.730, lat: -29.257, height: 2347, factory: (s) => s.Observer.laSilla() },
+  {
+    label: 'Roque de los Muchachos (ORM)',
+    lon: -17.879,
+    lat: 28.764,
+    height: 2396,
+    factory: (s) => s.Observer.roqueDeLasMuchachos(),
+  },
+  {
+    label: 'Paranal (VLT)',
+    lon: -70.404,
+    lat: -24.627,
+    height: 2635,
+    factory: (s) => s.Observer.elParanal(),
+  },
+  {
+    label: 'Mauna Kea',
+    lon: -155.468,
+    lat: 19.826,
+    height: 4205,
+    factory: (s) => s.Observer.maunaKea(),
+  },
+  {
+    label: 'La Silla',
+    lon: -70.73,
+    lat: -29.257,
+    height: 2347,
+    factory: (s) => s.Observer.laSilla(),
+  },
 ];
 
 // ─── Computation helpers ─────────────────────────────────────────────
+
+/** Minimal target fields required for Alt/Az computation. */
+interface TargetForComputation {
+  original_block_id: string;
+  block_name: string;
+  priority: number;
+  target_ra_deg: number;
+  target_dec_deg: number;
+}
 
 interface AltitudeCurve {
   blockId: string;
@@ -48,6 +82,17 @@ interface AltitudeCurve {
   altitudes: number[];
   azimuths: number[];
 }
+
+/** Unique sky position deduped from the block list. */
+interface UniqueTarget extends TargetForComputation {
+  /** Stable key derived from rounded RA/Dec — used for selection tracking. */
+  key: string;
+  /** Number of scheduling blocks that share this sky position. */
+  blockCount: number;
+}
+
+/** Round coordinate to 4 dp (~0.36 arcsec) for deduplication. */
+const raDecKey = (ra: number, dec: number) => `${ra.toFixed(4)}_${dec.toFixed(4)}`;
 
 const DEFAULT_PERIOD_HOURS = 24;
 const TARGET_SAMPLE_INTERVAL_MINUTES = 10;
@@ -66,13 +111,13 @@ function parseDateTimeLocalUtc(value: string): Date {
 }
 
 async function computeAltAzCurves(
-  targets: LightweightBlock[],
+  targets: TargetForComputation[],
   obsLon: number,
   obsLat: number,
   obsHeight: number,
   startDate: Date,
   endDate: Date,
-  presetFactory?: ObservatoryPreset['factory'],
+  presetFactory?: ObservatoryPreset['factory']
 ): Promise<AltitudeCurve[]> {
   const { siderust, tempoch, qtty } = await loadSiderust();
 
@@ -81,26 +126,29 @@ async function computeAltAzCurves(
     : new siderust.Observer(
         new qtty.Quantity(obsLon, 'Degree'),
         new qtty.Quantity(obsLat, 'Degree'),
-        new qtty.Quantity(obsHeight, 'Meter'),
+        new qtty.Quantity(obsHeight, 'Meter')
       );
 
   const windowDurationMs = endDate.getTime() - startDate.getTime();
   const windowDurationMinutes = windowDurationMs / 60000;
   const startMjd = tempoch.mjdFromDate(startDate);
-  const sampleCount = Math.max(1, Math.ceil(windowDurationMinutes / TARGET_SAMPLE_INTERVAL_MINUTES));
-  const stepDays = (windowDurationMs / 86400000) / sampleCount;
+  const sampleCount = Math.max(
+    1,
+    Math.ceil(windowDurationMinutes / TARGET_SAMPLE_INTERVAL_MINUTES)
+  );
+  const stepDays = windowDurationMs / 86400000 / sampleCount;
 
   const curves: AltitudeCurve[] = [];
 
   for (const target of targets) {
     const star = new siderust.Star(
       target.original_block_id,
-      new qtty.Quantity(1, 'Parsec'),      // placeholder distance
-      new qtty.Quantity(1, 'SolarMass'),   // placeholder mass
+      new qtty.Quantity(1, 'Parsec'), // placeholder distance
+      new qtty.Quantity(1, 'SolarMass'), // placeholder mass
       new qtty.Quantity(1, 'NominalSolarRadius'), // placeholder radius
-      new qtty.Quantity(1, 'SolarLuminosity'),     // placeholder luminosity
+      new qtty.Quantity(1, 'SolarLuminosity'), // placeholder luminosity
       new qtty.Quantity(target.target_ra_deg, 'Degree'),
-      new qtty.Quantity(target.target_dec_deg, 'Degree'),
+      new qtty.Quantity(target.target_dec_deg, 'Degree')
     );
 
     const times: Date[] = [];
@@ -136,8 +184,16 @@ const MAX_TARGETS = 10;
 
 // Stable colors for altitude traces
 const TRACE_COLORS = [
-  '#3b82f6', '#ef4444', '#22c55e', '#f59e0b', '#8b5cf6',
-  '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#a855f7',
+  '#3b82f6',
+  '#ef4444',
+  '#22c55e',
+  '#f59e0b',
+  '#8b5cf6',
+  '#ec4899',
+  '#06b6d4',
+  '#f97316',
+  '#14b8a6',
+  '#a855f7',
 ];
 
 // ─── Main component ──────────────────────────────────────────────────
@@ -160,7 +216,7 @@ function AltAz() {
       useCustom
         ? { lon: customLon, lat: customLat, height: customHeight }
         : OBSERVATORIES[presetIndex],
-    [useCustom, customLon, customLat, customHeight, presetIndex],
+    [useCustom, customLon, customLat, customHeight, presetIndex]
   );
 
   const [startTimeStr, setStartTimeStr] = useState(() => {
@@ -175,7 +231,7 @@ function AltAz() {
   });
 
   // Target selection
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
 
   // Computation state
@@ -186,54 +242,94 @@ function AltAz() {
   const endDate = useMemo(() => parseDateTimeLocalUtc(endTimeStr), [endTimeStr]);
   const hasValidWindow = startDate.getTime() < endDate.getTime();
 
-  // Filter blocks for display
-  const filteredBlocks = useMemo(() => {
+  // Deduplicate blocks by sky position (unique RA/Dec)
+  const uniqueTargets = useMemo((): UniqueTarget[] => {
     if (!skyData) return [];
-    let blocks = skyData.blocks;
-    if (search) {
-      const q = search.toLowerCase();
-      blocks = blocks.filter(
-        (b) =>
-          b.original_block_id.toLowerCase().includes(q) ||
-          b.block_name.toLowerCase().includes(q),
-      );
+    const map = new Map<string, UniqueTarget>();
+    for (const b of skyData.blocks) {
+      const key = raDecKey(b.target_ra_deg, b.target_dec_deg);
+      const existing = map.get(key);
+      if (!existing || b.priority > existing.priority) {
+        map.set(key, {
+          key,
+          original_block_id: b.original_block_id,
+          block_name: b.block_name,
+          priority: b.priority,
+          target_ra_deg: b.target_ra_deg,
+          target_dec_deg: b.target_dec_deg,
+          blockCount: existing?.blockCount ?? 1,
+        });
+      } else {
+        existing.blockCount += 1;
+      }
     }
-    return blocks.slice(0, MAX_DISPLAY);
-  }, [skyData, search]);
+    return Array.from(map.values()).sort((a, b) => b.priority - a.priority);
+  }, [skyData]);
 
-  const toggleTarget = useCallback((blockId: string) => {
-    setSelectedIds((prev) => {
+  // Filter unique targets by search term
+  const filteredTargets = useMemo(() => {
+    if (!search) return uniqueTargets.slice(0, MAX_DISPLAY);
+    const q = search.toLowerCase();
+    return uniqueTargets
+      .filter(
+        (t) =>
+          t.original_block_id.toLowerCase().includes(q) || t.block_name.toLowerCase().includes(q)
+      )
+      .slice(0, MAX_DISPLAY);
+  }, [uniqueTargets, search]);
+
+  const toggleTarget = useCallback((key: string) => {
+    setSelectedKeys((prev) => {
       const next = new Set(prev);
-      if (next.has(blockId)) {
-        next.delete(blockId);
+      if (next.has(key)) {
+        next.delete(key);
       } else if (next.size < MAX_TARGETS) {
-        next.add(blockId);
+        next.add(key);
       }
       return next;
     });
   }, []);
 
-  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  const clearSelection = useCallback(() => setSelectedKeys(new Set()), []);
 
   // Auto-compute altitude/azimuth curves on any input change
   const computeIdRef = useRef(0);
   useEffect(() => {
-    if (!skyData || selectedIds.size === 0 || wasmStatus !== 'ready' || !hasValidWindow) {
+    if (!skyData || selectedKeys.size === 0 || wasmStatus !== 'ready' || !hasValidWindow) {
       setCurves([]);
       return;
     }
     const id = ++computeIdRef.current;
     setComputing(true);
-    const targets = skyData.blocks.filter((b) => selectedIds.has(b.original_block_id));
+    const targets = uniqueTargets.filter((t) => selectedKeys.has(t.key));
     const factory = !useCustom ? OBSERVATORIES[presetIndex].factory : undefined;
     computeAltAzCurves(
-      targets, observatory.lon, observatory.lat, observatory.height, startDate, endDate, factory,
-    ).then((result) => {
-      if (id === computeIdRef.current) setCurves(result);
-    }).finally(() => {
-      if (id === computeIdRef.current) setComputing(false);
-    });
-  }, [skyData, selectedIds, wasmStatus, observatory, startDate, endDate, hasValidWindow, useCustom, presetIndex]);
+      targets,
+      observatory.lon,
+      observatory.lat,
+      observatory.height,
+      startDate,
+      endDate,
+      factory
+    )
+      .then((result) => {
+        if (id === computeIdRef.current) setCurves(result);
+      })
+      .finally(() => {
+        if (id === computeIdRef.current) setComputing(false);
+      });
+  }, [
+    skyData,
+    uniqueTargets,
+    selectedKeys,
+    wasmStatus,
+    observatory,
+    startDate,
+    endDate,
+    hasValidWindow,
+    useCustom,
+    presetIndex,
+  ]);
 
   // Chart theme
   const { layout: altLayout, config } = usePlotlyTheme({
@@ -249,50 +345,59 @@ function AltAz() {
   });
 
   // Extend altitude layout with horizon line
-  const altitudeLayout = useMemo(() => ({
-    ...altLayout,
-    shapes: [
-      {
-        type: 'line' as const,
-        xref: 'paper' as const,
-        yref: 'y' as const,
-        x0: 0, x1: 1,
-        y0: 0, y1: 0,
-        line: { color: '#ef4444', width: 1, dash: 'dash' as const },
-      },
-    ],
-  }), [altLayout]);
+  const altitudeLayout = useMemo(
+    () => ({
+      ...altLayout,
+      shapes: [
+        {
+          type: 'line' as const,
+          xref: 'paper' as const,
+          yref: 'y' as const,
+          x0: 0,
+          x1: 1,
+          y0: 0,
+          y1: 0,
+          line: { color: '#ef4444', width: 1, dash: 'dash' as const },
+        },
+      ],
+    }),
+    [altLayout]
+  );
 
   // Build Plotly traces
-  const altTraces: Plotly.Data[] = useMemo(() =>
-    curves.map((curve, i) => {
-      const label = curve.blockName ? `${curve.blockName} (${curve.blockId})` : curve.blockId;
-      return {
-        type: 'scatter' as const,
-        mode: 'lines' as const,
-        name: `${label} p=${curve.priority.toFixed(1)}`,
-        x: curve.times,
-        y: curve.altitudes,
-        line: { color: TRACE_COLORS[i % TRACE_COLORS.length], width: 2 },
-        hovertemplate: `<b>${label}</b><br>Alt: %{y:.1f}°<br>%{x|%H:%M UTC}<extra></extra>`,
-      };
-    }),
-  [curves]);
+  const altTraces: Plotly.Data[] = useMemo(
+    () =>
+      curves.map((curve, i) => {
+        const label = curve.blockName ? `${curve.blockName} (${curve.blockId})` : curve.blockId;
+        return {
+          type: 'scatter' as const,
+          mode: 'lines' as const,
+          name: `${label} p=${curve.priority.toFixed(1)}`,
+          x: curve.times,
+          y: curve.altitudes,
+          line: { color: TRACE_COLORS[i % TRACE_COLORS.length], width: 2 },
+          hovertemplate: `<b>${label}</b><br>Alt: %{y:.1f}°<br>%{x|%H:%M UTC}<extra></extra>`,
+        };
+      }),
+    [curves]
+  );
 
-  const azTraces: Plotly.Data[] = useMemo(() =>
-    curves.map((curve, i) => {
-      const label = curve.blockName ? `${curve.blockName} (${curve.blockId})` : curve.blockId;
-      return {
-        type: 'scatter' as const,
-        mode: 'lines' as const,
-        name: `${label} p=${curve.priority.toFixed(1)}`,
-        x: curve.times,
-        y: curve.azimuths,
-        line: { color: TRACE_COLORS[i % TRACE_COLORS.length], width: 2 },
-        hovertemplate: `<b>${label}</b><br>Az: %{y:.1f}°<br>%{x|%H:%M UTC}<extra></extra>`,
-      };
-    }),
-  [curves]);
+  const azTraces: Plotly.Data[] = useMemo(
+    () =>
+      curves.map((curve, i) => {
+        const label = curve.blockName ? `${curve.blockName} (${curve.blockId})` : curve.blockId;
+        return {
+          type: 'scatter' as const,
+          mode: 'lines' as const,
+          name: `${label} p=${curve.priority.toFixed(1)}`,
+          x: curve.times,
+          y: curve.azimuths,
+          line: { color: TRACE_COLORS[i % TRACE_COLORS.length], width: 2 },
+          hovertemplate: `<b>${label}</b><br>Az: %{y:.1f}°<br>%{x|%H:%M UTC}<extra></extra>`,
+        };
+      }),
+    [curves]
+  );
 
   // Loading states
   if (skyLoading) {
@@ -334,7 +439,9 @@ function AltAz() {
             className="w-full rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           >
             {OBSERVATORIES.map((obs, i) => (
-              <option key={obs.label} value={String(i)}>{obs.label}</option>
+              <option key={obs.label} value={String(i)}>
+                {obs.label}
+              </option>
             ))}
             <option value="custom">Custom Location</option>
           </select>
@@ -344,7 +451,9 @@ function AltAz() {
         </div>
 
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-slate-400">Start Time (UTC)</label>
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">
+            Start Time (UTC)
+          </label>
           <input
             type="datetime-local"
             value={startTimeStr}
@@ -411,7 +520,7 @@ function AltAz() {
         </ToolbarRow>
       )}
 
-      <ChartPanel title={`Targets (${selectedIds.size}/${MAX_TARGETS})`}>
+      <ChartPanel title={`Targets (${selectedKeys.size}/${MAX_TARGETS})`}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <input
@@ -421,7 +530,7 @@ function AltAz() {
               onChange={(e) => setSearch(e.target.value)}
               className="min-w-[240px] flex-1 rounded-md border border-slate-600 bg-slate-700 px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
             />
-            {selectedIds.size > 0 && (
+            {selectedKeys.size > 0 && (
               <button
                 onClick={clearSelection}
                 className="rounded px-2 py-1 text-xs text-slate-400 hover:bg-slate-700 hover:text-slate-200"
@@ -431,12 +540,12 @@ function AltAz() {
             )}
           </div>
           <div className="scrollbar-thin max-h-48 overflow-y-auto rounded border border-slate-700 bg-slate-800/50">
-            {filteredBlocks.map((block) => {
-              const isSelected = selectedIds.has(block.original_block_id);
+            {filteredTargets.map((target) => {
+              const isSelected = selectedKeys.has(target.key);
               return (
                 <button
-                  key={block.original_block_id}
-                  onClick={() => toggleTarget(block.original_block_id)}
+                  key={target.key}
+                  onClick={() => toggleTarget(target.key)}
                   className={`flex w-full items-start justify-between gap-2 px-3 py-2 text-left text-xs transition-colors ${
                     isSelected
                       ? 'bg-primary-600/20 text-primary-300'
@@ -444,19 +553,23 @@ function AltAz() {
                   }`}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-medium">{block.original_block_id}</span>
-                    {block.block_name && (
-                      <span className="block truncate text-slate-400">{block.block_name}</span>
+                    <span className="block truncate font-medium">{target.original_block_id}</span>
+                    {target.block_name && (
+                      <span className="block truncate text-slate-400">{target.block_name}</span>
                     )}
                     <span className="block text-slate-500">
-                      RA {block.target_ra_deg.toFixed(2)}° / Dec {block.target_dec_deg.toFixed(2)}°
+                      RA {target.target_ra_deg.toFixed(2)}° / Dec {target.target_dec_deg.toFixed(2)}
+                      °
+                      {target.blockCount > 1 && (
+                        <span className="ml-1.5 text-slate-600">({target.blockCount} blocks)</span>
+                      )}
                     </span>
                   </span>
-                  <span className="shrink-0 text-slate-500">p={block.priority.toFixed(1)}</span>
+                  <span className="shrink-0 text-slate-500">p={target.priority.toFixed(1)}</span>
                 </button>
               );
             })}
-            {filteredBlocks.length === 0 && (
+            {filteredTargets.length === 0 && (
               <p className="px-3 py-2 text-xs text-slate-500">No targets found</p>
             )}
           </div>
@@ -466,12 +579,7 @@ function AltAz() {
       <div className="flex flex-col gap-6">
         <ChartPanel title="Altitude vs Time">
           {curves.length > 0 ? (
-            <PlotlyChart
-              data={altTraces}
-              layout={altitudeLayout}
-              config={config}
-              height="500px"
-            />
+            <PlotlyChart data={altTraces} layout={altitudeLayout} config={config} height="500px" />
           ) : (
             <div className="flex h-[500px] items-center justify-center text-slate-500">
               {computing ? (
@@ -486,12 +594,7 @@ function AltAz() {
         </ChartPanel>
         <ChartPanel title="Azimuth vs Time">
           {curves.length > 0 ? (
-            <PlotlyChart
-              data={azTraces}
-              layout={azLayout}
-              config={config}
-              height="500px"
-            />
+            <PlotlyChart data={azTraces} layout={azLayout} config={config} height="500px" />
           ) : (
             <div className="flex h-[500px] items-center justify-center text-slate-500">
               {computing ? (
