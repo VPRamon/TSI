@@ -223,6 +223,7 @@ fn test_insights_block_creation() {
     let block = routes::insights::InsightsBlock {
         scheduling_block_id: 42,
         original_block_id: "obs-001".to_string(),
+        block_name: String::new(),
         priority: 8.0,
         total_visibility_hours: qtty::Hours::new(20.0),
         requested_hours: qtty::Hours::new(4.0),
@@ -285,6 +286,7 @@ fn test_top_observation_creation() {
     let obs = routes::insights::TopObservation {
         scheduling_block_id: 1,
         original_block_id: "top-1".to_string(),
+        block_name: String::new(),
         priority: 10.0,
         total_visibility_hours: qtty::Hours::new(100.0),
         requested_hours: qtty::Hours::new(5.0),
@@ -350,6 +352,7 @@ fn test_priority_bin_info() {
 fn test_lightweight_block_creation() {
     let block = routes::skymap::LightweightBlock {
         original_block_id: "light-1".to_string(),
+        block_name: String::new(),
         priority: 6.0,
         priority_bin: "Medium".to_string(),
         requested_duration_seconds: qtty::Seconds::new(3600.0),
@@ -387,6 +390,7 @@ fn test_schedule_timeline_block_creation() {
     let block = routes::timeline::ScheduleTimelineBlock {
         scheduling_block_id: 10,
         original_block_id: "timeline-1".to_string(),
+        block_name: String::new(),
         priority: 7.5,
         scheduled_start_mjd: tsi_rust::api::ModifiedJulianDate::new(59100.0),
         scheduled_stop_mjd: tsi_rust::api::ModifiedJulianDate::new(59101.0),
@@ -422,6 +426,7 @@ fn test_trends_block_creation() {
     let block = routes::trends::TrendsBlock {
         scheduling_block_id: 5,
         original_block_id: "trend-1".to_string(),
+        block_name: String::new(),
         priority: 4.5,
         total_visibility_hours: qtty::Hours::new(18.0),
         requested_hours: qtty::Hours::new(2.0),
@@ -523,6 +528,7 @@ fn test_validation_issue_creation() {
     let issue = routes::validation::ValidationIssue {
         block_id: 99,
         original_block_id: Some("val-1".to_string()),
+        block_name: None,
         issue_type: "invalid_coordinates".to_string(),
         category: "error".to_string(),
         criticality: "high".to_string(),
@@ -555,6 +561,7 @@ fn test_visibility_block_summary_creation() {
     let summary = routes::visibility::VisibilityBlockSummary {
         scheduling_block_id: 25,
         original_block_id: "vis-1".to_string(),
+        block_name: String::new(),
         priority: 8.5,
         num_visibility_periods: 10,
         scheduled: true,

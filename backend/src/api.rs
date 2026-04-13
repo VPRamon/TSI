@@ -176,6 +176,9 @@ pub struct SchedulingBlock {
     /// Original ID from JSON (shown to user, required on input for new data)
     #[serde(default)]
     pub original_block_id: String,
+    /// Human-readable name for the block (e.g. target name)
+    #[serde(default)]
+    pub block_name: String,
     /// Right Ascension in degrees (ICRS)
     pub target_ra: qtty::Degrees,
     /// Declination in degrees (ICRS)
@@ -199,6 +202,7 @@ impl SchedulingBlock {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         original_block_id: String,
+        block_name: String,
         target_ra: qtty::Degrees,
         target_dec: qtty::Degrees,
         constraints: Constraints,
@@ -212,6 +216,7 @@ impl SchedulingBlock {
         Self {
             id,
             original_block_id,
+            block_name,
             target_ra,
             target_dec,
             constraints,

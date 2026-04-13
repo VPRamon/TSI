@@ -32,6 +32,7 @@ fn test_visibility_block_summary_creation() {
     let summary = VisibilityBlockSummary {
         scheduling_block_id: 1,
         original_block_id: "block-1".to_string(),
+        block_name: String::new(),
         priority: 5.0,
         num_visibility_periods: 3,
         scheduled: true,
@@ -51,6 +52,7 @@ fn test_visibility_map_data_creation() {
     let block = VisibilityBlockSummary {
         scheduling_block_id: 1,
         original_block_id: "block-1".to_string(),
+        block_name: String::new(),
         priority: 5.0,
         num_visibility_periods: 3,
         scheduled: false,
@@ -92,6 +94,7 @@ fn test_visibility_block_summary_serialization() {
     let summary = VisibilityBlockSummary {
         scheduling_block_id: 1,
         original_block_id: "block-1".to_string(),
+        block_name: String::new(),
         priority: 5.0,
         num_visibility_periods: 3,
         scheduled: true,
@@ -141,6 +144,7 @@ fn test_visibility_block_summary_clone() {
     let summary = VisibilityBlockSummary {
         scheduling_block_id: 1,
         original_block_id: "test".to_string(),
+        block_name: String::new(),
         priority: 3.0,
         num_visibility_periods: 5,
         scheduled: false,
@@ -188,6 +192,7 @@ fn test_visibility_block_summary_debug() {
     let summary = VisibilityBlockSummary {
         scheduling_block_id: 1,
         original_block_id: "test".to_string(),
+        block_name: String::new(),
         priority: 3.0,
         num_visibility_periods: 5,
         scheduled: false,

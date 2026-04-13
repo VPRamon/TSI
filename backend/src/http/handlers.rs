@@ -530,6 +530,7 @@ mod tests {
         SchedulingBlock {
             id: Some(SchedulingBlockId(id)),
             original_block_id: format!("block-{id}"),
+            block_name: String::new(),
             target_ra: 10.0.into(),
             target_dec: 20.0.into(),
             constraints: Constraints {

@@ -458,6 +458,7 @@ impl AnalyticsRepository for LocalRepository {
             .map(|b| {
                 LightweightBlock {
                     original_block_id: b.original_block_id.clone(),
+                    block_name: b.block_name.clone(),
                     priority: b.priority,
                     priority_bin: "".to_string(), // Will be computed by sky_map service
                     requested_duration_seconds: b.requested_duration,
@@ -527,6 +528,7 @@ impl AnalyticsRepository for LocalRepository {
                 InsightsBlock {
                     scheduling_block_id: b.id.expect("DB Block ID missing").0,
                     original_block_id: b.original_block_id.clone(),
+                    block_name: b.block_name.clone(),
                     priority: b.priority,
                     total_visibility_hours: qtty::time::Hours::new(total_visibility_hours),
                     requested_hours: qtty::time::Hours::new(b.requested_duration.value() / 3600.0),
@@ -573,15 +575,21 @@ impl ValidationRepository for LocalRepository {
                     valid_count += 1;
                 }
                 ValidationStatus::Impossible => {
-                    // Try to resolve the original_block_id from the stored blocks
+                    // Try to resolve the original_block_id and block_name from the stored blocks
                     let original_id = data
                         .blocks
                         .get(&r.scheduling_block_id)
                         .map(|b| b.original_block_id.clone());
+                    let blk_name = data
+                        .blocks
+                        .get(&r.scheduling_block_id)
+                        .filter(|b| !b.block_name.is_empty())
+                        .map(|b| b.block_name.clone());
 
                     impossible_blocks.push(crate::api::ValidationIssue {
                         block_id: r.scheduling_block_id,
                         original_block_id: original_id,
+                        block_name: blk_name,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
                         category: r
                             .issue_category
@@ -604,10 +612,16 @@ impl ValidationRepository for LocalRepository {
                         .blocks
                         .get(&r.scheduling_block_id)
                         .map(|b| b.original_block_id.clone());
+                    let blk_name = data
+                        .blocks
+                        .get(&r.scheduling_block_id)
+                        .filter(|b| !b.block_name.is_empty())
+                        .map(|b| b.block_name.clone());
 
                     validation_errors.push(crate::api::ValidationIssue {
                         block_id: r.scheduling_block_id,
                         original_block_id: original_id,
+                        block_name: blk_name,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
                         category: r
                             .issue_category
@@ -630,10 +644,16 @@ impl ValidationRepository for LocalRepository {
                         .blocks
                         .get(&r.scheduling_block_id)
                         .map(|b| b.original_block_id.clone());
+                    let blk_name = data
+                        .blocks
+                        .get(&r.scheduling_block_id)
+                        .filter(|b| !b.block_name.is_empty())
+                        .map(|b| b.block_name.clone());
 
                     validation_warnings.push(crate::api::ValidationIssue {
                         block_id: r.scheduling_block_id,
                         original_block_id: original_id,
+                        block_name: blk_name,
                         issue_type: r.issue_type.clone().unwrap_or_default(),
                         category: r
                             .issue_category
@@ -728,6 +748,7 @@ impl VisualizationRepository for LocalRepository {
             .map(|b| VisibilityBlockSummary {
                 scheduling_block_id: b.id.expect("DB Block ID missing").0,
                 original_block_id: b.original_block_id.clone(),
+                block_name: b.block_name.clone(),
                 priority: b.priority,
                 num_visibility_periods: b.visibility_periods.len(),
                 scheduled: b.scheduled_period.is_some(),
@@ -841,6 +862,7 @@ impl VisualizationRepository for LocalRepository {
                 Some(ScheduleTimelineBlock {
                     scheduling_block_id: b.id.expect("DB Block ID missing").0,
                     original_block_id: b.original_block_id.clone(),
+                    block_name: b.block_name.clone(),
                     priority: b.priority,
                     scheduled_start_mjd: scheduled_period.start,
                     scheduled_stop_mjd: scheduled_period.end,

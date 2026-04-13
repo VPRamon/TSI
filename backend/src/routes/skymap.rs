@@ -13,6 +13,7 @@ pub struct PriorityBinInfo {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LightweightBlock {
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    pub block_name: String,        // Human-readable name (e.g. target name)
     pub priority: f64,
     pub priority_bin: String,
     pub requested_duration_seconds: qtty::Seconds,
@@ -73,6 +74,7 @@ mod tests {
     fn test_lightweight_block_clone() {
         let block = LightweightBlock {
             original_block_id: "light-1".to_string(),
+            block_name: "Light Target".to_string(),
             priority: 6.0,
             priority_bin: "Medium".to_string(),
             requested_duration_seconds: qtty::Seconds::new(3600.0),
@@ -88,6 +90,7 @@ mod tests {
     fn test_lightweight_block_debug() {
         let block = LightweightBlock {
             original_block_id: "light-1".to_string(),
+            block_name: "Light Target".to_string(),
             priority: 6.0,
             priority_bin: "Medium".to_string(),
             requested_duration_seconds: qtty::Seconds::new(3600.0),

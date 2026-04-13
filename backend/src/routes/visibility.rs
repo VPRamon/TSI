@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct VisibilityBlockSummary {
     pub scheduling_block_id: i64,
     pub original_block_id: String,
+    pub block_name: String, // Human-readable name (e.g. target name)
     pub priority: f64,
     pub num_visibility_periods: usize,
     pub scheduled: bool,
@@ -40,6 +41,7 @@ mod tests {
         let summary = VisibilityBlockSummary {
             scheduling_block_id: 25,
             original_block_id: "vis-1".to_string(),
+            block_name: "Vis Target".to_string(),
             priority: 8.5,
             num_visibility_periods: 10,
             scheduled: true,
@@ -53,6 +55,7 @@ mod tests {
         let summary = VisibilityBlockSummary {
             scheduling_block_id: 25,
             original_block_id: "vis-1".to_string(),
+            block_name: "Vis Target".to_string(),
             priority: 8.5,
             num_visibility_periods: 10,
             scheduled: true,

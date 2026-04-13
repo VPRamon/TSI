@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 /// Timeline block data.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleTimelineBlock {
-    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
-    pub original_block_id: String, // Original ID from JSON (shown to user)
+    pub scheduling_block_id: i64,   // Internal DB ID (for internal operations)
+    pub original_block_id: String,  // Original ID from JSON (shown to user)
+    pub block_name: String,         // Human-readable name (e.g. target name)
     pub priority: f64,
     pub scheduled_start_mjd: crate::api::ModifiedJulianDate,
     pub scheduled_stop_mjd: crate::api::ModifiedJulianDate,
@@ -43,6 +44,7 @@ mod tests {
         let block = ScheduleTimelineBlock {
             scheduling_block_id: 10,
             original_block_id: "timeline-1".to_string(),
+            block_name: "Timeline Target".to_string(),
             priority: 7.5,
             scheduled_start_mjd: crate::api::ModifiedJulianDate::new(59100.0),
             scheduled_stop_mjd: crate::api::ModifiedJulianDate::new(59101.0),
@@ -61,6 +63,7 @@ mod tests {
         let block = ScheduleTimelineBlock {
             scheduling_block_id: 10,
             original_block_id: "timeline-1".to_string(),
+            block_name: "Timeline Target".to_string(),
             priority: 7.5,
             scheduled_start_mjd: crate::api::ModifiedJulianDate::new(59100.0),
             scheduled_stop_mjd: crate::api::ModifiedJulianDate::new(59101.0),

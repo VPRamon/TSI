@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct ValidationIssue {
     pub block_id: i64,
     pub original_block_id: Option<String>,
+    pub block_name: Option<String>, // Human-readable name (e.g. target name)
     pub issue_type: String,
     pub category: String,
     pub criticality: String,
@@ -37,6 +38,7 @@ mod tests {
         let issue = ValidationIssue {
             block_id: 99,
             original_block_id: Some("val-1".to_string()),
+            block_name: Some("Val Target".to_string()),
             issue_type: "invalid_coordinates".to_string(),
             category: "error".to_string(),
             criticality: "high".to_string(),
@@ -54,6 +56,7 @@ mod tests {
         let issue = ValidationIssue {
             block_id: 99,
             original_block_id: Some("val-1".to_string()),
+            block_name: Some("Val Target".to_string()),
             issue_type: "invalid_coordinates".to_string(),
             category: "error".to_string(),
             criticality: "high".to_string(),

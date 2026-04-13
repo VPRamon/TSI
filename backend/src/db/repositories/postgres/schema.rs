@@ -21,6 +21,7 @@ diesel::table! {
         schedule_id -> Int8,
         source_block_id -> Int8,
         original_block_id -> Nullable<Text>,
+        block_name -> Text,
         priority -> Float8,
         requested_duration_sec -> Int4,
         min_observation_sec -> Int4,

@@ -43,6 +43,7 @@ fn create_test_block(
     SchedulingBlock {
         id: Some(SchedulingBlockId(id)),
         original_block_id: format!("TEST_{}", id),
+        block_name: String::new(),
         target_ra: Degrees::new(ra_deg),
         target_dec: Degrees::new(dec_deg),
         constraints: Constraints {

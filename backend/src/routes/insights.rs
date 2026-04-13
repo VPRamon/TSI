@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 /// Block data for insights analysis.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InsightsBlock {
-    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    pub block_name: String,        // Human-readable name (e.g. target name)
     pub priority: f64,
     pub total_visibility_hours: qtty::Hours,
     pub requested_hours: qtty::Hours,
@@ -56,8 +57,9 @@ pub struct ConflictRecord {
 /// Top observation entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TopObservation {
-    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    pub block_name: String,        // Human-readable name (e.g. target name)
     pub priority: f64,
     pub total_visibility_hours: qtty::Hours,
     pub requested_hours: qtty::Hours,
@@ -90,6 +92,7 @@ mod tests {
         let block = InsightsBlock {
             scheduling_block_id: 42,
             original_block_id: "obs-001".to_string(),
+            block_name: "Crab Nebula".to_string(),
             priority: 8.0,
             total_visibility_hours: qtty::Hours::new(20.0),
             requested_hours: qtty::Hours::new(4.0),
@@ -107,6 +110,7 @@ mod tests {
         let block = InsightsBlock {
             scheduling_block_id: 42,
             original_block_id: "obs-001".to_string(),
+            block_name: "Crab Nebula".to_string(),
             priority: 8.0,
             total_visibility_hours: qtty::Hours::new(20.0),
             requested_hours: qtty::Hours::new(4.0),
@@ -186,6 +190,7 @@ mod tests {
         let obs = TopObservation {
             scheduling_block_id: 1,
             original_block_id: "top-1".to_string(),
+            block_name: "Top Target".to_string(),
             priority: 10.0,
             total_visibility_hours: qtty::Hours::new(100.0),
             requested_hours: qtty::Hours::new(5.0),

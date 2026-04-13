@@ -177,6 +177,7 @@ mod tests {
     ) -> LightweightBlock {
         LightweightBlock {
             original_block_id: id.to_string(),
+            block_name: String::new(),
             priority,
             priority_bin: String::new(),
             requested_duration_seconds: qtty::Seconds::new(3600.0),

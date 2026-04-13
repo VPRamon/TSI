@@ -139,6 +139,7 @@ mod tests {
             ScheduleTimelineBlock {
                 scheduling_block_id: 1,
                 original_block_id: "SB001".to_string(),
+                block_name: String::new(),
                 priority: 5.0,
                 scheduled_start_mjd: crate::models::ModifiedJulianDate::new(59000.0), // 2020-05-10
                 scheduled_stop_mjd: crate::models::ModifiedJulianDate::new(59001.0),
@@ -151,6 +152,7 @@ mod tests {
             ScheduleTimelineBlock {
                 scheduling_block_id: 2,
                 original_block_id: "SB002".to_string(),
+                block_name: String::new(),
                 priority: 8.0,
                 scheduled_start_mjd: crate::models::ModifiedJulianDate::new(59030.0), // 2020-06-09
                 scheduled_stop_mjd: crate::models::ModifiedJulianDate::new(59031.0),

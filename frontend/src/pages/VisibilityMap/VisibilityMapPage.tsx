@@ -560,9 +560,9 @@ function VisibilityMapPage() {
       query.scheduled = false;
     }
 
-    // If blocks are selected, filter histogram to just those blocks
+    // If blocks are selected, filter histogram to just those blocks.
     if (analysisState.selectedBlockIds.size > 0 && analysisState.selectedBlockIds.size <= 100) {
-      query.block_ids = Array.from(analysisState.selectedBlockIds);
+      query.block_ids = Array.from(analysisState.selectedBlockIds).sort((a, b) => a - b);
     }
 
     return query;

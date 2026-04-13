@@ -7,8 +7,9 @@ use serde::{Deserialize, Serialize};
 /// Block data for trends analysis.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TrendsBlock {
-    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
+    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
+    pub block_name: String,        // Human-readable name (e.g. target name)
     pub priority: f64,
     pub total_visibility_hours: qtty::Hours,
     pub requested_hours: qtty::Hours,
@@ -85,6 +86,7 @@ mod tests {
         let block = TrendsBlock {
             scheduling_block_id: 5,
             original_block_id: "trend-1".to_string(),
+            block_name: "Trend Target".to_string(),
             priority: 4.5,
             total_visibility_hours: qtty::Hours::new(18.0),
             requested_hours: qtty::Hours::new(2.0),
@@ -99,6 +101,7 @@ mod tests {
         let block = TrendsBlock {
             scheduling_block_id: 5,
             original_block_id: "trend-1".to_string(),
+            block_name: "Trend Target".to_string(),
             priority: 4.5,
             total_visibility_hours: qtty::Hours::new(18.0),
             requested_hours: qtty::Hours::new(2.0),

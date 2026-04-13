@@ -28,6 +28,7 @@ fn create_test_schedule(name: &str, block_count: usize) -> Schedule {
         .map(|i| SchedulingBlock {
             id: Some(SchedulingBlockId::new((i + 1) as i64)),
             original_block_id: format!("block_{}", i),
+        block_name: String::new(),
             target_ra: qtty::Degrees::new(i as f64 * 10.0),
             target_dec: qtty::Degrees::new(i as f64 * 5.0 - 45.0),
             constraints: Constraints {

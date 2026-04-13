@@ -89,6 +89,7 @@ export interface PriorityBinInfo {
 // Sky Map
 export interface LightweightBlock {
   original_block_id: string;
+  block_name: string;
   priority: number;
   priority_bin: string;
   requested_duration_seconds: number;
@@ -146,6 +147,7 @@ export interface DistributionData {
 export interface ScheduleTimelineBlock {
   scheduling_block_id: number;
   original_block_id: string;
+  block_name: string;
   priority: number;
   scheduled_start_mjd: number;
   scheduled_stop_mjd: number;
@@ -170,6 +172,7 @@ export interface ScheduleTimelineData {
 export interface InsightsBlock {
   scheduling_block_id: number;
   original_block_id: string;
+  block_name: string;
   priority: number;
   total_visibility_hours: number;
   requested_hours: number;
@@ -211,6 +214,7 @@ export interface ConflictRecord {
 export interface TopObservation {
   scheduling_block_id: number;
   original_block_id: string;
+  block_name: string;
   priority: number;
   total_visibility_hours: number;
   requested_hours: number;
@@ -233,6 +237,7 @@ export interface InsightsData {
 export interface TrendsBlock {
   scheduling_block_id: number;
   original_block_id: string;
+  block_name: string;
   priority: number;
   total_visibility_hours: number;
   requested_hours: number;
@@ -291,6 +296,7 @@ export interface TrendsData {
 export interface ValidationIssue {
   block_id: number;
   original_block_id: string | null;
+  block_name: string | null;
   issue_type: string;
   category: string;
   criticality: string;

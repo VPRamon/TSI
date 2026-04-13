@@ -399,6 +399,7 @@ fn test_scheduling_block_zero_priority() {
     let block = SchedulingBlock {
         id: Some(SchedulingBlockId::new(1)),
         original_block_id: "block_001".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(45.0),
         target_dec: qtty::Degrees::new(-30.0),
         constraints: Constraints {
@@ -423,6 +424,7 @@ fn test_scheduling_block_negative_priority() {
     let block = SchedulingBlock {
         id: Some(SchedulingBlockId::new(1)),
         original_block_id: "block_001".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(45.0),
         target_dec: qtty::Degrees::new(-30.0),
         constraints: Constraints {
@@ -447,6 +449,7 @@ fn test_scheduling_block_very_high_priority() {
     let block = SchedulingBlock {
         id: Some(SchedulingBlockId::new(1)),
         original_block_id: "block_001".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(45.0),
         target_dec: qtty::Degrees::new(-30.0),
         constraints: Constraints {
@@ -472,6 +475,7 @@ fn test_scheduling_block_ra_boundaries() {
     let block1 = SchedulingBlock {
         id: Some(SchedulingBlockId::new(1)),
         original_block_id: "block_ra0".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(0.0),
         target_dec: qtty::Degrees::new(0.0),
         constraints: Constraints {
@@ -492,6 +496,7 @@ fn test_scheduling_block_ra_boundaries() {
     let block2 = SchedulingBlock {
         id: Some(SchedulingBlockId::new(2)),
         original_block_id: "block_ra360".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(360.0),
         target_dec: qtty::Degrees::new(0.0),
         constraints: Constraints {
@@ -518,6 +523,7 @@ fn test_scheduling_block_dec_boundaries() {
     let block1 = SchedulingBlock {
         id: Some(SchedulingBlockId::new(1)),
         original_block_id: "south_pole".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(0.0),
         target_dec: qtty::Degrees::new(-90.0),
         constraints: Constraints {
@@ -538,6 +544,7 @@ fn test_scheduling_block_dec_boundaries() {
     let block2 = SchedulingBlock {
         id: Some(SchedulingBlockId::new(2)),
         original_block_id: "north_pole".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(0.0),
         target_dec: qtty::Degrees::new(90.0),
         constraints: Constraints {
@@ -563,6 +570,7 @@ fn test_scheduling_block_zero_observation_time() {
     let block = SchedulingBlock {
         id: Some(SchedulingBlockId::new(1)),
         original_block_id: "zero_obs".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(45.0),
         target_dec: qtty::Degrees::new(-30.0),
         constraints: Constraints {
@@ -588,6 +596,7 @@ fn test_scheduling_block_very_long_observation() {
     let block = SchedulingBlock {
         id: Some(SchedulingBlockId::new(1)),
         original_block_id: "long_obs".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(45.0),
         target_dec: qtty::Degrees::new(-30.0),
         constraints: Constraints {
@@ -620,6 +629,7 @@ fn test_scheduling_block_many_visibility_periods() {
     let block = SchedulingBlock {
         id: Some(SchedulingBlockId::new(1)),
         original_block_id: "many_periods".to_string(),
+        block_name: String::new(),
         target_ra: qtty::Degrees::new(45.0),
         target_dec: qtty::Degrees::new(-30.0),
         constraints: Constraints {

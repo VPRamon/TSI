@@ -52,6 +52,7 @@ describe('toSkyMapViewModel', () => {
     blocks: [
       {
         original_block_id: 'B001',
+        block_name: 'Perseus Galaxy Cluster',
         priority: 8.5,
         priority_bin: 'high',
         requested_duration_seconds: 3600,
@@ -61,6 +62,7 @@ describe('toSkyMapViewModel', () => {
       },
       {
         original_block_id: 'B002',
+        block_name: '',
         priority: 3.0,
         priority_bin: 'low',
         requested_duration_seconds: 1800,

@@ -210,6 +210,7 @@ async fn test_full_workflow_trends_data() {
             Some(TrendsBlock {
                 scheduling_block_id: b.scheduling_block_id,
                 original_block_id: b.original_block_id,
+                block_name: b.block_name,
                 priority: b.priority,
                 total_visibility_hours: b.total_visibility_hours,
                 requested_hours: b.requested_hours,
@@ -989,6 +990,7 @@ async fn test_analytics_populated_on_store() {
             Some(TrendsBlock {
                 scheduling_block_id: b.scheduling_block_id,
                 original_block_id: b.original_block_id,
+                block_name: b.block_name,
                 priority: b.priority,
                 total_visibility_hours: b.total_visibility_hours,
                 requested_hours: b.requested_hours,
@@ -1132,6 +1134,7 @@ async fn test_schedule_with_extreme_values() {
             Some(TrendsBlock {
                 scheduling_block_id: b.scheduling_block_id,
                 original_block_id: b.original_block_id,
+                block_name: b.block_name,
                 priority: b.priority,
                 total_visibility_hours: b.total_visibility_hours,
                 requested_hours: b.requested_hours,

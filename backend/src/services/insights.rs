@@ -218,6 +218,7 @@ fn get_top_observations(blocks: &[InsightsBlock], by: &str, n: usize) -> Vec<Top
         .map(|b| TopObservation {
             scheduling_block_id: b.scheduling_block_id,
             original_block_id: b.original_block_id.clone(),
+            block_name: b.block_name.clone(),
             priority: b.priority,
             total_visibility_hours: b.total_visibility_hours,
             requested_hours: b.requested_hours,
@@ -374,6 +375,7 @@ mod tests {
         InsightsBlock {
             scheduling_block_id: 1,
             original_block_id: "test".to_string(),
+            block_name: String::new(),
             priority,
             total_visibility_hours: qtty::Hours::new(visibility),
             requested_hours: qtty::Hours::new(requested),

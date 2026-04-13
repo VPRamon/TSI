@@ -411,6 +411,7 @@ pub async fn get_trends_data(
             let InsightsBlock {
                 scheduling_block_id,
                 original_block_id,
+                block_name,
                 priority,
                 total_visibility_hours,
                 requested_hours,
@@ -427,6 +428,7 @@ pub async fn get_trends_data(
             TrendsBlock {
                 scheduling_block_id,
                 original_block_id,
+                block_name,
                 priority,
                 total_visibility_hours: qtty::Hours::new(total_visibility_hours),
                 requested_hours: qtty::Hours::new(requested_hours),
@@ -489,6 +491,7 @@ mod tests {
         TrendsBlock {
             scheduling_block_id: priority as i64,
             original_block_id: format!("block_{}", priority),
+            block_name: String::new(),
             priority,
             scheduled,
             total_visibility_hours: qtty::Hours::new(visibility_hours),
