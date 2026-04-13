@@ -143,10 +143,7 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `Ok(())` - Schedule was successfully deleted
     /// * `Err(RepositoryError::NotFound)` - If the schedule doesn't exist
     /// * `Err(RepositoryError)` - If the operation fails
-    async fn delete_schedule(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<()>;
+    async fn delete_schedule(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<()>;
 
     /// Update schedule metadata (name and/or observer location).
     ///

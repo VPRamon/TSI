@@ -57,7 +57,7 @@ mod tests {
         // One week in January 2026
         let period = Period {
             start: ModifiedJulianDate::new(60694.0), // 2026-01-15
-            end: ModifiedJulianDate::new(60701.0),  // 2026-01-22
+            end: ModifiedJulianDate::new(60701.0),   // 2026-01-22
         };
 
         let nights = compute_astronomical_nights(&location, &period);
@@ -97,16 +97,13 @@ mod tests {
         use siderust::coordinates::frames::ECEF;
 
         // Greenwich Observatory
-        let location = Geodetic::<ECEF>::new(
-            Degrees::new(0.0),
-            Degrees::new(51.4769),
-            Meters::new(0.0),
-        );
+        let location =
+            Geodetic::<ECEF>::new(Degrees::new(0.0), Degrees::new(51.4769), Meters::new(0.0));
 
         // One day in January (winter)
         let period = Period {
             start: ModifiedJulianDate::new(60694.0), // 2026-01-15
-            end: ModifiedJulianDate::new(60695.0),  // 2026-01-16
+            end: ModifiedJulianDate::new(60695.0),   // 2026-01-16
         };
 
         let nights = compute_astronomical_nights(&location, &period);

@@ -90,15 +90,18 @@ const OpportunitiesHistogram = memo(function OpportunitiesHistogram({
                     return (
                       <div
                         key={`${bin.bin_start_unix}-${bin.bin_end_unix}`}
-                        className="group relative flex-1"
+                        className="group relative flex h-full flex-1 items-end"
+                        data-testid="visibility-histogram-column"
                         title={`${formatHistogramRange(bin.bin_start_unix, bin.bin_end_unix)}\n${bin.visible_count} visible block${bin.visible_count === 1 ? '' : 's'}`}
                       >
                         <div
                           className="w-full rounded-t-sm border border-sky-300/20 bg-sky-400/80 transition-[filter,transform] duration-150 group-hover:-translate-y-0.5 group-hover:brightness-110"
                           style={{
-                            height: `${Math.max(heightPercent, 1)}%`,
+                            height: `${heightPercent}%`,
+                            minHeight: bin.visible_count > 0 ? '2px' : undefined,
                             opacity: intensity,
                           }}
+                          data-testid="visibility-histogram-bar"
                         />
                       </div>
                     );

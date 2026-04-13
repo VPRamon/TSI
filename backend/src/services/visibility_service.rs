@@ -94,10 +94,10 @@ fn is_full_azimuth_range(min_az: Degrees, max_az: Degrees) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::{Constraints, GeographicLocation, ModifiedJulianDate, Period};
     use qtty::{Degrees, Meters};
     use siderust::coordinates::centers::Geodetic;
     use siderust::coordinates::frames::ECEF;
-    use crate::api::{Constraints, GeographicLocation, ModifiedJulianDate, Period};
 
     fn roque_location() -> GeographicLocation {
         Geodetic::<ECEF>::new(
@@ -110,7 +110,7 @@ mod tests {
     fn one_week_period() -> Period {
         Period {
             start: ModifiedJulianDate::new(60694.0), // 2026-01-15
-            end: ModifiedJulianDate::new(60701.0),  // 2026-01-22
+            end: ModifiedJulianDate::new(60701.0),   // 2026-01-22
         }
     }
 

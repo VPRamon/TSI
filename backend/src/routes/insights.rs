@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 /// Block data for insights analysis.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InsightsBlock {
-    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
+    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
-    pub block_name: String,        // Human-readable name (e.g. target name)
+    pub block_name: String,       // Human-readable name (e.g. target name)
     pub priority: f64,
     pub total_visibility_hours: qtty::Hours,
     pub requested_hours: qtty::Hours,
@@ -57,9 +57,9 @@ pub struct ConflictRecord {
 /// Top observation entry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TopObservation {
-    pub scheduling_block_id: i64,  // Internal DB ID (for internal operations)
+    pub scheduling_block_id: i64, // Internal DB ID (for internal operations)
     pub original_block_id: String, // Original ID from JSON (shown to user)
-    pub block_name: String,        // Human-readable name (e.g. target name)
+    pub block_name: String,       // Human-readable name (e.g. target name)
     pub priority: f64,
     pub total_visibility_hours: qtty::Hours,
     pub requested_hours: qtty::Hours,

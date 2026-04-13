@@ -175,12 +175,12 @@ pub async fn process_schedule_async(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use qtty::{Degrees, Meters};
-    use siderust::coordinates::centers::Geodetic;
-    use siderust::coordinates::frames::ECEF;
     use crate::api::{ModifiedJulianDate, Period, Schedule};
     use crate::db::repositories::LocalRepository;
     use crate::services::job_tracker::JobStatus;
+    use qtty::{Degrees, Meters};
+    use siderust::coordinates::centers::Geodetic;
+    use siderust::coordinates::frames::ECEF;
 
     #[derive(Debug)]
     struct StubImportAdapter {
