@@ -3,7 +3,7 @@
  * Redesigned with consistent layout primitives and improved chart presentation.
  */
 import { useParams } from 'react-router-dom';
-import { useDistributions, usePlotlyTheme } from '@/hooks';
+import { useDistributions, usePlotlyTheme, usePlotlyDownload } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
@@ -37,8 +37,9 @@ function DistributionSection({
   layout,
   config,
 }: DistributionSectionProps) {
+  const { onInitialized, downloadButton } = usePlotlyDownload(title);
   return (
-    <ChartPanel title={title}>
+    <ChartPanel title={title} headerActions={downloadButton}>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[240px_minmax(0,1fr)] lg:items-center">
         <aside className="rounded-lg border border-slate-700 bg-slate-900/40 p-4 lg:self-center">
           <div className="divide-y divide-slate-700/60">
@@ -57,7 +58,13 @@ function DistributionSection({
         </aside>
 
         <div className="min-w-0">
-          <PlotlyChart data={chartData} layout={layout} config={config} height="350px" />
+          <PlotlyChart
+            data={chartData}
+            layout={layout}
+            config={config}
+            height="350px"
+            onInitialized={onInitialized}
+          />
         </div>
       </div>
     </ChartPanel>

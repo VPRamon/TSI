@@ -4,7 +4,7 @@
  */
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useTrends, usePlotlyTheme } from '@/hooks';
+import { useTrends, usePlotlyTheme, usePlotlyDownload } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
@@ -79,6 +79,13 @@ function Trends() {
     xAxis: { title: 'Visibility (hours)' },
     yAxis: { title: 'Scheduling Rate (%)', range: [0, 100] },
   });
+
+  const { onInitialized: onPriorityInit, downloadButton: priorityDownload } = usePlotlyDownload(
+    'Scheduling Rate by Priority'
+  );
+  const { onInitialized: onVisibilityInit, downloadButton: visibilityDownload } = usePlotlyDownload(
+    'Scheduling Rate by Visibility'
+  );
 
   if (isLoading) {
     return (
@@ -250,21 +257,23 @@ function Trends() {
       {/* Split layout: controls left, charts right */}
       <SplitPane controls={controlsContent} controlsWidth="sm">
         <div className="flex flex-col gap-6">
-          <ChartPanel title="By Priority">
+          <ChartPanel title="By Priority" headerActions={priorityDownload}>
             <PlotlyChart
               data={byPriorityData}
               layout={byPriorityLayout}
               config={config}
               height="350px"
+              onInitialized={onPriorityInit}
             />
           </ChartPanel>
 
-          <ChartPanel title="By Visibility">
+          <ChartPanel title="By Visibility" headerActions={visibilityDownload}>
             <PlotlyChart
               data={byVisibilityData}
               layout={byVisibilityLayout}
               config={config}
               height="350px"
+              onInitialized={onVisibilityInit}
             />
           </ChartPanel>
         </div>

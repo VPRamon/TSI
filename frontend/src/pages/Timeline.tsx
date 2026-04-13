@@ -3,7 +3,7 @@
  * Redesigned with consistent layout primitives.
  */
 import { useParams } from 'react-router-dom';
-import { useTimeline, usePlotlyTheme } from '@/hooks';
+import { useTimeline, usePlotlyTheme, usePlotlyDownload } from '@/hooks';
 import {
   LoadingSpinner,
   ErrorMessage,
@@ -22,13 +22,14 @@ function Timeline() {
   const id = parseInt(scheduleId ?? '0', 10);
   const { data, isLoading, error, refetch } = useTimeline(id);
 
-  // Call hook unconditionally (rules of hooks)
+  // Call hooks unconditionally (rules of hooks)
   const { layout, config } = usePlotlyTheme({
     title: 'Observation Timeline',
     xAxis: { title: 'Day of Month' },
     yAxis: { title: 'Month' },
     showLegend: false,
   });
+  const { onInitialized, downloadButton } = usePlotlyDownload('Schedule Timeline');
 
   if (isLoading) {
     return (
@@ -187,8 +188,14 @@ function Timeline() {
       </MetricsGrid>
 
       {/* Timeline chart */}
-      <ChartPanel title="Schedule Timeline">
-        <PlotlyChart data={plotData} layout={timelineLayout} config={config} height="800px" />
+      <ChartPanel title="Schedule Timeline" headerActions={downloadButton}>
+        <PlotlyChart
+          data={plotData}
+          layout={timelineLayout}
+          config={config}
+          height="800px"
+          onInitialized={onInitialized}
+        />
       </ChartPanel>
     </PageContainer>
   );

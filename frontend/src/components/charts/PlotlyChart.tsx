@@ -21,6 +21,12 @@ export interface PlotlyChartProps {
   className?: string;
   /** Accessible label for the chart */
   ariaLabel?: string;
+  /**
+   * Called once after Plotly initialises the chart.
+   * Receives the raw figure object and the underlying DOM element.
+   * Use with usePlotlyDownload to wire up the header download button.
+   */
+  onInitialized?: (figure: unknown, graphDiv: HTMLElement) => void;
 }
 
 /**
@@ -42,6 +48,7 @@ const PlotlyChart = memo(function PlotlyChart({
   height = '400px',
   className = '',
   ariaLabel,
+  onInitialized,
 }: PlotlyChartProps) {
   const exportFilename = useMemo(() => {
     const titleValue = layout.title;
@@ -81,6 +88,7 @@ const PlotlyChart = memo(function PlotlyChart({
         config={mergedConfig}
         style={{ width: '100%', height: '100%' }}
         useResizeHandler
+        onInitialized={onInitialized}
       />
     </div>
   );

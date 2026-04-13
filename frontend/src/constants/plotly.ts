@@ -36,12 +36,12 @@ export const HORIZONTAL_LEGEND: Partial<Layout['legend']> = {
 
 /**
  * Default Plotly config for interactivity.
- * Shows only the image export button on hover.
+ * The mode bar is hidden; pages provide their own download button via
+ * usePlotlyDownload + ChartPanel headerActions instead.
  */
 export const DEFAULT_CONFIG: Partial<Config> = {
   responsive: true,
-  displayModeBar: 'hover',
-  modeBarButtons: [['toImage']] as Plotly.ModeBarDefaultButtons[][],
+  displayModeBar: false,
 };
 
 /**

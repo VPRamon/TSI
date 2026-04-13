@@ -78,7 +78,7 @@ describe('usePlotlyTheme', () => {
     const { result } = renderHook(() => usePlotlyTheme());
 
     expect(result.current.config.responsive).toBe(true);
-    expect(result.current.config.displayModeBar).toBe('hover');
+    expect(result.current.config.displayModeBar).toBe(false);
   });
 
   it('returns minimal config when preset is minimal', () => {
@@ -87,11 +87,10 @@ describe('usePlotlyTheme', () => {
     expect(result.current.config.displayModeBar).toBe(false);
   });
 
-  it('returns default config with only the image export button', () => {
+  it('returns default config with mode bar hidden', () => {
     const { result } = renderHook(() => usePlotlyTheme({ configPreset: 'default' }));
 
-    expect(result.current.config.displayModeBar).toBe('hover');
-    expect(result.current.config.modeBarButtons).toEqual([['toImage']]);
+    expect(result.current.config.displayModeBar).toBe(false);
   });
 
   it('memoizes layout and config', () => {

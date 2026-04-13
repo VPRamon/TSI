@@ -6,7 +6,7 @@
  */
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { useSkyMap, usePlotlyTheme } from '@/hooks';
+import { useSkyMap, usePlotlyTheme, usePlotlyDownload } from '@/hooks';
 import { useSiderust } from '@/hooks/useSiderust';
 import { loadSiderust, type SiderustModules } from '@/lib/siderust';
 import {
@@ -344,6 +344,11 @@ function AltAz() {
     yAxis: { title: 'Azimuth (degrees)', range: [0, 360] },
   });
 
+  const { onInitialized: onAltInit, downloadButton: altDownload } =
+    usePlotlyDownload('Altitude vs Time');
+  const { onInitialized: onAzInit, downloadButton: azDownload } =
+    usePlotlyDownload('Azimuth vs Time');
+
   // Extend altitude layout with horizon line
   const altitudeLayout = useMemo(
     () => ({
@@ -577,9 +582,18 @@ function AltAz() {
       </ChartPanel>
 
       <div className="flex flex-col gap-6">
-        <ChartPanel title="Altitude vs Time">
+        <ChartPanel
+          title="Altitude vs Time"
+          headerActions={curves.length > 0 ? altDownload : undefined}
+        >
           {curves.length > 0 ? (
-            <PlotlyChart data={altTraces} layout={altitudeLayout} config={config} height="500px" />
+            <PlotlyChart
+              data={altTraces}
+              layout={altitudeLayout}
+              config={config}
+              height="500px"
+              onInitialized={onAltInit}
+            />
           ) : (
             <div className="flex h-[500px] items-center justify-center text-slate-500">
               {computing ? (
@@ -592,9 +606,18 @@ function AltAz() {
             </div>
           )}
         </ChartPanel>
-        <ChartPanel title="Azimuth vs Time">
+        <ChartPanel
+          title="Azimuth vs Time"
+          headerActions={curves.length > 0 ? azDownload : undefined}
+        >
           {curves.length > 0 ? (
-            <PlotlyChart data={azTraces} layout={azLayout} config={config} height="500px" />
+            <PlotlyChart
+              data={azTraces}
+              layout={azLayout}
+              config={config}
+              height="500px"
+              onInitialized={onAzInit}
+            />
           ) : (
             <div className="flex h-[500px] items-center justify-center text-slate-500">
               {computing ? (
