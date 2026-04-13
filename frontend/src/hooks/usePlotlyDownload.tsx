@@ -29,6 +29,8 @@ export interface UsePlotlyDownloadResult {
  */
 export function usePlotlyDownload(label: string): UsePlotlyDownloadResult {
   const [graphDiv, setGraphDiv] = useState<HTMLElement | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onInitialized = useCallback((_figure: unknown, gd: HTMLElement) => {
     setGraphDiv(gd);
@@ -37,10 +39,22 @@ export function usePlotlyDownload(label: string): UsePlotlyDownloadResult {
   const filename = sanitizeImageFilename(label);
 
   const handleDownload = useCallback(async () => {
-    if (!graphDiv) return;
+    if (!graphDiv) {
+      const msg = 'Chart element not ready';
+      console.warn(`[PNG Export] ${msg}`);
+      setError(msg);
+      return;
+    }
     const plotly = getPlotly();
-    if (!plotly) return;
+    if (!plotly) {
+      const msg = 'Plotly.js not loaded';
+      console.error(`[PNG Export] ${msg}`);
+      setError(msg);
+      return;
+    }
     try {
+      setIsDownloading(true);
+      setError(null);
       const dataUrl = await plotly.toImage(graphDiv, {
         format: 'png',
         scale: 2,
@@ -48,15 +62,32 @@ export function usePlotlyDownload(label: string): UsePlotlyDownloadResult {
         height: graphDiv.offsetHeight || 400,
       });
       downloadPngDataUrl(dataUrl, filename);
-    } catch {
-      // Silently ignore export errors (e.g. browser security restrictions).
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error(`[PNG Export] Failed to export chart: ${errorMessage}`, err);
+      setError(`Export failed: ${errorMessage}`);
+    } finally {
+      setIsDownloading(false);
     }
   }, [graphDiv, filename]);
 
   const downloadButton = (
-    <button type="button" onClick={handleDownload} className={BTN_CLASS} disabled={!graphDiv}>
-      Download PNG
-    </button>
+    <div className="flex items-center gap-2">
+      <button 
+        type="button" 
+        onClick={handleDownload} 
+        className={BTN_CLASS}
+        disabled={!graphDiv || isDownloading}
+        title={error || 'Export chart as PNG'}
+      >
+        {isDownloading ? 'Exporting...' : 'Download PNG'}
+      </button>
+      {error && (
+        <div className="text-xs text-red-400" title={error}>
+          ⚠ {error}
+        </div>
+      )}
+    </div>
   );
 
   return { onInitialized, downloadButton };
