@@ -112,7 +112,10 @@ fn test_constraints_creation() {
 
 #[test]
 fn test_constraints_with_fixed_time() {
-    let period = Period::new(ModifiedJulianDate::new(59000.0), ModifiedJulianDate::new(59001.0));
+    let period = Period::new(
+        ModifiedJulianDate::new(59000.0),
+        ModifiedJulianDate::new(59001.0),
+    );
     let constraints = Constraints::new(
         qtty::Degrees::new(20.0),
         qtty::Degrees::new(80.0),
@@ -186,7 +189,10 @@ fn test_all_id_types_value_getter() {
 
 #[test]
 fn test_period_serialization() {
-    let period = Period::new(ModifiedJulianDate::new(59000.0), ModifiedJulianDate::new(59001.0));
+    let period = Period::new(
+        ModifiedJulianDate::new(59000.0),
+        ModifiedJulianDate::new(59001.0),
+    );
     let json = serde_json::to_string(&period).unwrap();
     assert!(json.contains("59000"));
     assert!(json.contains("59001"));

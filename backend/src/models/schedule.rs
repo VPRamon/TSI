@@ -549,7 +549,6 @@ mod tests {
 
         let scheduled_period = block_4990
             .scheduled_period
-            .clone()
             .expect("Scheduling block 1000004990 should be scheduled");
         assert_close(
             scheduled_period.start.value(),

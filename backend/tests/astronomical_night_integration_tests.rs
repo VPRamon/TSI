@@ -1,11 +1,11 @@
 //! Integration tests for astronomical night computation and geographic location storage.
 
-use tsi_rust::api::{GeographicLocation, ModifiedJulianDate, Period};
+use tsi_rust::api::{ModifiedJulianDate, Period};
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::services;
 use tsi_rust::models::parse_schedule_json_str;
-use tsi_rust::services::astronomical_night::compute_astronomical_nights;
 use tsi_rust::qtty::{Degrees, Meters};
+use tsi_rust::services::astronomical_night::compute_astronomical_nights;
 use tsi_rust::siderust::coordinates::centers::Geodetic;
 use tsi_rust::siderust::coordinates::frames::ECEF;
 
@@ -78,11 +78,8 @@ fn test_parse_schedule_computes_astronomical_nights() {
 /// Test astronomical night computation service directly
 #[test]
 fn test_compute_astronomical_nights_greenwich() {
-    let location = Geodetic::<ECEF>::new(
-        Degrees::new(0.0),
-        Degrees::new(51.4769),
-        Meters::new(0.0),
-    );
+    let location =
+        Geodetic::<ECEF>::new(Degrees::new(0.0), Degrees::new(51.4769), Meters::new(0.0));
 
     let period = Period {
         start: ModifiedJulianDate::new(60694.0),

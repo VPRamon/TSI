@@ -21,15 +21,18 @@
 use std::sync::Arc;
 
 use tsi_rust::api::{
-    Constraints, GeographicLocation, ModifiedJulianDate, Period, Schedule, ScheduleId,
-    SchedulingBlock, SchedulingBlockId,
+    Constraints, ModifiedJulianDate, Period, Schedule, ScheduleId, SchedulingBlock,
+    SchedulingBlockId,
 };
 use tsi_rust::db::repositories::postgres::{PostgresConfig, PostgresRepository};
 use tsi_rust::db::{
     AnalyticsRepository, ErrorContext, RepositoryError, ScheduleRepository, ValidationRepository,
     VisualizationRepository,
 };
+use tsi_rust::qtty::{Degrees, Meters};
 use tsi_rust::services::validation::{ValidationResult, ValidationStatus};
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
 
 /// Helper function to create a test PostgresConfig.
 /// Uses DATABASE_URL from environment or skips the test.
@@ -89,6 +92,7 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
             SchedulingBlock {
                 id: Some(SchedulingBlockId(i as i64 + 1)),
                 original_block_id: format!("OB-{}", i + 1),
+                block_name: format!("Test Target {}", i + 1),
                 target_ra: (45.0 + i as f64).into(),
                 target_dec: (30.0 - i as f64).into(),
                 constraints: Constraints {
@@ -129,9 +133,6 @@ fn create_test_schedule(name: &str, checksum: &str, num_blocks: usize) -> Schedu
 /// Generate a unique checksum for each test run.
 fn unique_checksum(base: &str) -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-use tsi_rust::qtty::{Degrees, Meters};
-use tsi_rust::siderust::coordinates::centers::Geodetic;
-use tsi_rust::siderust::coordinates::frames::ECEF;
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

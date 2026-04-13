@@ -28,11 +28,16 @@ use tsi_rust::services::{compare, distributions, insights, sky_map, timeline, tr
 /// Resolve the workspace data directory regardless of Docker vs. local environment.
 fn data_path(filename: &str) -> std::path::PathBuf {
     let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    // TSI/backend/../examples/ — native TSI format examples
+    let examples = manifest_dir.join("..").join("examples").join(filename);
+    if examples.exists() {
+        return examples;
+    }
+    // Legacy relative path (Docker: /workspace/data)
     let local = manifest_dir.join("..").join("data").join(filename);
     if local.exists() {
         return local;
     }
-    // Fall back to Docker container path
     std::path::PathBuf::from("/workspace/data").join(filename)
 }
 
@@ -273,11 +278,15 @@ async fn test_full_workflow_timeline_data() {
     let timeline = timeline::compute_schedule_timeline_data(blocks, schedule.dark_periods.clone())
         .expect("Failed to compute timeline data");
 
-    // Verify timeline structure
+    // Verify timeline structure: total_count reflects blocks in the timeline (scheduled only)
+    let expected_scheduled = schedule
+        .blocks
+        .iter()
+        .filter(|b| b.scheduled_period.is_some())
+        .count();
     assert_eq!(
-        timeline.total_count,
-        schedule.blocks.len(),
-        "Timeline should report correct total count"
+        timeline.total_count, expected_scheduled,
+        "Timeline should report correct total count (scheduled blocks only)"
     );
 
     println!(

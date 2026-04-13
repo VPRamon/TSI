@@ -386,7 +386,7 @@ fn scheduled_period_to_json(period: &Option<Period>) -> Value {
 }
 
 fn period_to_json(period: &Period) -> Value {
-    serde_json::to_value(period).unwrap_or_else(|_| json!(null))
+    serde_json::to_value(period).unwrap_or(json!(null))
 }
 
 fn value_to_periods(value: &Value) -> RepositoryResult<Vec<Period>> {
@@ -629,7 +629,9 @@ fn compute_gap_statistics(
                 // Array of periods: [{"start_mjd": mjd, "end_mjd": mjd}, ...]
                 for period in arr {
                     if let Some(obj) = period.as_object() {
-                        if let (Some(start), Some(stop)) = (obj.get("start_mjd"), obj.get("end_mjd")) {
+                        if let (Some(start), Some(stop)) =
+                            (obj.get("start_mjd"), obj.get("end_mjd"))
+                        {
                             if let (Some(start_f), Some(stop_f)) = (start.as_f64(), stop.as_f64()) {
                                 scheduled_periods.push((start_f, stop_f));
                             }
@@ -717,7 +719,7 @@ impl ScheduleRepository for PostgresRepository {
                     possible_periods_json: compute_possible_periods_json(&schedule.blocks),
                     raw_schedule_json: serde_json::to_value(&schedule).ok(),
                     schedule_period_json: period_to_json(&schedule.schedule_period),
-                    observer_location_json: serde_json::to_value(&schedule.geographic_location)
+                    observer_location_json: serde_json::to_value(schedule.geographic_location)
                         .map_err(|e| {
                             map_diesel_error(diesel::result::Error::SerializationError(Box::new(e)))
                         })?,
@@ -929,16 +931,12 @@ impl ScheduleRepository for PostgresRepository {
         .await
     }
 
-    async fn delete_schedule(
-        &self,
-        schedule_id: crate::api::ScheduleId,
-    ) -> RepositoryResult<()> {
+    async fn delete_schedule(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<()> {
         self.with_conn(move |conn| {
-            let deleted = diesel::delete(
-                schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)),
-            )
-            .execute(conn)
-            .map_err(map_diesel_error)?;
+            let deleted =
+                diesel::delete(schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)))
+                    .execute(conn)
+                    .map_err(map_diesel_error)?;
 
             if deleted == 0 {
                 return Err(RepositoryError::NotFound(format!(
@@ -967,24 +965,20 @@ impl ScheduleRepository for PostgresRepository {
                 .map_err(map_diesel_error)?;
 
             if let Some(ref name) = new_name {
-                diesel::update(
-                    schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)),
-                )
-                .set(schedules::schedule_name.eq(name))
-                .execute(conn)
-                .map_err(map_diesel_error)?;
+                diesel::update(schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)))
+                    .set(schedules::schedule_name.eq(name))
+                    .execute(conn)
+                    .map_err(map_diesel_error)?;
             }
 
             if let Some(ref location) = new_location {
                 let loc_json = serde_json::to_value(location).map_err(|e| {
                     map_diesel_error(diesel::result::Error::SerializationError(Box::new(e)))
                 })?;
-                diesel::update(
-                    schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)),
-                )
-                .set(schedules::observer_location_json.eq(loc_json))
-                .execute(conn)
-                .map_err(map_diesel_error)?;
+                diesel::update(schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)))
+                    .set(schedules::observer_location_json.eq(loc_json))
+                    .execute(conn)
+                    .map_err(map_diesel_error)?;
             }
 
             // Fetch updated metadata
@@ -1586,7 +1580,11 @@ impl ValidationRepository for PostgresRepository {
                 let issue = crate::api::ValidationIssue {
                     block_id: row.scheduling_block_id,
                     original_block_id,
-                    block_name: if block_name.is_empty() { None } else { Some(block_name) },
+                    block_name: if block_name.is_empty() {
+                        None
+                    } else {
+                        Some(block_name)
+                    },
                     issue_type: row.issue_type.unwrap_or_default(),
                     category: row.issue_category.unwrap_or_default(),
                     criticality: row.criticality.unwrap_or_default(),
@@ -1956,7 +1954,10 @@ mod tests {
 
         let value = period_to_json(&period);
 
-        assert_eq!(value.get("start_mjd").and_then(|v| v.as_f64()), Some(60694.0));
+        assert_eq!(
+            value.get("start_mjd").and_then(|v| v.as_f64()),
+            Some(60694.0)
+        );
         assert_eq!(value.get("end_mjd").and_then(|v| v.as_f64()), Some(60701.0));
         assert!(value.get("start").is_none());
         assert!(value.get("stop").is_none());

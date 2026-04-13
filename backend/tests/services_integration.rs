@@ -1,6 +1,6 @@
 use tsi_rust::api::{
-    Constraints, GeographicLocation, ModifiedJulianDate, Period, Schedule, ScheduleId,
-    SchedulingBlock, SchedulingBlockId,
+    Constraints, ModifiedJulianDate, Period, Schedule, ScheduleId, SchedulingBlock,
+    SchedulingBlockId,
 };
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::services::{

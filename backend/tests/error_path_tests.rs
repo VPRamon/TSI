@@ -3,7 +3,7 @@
 //! These tests specifically trigger error conditions to ensure proper error handling,
 //! error propagation, and error context enrichment throughout the stack.
 
-use tsi_rust::api::{GeographicLocation, ModifiedJulianDate, Period, Schedule, ScheduleId};
+use tsi_rust::api::{ModifiedJulianDate, Period, Schedule, ScheduleId};
 use tsi_rust::db::factory::RepositoryType;
 use tsi_rust::db::repositories::LocalRepository;
 use tsi_rust::db::repository::{ErrorContext, RepositoryError};
@@ -49,9 +49,6 @@ async fn test_factory_postgres_without_config() {
 async fn test_factory_invalid_database_url() {
     use tsi_rust::db::PostgresConfig;
     use tsi_rust::db::RepositoryFactory;
-use tsi_rust::qtty::{Degrees, Meters};
-use tsi_rust::siderust::coordinates::centers::Geodetic;
-use tsi_rust::siderust::coordinates::frames::ECEF;
 
     // Create config with invalid database URL
     let invalid_config = PostgresConfig {

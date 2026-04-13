@@ -233,7 +233,7 @@ impl ScheduleRepository for LocalRepository {
         let schedule = self.get_schedule_impl(schedule_id)?;
 
         // Return the schedule period directly
-        Ok(Some(schedule.schedule_period.clone()))
+        Ok(Some(schedule.schedule_period))
     }
 
     async fn get_scheduling_block(
@@ -294,15 +294,7 @@ impl ScheduleRepository for LocalRepository {
         data.validation_results.remove(&schedule_id.0);
         data.possible_periods.remove(&schedule_id.0);
         // Remove blocks belonging to this schedule
-        let block_ids_to_remove: Vec<i64> = data
-            .blocks
-            .iter()
-            .filter_map(|(&id, _)| {
-                // Blocks don't store schedule_id directly in local repo,
-                // so we rely on the schedule's block list having been removed
-                Some(id)
-            })
-            .collect();
+        let block_ids_to_remove: Vec<i64> = data.blocks.iter().map(|(&id, _)| id).collect();
         // We can't easily filter by schedule_id in local repo for blocks,
         // but schedule data itself is removed which is the important part
         let _ = block_ids_to_remove;
@@ -326,8 +318,8 @@ impl ScheduleRepository for LocalRepository {
         if let Some(ref name) = new_name {
             schedule.name = name.clone();
         }
-        if let Some(ref location) = new_location {
-            schedule.geographic_location = location.clone();
+        if let Some(location) = new_location {
+            schedule.geographic_location = location;
         }
 
         // Update metadata
@@ -337,11 +329,7 @@ impl ScheduleRepository for LocalRepository {
             }
         }
 
-        let meta = data
-            .schedule_metadata
-            .get(&schedule_id.0)
-            .cloned()
-            .unwrap();
+        let meta = data.schedule_metadata.get(&schedule_id.0).cloned().unwrap();
         Ok(meta)
     }
 }
@@ -464,7 +452,7 @@ impl AnalyticsRepository for LocalRepository {
                     requested_duration_seconds: b.requested_duration,
                     target_ra_deg: b.target_ra,
                     target_dec_deg: b.target_dec,
-                    scheduled_period: b.scheduled_period.clone(),
+                    scheduled_period: b.scheduled_period,
                 }
             })
             .collect();
@@ -930,7 +918,7 @@ impl VisualizationRepository for LocalRepository {
         let mut periods: Vec<(f64, f64)> = schedule
             .blocks
             .iter()
-            .filter_map(|b| b.scheduled_period.clone())
+            .filter_map(|b| b.scheduled_period)
             .map(|p| (p.start.value(), p.end.value()))
             .collect();
 
@@ -988,10 +976,10 @@ impl VisualizationRepository for LocalRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::ModifiedJulianDate;
     use qtty::{Degrees, Meters};
     use siderust::coordinates::centers::Geodetic;
     use siderust::coordinates::frames::ECEF;
-    use crate::api::ModifiedJulianDate;
 
     fn default_schedule_period() -> Period {
         Period {

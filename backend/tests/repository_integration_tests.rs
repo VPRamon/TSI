@@ -1,7 +1,7 @@
 //! Integration tests for repository implementations.
 
 use std::sync::Arc;
-use tsi_rust::api::{GeographicLocation, ModifiedJulianDate, Period, Schedule, ScheduleId};
+use tsi_rust::api::{ModifiedJulianDate, Period, Schedule, ScheduleId};
 use tsi_rust::db::{
     AnalyticsRepository, LocalRepository, RepositoryError, ScheduleRepository, ValidationRepository,
 };
@@ -171,9 +171,9 @@ async fn test_validation_lifecycle() {
 #[tokio::test]
 async fn test_concurrent_access() {
     use tokio::task::JoinSet;
-use tsi_rust::qtty::{Degrees, Meters};
-use tsi_rust::siderust::coordinates::centers::Geodetic;
-use tsi_rust::siderust::coordinates::frames::ECEF;
+    use tsi_rust::qtty::{Degrees, Meters};
+    use tsi_rust::siderust::coordinates::centers::Geodetic;
+    use tsi_rust::siderust::coordinates::frames::ECEF;
 
     let repo = Arc::new(LocalRepository::new());
     let mut set = JoinSet::new();

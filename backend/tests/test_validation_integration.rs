@@ -7,9 +7,11 @@
 //! 4. All validation rules work as expected
 
 use qtty::{angular::Degrees, time::Seconds, Meters};
+use siderust::coordinates::centers::Geodetic;
+use siderust::coordinates::frames::ECEF;
 use tsi_rust::api::{
-    Constraints, GeographicLocation, ModifiedJulianDate, Period, Schedule, ScheduleId,
-    SchedulingBlock, SchedulingBlockId,
+    Constraints, ModifiedJulianDate, Period, Schedule, ScheduleId, SchedulingBlock,
+    SchedulingBlockId,
 };
 use tsi_rust::db::{
     repositories::LocalRepository,
@@ -19,8 +21,6 @@ use tsi_rust::services::validation::{
     validate_block, validate_blocks, BlockForValidation, Criticality, IssueCategory,
     ValidationStatus,
 };
-use siderust::coordinates::centers::Geodetic;
-use siderust::coordinates::frames::ECEF;
 
 // ==================== Helper Functions ====================
 

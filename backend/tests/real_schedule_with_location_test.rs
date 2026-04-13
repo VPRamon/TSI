@@ -38,8 +38,7 @@ fn test_parse_real_ap_schedule_with_location() {
         "Wrong longitude for Roque de los Muchachos"
     );
     assert_eq!(
-        location.height,
-        2396.0,
+        location.height, 2396.0,
         "Wrong elevation for Roque de los Muchachos"
     );
 
@@ -53,9 +52,7 @@ fn test_parse_real_ap_schedule_with_location() {
     println!("   - Blocks: {}", schedule.blocks.len());
     println!(
         "   - Location: {:.4}°N, {:.4}°W, {} m",
-        location.lat,
-        -location.lon,
-        location.height
+        location.lat, -location.lon, location.height
     );
     println!(
         "   - Astronomical nights: {} periods",
