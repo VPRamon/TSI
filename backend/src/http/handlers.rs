@@ -30,12 +30,12 @@ fn block_matches_visibility_histogram_query(
     query: &VisibilityHistogramQuery,
 ) -> bool {
     if let Some(min_p) = query.priority_min {
-        if block.priority < min_p as f64 {
+        if block.priority < min_p {
             return false;
         }
     }
     if let Some(max_p) = query.priority_max {
-        if block.priority > max_p as f64 {
+        if block.priority > max_p {
             return false;
         }
     }
@@ -319,7 +319,7 @@ pub async fn get_visibility_histogram(
         .filter(|b| block_matches_visibility_histogram_query(b, &query))
         .map(|b| BlockHistogramData {
             scheduling_block_id: b.id.map(|id| id.value()).unwrap_or(0),
-            priority: b.priority as i32,
+            priority: b.priority,
             visibility_periods: Some(b.visibility_periods),
         })
         .collect();
@@ -606,8 +606,8 @@ mod tests {
         let wrong_id = make_block(9, 6.0, true);
 
         let query = VisibilityHistogramQuery {
-            priority_min: Some(5),
-            priority_max: Some(7),
+            priority_min: Some(5.0),
+            priority_max: Some(7.0),
             block_ids: Some(vec![7]),
             scheduled: Some(true),
             ..Default::default()

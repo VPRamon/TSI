@@ -50,8 +50,8 @@ pub fn compute_visibility_histogram_rust(
     start_unix: i64,
     end_unix: i64,
     bin_duration_seconds: i64,
-    priority_min: Option<i32>,
-    priority_max: Option<i32>,
+    priority_min: Option<f64>,
+    priority_max: Option<f64>,
 ) -> Result<Vec<VisibilityBin>, String> {
     // Validate inputs
     if start_unix >= end_unix {
@@ -155,7 +155,7 @@ mod tests {
 
         let block = BlockHistogramData {
             scheduling_block_id: 1,
-            priority: 5,
+            priority: 5.0,
             visibility_periods: Some(vec![Period {
                 start: ModifiedJulianDate::new(40587.0),
                 end: ModifiedJulianDate::new(40587.5),
@@ -181,7 +181,7 @@ mod tests {
         let blocks = vec![
             BlockHistogramData {
                 scheduling_block_id: 1,
-                priority: 3,
+                priority: 3.0,
                 visibility_periods: Some(vec![Period {
                     start: ModifiedJulianDate::new(40587.0),
                     end: ModifiedJulianDate::new(40587.5),
@@ -189,7 +189,7 @@ mod tests {
             },
             BlockHistogramData {
                 scheduling_block_id: 2,
-                priority: 7,
+                priority: 7.0,
                 visibility_periods: Some(vec![Period {
                     start: ModifiedJulianDate::new(40587.0),
                     end: ModifiedJulianDate::new(40587.5),
@@ -199,7 +199,7 @@ mod tests {
 
         // Filter for priority >= 5
         let bins =
-            compute_visibility_histogram_rust(blocks.into_iter(), 0, 86400, 3600, Some(5), None)
+            compute_visibility_histogram_rust(blocks.into_iter(), 0, 86400, 3600, Some(5.0), None)
                 .unwrap();
 
         // Only block 2 (priority 7) should be counted
@@ -215,7 +215,7 @@ mod tests {
         // Same block with multiple overlapping periods in same bin
         let block = BlockHistogramData {
             scheduling_block_id: 1,
-            priority: 5,
+            priority: 5.0,
             visibility_periods: Some(vec![
                 Period {
                     start: ModifiedJulianDate::new(40587.0),

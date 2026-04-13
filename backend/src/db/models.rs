@@ -14,7 +14,7 @@ pub use crate::routes::insights::{
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BlockHistogramData {
     pub scheduling_block_id: i64,
-    pub priority: i32,
+    pub priority: f64,
     pub visibility_periods: Option<Vec<Period>>,
 }
 

@@ -1,7 +1,7 @@
 /**
  * React Query hooks for the TSI API.
  */
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { api } from '@/api';
 import type {
   CreateScheduleRequest,
@@ -114,6 +114,7 @@ export function useVisibilityHistogram(scheduleId: number, query?: VisibilityHis
     queryKey: queryKeys.visibilityHistogram(scheduleId, query),
     queryFn: () => api.getVisibilityHistogram(scheduleId, query),
     enabled: scheduleId > 0,
+    placeholderData: keepPreviousData,
   });
 }
 

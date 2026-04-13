@@ -152,10 +152,10 @@ pub struct VisibilityHistogramQuery {
     pub num_bins: Option<usize>,
     /// Minimum priority filter (inclusive, optional)
     #[serde(default)]
-    pub priority_min: Option<i32>,
+    pub priority_min: Option<f64>,
     /// Maximum priority filter (inclusive, optional)
     #[serde(default)]
-    pub priority_max: Option<i32>,
+    pub priority_max: Option<f64>,
     /// Filter by specific block IDs (optional, comma-separated in query string)
     #[serde(default, deserialize_with = "deserialize_comma_sep_i64")]
     pub block_ids: Option<Vec<i64>>,

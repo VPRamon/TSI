@@ -769,8 +769,8 @@ impl VisualizationRepository for LocalRepository {
     async fn fetch_blocks_for_histogram(
         &self,
         schedule_id: ScheduleId,
-        priority_min: Option<i32>,
-        priority_max: Option<i32>,
+        priority_min: Option<f64>,
+        priority_max: Option<f64>,
         block_ids: Option<Vec<i64>>,
     ) -> RepositoryResult<Vec<crate::db::models::BlockHistogramData>> {
         use crate::db::models::BlockHistogramData;
@@ -784,7 +784,7 @@ impl VisualizationRepository for LocalRepository {
             .enumerate()
             .filter_map(|(idx, b)| {
                 let block_id = idx as i64 + 1;
-                let priority = b.priority as i32;
+                let priority = b.priority;
 
                 // Apply filters if provided
                 if let Some(block_ids_filter) = &block_ids {

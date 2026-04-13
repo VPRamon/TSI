@@ -1866,8 +1866,8 @@ impl VisualizationRepository for PostgresRepository {
     async fn fetch_blocks_for_histogram(
         &self,
         schedule_id: crate::api::ScheduleId,
-        priority_min: Option<i32>,
-        priority_max: Option<i32>,
+        priority_min: Option<f64>,
+        priority_max: Option<f64>,
         block_ids: Option<Vec<i64>>,
     ) -> RepositoryResult<Vec<crate::db::models::BlockHistogramData>> {
         self.with_conn(move |conn| {
@@ -1879,10 +1879,10 @@ impl VisualizationRepository for PostgresRepository {
                 query = query.filter(schedule_blocks::scheduling_block_id.eq_any(ids));
             }
             if let Some(min_p) = priority_min {
-                query = query.filter(schedule_blocks::priority.ge(min_p as f64));
+                query = query.filter(schedule_blocks::priority.ge(min_p));
             }
             if let Some(max_p) = priority_max {
-                query = query.filter(schedule_blocks::priority.le(max_p as f64));
+                query = query.filter(schedule_blocks::priority.le(max_p));
             }
 
             let rows = query
@@ -1900,7 +1900,7 @@ impl VisualizationRepository for PostgresRepository {
                     let visibility_periods = value_to_periods(&visibility_json).ok();
                     crate::db::models::BlockHistogramData {
                         scheduling_block_id: block_id,
-                        priority: priority as i32,
+                        priority,
                         visibility_periods,
                     }
                 })
