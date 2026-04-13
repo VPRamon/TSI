@@ -122,6 +122,16 @@ pub async fn create_schedule(
         .validate_schedule_payload(&schedule_json_str)
         .map_err(|e| AppError::BadRequest(format!("Invalid schedule payload: {}", e)))?;
 
+    // Validate period override up front before spawning the async task.
+    if let Some(ref ov) = request.schedule_period_override {
+        if ov.start_mjd >= ov.end_mjd {
+            return Err(AppError::BadRequest(format!(
+                "schedule_period_override: start_mjd ({}) must be strictly less than end_mjd ({})",
+                ov.start_mjd, ov.end_mjd
+            )));
+        }
+    }
+
     // Create a job for tracking progress
     let job_id = state.job_tracker.create_job();
     let response_job_id = job_id.clone();
@@ -132,6 +142,7 @@ pub async fn create_schedule(
     let import_adapter = state.import_adapter.clone();
     let schedule_name = request.name.clone();
     let populate_analytics = request.populate_analytics;
+    let period_override = request.schedule_period_override.clone();
 
     tokio::spawn(async move {
         let _ = crate::services::schedule_processor::process_schedule_async(
@@ -142,6 +153,7 @@ pub async fn create_schedule(
             schedule_name,
             schedule_json_str,
             populate_analytics,
+            period_override,
         )
         .await;
     });

@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCreateSchedule } from '@/hooks';
 import { LoadingSpinner, LogStream } from '@/components';
 import { OBSERVATORY_SITES, SITE_FROM_FILE, formatSiteLabel } from '@/constants';
+import { dateToMjd } from '@/constants/dates';
 
 // SVG Icons
 const UploadIcon = () => (
@@ -46,6 +47,10 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
   const [uploadError, setUploadError] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
   const [selectedSiteIdx, setSelectedSiteIdx] = useState<string>('0');
+  const [periodOverrideEnabled, setPeriodOverrideEnabled] = useState(false);
+  const [periodStart, setPeriodStart] = useState('');
+  const [periodEnd, setPeriodEnd] = useState('');
+  const [periodError, setPeriodError] = useState('');
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -57,6 +62,25 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
 
   const handleFileUpload = async () => {
     if (!selectedFile) return;
+
+    // Validate schedule period override if enabled.
+    if (periodOverrideEnabled) {
+      if (!periodStart || !periodEnd) {
+        setPeriodError('Both start and end are required when the period override is enabled.');
+        return;
+      }
+      const startDate = new Date(periodStart);
+      const endDate = new Date(periodEnd);
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        setPeriodError('Invalid date format.');
+        return;
+      }
+      if (startDate >= endDate) {
+        setPeriodError('Start must be strictly before end.');
+        return;
+      }
+    }
+    setPeriodError('');
 
     setIsUploading(true);
     setUploadError('');
@@ -77,11 +101,20 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
           ? OBSERVATORY_SITES[parseInt(selectedSiteIdx, 10)]?.location
           : undefined;
 
+      const schedulePeriodOverride =
+        periodOverrideEnabled && periodStart && periodEnd
+          ? {
+              start_mjd: dateToMjd(new Date(periodStart)),
+              end_mjd: dateToMjd(new Date(periodEnd)),
+            }
+          : undefined;
+
       const response = await createSchedule.mutateAsync({
         name,
         schedule_json: scheduleJson,
         populate_analytics: true,
         location_override: locationOverride,
+        schedule_period_override: schedulePeriodOverride,
       });
 
       // Set job ID to start streaming logs
@@ -178,6 +211,68 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
               ))}
               <option value={SITE_FROM_FILE}>Use location from file</option>
             </select>
+          </div>
+
+          {/* Schedule Period Override */}
+          <div className="rounded-lg border border-slate-700/60 bg-slate-900/30 p-4">
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-300">
+              <input
+                type="checkbox"
+                checked={periodOverrideEnabled}
+                onChange={(e) => {
+                  setPeriodOverrideEnabled(e.target.checked);
+                  setPeriodError('');
+                }}
+                disabled={isUploading}
+                className="h-4 w-4 rounded border-slate-600 bg-slate-800 accent-blue-500 disabled:cursor-not-allowed"
+              />
+              Override Schedule Period
+            </label>
+            <p className="mt-1 text-xs text-slate-500">
+              Optional. Use when the uploaded file has no scheduled blocks or does not define the
+              schedule window explicitly.
+            </p>
+            {periodOverrideEnabled && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="period-start"
+                    className="mb-1 block text-xs font-medium text-slate-400"
+                  >
+                    Start (UTC)
+                  </label>
+                  <input
+                    id="period-start"
+                    type="datetime-local"
+                    value={periodStart}
+                    onChange={(e) => setPeriodStart(e.target.value)}
+                    disabled={isUploading}
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-white transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="period-end"
+                    className="mb-1 block text-xs font-medium text-slate-400"
+                  >
+                    End (UTC)
+                  </label>
+                  <input
+                    id="period-end"
+                    type="datetime-local"
+                    value={periodEnd}
+                    onChange={(e) => setPeriodEnd(e.target.value)}
+                    disabled={isUploading}
+                    className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-white transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+                {periodError && (
+                  <p className="col-span-2 text-xs text-red-400" role="alert">
+                    {periodError}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* File Input */}

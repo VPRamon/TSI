@@ -49,6 +49,23 @@ pub use crate::api::{
 };
 pub use crate::db::models::VisibilityBin;
 
+/// Optional manual schedule period override, expressed as MJD values.
+///
+/// When present in [`CreateScheduleRequest`], the importer uses this window
+/// instead of any period inferred from the payload (or the hard-coded fallback
+/// used when no timing information is available in the file).
+///
+/// Validation requirements:
+/// - `start_mjd` must be strictly less than `end_mjd`
+/// - If any block carries a `scheduled_period`, it must fall within this window
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchedulePeriodOverride {
+    /// Schedule window start in Modified Julian Date.
+    pub start_mjd: f64,
+    /// Schedule window end in Modified Julian Date.
+    pub end_mjd: f64,
+}
+
 /// Request body for creating a new schedule.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateScheduleRequest {
@@ -65,6 +82,12 @@ pub struct CreateScheduleRequest {
     /// the caller to select a well-known observatory site.
     #[serde(default)]
     pub location_override: Option<crate::api::GeographicLocation>,
+    /// Optional schedule period override. When provided, replaces the period
+    /// inferred from the payload (or the fallback period used when no timing
+    /// data is present in the file). Useful for importing unscheduled datasets
+    /// where no blocks carry timing information.
+    #[serde(default)]
+    pub schedule_period_override: Option<SchedulePeriodOverride>,
 }
 
 fn default_true() -> bool {
@@ -219,29 +242,25 @@ mod tests {
 
     #[test]
     fn visibility_histogram_query_parses_comma_separated_block_ids() {
-        let q: VisibilityHistogramQuery =
-            serde_urlencoded::from_str("block_ids=1,2,3").unwrap();
+        let q: VisibilityHistogramQuery = serde_urlencoded::from_str("block_ids=1,2,3").unwrap();
         assert_eq!(q.block_ids, Some(vec![1, 2, 3]));
     }
 
     #[test]
     fn visibility_histogram_query_parses_single_block_id() {
-        let q: VisibilityHistogramQuery =
-            serde_urlencoded::from_str("block_ids=42").unwrap();
+        let q: VisibilityHistogramQuery = serde_urlencoded::from_str("block_ids=42").unwrap();
         assert_eq!(q.block_ids, Some(vec![42]));
     }
 
     #[test]
     fn visibility_histogram_query_none_when_block_ids_absent() {
-        let q: VisibilityHistogramQuery =
-            serde_urlencoded::from_str("num_bins=50").unwrap();
+        let q: VisibilityHistogramQuery = serde_urlencoded::from_str("num_bins=50").unwrap();
         assert_eq!(q.block_ids, None);
     }
 
     #[test]
     fn visibility_histogram_query_ignores_invalid_block_ids() {
-        let q: VisibilityHistogramQuery =
-            serde_urlencoded::from_str("block_ids=1,bad,3").unwrap();
+        let q: VisibilityHistogramQuery = serde_urlencoded::from_str("block_ids=1,bad,3").unwrap();
         // "bad" is silently skipped; only valid integers survive
         assert_eq!(q.block_ids, Some(vec![1, 3]));
     }

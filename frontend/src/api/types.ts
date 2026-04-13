@@ -32,6 +32,15 @@ export interface CreateScheduleRequest {
    *  embedded in the schedule JSON. Use for selecting a known observatory
    *  site (e.g. OBS-N, OBS-S) at import time. */
   location_override?: GeographicLocation;
+  /** Optional schedule period override (in MJD). When set, replaces the
+   *  period inferred from the payload. Use when the file has no scheduled
+   *  blocks or does not define the schedule window explicitly. */
+  schedule_period_override?: SchedulePeriodOverride;
+}
+
+export interface SchedulePeriodOverride {
+  start_mjd: number;
+  end_mjd: number;
 }
 
 export interface CreateScheduleResponse {
