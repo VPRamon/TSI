@@ -358,6 +358,7 @@ export interface CompareData {
 export interface VisibilityBlockSummary {
   scheduling_block_id: number;
   original_block_id: string;
+  block_name: string;
   priority: number;
   num_visibility_periods: number;
   scheduled: boolean;

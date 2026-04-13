@@ -121,7 +121,7 @@ function Timeline() {
     return {
       x: centerDay,
       y: monthIndex,
-      text: `${block.original_block_id}<br>Start: ${startDate.toISOString()}<br>Priority: ${block.priority.toFixed(1)}<br>Duration: ${block.requested_hours.toFixed(1)}h`,
+      text: `${block.original_block_id}${block.block_name ? ` — ${block.block_name}` : ''}<br>Start: ${startDate.toISOString()}<br>Priority: ${block.priority.toFixed(1)}<br>Duration: ${block.requested_hours.toFixed(1)}h`,
     };
   });
 

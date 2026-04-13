@@ -42,6 +42,7 @@ const OBSERVATORIES: ObservatoryPreset[] = [
 
 interface AltitudeCurve {
   blockId: string;
+  blockName: string;
   priority: number;
   times: Date[];
   altitudes: number[];
@@ -117,6 +118,7 @@ async function computeAltAzCurves(
 
     curves.push({
       blockId: target.original_block_id,
+      blockName: target.block_name,
       priority: target.priority,
       times,
       altitudes,
@@ -190,7 +192,11 @@ function AltAz() {
     let blocks = skyData.blocks;
     if (search) {
       const q = search.toLowerCase();
-      blocks = blocks.filter((b) => b.original_block_id.toLowerCase().includes(q));
+      blocks = blocks.filter(
+        (b) =>
+          b.original_block_id.toLowerCase().includes(q) ||
+          b.block_name.toLowerCase().includes(q),
+      );
     }
     return blocks.slice(0, MAX_DISPLAY);
   }, [skyData, search]);
@@ -259,27 +265,33 @@ function AltAz() {
 
   // Build Plotly traces
   const altTraces: Plotly.Data[] = useMemo(() =>
-    curves.map((curve, i) => ({
-      type: 'scatter' as const,
-      mode: 'lines' as const,
-      name: `${curve.blockId} (p=${curve.priority.toFixed(1)})`,
-      x: curve.times,
-      y: curve.altitudes,
-      line: { color: TRACE_COLORS[i % TRACE_COLORS.length], width: 2 },
-      hovertemplate: `<b>${curve.blockId}</b><br>Alt: %{y:.1f}°<br>%{x|%H:%M UTC}<extra></extra>`,
-    })),
+    curves.map((curve, i) => {
+      const label = curve.blockName ? `${curve.blockName} (${curve.blockId})` : curve.blockId;
+      return {
+        type: 'scatter' as const,
+        mode: 'lines' as const,
+        name: `${label} p=${curve.priority.toFixed(1)}`,
+        x: curve.times,
+        y: curve.altitudes,
+        line: { color: TRACE_COLORS[i % TRACE_COLORS.length], width: 2 },
+        hovertemplate: `<b>${label}</b><br>Alt: %{y:.1f}°<br>%{x|%H:%M UTC}<extra></extra>`,
+      };
+    }),
   [curves]);
 
   const azTraces: Plotly.Data[] = useMemo(() =>
-    curves.map((curve, i) => ({
-      type: 'scatter' as const,
-      mode: 'lines' as const,
-      name: `${curve.blockId} (p=${curve.priority.toFixed(1)})`,
-      x: curve.times,
-      y: curve.azimuths,
-      line: { color: TRACE_COLORS[i % TRACE_COLORS.length], width: 2 },
-      hovertemplate: `<b>${curve.blockId}</b><br>Az: %{y:.1f}°<br>%{x|%H:%M UTC}<extra></extra>`,
-    })),
+    curves.map((curve, i) => {
+      const label = curve.blockName ? `${curve.blockName} (${curve.blockId})` : curve.blockId;
+      return {
+        type: 'scatter' as const,
+        mode: 'lines' as const,
+        name: `${label} p=${curve.priority.toFixed(1)}`,
+        x: curve.times,
+        y: curve.azimuths,
+        line: { color: TRACE_COLORS[i % TRACE_COLORS.length], width: 2 },
+        hovertemplate: `<b>${label}</b><br>Az: %{y:.1f}°<br>%{x|%H:%M UTC}<extra></extra>`,
+      };
+    }),
   [curves]);
 
   // Loading states
@@ -425,16 +437,22 @@ function AltAz() {
                 <button
                   key={block.original_block_id}
                   onClick={() => toggleTarget(block.original_block_id)}
-                  className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors ${
+                  className={`flex w-full items-start justify-between gap-2 px-3 py-2 text-left text-xs transition-colors ${
                     isSelected
                       ? 'bg-primary-600/20 text-primary-300'
                       : 'text-slate-300 hover:bg-slate-700/50'
                   }`}
                 >
-                  <span className="truncate">{block.original_block_id}</span>
-                  <span className="ml-2 shrink-0 text-slate-500">
-                    p={block.priority.toFixed(1)}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{block.original_block_id}</span>
+                    {block.block_name && (
+                      <span className="block truncate text-slate-400">{block.block_name}</span>
+                    )}
+                    <span className="block text-slate-500">
+                      RA {block.target_ra_deg.toFixed(2)}° / Dec {block.target_dec_deg.toFixed(2)}°
+                    </span>
                   </span>
+                  <span className="shrink-0 text-slate-500">p={block.priority.toFixed(1)}</span>
                 </button>
               );
             })}

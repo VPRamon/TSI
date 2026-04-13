@@ -155,6 +155,7 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
     return mapData.blocks.map((b) => ({
       scheduling_block_id: b.scheduling_block_id,
       original_block_id: b.original_block_id,
+      block_name: b.block_name,
       priority: b.priority,
       scheduled: b.scheduled,
       num_visibility_periods: b.num_visibility_periods,
@@ -241,6 +242,7 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
             columns={[
               'scheduling_block_id',
               'original_block_id',
+              'block_name',
               'priority',
               'scheduled',
               'num_visibility_periods',
