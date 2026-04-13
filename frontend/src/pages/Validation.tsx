@@ -136,6 +136,9 @@ function Validation() {
                   <tr key={index} className="hover:bg-slate-700/20">
                     <td className="px-4 py-3 font-medium text-white">
                       {issue.original_block_id || issue.block_id}
+                      {issue.block_name && (
+                        <span className="ml-2 text-xs text-slate-400">{issue.block_name}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-300">{issue.issue_type}</td>
                     <td className="max-w-md px-4 py-3 text-slate-300">{issue.description}</td>
@@ -188,6 +191,9 @@ function Validation() {
                   <tr key={index} className="hover:bg-slate-700/20">
                     <td className="px-4 py-3 font-medium text-white">
                       {issue.original_block_id || issue.block_id}
+                      {issue.block_name && (
+                        <span className="ml-2 text-xs text-slate-400">{issue.block_name}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-300">{issue.field_name || '-'}</td>
                     <td className="px-4 py-3 font-mono text-sm text-red-400">
@@ -233,6 +239,9 @@ function Validation() {
                   <tr key={index} className="hover:bg-slate-700/20">
                     <td className="px-4 py-3 font-medium text-white">
                       {issue.original_block_id || issue.block_id}
+                      {issue.block_name && (
+                        <span className="ml-2 text-xs text-slate-400">{issue.block_name}</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-300">{issue.issue_type}</td>
                     <td className="max-w-md px-4 py-3 text-slate-300">{issue.description}</td>

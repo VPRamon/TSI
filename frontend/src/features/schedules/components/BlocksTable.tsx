@@ -16,6 +16,7 @@ import { useBlockSelection } from '../context/AnalysisContext';
 export interface TableBlock {
   scheduling_block_id: number;
   original_block_id: string;
+  block_name?: string;
   priority: number;
   scheduled: boolean;
   total_visibility_hours?: number;
@@ -69,13 +70,14 @@ function BlocksTableInner<T extends TableBlock>({
   const processedBlocks = useMemo(() => {
     let result = [...blocks];
 
-    // Filter by search term (block ID or original ID)
+    // Filter by search term (block ID, original ID, or target name)
     if (filter) {
       const lowerFilter = filter.toLowerCase();
       result = result.filter(
         (b) =>
           b.scheduling_block_id.toString().includes(lowerFilter) ||
-          b.original_block_id.toLowerCase().includes(lowerFilter)
+          b.original_block_id.toLowerCase().includes(lowerFilter) ||
+          (b.block_name?.toLowerCase().includes(lowerFilter) ?? false)
       );
     }
 
@@ -314,6 +316,9 @@ function BlocksTableInner<T extends TableBlock>({
                     <td className={`${rowPadding} font-mono text-xs`}>
                       <span className="text-slate-500">#{block.scheduling_block_id}</span>
                       <span className="ml-2 text-slate-300">{block.original_block_id}</span>
+                      {block.block_name && (
+                        <span className="ml-1 block text-slate-400">{block.block_name}</span>
+                      )}
                     </td>
                     <td className={rowPadding}>
                       <span

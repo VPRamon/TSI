@@ -308,6 +308,9 @@ function CelestialSkyMap({
           <p className="mb-1.5 truncate font-semibold text-slate-100">
             {tooltip.block.original_block_id}
           </p>
+          {tooltip.block.block_name && (
+            <p className="mb-1.5 truncate text-xs text-slate-400">{tooltip.block.block_name}</p>
+          )}
           <div className="space-y-1 text-slate-300">
             <div className="flex justify-between gap-4">
               <span className="text-slate-400">Priority</span>

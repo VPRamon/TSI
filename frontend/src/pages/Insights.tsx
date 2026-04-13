@@ -140,6 +140,9 @@ function Insights() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
                   Block ID
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  Target
+                </th>
                 <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
                   Priority
                 </th>
@@ -158,6 +161,7 @@ function Insights() {
               {data.top_priority.slice(0, 10).map((obs) => (
                 <tr key={obs.scheduling_block_id} className="hover:bg-slate-700/20">
                   <td className="px-4 py-3 font-medium text-white">{obs.original_block_id}</td>
+                  <td className="px-4 py-3 text-slate-300">{obs.block_name || '-'}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-white">
                     {obs.priority.toFixed(2)}
                   </td>
