@@ -50,3 +50,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"], optional = tr
 async-stream = "0.3"
 futures = "0.3"
 parking_lot = "0.12"
+
+[dev-dependencies]
+serde_urlencoded = "0.7"

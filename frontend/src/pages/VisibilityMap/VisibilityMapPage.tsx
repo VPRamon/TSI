@@ -573,7 +573,6 @@ function VisibilityMapPage() {
   const {
     data: histogramData,
     isLoading: histogramLoading,
-    error: histogramError,
     refetch,
   } = useVisibilityHistogram(currentId, histogramQuery);
 
@@ -593,14 +592,13 @@ function VisibilityMapPage() {
     );
   }
 
-  // Error state
-  const error = mapError || histogramError;
-  if (error) {
+  // Only block rendering on map-level errors (histogram errors are shown inline)
+  if (mapError) {
     return (
       <PageContainer>
         <ErrorMessage
           title="Failed to load visibility map"
-          message={(error as Error).message}
+          message={(mapError as Error).message}
           onRetry={() => refetch()}
         />
       </PageContainer>

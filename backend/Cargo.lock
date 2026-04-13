@@ -1886,6 +1886,7 @@ dependencies = [
  "qtty 0.4.1",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "sha2",
  "siderust",
  "thiserror",

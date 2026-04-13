@@ -4,7 +4,7 @@
 //! Most visualization DTOs are re-exported from the routes module since they
 //! already derive Serialize/Deserialize.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 // Re-export existing DTOs that are already serializable
 pub use crate::api::{
@@ -133,12 +133,28 @@ pub struct VisibilityHistogramQuery {
     /// Maximum priority filter (inclusive, optional)
     #[serde(default)]
     pub priority_max: Option<i32>,
-    /// Filter by specific block IDs (optional)
-    #[serde(default)]
+    /// Filter by specific block IDs (optional, comma-separated in query string)
+    #[serde(default, deserialize_with = "deserialize_comma_sep_i64")]
     pub block_ids: Option<Vec<i64>>,
     /// Filter by scheduled status (optional)
     #[serde(default)]
     pub scheduled: Option<bool>,
+}
+
+/// Deserializes a comma-separated string (e.g. `"1,2,3"`) into `Option<Vec<i64>>`.
+///
+/// `serde_urlencoded` cannot deserialize repeated query params into `Vec<T>`, so
+/// we encode block IDs as a single `block_ids=1,2,3` parameter instead.
+fn deserialize_comma_sep_i64<'de, D>(deserializer: D) -> Result<Option<Vec<i64>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let opt: Option<String> = Option::deserialize(deserializer)?;
+    Ok(opt.map(|s| {
+        s.split(',')
+            .filter_map(|part| part.trim().parse::<i64>().ok())
+            .collect()
+    }))
 }
 
 /// Health check response.
@@ -195,4 +211,38 @@ pub struct UpdateScheduleRequest {
 pub struct DeleteScheduleResponse {
     /// Confirmation message
     pub message: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn visibility_histogram_query_parses_comma_separated_block_ids() {
+        let q: VisibilityHistogramQuery =
+            serde_urlencoded::from_str("block_ids=1,2,3").unwrap();
+        assert_eq!(q.block_ids, Some(vec![1, 2, 3]));
+    }
+
+    #[test]
+    fn visibility_histogram_query_parses_single_block_id() {
+        let q: VisibilityHistogramQuery =
+            serde_urlencoded::from_str("block_ids=42").unwrap();
+        assert_eq!(q.block_ids, Some(vec![42]));
+    }
+
+    #[test]
+    fn visibility_histogram_query_none_when_block_ids_absent() {
+        let q: VisibilityHistogramQuery =
+            serde_urlencoded::from_str("num_bins=50").unwrap();
+        assert_eq!(q.block_ids, None);
+    }
+
+    #[test]
+    fn visibility_histogram_query_ignores_invalid_block_ids() {
+        let q: VisibilityHistogramQuery =
+            serde_urlencoded::from_str("block_ids=1,bad,3").unwrap();
+        // "bad" is silently skipped; only valid integers survive
+        assert_eq!(q.block_ids, Some(vec![1, 3]));
+    }
 }

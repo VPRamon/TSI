@@ -55,9 +55,9 @@ class ApiClient {
           }
 
           if (Array.isArray(value)) {
-            value.forEach((item) => {
-              searchParams.append(key, String(item));
-            });
+            if (value.length > 0) {
+              searchParams.set(key, value.map(String).join(','));
+            }
             return;
           }
 
