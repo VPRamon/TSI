@@ -31,7 +31,9 @@ function LogStream({
   maxHeight = '300px',
 }: LogStreamProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [status, setStatus] = useState<'connecting' | 'streaming' | 'completed' | 'failed'>('connecting');
+  const [status, setStatus] = useState<'connecting' | 'streaming' | 'completed' | 'failed'>(
+    'connecting'
+  );
   const logsEndRef = useRef<HTMLDivElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -167,9 +169,7 @@ function LogStream({
         )}
         {logs.map((log, idx) => (
           <div key={idx} className="flex gap-2">
-            <span className="text-slate-600">
-              {new Date(log.timestamp).toLocaleTimeString()}
-            </span>
+            <span className="text-slate-600">{new Date(log.timestamp).toLocaleTimeString()}</span>
             <span className={getLevelColor(log.level)}>{log.message}</span>
           </div>
         ))}

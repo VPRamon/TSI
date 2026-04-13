@@ -282,10 +282,7 @@ function BlocksTableInner<T extends TableBlock>({
           <tbody className="divide-y divide-slate-700/50">
             {processedBlocks.length === 0 ? (
               <tr>
-                <td
-                  colSpan={10}
-                  className="px-4 py-8 text-center text-sm text-slate-400"
-                >
+                <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-400">
                   {filter ? 'No blocks match your filter' : 'No blocks available'}
                 </td>
               </tr>

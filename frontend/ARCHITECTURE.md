@@ -5,6 +5,7 @@ This document describes the frontend architecture after the UI/UX redesign, focu
 ## Overview
 
 The frontend is a React + TypeScript application using:
+
 - **React 18** with React Router v6 for routing
 - **Tailwind CSS** for styling (single styling approach)
 - **Plotly.js** via `react-plotly.js` for all charts
@@ -66,6 +67,7 @@ src/
 ## Layout Primitives
 
 ### PageHeader
+
 Consistent page title and description with optional actions slot.
 
 ```tsx
@@ -77,6 +79,7 @@ Consistent page title and description with optional actions slot.
 ```
 
 ### PageContainer
+
 Wrapper providing consistent vertical spacing between sections.
 
 ```tsx
@@ -88,6 +91,7 @@ Wrapper providing consistent vertical spacing between sections.
 ```
 
 ### SplitPane
+
 Side-by-side layout: controls on left, main content on right (desktop).
 Stacks vertically on mobile.
 
@@ -101,6 +105,7 @@ Stacks vertically on mobile.
 ```
 
 ### ToolbarRow
+
 Horizontal row of compact controls that wraps on small screens.
 
 ```tsx
@@ -112,6 +117,7 @@ Horizontal row of compact controls that wraps on small screens.
 ```
 
 ### MetricsGrid
+
 Responsive grid for MetricCard components.
 
 ```tsx
@@ -122,6 +128,7 @@ Responsive grid for MetricCard components.
 ```
 
 ### ChartPanel
+
 Flat panel for charts with minimal elevation (border, subtle background).
 
 ```tsx
@@ -135,36 +142,44 @@ Flat panel for charts with minimal elevation (border, subtle background).
 The redesigned app shell provides:
 
 ### Top Bar (non-landing pages only)
+
 - Mobile menu hamburger button
 - App identity (logo + title)
 - Current schedule indicator (schedule ID + name)
 - Desktop sidebar collapse toggle
 
 ### Left Sidebar (desktop)
+
 - Collapsible (56px collapsed, 224px expanded)
 - Home link
 - Schedule-specific navigation when viewing a schedule
 - Health status indicator in footer
 
 ### Mobile Drawer
+
 - Slide-out overlay drawer triggered by hamburger
 - Closes on route change or Escape key
 - Shows current schedule info at top
 
 ### Responsive Behavior
+
 - **Desktop (lg+)**: Sidebar visible, top bar visible
 - **Tablet/Mobile**: Top bar with hamburger, drawer for nav
 
 ## Page Layouts
 
 ### Control-Heavy Pages (VisibilityMap, Trends)
+
 Uses `SplitPane` for side-by-side controls + visualization:
+
 - Controls in narrow left panel (desktop) or stacked above (mobile)
 - Main chart(s) in flexible right area
 - Preserves all original filter inputs and functionality
 
 ### Read-Only Pages (SkyMap, Timeline, Distributions, Insights, Validation)
+
 Uses vertical `PageContainer` with:
+
 - `PageHeader` for title/description
 - `MetricsGrid` for key metrics
 - `ChartPanel` or flat sections for content
@@ -173,6 +188,7 @@ Uses vertical `PageContainer` with:
 ## Design System
 
 ### Colors
+
 - **Background**: slate-900 (`#0f172a`)
 - **Surface**: slate-800 (`#1e293b`), slate-800/30 for subtle panels
 - **Border**: slate-700 (`#334155`)
@@ -181,11 +197,13 @@ Uses vertical `PageContainer` with:
 - **Status**: emerald (success), red (error), amber (warning)
 
 ### Elevation
+
 - Flat by default (border only)
 - Subtle background (`bg-slate-800/30` or `/50`) for interactive areas
 - No heavy shadows - clean, professional appearance
 
 ### Typography
+
 - Page titles: `text-2xl font-bold`
 - Section headings: `text-lg font-semibold`
 - Panel titles: `text-sm font-medium`
@@ -193,6 +211,7 @@ Uses vertical `PageContainer` with:
 - Labels: `text-xs` with `uppercase tracking-wide` for table headers
 
 ### Spacing
+
 - Page sections: `gap-6` (24px)
 - Within cards: `gap-4` (16px)
 - Tight groups: `gap-2` or `gap-3`
@@ -201,17 +220,18 @@ Uses vertical `PageContainer` with:
 
 Each redesigned page was verified to preserve:
 
-| Page | Routes | Controls | Data Display | Charts |
-|------|--------|----------|--------------|--------|
-| Validation | Yes | N/A | Yes, tables and metrics | N/A |
-| Distributions | Yes | N/A | Yes, stats grids | Yes, priority and visibility histograms |
-| Insights | Yes | N/A | Yes, tables and correlations | N/A |
-| SkyMap | Yes | N/A | Yes, metrics and legend | Yes, scatter plot |
-| Timeline | Yes | N/A | Yes, metrics and month tags | Yes, Gantt chart |
-| Trends | Yes | Yes, bins and bandwidth | Yes, metrics | Yes, bar and line charts |
-| VisibilityMap | Yes | Yes, binning and priority filters | Yes, metrics | Yes, bar histogram |
+| Page          | Routes | Controls                          | Data Display                 | Charts                                  |
+| ------------- | ------ | --------------------------------- | ---------------------------- | --------------------------------------- |
+| Validation    | Yes    | N/A                               | Yes, tables and metrics      | N/A                                     |
+| Distributions | Yes    | N/A                               | Yes, stats grids             | Yes, priority and visibility histograms |
+| Insights      | Yes    | N/A                               | Yes, tables and correlations | N/A                                     |
+| SkyMap        | Yes    | N/A                               | Yes, metrics and legend      | Yes, scatter plot                       |
+| Timeline      | Yes    | N/A                               | Yes, metrics and month tags  | Yes, Gantt chart                        |
+| Trends        | Yes    | Yes, bins and bandwidth           | Yes, metrics                 | Yes, bar and line charts                |
+| VisibilityMap | Yes    | Yes, binning and priority filters | Yes, metrics                 | Yes, bar histogram                      |
 
 ### Preserved Functionality
+
 - All route paths unchanged
 - All API calls and data hooks unchanged
 - All filter state and inputs preserved

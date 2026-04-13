@@ -354,8 +354,14 @@ export function useAnalysis(): AnalysisContextValue {
  * don't need full analysis context).
  */
 export function useBlockSelection() {
-  const { state, selectBlocks, addToSelection, removeFromSelection, clearSelection, setActiveBlock } =
-    useAnalysis();
+  const {
+    state,
+    selectBlocks,
+    addToSelection,
+    removeFromSelection,
+    clearSelection,
+    setActiveBlock,
+  } = useAnalysis();
 
   return {
     selectedBlockIds: state.selectedBlockIds,

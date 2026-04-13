@@ -6,7 +6,9 @@ import { render, screen } from '../../../test/test-utils';
 import { AnalysisProvider } from '../context/AnalysisContext';
 import { BlocksTable, type TableBlock } from './BlocksTable';
 
-const makeBlock = (overrides: Partial<TableBlock> & { scheduling_block_id: number }): TableBlock => ({
+const makeBlock = (
+  overrides: Partial<TableBlock> & { scheduling_block_id: number }
+): TableBlock => ({
   scheduling_block_id: overrides.scheduling_block_id,
   original_block_id: overrides.original_block_id ?? `BLOCK-${overrides.scheduling_block_id}`,
   priority: overrides.priority ?? 5,
@@ -20,7 +22,7 @@ function renderTable(blocks: TableBlock[], title = 'Blocks') {
   return render(
     <AnalysisProvider syncToUrl={false}>
       <BlocksTable blocks={blocks} title={title} />
-    </AnalysisProvider>,
+    </AnalysisProvider>
   );
 }
 

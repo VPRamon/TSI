@@ -1,17 +1,17 @@
 /**
  * FilterSettings - Controls for histogram filtering.
- * 
+ *
  * ARCHITECTURE:
  * - This component OWNS its filter state completely (no sync from parent)
  * - Parent only provides initial values via ref-based initialization
  * - Changes are debounced before calling onParamsChange
  * - No feedback loop: parent state changes don't trigger local state sync
- * 
+ *
  * ROOT CAUSE FIX:
  * The previous implementation had a useEffect that synced from `initialParams`,
  * which caused re-renders when the parent's appliedFilters changed. This created
  * a feedback loop and unnecessary re-renders.
- * 
+ *
  * Now: FilterSettings is fully uncontrolled after initial mount. The parent
  * cannot push state changes back to this component (except via remount, which
  * we avoid). Reset is handled internally.
@@ -59,14 +59,18 @@ const FilterSettings = memo(function FilterSettings({
 
   // Internal state - fully owned by this component
   const [numBins, setNumBins] = useState(() => defaultRef.current.numBins);
-  const [binDurationMinutes, setBinDurationMinutes] = useState(() => defaultRef.current.binDurationMinutes);
+  const [binDurationMinutes, setBinDurationMinutes] = useState(
+    () => defaultRef.current.binDurationMinutes
+  );
   const [priorityMin, setPriorityMin] = useState(() => defaultRef.current.priorityMin);
   const [priorityMax, setPriorityMax] = useState(() => defaultRef.current.priorityMax);
-  const [useCustomDuration, setUseCustomDuration] = useState(() => defaultRef.current.useCustomDuration);
+  const [useCustomDuration, setUseCustomDuration] = useState(
+    () => defaultRef.current.useCustomDuration
+  );
 
   // Ref for debounce timer
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  
+
   // Stable ref for onParamsChange to avoid stale closures
   const onParamsChangeRef = useRef(onParamsChange);
   onParamsChangeRef.current = onParamsChange;
@@ -176,9 +180,7 @@ const FilterSettings = memo(function FilterSettings({
 
       {/* Binning method toggle */}
       <div>
-        <label className="mb-1.5 block text-xs font-medium text-slate-400">
-          Binning Method
-        </label>
+        <label className="mb-1.5 block text-xs font-medium text-slate-400">Binning Method</label>
         <select
           className="w-full rounded-md border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-white focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
           value={useCustomDuration ? 'duration' : 'bins'}
@@ -192,9 +194,7 @@ const FilterSettings = memo(function FilterSettings({
       {/* Number of bins OR bin duration */}
       {!useCustomDuration ? (
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-slate-400">
-            Number of Bins
-          </label>
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">Number of Bins</label>
           <div className="flex items-center gap-3">
             <input
               type="range"
@@ -230,9 +230,7 @@ const FilterSettings = memo(function FilterSettings({
 
         {/* Priority min */}
         <div className="mb-3">
-          <label className="mb-1.5 block text-xs font-medium text-slate-400">
-            Min Priority
-          </label>
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">Min Priority</label>
           <input
             type="number"
             min={mapPriorityMin}
@@ -246,9 +244,7 @@ const FilterSettings = memo(function FilterSettings({
 
         {/* Priority max */}
         <div>
-          <label className="mb-1.5 block text-xs font-medium text-slate-400">
-            Max Priority
-          </label>
+          <label className="mb-1.5 block text-xs font-medium text-slate-400">Max Priority</label>
           <input
             type="number"
             min={mapPriorityMin}

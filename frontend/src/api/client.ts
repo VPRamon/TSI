@@ -132,10 +132,7 @@ class ApiClient {
   }
 
   async updateSchedule(scheduleId: number, request: UpdateScheduleRequest): Promise<ScheduleInfo> {
-    const { data } = await this.client.patch<ScheduleInfo>(
-      `/v1/schedules/${scheduleId}`,
-      request
-    );
+    const { data } = await this.client.patch<ScheduleInfo>(`/v1/schedules/${scheduleId}`, request);
     return data;
   }
 

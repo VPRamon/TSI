@@ -36,21 +36,12 @@ export const HORIZONTAL_LEGEND: Partial<Layout['legend']> = {
 
 /**
  * Default Plotly config for interactivity.
- * Shows modebar only on hover with a minimal set of buttons.
+ * Shows only the image export button on hover.
  */
 export const DEFAULT_CONFIG: Partial<Config> = {
   responsive: true,
   displayModeBar: 'hover',
-  modeBarButtonsToRemove: [
-    'lasso2d',
-    'select2d',
-    'zoomIn2d',
-    'zoomOut2d',
-    'autoScale2d',
-    'hoverClosestCartesian',
-    'hoverCompareCartesian',
-    'toggleSpikelines',
-  ] as Plotly.ModeBarDefaultButtons[],
+  modeBarButtons: [['toImage']] as Plotly.ModeBarDefaultButtons[][],
 };
 
 /**

@@ -19,16 +19,15 @@ const PriorityBinsLegend = memo(function PriorityBinsLegend({
 }: PriorityBinsLegendProps) {
   const baseClasses = 'rounded-lg border border-slate-700 bg-slate-800/90 p-3';
   const overlayClasses = 'absolute top-3 right-3 z-10 backdrop-blur-sm';
-  
-  const containerClasses = variant === 'overlay' 
-    ? `${baseClasses} ${overlayClasses} ${className}`
-    : `${baseClasses} ${className}`;
+
+  const containerClasses =
+    variant === 'overlay'
+      ? `${baseClasses} ${overlayClasses} ${className}`
+      : `${baseClasses} ${className}`;
 
   return (
     <div className={containerClasses}>
-      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">
-        Priority
-      </p>
+      <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-slate-400">Priority</p>
       <div className="flex flex-col gap-1">
         {bins.map((bin) => (
           <div key={bin.label} className="flex items-center gap-1.5">
@@ -37,7 +36,7 @@ const PriorityBinsLegend = memo(function PriorityBinsLegend({
               style={{ backgroundColor: bin.color }}
               aria-hidden="true"
             />
-            <span className="text-xs text-slate-300 whitespace-nowrap">{bin.label}</span>
+            <span className="whitespace-nowrap text-xs text-slate-300">{bin.label}</span>
           </div>
         ))}
       </div>

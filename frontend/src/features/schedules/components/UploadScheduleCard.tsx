@@ -103,7 +103,7 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    
+
     // Navigate to the schedule validation page if we have a schedule_id
     if (result && typeof result === 'object' && 'schedule_id' in result) {
       const scheduleId = (result as { schedule_id: number }).schedule_id;

@@ -12,7 +12,7 @@ export interface SkyMapFilterState {
   showScheduled: boolean;
   showUnscheduled: boolean;
   scheduledBeginUtc: string; // ISO 8601 datetime string
-  scheduledEndUtc: string;   // ISO 8601 datetime string
+  scheduledEndUtc: string; // ISO 8601 datetime string
   priorityMin: number;
   priorityMax: number;
 }
@@ -54,14 +54,20 @@ const SkyMapFilters = memo(function SkyMapFilters({
     const prev = prevFiltersRef.current;
     if (prev.priorityMin !== filters.priorityMin) setLocalPriorityMin(filters.priorityMin);
     if (prev.priorityMax !== filters.priorityMax) setLocalPriorityMax(filters.priorityMax);
-    if (prev.scheduledBeginUtc !== filters.scheduledBeginUtc) setLocalBeginUtc(filters.scheduledBeginUtc);
+    if (prev.scheduledBeginUtc !== filters.scheduledBeginUtc)
+      setLocalBeginUtc(filters.scheduledBeginUtc);
     if (prev.scheduledEndUtc !== filters.scheduledEndUtc) setLocalEndUtc(filters.scheduledEndUtc);
     prevFiltersRef.current = filters;
   }, [filters]);
 
   // Debounce helper
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    },
+    []
+  );
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -94,19 +100,19 @@ const SkyMapFilters = memo(function SkyMapFilters({
     debouncedApply({ priorityMax: nextMax });
   };
 
-  const handleScheduledTimeChange = (field: 'scheduledBeginUtc' | 'scheduledEndUtc', value: string) => {
+  const handleScheduledTimeChange = (
+    field: 'scheduledBeginUtc' | 'scheduledEndUtc',
+    value: string
+  ) => {
     if (field === 'scheduledBeginUtc') setLocalBeginUtc(value);
     else setLocalEndUtc(value);
     debouncedApply({ [field]: value });
   };
 
-  const hasScheduledTimeRange =
-    scheduledTimeRange.min !== null && scheduledTimeRange.max !== null;
+  const hasScheduledTimeRange = scheduledTimeRange.min !== null && scheduledTimeRange.max !== null;
   const prioritySpan = Math.max(priorityRange.max - priorityRange.min, 0.1);
-  const priorityMinPercent =
-    ((localPriorityMin - priorityRange.min) / prioritySpan) * 100;
-  const priorityMaxPercent =
-    ((localPriorityMax - priorityRange.min) / prioritySpan) * 100;
+  const priorityMinPercent = ((localPriorityMin - priorityRange.min) / prioritySpan) * 100;
+  const priorityMaxPercent = ((localPriorityMax - priorityRange.min) / prioritySpan) * 100;
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-800/50 px-5 py-4">
@@ -175,18 +181,18 @@ const SkyMapFilters = memo(function SkyMapFilters({
             </p>
             <div className="flex items-center gap-3">
               <input
-                  type="datetime-local"
-                  value={localBeginUtc}
-                  onChange={(e) => handleScheduledTimeChange('scheduledBeginUtc', e.target.value)}
-                  className="rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
+                type="datetime-local"
+                value={localBeginUtc}
+                onChange={(e) => handleScheduledTimeChange('scheduledBeginUtc', e.target.value)}
+                className="rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
               <span className="text-xs text-slate-600">–</span>
               <input
-                  type="datetime-local"
-                  value={localEndUtc}
-                  onChange={(e) => handleScheduledTimeChange('scheduledEndUtc', e.target.value)}
-                  className="rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                />
+                type="datetime-local"
+                value={localEndUtc}
+                onChange={(e) => handleScheduledTimeChange('scheduledEndUtc', e.target.value)}
+                className="rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+              />
             </div>
           </div>
         ) : (
@@ -199,50 +205,50 @@ const SkyMapFilters = memo(function SkyMapFilters({
         {/* Priority Range */}
         <div className="flex items-start gap-4 sm:pl-5">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-              Priority Range
-            </p>
-            <span className="text-[11px] tabular-nums text-slate-500">
-              {localPriorityMin.toFixed(1)} – {localPriorityMax.toFixed(1)}
-            </span>
-          </div>
-          <div className="w-full">
-            <div className="relative h-6">
-              <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-slate-700" />
-              <div
-                className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-primary-500"
-                style={{
-                  left: `${priorityMinPercent}%`,
-                  width: `${Math.max(priorityMaxPercent - priorityMinPercent, 0)}%`,
-                }}
-              />
-              <input
-                aria-label="Minimum priority"
-                type="range"
-                step="0.1"
-                min={priorityRange.min}
-                max={priorityRange.max}
-                value={localPriorityMin}
-                onChange={(e) => handlePriorityChange('priorityMin', Number(e.target.value))}
-                className={`${PRIORITY_SLIDER_CLASS} z-10`}
-              />
-              <input
-                aria-label="Maximum priority"
-                type="range"
-                step="0.1"
-                min={priorityRange.min}
-                max={priorityRange.max}
-                value={localPriorityMax}
-                onChange={(e) => handlePriorityChange('priorityMax', Number(e.target.value))}
-                className={`${PRIORITY_SLIDER_CLASS} z-20`}
-              />
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                Priority Range
+              </p>
+              <span className="text-[11px] tabular-nums text-slate-500">
+                {localPriorityMin.toFixed(1)} – {localPriorityMax.toFixed(1)}
+              </span>
             </div>
-            <div className="mt-0.5 flex items-center justify-between text-[11px] text-slate-600">
-              <span>{priorityRange.min.toFixed(1)}</span>
-              <span>{priorityRange.max.toFixed(1)}</span>
+            <div className="w-full">
+              <div className="relative h-6">
+                <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-slate-700" />
+                <div
+                  className="absolute top-1/2 h-2 -translate-y-1/2 rounded-full bg-primary-500"
+                  style={{
+                    left: `${priorityMinPercent}%`,
+                    width: `${Math.max(priorityMaxPercent - priorityMinPercent, 0)}%`,
+                  }}
+                />
+                <input
+                  aria-label="Minimum priority"
+                  type="range"
+                  step="0.1"
+                  min={priorityRange.min}
+                  max={priorityRange.max}
+                  value={localPriorityMin}
+                  onChange={(e) => handlePriorityChange('priorityMin', Number(e.target.value))}
+                  className={`${PRIORITY_SLIDER_CLASS} z-10`}
+                />
+                <input
+                  aria-label="Maximum priority"
+                  type="range"
+                  step="0.1"
+                  min={priorityRange.min}
+                  max={priorityRange.max}
+                  value={localPriorityMax}
+                  onChange={(e) => handlePriorityChange('priorityMax', Number(e.target.value))}
+                  className={`${PRIORITY_SLIDER_CLASS} z-20`}
+                />
+              </div>
+              <div className="mt-0.5 flex items-center justify-between text-[11px] text-slate-600">
+                <span>{priorityRange.min.toFixed(1)}</span>
+                <span>{priorityRange.max.toFixed(1)}</span>
+              </div>
             </div>
-          </div>
           </div>
           {bins && bins.length > 0 && (
             <div className="flex flex-shrink-0 flex-col gap-1 self-center">
@@ -253,7 +259,7 @@ const SkyMapFilters = memo(function SkyMapFilters({
                     style={{ backgroundColor: bin.color }}
                     aria-hidden="true"
                   />
-                  <span className="text-[11px] text-slate-400 whitespace-nowrap">{bin.label}</span>
+                  <span className="whitespace-nowrap text-[11px] text-slate-400">{bin.label}</span>
                 </div>
               ))}
             </div>

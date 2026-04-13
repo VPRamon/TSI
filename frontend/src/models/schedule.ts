@@ -93,9 +93,10 @@ export function toScheduleViewModel(schedule: ScheduleInfo): ScheduleViewModel {
   return {
     id: schedule.schedule_id,
     name: schedule.schedule_name,
-    displayName: schedule.schedule_name.length > 40
-      ? `${schedule.schedule_name.substring(0, 37)}...`
-      : schedule.schedule_name,
+    displayName:
+      schedule.schedule_name.length > 40
+        ? `${schedule.schedule_name.substring(0, 37)}...`
+        : schedule.schedule_name,
   };
 }
 
@@ -123,8 +124,7 @@ export function toSkyMapViewModel(data: SkyMapData): SkyMapViewModel {
     })),
     totalCount: data.total_count,
     scheduledCount: data.scheduled_count,
-    schedulingRate:
-      data.total_count > 0 ? (data.scheduled_count / data.total_count) * 100 : 0,
+    schedulingRate: data.total_count > 0 ? (data.scheduled_count / data.total_count) * 100 : 0,
     priorityRange: { min: data.priority_min, max: data.priority_max },
     priorityBins: data.priority_bins.map((bin) => ({
       label: bin.label,

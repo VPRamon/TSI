@@ -32,7 +32,9 @@ export function useSiderust(): { status: SiderustStatus; error: string | null } 
     if (!globalPromise) {
       globalStatus = 'loading';
       globalPromise = loadWasm()
-        .then(() => { globalStatus = 'ready'; })
+        .then(() => {
+          globalStatus = 'ready';
+        })
         .catch((err) => {
           globalStatus = 'error';
           globalPromise = null;
@@ -41,14 +43,18 @@ export function useSiderust(): { status: SiderustStatus; error: string | null } 
     }
     setStatus('loading');
     globalPromise
-      .then(() => { if (mounted.current) setStatus('ready'); })
+      .then(() => {
+        if (mounted.current) setStatus('ready');
+      })
       .catch((err) => {
         if (mounted.current) {
           setStatus('error');
           setError(err instanceof Error ? err.message : String(err));
         }
       });
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
   return { status, error };

@@ -28,8 +28,6 @@ import { downloadCanvasAsPng } from '@/lib/imageExport';
 const SKY_MAP_CONTAINER_ID = 'sky-map-canvas';
 const SECONDARY_ACTION_BUTTON_CLASS =
   'rounded-md border border-slate-600 bg-slate-800/70 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800';
-const TOGGLE_ACTION_BUTTON_BASE_CLASS =
-  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800';
 
 // ─── MJD conversion utilities ───────────────────────────────────────
 
@@ -100,8 +98,6 @@ function SkyMap() {
   const { data, isLoading, error, refetch } = useSkyMap(id);
 
   const [filters, setFilters] = useState<SkyMapFilterState | null>(null);
-  const [showCoordinateGuide, setShowCoordinateGuide] = useState(true);
-
   const activeFilters = useMemo(() => {
     if (!data) return null;
     if (filters) return filters;
@@ -235,33 +231,20 @@ function SkyMap() {
         <ChartPanel
           title="Celestial Coordinates (Aitoff)"
           headerActions={
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleDownloadSkyMap}
-                className={SECONDARY_ACTION_BUTTON_CLASS}
-              >
-                Download PNG
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCoordinateGuide((current) => !current)}
-                className={`${TOGGLE_ACTION_BUTTON_BASE_CLASS} ${
-                  showCoordinateGuide
-                    ? 'bg-primary-600 text-white hover:bg-primary-700'
-                    : 'border border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                {showCoordinateGuide ? 'Hide RA/Dec Guide' : 'Show RA/Dec Guide'}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleDownloadSkyMap}
+              className={SECONDARY_ACTION_BUTTON_CLASS}
+            >
+              Download PNG
+            </button>
           }
         >
           <CelestialSkyMap
             blocks={filteredBlocks.all}
             bins={data.priority_bins}
             containerId={SKY_MAP_CONTAINER_ID}
-            showCoordinateGuide={showCoordinateGuide}
+            showCoordinateGuide
           />
         </ChartPanel>
       </div>

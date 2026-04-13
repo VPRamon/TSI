@@ -17,9 +17,7 @@ describe('usePlotlyTheme', () => {
   });
 
   it('sets title when provided', () => {
-    const { result } = renderHook(() =>
-      usePlotlyTheme({ title: 'My Chart' })
-    );
+    const { result } = renderHook(() => usePlotlyTheme({ title: 'My Chart' }));
 
     expect(result.current.layout.title).toEqual({
       text: 'My Chart',
@@ -57,29 +55,21 @@ describe('usePlotlyTheme', () => {
   });
 
   it('excludes legend when showLegend is false', () => {
-    const { result } = renderHook(() =>
-      usePlotlyTheme({ showLegend: false })
-    );
+    const { result } = renderHook(() => usePlotlyTheme({ showLegend: false }));
 
     expect(result.current.layout.legend).toBeUndefined();
   });
 
   it('sets bar mode for histograms', () => {
-    const { result } = renderHook(() =>
-      usePlotlyTheme({ barMode: 'overlay' })
-    );
+    const { result } = renderHook(() => usePlotlyTheme({ barMode: 'overlay' }));
 
     expect(result.current.layout.barmode).toBe('overlay');
   });
 
   it('includes shapes when provided', () => {
-    const shapes = [
-      { type: 'rect' as const, x0: 0, x1: 1, y0: 0, y1: 1 },
-    ];
+    const shapes = [{ type: 'rect' as const, x0: 0, x1: 1, y0: 0, y1: 1 }];
 
-    const { result } = renderHook(() =>
-      usePlotlyTheme({ shapes })
-    );
+    const { result } = renderHook(() => usePlotlyTheme({ shapes }));
 
     expect(result.current.layout.shapes).toHaveLength(1);
   });
@@ -92,27 +82,20 @@ describe('usePlotlyTheme', () => {
   });
 
   it('returns minimal config when preset is minimal', () => {
-    const { result } = renderHook(() =>
-      usePlotlyTheme({ configPreset: 'minimal' })
-    );
+    const { result } = renderHook(() => usePlotlyTheme({ configPreset: 'minimal' }));
 
     expect(result.current.config.displayModeBar).toBe(false);
   });
 
-  it('returns default config with hover modebar and button removal', () => {
-    const { result } = renderHook(() =>
-      usePlotlyTheme({ configPreset: 'default' })
-    );
+  it('returns default config with only the image export button', () => {
+    const { result } = renderHook(() => usePlotlyTheme({ configPreset: 'default' }));
 
     expect(result.current.config.displayModeBar).toBe('hover');
-    expect(result.current.config.modeBarButtonsToRemove).toContain('lasso2d');
-    expect(result.current.config.modeBarButtonsToRemove).toContain('select2d');
+    expect(result.current.config.modeBarButtons).toEqual([['toImage']]);
   });
 
   it('memoizes layout and config', () => {
-    const { result, rerender } = renderHook(() =>
-      usePlotlyTheme({ title: 'Test' })
-    );
+    const { result, rerender } = renderHook(() => usePlotlyTheme({ title: 'Test' }));
 
     const initialLayout = result.current.layout;
     const initialConfig = result.current.config;

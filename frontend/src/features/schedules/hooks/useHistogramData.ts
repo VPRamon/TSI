@@ -52,9 +52,7 @@ export function useHistogramData(histogramData: HistogramBin[] | undefined): Dat
 
     const binStarts = histogramData.map((bin) => new Date(bin.bin_start_unix * 1000));
     const binCounts = histogramData.map((bin) => bin.visible_count);
-    const binWidths = histogramData.map(
-      (bin) => (bin.bin_end_unix - bin.bin_start_unix) * 1000
-    );
+    const binWidths = histogramData.map((bin) => (bin.bin_end_unix - bin.bin_start_unix) * 1000);
 
     return {
       x: binStarts,

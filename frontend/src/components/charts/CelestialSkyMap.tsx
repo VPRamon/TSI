@@ -68,9 +68,7 @@ const HOVER_RADIUS = 12;
 function formatMjd(mjd: number): string {
   if (!Number.isFinite(mjd)) return 'Unknown';
   const date = mjdToDate(mjd);
-  return isValidDate(date)
-    ? date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'
-    : 'Unknown';
+  return isValidDate(date) ? date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : 'Unknown';
 }
 
 function formatDuration(seconds: number): string {
@@ -106,7 +104,9 @@ function CelestialSkyMap({
   useEffect(() => {
     const Celestial = window.Celestial;
     if (!Celestial) {
-      console.error('[CelestialSkyMap] window.Celestial not found – make sure /celestial.js is loaded.');
+      console.error(
+        '[CelestialSkyMap] window.Celestial not found – make sure /celestial.js is loaded.'
+      );
       return;
     }
     if (
@@ -114,7 +114,7 @@ function CelestialSkyMap({
       typeof window.d3?.geo?.zoom !== 'function'
     ) {
       console.error(
-        '[CelestialSkyMap] d3-celestial dependencies missing – make sure d3 and d3.geo.projection load before /celestial.js.',
+        '[CelestialSkyMap] d3-celestial dependencies missing – make sure d3 and d3.geo.projection load before /celestial.js.'
       );
       return;
     }
@@ -130,9 +130,7 @@ function CelestialSkyMap({
 
       for (const block of currentBlocks) {
         // d3-celestial uses geographic [-180,180] longitude convention.
-        const lon = block.target_ra_deg > 180
-          ? block.target_ra_deg - 360
-          : block.target_ra_deg;
+        const lon = block.target_ra_deg > 180 ? block.target_ra_deg - 360 : block.target_ra_deg;
         const coords = [lon, block.target_dec_deg];
 
         if (!Celestial.clip(coords)) continue;
@@ -140,7 +138,7 @@ function CelestialSkyMap({
         const [cx, cy] = Celestial.mapProjection(coords);
         drawnPointsRef.current.push({ cx, cy, block });
         const bin = currentBins.find(
-          (b) => block.priority >= b.min_priority && block.priority <= b.max_priority,
+          (b) => block.priority >= b.min_priority && block.priority <= b.max_priority
         );
         const color = bin?.color ?? '#94a3b8';
         const isScheduled = block.scheduled_period !== null;
@@ -166,13 +164,13 @@ function CelestialSkyMap({
     };
 
     const celestialConfig = {
-      width: 0,             // fill parent
+      width: 0, // fill parent
       projection: 'aitoff',
       transform: 'equatorial',
-      center: null,         // RA=0h at center; user can pan/rotate interactively
+      center: null, // RA=0h at center; user can pan/rotate interactively
       background: { fill: '#000000', opacity: 1, stroke: '#000000', width: 1.5 },
       stars: { show: false },
-      dsos:  { show: false },
+      dsos: { show: false },
       planets: { show: false },
       constellations: { show: false, names: false, lines: false },
       mw: {
@@ -198,9 +196,9 @@ function CelestialSkyMap({
             font: '10px Helvetica, Arial, sans-serif',
           },
         },
-        equatorial:    { show: true,  stroke: '#475569', width: 1.3, opacity: 0.7 },
-        ecliptic:      { show: false },
-        galactic:      { show: false },
+        equatorial: { show: true, stroke: '#475569', width: 1.3, opacity: 0.7 },
+        ecliptic: { show: false },
+        galactic: { show: false },
         supergalactic: { show: false },
       },
       // Keep celestial assets local so the Milky Way/background renders reliably.
@@ -235,7 +233,7 @@ function CelestialSkyMap({
       Celestial.container = undefined;
       document.getElementById(containerId)?.replaceChildren();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerId, showCoordinateGuide]);
 
   // ── Redraw whenever the filtered block set changes ──────────────────────
@@ -245,38 +243,41 @@ function CelestialSkyMap({
   }, [blocks, bins]);
 
   // ── Hover detection ─────────────────────────────────────────────────────
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const canvas = document.querySelector<HTMLCanvasElement>(`#${containerId} canvas`);
-    if (!canvas) return;
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const canvas = document.querySelector<HTMLCanvasElement>(`#${containerId} canvas`);
+      if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-    const mouseX = (e.clientX - rect.left) * scaleX;
-    const mouseY = (e.clientY - rect.top) * scaleY;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const mouseX = (e.clientX - rect.left) * scaleX;
+      const mouseY = (e.clientY - rect.top) * scaleY;
 
-    let closest: DrawnPoint | null = null;
-    let minDist = HOVER_RADIUS * scaleX;
+      let closest: DrawnPoint | null = null;
+      let minDist = HOVER_RADIUS * scaleX;
 
-    for (const pt of drawnPointsRef.current) {
-      const dist = Math.hypot(mouseX - pt.cx, mouseY - pt.cy);
-      if (dist < minDist) {
-        minDist = dist;
-        closest = pt;
+      for (const pt of drawnPointsRef.current) {
+        const dist = Math.hypot(mouseX - pt.cx, mouseY - pt.cy);
+        if (dist < minDist) {
+          minDist = dist;
+          closest = pt;
+        }
       }
-    }
 
-    if (closest) {
-      const wrapperRect = e.currentTarget.getBoundingClientRect();
-      setTooltip({
-        block: closest.block,
-        x: e.clientX - wrapperRect.left,
-        y: e.clientY - wrapperRect.top,
-      });
-    } else {
-      setTooltip(null);
-    }
-  }, [containerId]);
+      if (closest) {
+        const wrapperRect = e.currentTarget.getBoundingClientRect();
+        setTooltip({
+          block: closest.block,
+          x: e.clientX - wrapperRect.left,
+          y: e.clientY - wrapperRect.top,
+        });
+      } else {
+        setTooltip(null);
+      }
+    },
+    [containerId]
+  );
 
   const handleMouseLeave = useCallback(() => {
     setTooltip(null);
@@ -286,16 +287,8 @@ function CelestialSkyMap({
   const tooltipFlip = tooltip && tooltip.x > 400;
 
   return (
-    <div
-      className="relative w-full"
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-    >
-      <div
-        id={containerId}
-        className="w-full"
-        style={{ minHeight: '500px' }}
-      />
+    <div className="relative w-full" onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+      <div id={containerId} className="w-full" style={{ minHeight: '500px' }} />
       {tooltip && (
         <div
           className="pointer-events-none absolute z-10 max-w-xs rounded-lg border border-slate-600 bg-slate-900/95 p-3 text-xs shadow-xl backdrop-blur-sm"
@@ -326,7 +319,8 @@ function CelestialSkyMap({
             <div className="flex justify-between gap-4">
               <span className="text-slate-400">RA / Dec</span>
               <span>
-                {tooltip.block.target_ra_deg.toFixed(2)}° / {tooltip.block.target_dec_deg.toFixed(2)}°
+                {tooltip.block.target_ra_deg.toFixed(2)}° /{' '}
+                {tooltip.block.target_dec_deg.toFixed(2)}°
               </span>
             </div>
             {tooltip.block.scheduled_period ? (

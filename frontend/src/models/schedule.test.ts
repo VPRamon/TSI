@@ -2,11 +2,7 @@
  * Tests for schedule domain models and adapters.
  */
 import { describe, it, expect } from 'vitest';
-import {
-  toScheduleViewModel,
-  toSkyMapViewModel,
-  toDistributionViewModel,
-} from './schedule';
+import { toScheduleViewModel, toSkyMapViewModel, toDistributionViewModel } from './schedule';
 import type { ScheduleInfo, SkyMapData, DistributionData } from '@/api';
 
 describe('toScheduleViewModel', () => {
@@ -137,13 +133,55 @@ describe('toSkyMapViewModel', () => {
 describe('toDistributionViewModel', () => {
   const mockDistributionData: DistributionData = {
     blocks: [
-      { priority: 8.0, total_visibility_hours: 4.5, requested_hours: 2, elevation_range_deg: 45, scheduled: true },
-      { priority: 3.0, total_visibility_hours: 2.0, requested_hours: 1, elevation_range_deg: 30, scheduled: false },
-      { priority: 6.0, total_visibility_hours: 3.5, requested_hours: 1.5, elevation_range_deg: 35, scheduled: true },
+      {
+        priority: 8.0,
+        total_visibility_hours: 4.5,
+        requested_hours: 2,
+        elevation_range_deg: 45,
+        scheduled: true,
+      },
+      {
+        priority: 3.0,
+        total_visibility_hours: 2.0,
+        requested_hours: 1,
+        elevation_range_deg: 30,
+        scheduled: false,
+      },
+      {
+        priority: 6.0,
+        total_visibility_hours: 3.5,
+        requested_hours: 1.5,
+        elevation_range_deg: 35,
+        scheduled: true,
+      },
     ],
-    priority_stats: { count: 3, mean: 5.67, median: 6.0, std_dev: 2.05, min: 3.0, max: 8.0, sum: 17.0 },
-    visibility_stats: { count: 3, mean: 3.33, median: 3.5, std_dev: 1.04, min: 2.0, max: 4.5, sum: 10.0 },
-    requested_hours_stats: { count: 3, mean: 1.5, median: 1.5, std_dev: 0.41, min: 1.0, max: 2.0, sum: 4.5 },
+    priority_stats: {
+      count: 3,
+      mean: 5.67,
+      median: 6.0,
+      std_dev: 2.05,
+      min: 3.0,
+      max: 8.0,
+      sum: 17.0,
+    },
+    visibility_stats: {
+      count: 3,
+      mean: 3.33,
+      median: 3.5,
+      std_dev: 1.04,
+      min: 2.0,
+      max: 4.5,
+      sum: 10.0,
+    },
+    requested_hours_stats: {
+      count: 3,
+      mean: 1.5,
+      median: 1.5,
+      std_dev: 0.41,
+      min: 1.0,
+      max: 2.0,
+      sum: 4.5,
+    },
     total_count: 3,
     scheduled_count: 2,
     unscheduled_count: 1,

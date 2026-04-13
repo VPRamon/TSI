@@ -3,7 +3,13 @@
  */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api';
-import type { CreateScheduleRequest, TrendsQuery, CompareQuery, VisibilityHistogramQuery, UpdateScheduleRequest } from '@/api/types';
+import type {
+  CreateScheduleRequest,
+  TrendsQuery,
+  CompareQuery,
+  VisibilityHistogramQuery,
+  UpdateScheduleRequest,
+} from '@/api/types';
 
 // Query keys factory
 export const queryKeys = {
@@ -13,7 +19,7 @@ export const queryKeys = {
   skyMap: (id: number) => ['skyMap', id] as const,
   distributions: (id: number) => ['distributions', id] as const,
   visibilityMap: (id: number) => ['visibilityMap', id] as const,
-  visibilityHistogram: (id: number, query?: VisibilityHistogramQuery) => 
+  visibilityHistogram: (id: number, query?: VisibilityHistogramQuery) =>
     ['visibilityHistogram', id, query] as const,
   timeline: (id: number) => ['timeline', id] as const,
   insights: (id: number) => ['insights', id] as const,

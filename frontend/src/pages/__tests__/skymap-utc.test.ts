@@ -26,9 +26,7 @@ function mjdToUtc(mjd: number): string | null {
 function utcToMjd(utcString: string): number | null {
   if (!utcString) return null;
   const utc =
-    /[Zz]$/.test(utcString) || /[+-]\d{2}:?\d{2}$/.test(utcString)
-      ? utcString
-      : utcString + 'Z';
+    /[Zz]$/.test(utcString) || /[+-]\d{2}:?\d{2}$/.test(utcString) ? utcString : utcString + 'Z';
   const date = new Date(utc);
   if (!isValidDate(date)) return null;
   const unixMs = date.getTime();

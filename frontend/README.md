@@ -33,18 +33,18 @@ npm run preview
 
 ## Available Scripts
 
-| Script           | Description                                    |
-| ---------------- | ---------------------------------------------- |
-| `npm run dev`    | Start development server with hot reload       |
-| `npm run build`  | TypeScript check + production build            |
-| `npm run preview`| Preview production build locally               |
-| `npm run lint`   | Run ESLint                                     |
-| `npm run format` | Format code with Prettier                      |
-| `npm run format:check` | Check formatting without changes         |
-| `npm run type-check` | Run TypeScript type checking               |
-| `npm run test`   | Run tests in watch mode                        |
-| `npm run test:run` | Run tests once                               |
-| `npm run test:coverage` | Run tests with coverage report          |
+| Script                  | Description                              |
+| ----------------------- | ---------------------------------------- |
+| `npm run dev`           | Start development server with hot reload |
+| `npm run build`         | TypeScript check + production build      |
+| `npm run preview`       | Preview production build locally         |
+| `npm run lint`          | Run ESLint                               |
+| `npm run format`        | Format code with Prettier                |
+| `npm run format:check`  | Check formatting without changes         |
+| `npm run type-check`    | Run TypeScript type checking             |
+| `npm run test`          | Run tests in watch mode                  |
+| `npm run test:run`      | Run tests once                           |
+| `npm run test:coverage` | Run tests with coverage report           |
 
 ## Project Structure
 
@@ -124,10 +124,10 @@ import { useSkyMap, useSchedules } from '@/hooks';
 
 function MyComponent() {
   const { data, isLoading, error } = useSkyMap(scheduleId);
-  
+
   if (isLoading) return <LoadingSpinner />;
   if (error) return <ErrorMessage message={error.message} />;
-  
+
   return <div>{/* Use data */}</div>;
 }
 ```
@@ -176,12 +176,14 @@ function MyChart({ data }) {
     yAxis: { title: 'Y Label' },
   });
 
-  const plotData = [{
-    type: 'scatter',
-    x: data.map(d => d.x),
-    y: data.map(d => d.y),
-    marker: { color: STATUS_COLORS.scheduled },
-  }];
+  const plotData = [
+    {
+      type: 'scatter',
+      x: data.map((d) => d.x),
+      y: data.map((d) => d.y),
+      marker: { color: STATUS_COLORS.scheduled },
+    },
+  ];
 
   return <PlotlyChart data={plotData} layout={layout} config={config} height="400px" />;
 }
@@ -205,11 +207,7 @@ Components are wrapped in `<ErrorBoundary>` at the app level. For API errors, us
 ```tsx
 if (error) {
   return (
-    <ErrorMessage
-      title="Failed to load data"
-      message={error.message}
-      onRetry={() => refetch()}
-    />
+    <ErrorMessage title="Failed to load data" message={error.message} onRetry={() => refetch()} />
   );
 }
 ```

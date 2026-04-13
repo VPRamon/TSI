@@ -9,11 +9,7 @@ interface PageContainerProps {
 }
 
 function PageContainer({ children, className = '' }: PageContainerProps) {
-  return (
-    <div className={`flex flex-col gap-6 ${className}`}>
-      {children}
-    </div>
-  );
+  return <div className={`flex flex-col gap-6 ${className}`}>{children}</div>;
 }
 
 export default PageContainer;

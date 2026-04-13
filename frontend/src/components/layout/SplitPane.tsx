@@ -21,22 +21,23 @@ const widthClasses = {
   lg: 'lg:w-96',
 };
 
-const SplitPane = memo(function SplitPane({ controls, children, controlsWidth = 'md', className = '' }: SplitPaneProps) {
+const SplitPane = memo(function SplitPane({
+  controls,
+  children,
+  controlsWidth = 'md',
+  className = '',
+}: SplitPaneProps) {
   return (
     <div className={`flex flex-col gap-6 lg:flex-row ${className}`}>
       {/* Controls panel */}
-      <aside
-        className={`w-full min-w-0 shrink-0 ${widthClasses[controlsWidth]}`}
-      >
+      <aside className={`w-full min-w-0 shrink-0 ${widthClasses[controlsWidth]}`}>
         <div className="max-w-full overflow-hidden rounded-lg border border-slate-700 bg-slate-800/50 p-4">
           {controls}
         </div>
       </aside>
-      
+
       {/* Main content area */}
-      <div className="min-w-0 flex-1">
-        {children}
-      </div>
+      <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
 });

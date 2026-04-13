@@ -1,9 +1,9 @@
 /**
  * useRemountDetector - Development utility to detect component mount/unmount.
- * 
+ *
  * Add this hook to components suspected of unnecessary remounting.
  * Remove after debugging is complete.
- * 
+ *
  * Usage:
  *   useRemountDetector('ComponentName');
  */
@@ -45,9 +45,6 @@ export function useRenderCounter(componentName: string): void {
   renderCount.current++;
 
   if (ENABLE_DETECTOR) {
-    console.log(
-      `%c[RENDER] ${componentName} (#${renderCount.current})`,
-      'color: #3b82f6;'
-    );
+    console.log(`%c[RENDER] ${componentName} (#${renderCount.current})`, 'color: #3b82f6;');
   }
 }

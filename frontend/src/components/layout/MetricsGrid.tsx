@@ -17,11 +17,7 @@ const columnClasses = {
 };
 
 function MetricsGrid({ children, columns = 4, className = '' }: MetricsGridProps) {
-  return (
-    <div className={`grid gap-4 ${columnClasses[columns]} ${className}`}>
-      {children}
-    </div>
-  );
+  return <div className={`grid gap-4 ${columnClasses[columns]} ${className}`}>{children}</div>;
 }
 
 export default MetricsGrid;

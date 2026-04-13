@@ -15,7 +15,13 @@ import { OBSERVATORY_SITES, formatSiteLabel } from '@/constants';
 
 function SettingsIcon() {
   return (
-    <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <svg
+      className="h-8 w-8"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -34,7 +40,13 @@ function SettingsIcon() {
 
 function TrashIcon() {
   return (
-    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -47,7 +59,13 @@ function TrashIcon() {
 
 function PencilIcon() {
   return (
-    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -60,7 +78,13 @@ function PencilIcon() {
 
 function ChevronLeftIcon() {
   return (
-    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
     </svg>
   );
@@ -77,7 +101,12 @@ interface DeleteConfirmDialogProps {
   isDeleting: boolean;
 }
 
-function DeleteConfirmDialog({ schedule, onConfirm, onCancel, isDeleting }: DeleteConfirmDialogProps) {
+function DeleteConfirmDialog({
+  schedule,
+  onConfirm,
+  onCancel,
+  isDeleting,
+}: DeleteConfirmDialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-md rounded-2xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
@@ -90,7 +119,8 @@ function DeleteConfirmDialog({ schedule, onConfirm, onCancel, isDeleting }: Dele
           <span className="ml-2 text-xs text-slate-500">ID: {schedule.schedule_id}</span>
         </p>
         <p className="mb-6 text-xs text-red-400">
-          This action cannot be undone. All associated data (blocks, analytics, validation results) will be permanently removed.
+          This action cannot be undone. All associated data (blocks, analytics, validation results)
+          will be permanently removed.
         </p>
         <div className="flex justify-end gap-3">
           <button
@@ -131,7 +161,9 @@ function EditScheduleDialog({ schedule, onSave, onCancel, isSaving }: EditSchedu
     if (!trimmedName) return;
 
     const location =
-      selectedSiteIdx !== '' ? OBSERVATORY_SITES[parseInt(selectedSiteIdx, 10)]?.location : undefined;
+      selectedSiteIdx !== ''
+        ? OBSERVATORY_SITES[parseInt(selectedSiteIdx, 10)]?.location
+        : undefined;
 
     // Only submit if something actually changed
     const nameChanged = trimmedName !== schedule.schedule_name;
@@ -153,7 +185,10 @@ function EditScheduleDialog({ schedule, onSave, onCancel, isSaving }: EditSchedu
 
         {/* Schedule Name */}
         <div className="mb-4">
-          <label htmlFor="schedule-name" className="mb-1.5 block text-sm font-medium text-slate-300">
+          <label
+            htmlFor="schedule-name"
+            className="mb-1.5 block text-sm font-medium text-slate-300"
+          >
             Schedule Name
           </label>
           <input
@@ -169,7 +204,10 @@ function EditScheduleDialog({ schedule, onSave, onCancel, isSaving }: EditSchedu
 
         {/* Observatory Location */}
         <div className="mb-6">
-          <label htmlFor="schedule-site" className="mb-1.5 block text-sm font-medium text-slate-300">
+          <label
+            htmlFor="schedule-site"
+            className="mb-1.5 block text-sm font-medium text-slate-300"
+          >
             Observatory Location
           </label>
           <select
@@ -267,7 +305,9 @@ function ScheduleManagement() {
 
   const [editingSchedule, setEditingSchedule] = useState<ScheduleInfo | null>(null);
   const [deletingSchedule, setDeletingSchedule] = useState<ScheduleInfo | null>(null);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
+    null
+  );
 
   const handleDelete = async () => {
     if (!deletingSchedule) return;
@@ -339,11 +379,15 @@ function ScheduleManagement() {
   return (
     <div className="relative min-h-screen overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950" aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950"
+        aria-hidden="true"
+      />
       <div
         className="absolute inset-0 opacity-30"
         style={{
-          backgroundImage: 'radial-gradient(circle at 2px 2px, rgb(148 163 184 / 0.15) 1px, transparent 0)',
+          backgroundImage:
+            'radial-gradient(circle at 2px 2px, rgb(148 163 184 / 0.15) 1px, transparent 0)',
           backgroundSize: '32px 32px',
         }}
         aria-hidden="true"
@@ -368,7 +412,8 @@ function ScheduleManagement() {
           <div>
             <h1 className="text-3xl font-bold text-white">Manage Schedules</h1>
             <p className="mt-1 text-sm text-slate-400">
-              Edit schedule metadata, change observatory location, or remove schedules from the database.
+              Edit schedule metadata, change observatory location, or remove schedules from the
+              database.
             </p>
           </div>
         </div>
@@ -398,7 +443,9 @@ function ScheduleManagement() {
           {schedules.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-sm text-slate-400">No schedules in the database.</p>
-              <p className="mt-1 text-xs text-slate-500">Upload one from the home page to get started.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Upload one from the home page to get started.
+              </p>
             </div>
           ) : (
             <>

@@ -142,10 +142,16 @@ function BlockDetailsDrawerInner<T extends TableBlock>({
               />
             )}
             {block.requested_hours !== undefined && (
-              <MetricBox label="Requested Duration" value={`${block.requested_hours.toFixed(1)}h`} />
+              <MetricBox
+                label="Requested Duration"
+                value={`${block.requested_hours.toFixed(1)}h`}
+              />
             )}
             {block.num_visibility_periods !== undefined && (
-              <MetricBox label="Visibility Windows" value={block.num_visibility_periods.toString()} />
+              <MetricBox
+                label="Visibility Windows"
+                value={block.num_visibility_periods.toString()}
+              />
             )}
           </div>
 

@@ -133,13 +133,8 @@ const VisibilityMapContent = memo(function VisibilityMapContent({
   filters,
   onFiltersChange,
 }: VisibilityMapContentProps) {
-  const {
-    state,
-    setActiveBlock,
-    selectionCount,
-    setScheduledFilter,
-    setPriorityFilter,
-  } = useAnalysis();
+  const { state, setActiveBlock, selectionCount, setScheduledFilter, setPriorityFilter } =
+    useAnalysis();
   const [activeBlock, setActiveBlockLocal] = useState<VisibilityBlock | null>(null);
 
   // Sync local priority filter → AnalysisContext so table and histogram agree
@@ -309,22 +304,28 @@ const VisibilityFiltersBar = memo(function VisibilityFiltersBar({
     };
   }, []);
 
-  const scheduleApply = useCallback((nextFilters: FilterParams) => {
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-    debounceRef.current = setTimeout(() => {
-      onFiltersChange(nextFilters);
-    }, FILTER_DEBOUNCE_MS);
-  }, [onFiltersChange]);
+  const scheduleApply = useCallback(
+    (nextFilters: FilterParams) => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
+        onFiltersChange(nextFilters);
+      }, FILTER_DEBOUNCE_MS);
+    },
+    [onFiltersChange]
+  );
 
-  const updateFilters = useCallback((patch: Partial<FilterParams>) => {
-    setLocalFilters((current) => {
-      const next = { ...current, ...patch };
-      scheduleApply(next);
-      return next;
-    });
-  }, [scheduleApply]);
+  const updateFilters = useCallback(
+    (patch: Partial<FilterParams>) => {
+      setLocalFilters((current) => {
+        const next = { ...current, ...patch };
+        scheduleApply(next);
+        return next;
+      });
+    },
+    [scheduleApply]
+  );
 
   const handleReset = useCallback(() => {
     if (debounceRef.current) {
@@ -337,10 +338,8 @@ const VisibilityFiltersBar = memo(function VisibilityFiltersBar({
   const priorityMinDisplay = localFilters.priorityMin ?? priorityRange.min;
   const priorityMaxDisplay = localFilters.priorityMax ?? priorityRange.max;
   const prioritySpan = Math.max(priorityRange.max - priorityRange.min, 0.1);
-  const priorityMinPercent =
-    ((priorityMinDisplay - priorityRange.min) / prioritySpan) * 100;
-  const priorityMaxPercent =
-    ((priorityMaxDisplay - priorityRange.min) / prioritySpan) * 100;
+  const priorityMinPercent = ((priorityMinDisplay - priorityRange.min) / prioritySpan) * 100;
+  const priorityMaxPercent = ((priorityMaxDisplay - priorityRange.min) / prioritySpan) * 100;
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-800/50 px-5 py-4">
@@ -390,9 +389,7 @@ const VisibilityFiltersBar = memo(function VisibilityFiltersBar({
                 min="10"
                 max="200"
                 value={localFilters.numBins}
-                onChange={(event) =>
-                  updateFilters({ numBins: parseInt(event.target.value, 10) })
-                }
+                onChange={(event) => updateFilters({ numBins: parseInt(event.target.value, 10) })}
                 className="h-2 min-w-0 cursor-pointer appearance-none rounded-lg bg-slate-600"
               />
             ) : (
@@ -487,10 +484,7 @@ interface ScheduledFilterButtonsProps {
   onChange: (filter: 'all' | 'scheduled' | 'unscheduled') => void;
 }
 
-function ScheduledFilterButtons({
-  scheduledFilter,
-  onChange,
-}: ScheduledFilterButtonsProps) {
+function ScheduledFilterButtons({ scheduledFilter, onChange }: ScheduledFilterButtonsProps) {
   const options: { value: 'all' | 'scheduled' | 'unscheduled'; label: string }[] = [
     { value: 'all', label: 'All' },
     { value: 'scheduled', label: 'Scheduled' },

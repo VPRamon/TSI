@@ -9,11 +9,7 @@ import { mjdToDate, dateToMjd } from '@/constants/dates';
 
 // ─── Reimplemented shape builder (mirrors Timeline.tsx) ─────────────
 
-function computeShape(
-  startMjd: number,
-  stopMjd: number,
-  monthMap: Map<string, number>,
-) {
+function computeShape(startMjd: number, stopMjd: number, monthMap: Map<string, number>) {
   const barHeight = 0.4;
   const startDate = mjdToDate(startMjd);
   const stopDate = mjdToDate(stopMjd);
@@ -21,8 +17,7 @@ function computeShape(
   const stopMonthKey = `${stopDate.getFullYear()}-${String(stopDate.getMonth() + 1).padStart(2, '0')}`;
   const monthIndex = monthMap.get(monthKey) ?? 0;
 
-  const startDay =
-    startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
+  const startDay = startDate.getDate() + startDate.getHours() / 24 + startDate.getMinutes() / 1440;
 
   let stopDay: number;
   if (monthKey === stopMonthKey) {
@@ -66,7 +61,10 @@ describe('Timeline month-boundary handling', () => {
 
   it('block crossing year boundary is clamped correctly', () => {
     // December → January of next year
-    const decMap = new Map([['2024-12', 0], ['2025-01', 1]]);
+    const decMap = new Map([
+      ['2024-12', 0],
+      ['2025-01', 1],
+    ]);
     const startMjd = dateToMjd(new Date(Date.UTC(2024, 11, 30)));
     const stopMjd = dateToMjd(new Date(Date.UTC(2025, 0, 3)));
 

@@ -68,7 +68,12 @@ describe('createHistogramData', () => {
     expect(result).toHaveLength(2);
     expect(result[0].type).toBe('histogram');
     // Use type assertion for histogram-specific properties
-    const hist0 = result[0] as { x: number[]; name: string; marker: { color: string }; opacity: number };
+    const hist0 = result[0] as {
+      x: number[];
+      name: string;
+      marker: { color: string };
+      opacity: number;
+    };
     const hist1 = result[1] as { opacity: number };
     expect(hist0.x).toEqual([1, 2, 3]);
     expect(hist0.name).toBe('Dataset A');
