@@ -3,9 +3,18 @@ import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 vi.mock('@/components', () => ({
-  ChartPanel: ({ title, children }: { title?: string; children: ReactNode }) => (
+  ChartPanel: ({
+    title,
+    headerActions,
+    children,
+  }: {
+    title?: string;
+    headerActions?: ReactNode;
+    children: ReactNode;
+  }) => (
     <section>
       {title ? <h3>{title}</h3> : null}
+      {headerActions}
       {children}
     </section>
   ),
@@ -14,6 +23,22 @@ vi.mock('@/components', () => ({
 import OpportunitiesHistogram from './OpportunitiesHistogram';
 
 describe('OpportunitiesHistogram', () => {
+  it('renders a download action for exporting the histogram as an image', () => {
+    render(
+      <OpportunitiesHistogram
+        histogramData={[
+          {
+            bin_start_unix: 1712966400,
+            bin_end_unix: 1712970000,
+            visible_count: 3,
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Download PNG' })).toBeInTheDocument();
+  });
+
   it('renders bar columns with full-height containers so percentage bar heights can resolve', () => {
     render(
       <OpportunitiesHistogram

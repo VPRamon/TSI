@@ -3,9 +3,10 @@
  * Provides consistent styling and responsive behavior.
  * Memoized to prevent unnecessary re-renders.
  */
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import Plot from 'react-plotly.js';
 import type { Data, Layout, Config } from 'plotly.js';
+import { sanitizeImageFilename } from '@/lib/imageExport';
 
 export interface PlotlyChartProps {
   /** Chart data traces */
@@ -42,17 +43,42 @@ const PlotlyChart = memo(function PlotlyChart({
   className = '',
   ariaLabel,
 }: PlotlyChartProps) {
+  const exportFilename = useMemo(() => {
+    const titleValue = layout.title;
+    const title =
+      typeof titleValue === 'string'
+        ? titleValue
+        : titleValue &&
+            typeof titleValue === 'object' &&
+            'text' in titleValue &&
+            typeof titleValue.text === 'string'
+          ? titleValue.text
+          : ariaLabel;
+
+    return sanitizeImageFilename(title ?? 'tsi-plot');
+  }, [ariaLabel, layout.title]);
+
+  const mergedConfig = useMemo(
+    (): Partial<Config> => ({
+      responsive: true,
+      displaylogo: false,
+      ...config,
+      toImageButtonOptions: {
+        format: 'png',
+        filename: exportFilename,
+        scale: 2,
+        ...config.toImageButtonOptions,
+      },
+    }),
+    [config, exportFilename]
+  );
+
   return (
-    <div
-      className={`w-full ${className}`}
-      style={{ height }}
-      role="img"
-      aria-label={ariaLabel}
-    >
+    <div className={`w-full ${className}`} style={{ height }} role="img" aria-label={ariaLabel}>
       <Plot
         data={data}
         layout={layout}
-        config={config}
+        config={mergedConfig}
         style={{ width: '100%', height: '100%' }}
         useResizeHandler
       />

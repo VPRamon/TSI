@@ -23,6 +23,13 @@ import {
 import type { SkyMapFilterState } from '@/components';
 import type { LightweightBlock } from '@/api/types';
 import { mjdToDate, dateToMjd, isValidDate } from '@/constants/dates';
+import { downloadCanvasAsPng } from '@/lib/imageExport';
+
+const SKY_MAP_CONTAINER_ID = 'sky-map-canvas';
+const SECONDARY_ACTION_BUTTON_CLASS =
+  'rounded-md border border-slate-600 bg-slate-800/70 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800';
+const TOGGLE_ACTION_BUTTON_BASE_CLASS =
+  'rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800';
 
 // ─── MJD conversion utilities ───────────────────────────────────────
 
@@ -36,9 +43,8 @@ function mjdToUtc(mjd: number | null | undefined): string | null {
 function utcToMjd(utcString: string): number | null {
   if (!utcString) return null;
   // datetime-local values lack a timezone suffix; treat them as UTC
-  const utc = /[Zz]$/.test(utcString) || /[+-]\d{2}:?\d{2}$/.test(utcString)
-    ? utcString
-    : utcString + 'Z';
+  const utc =
+    /[Zz]$/.test(utcString) || /[+-]\d{2}:?\d{2}$/.test(utcString) ? utcString : utcString + 'Z';
   const date = new Date(utc);
   return isValidDate(date) ? dateToMjd(date) : null;
 }
@@ -52,7 +58,7 @@ function createDefaultFilters(
   priorityMin: number,
   priorityMax: number,
   scheduledTimeMin: number | null,
-  scheduledTimeMax: number | null,
+  scheduledTimeMax: number | null
 ): SkyMapFilterState {
   return {
     showScheduled: true,
@@ -103,7 +109,7 @@ function SkyMap() {
       data.priority_min,
       data.priority_max,
       data.scheduled_time_min,
-      data.scheduled_time_max,
+      data.scheduled_time_max
     );
   }, [data, filters]);
 
@@ -124,11 +130,17 @@ function SkyMap() {
           data.priority_min,
           data.priority_max,
           data.scheduled_time_min,
-          data.scheduled_time_max,
-        ),
+          data.scheduled_time_max
+        )
       );
     }
   }, [data]);
+
+  const handleDownloadSkyMap = useCallback(() => {
+    const canvas = document.querySelector<HTMLCanvasElement>(`#${SKY_MAP_CONTAINER_ID} canvas`);
+    if (!canvas) return;
+    downloadCanvasAsPng(canvas, 'sky-map');
+  }, []);
 
   // ── Loading / error / empty states ──────────────────────────────
 
@@ -222,23 +234,33 @@ function SkyMap() {
 
         <ChartPanel
           title="Celestial Coordinates (Aitoff)"
-          headerActions={(
-            <button
-              type="button"
-              onClick={() => setShowCoordinateGuide((current) => !current)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800 ${
-                showCoordinateGuide
-                  ? 'bg-primary-600 text-white hover:bg-primary-700'
-                  : 'border border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700'
-              }`}
-            >
-              {showCoordinateGuide ? 'Hide RA/Dec Guide' : 'Show RA/Dec Guide'}
-            </button>
-          )}
+          headerActions={
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDownloadSkyMap}
+                className={SECONDARY_ACTION_BUTTON_CLASS}
+              >
+                Download PNG
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCoordinateGuide((current) => !current)}
+                className={`${TOGGLE_ACTION_BUTTON_BASE_CLASS} ${
+                  showCoordinateGuide
+                    ? 'bg-primary-600 text-white hover:bg-primary-700'
+                    : 'border border-slate-600 bg-slate-800/70 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                {showCoordinateGuide ? 'Hide RA/Dec Guide' : 'Show RA/Dec Guide'}
+              </button>
+            </div>
+          }
         >
           <CelestialSkyMap
             blocks={filteredBlocks.all}
             bins={data.priority_bins}
+            containerId={SKY_MAP_CONTAINER_ID}
             showCoordinateGuide={showCoordinateGuide}
           />
         </ChartPanel>

@@ -5,9 +5,21 @@
  * The selection flow updates the dataset frequently, and a simple bar chart
  * is more stable than the previous Plotly re-render path.
  */
-import { memo, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { ChartPanel } from '@/components';
 import type { HistogramBin } from '../hooks/useHistogramData';
+import { downloadCanvasAsPng } from '@/lib/imageExport';
+
+const EXPORT_WIDTH = 1600;
+const EXPORT_HEIGHT = 900;
+const EXPORT_PADDING = {
+  top: 72,
+  right: 56,
+  bottom: 144,
+  left: 112,
+};
+const DOWNLOAD_BUTTON_CLASS =
+  'rounded-md border border-slate-600 bg-slate-800/70 px-3 py-1.5 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-800 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-slate-800/70';
 
 interface OpportunitiesHistogramProps {
   histogramData: HistogramBin[] | undefined;
@@ -40,7 +52,12 @@ const OpportunitiesHistogram = memo(function OpportunitiesHistogram({
     }
 
     const indexes = Array.from(
-      new Set([0, Math.floor((bins.length - 1) / 3), Math.floor(((bins.length - 1) * 2) / 3), bins.length - 1])
+      new Set([
+        0,
+        Math.floor((bins.length - 1) / 3),
+        Math.floor(((bins.length - 1) * 2) / 3),
+        bins.length - 1,
+      ])
     );
 
     return indexes.map((index) => ({
@@ -49,14 +66,128 @@ const OpportunitiesHistogram = memo(function OpportunitiesHistogram({
     }));
   }, [bins]);
 
+  const handleDownload = useCallback(() => {
+    if (bins.length === 0) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = EXPORT_WIDTH;
+    canvas.height = EXPORT_HEIGHT;
+
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    const chartLeft = EXPORT_PADDING.left;
+    const chartRight = EXPORT_WIDTH - EXPORT_PADDING.right;
+    const chartTop = EXPORT_PADDING.top;
+    const chartBottom = EXPORT_HEIGHT - EXPORT_PADDING.bottom;
+    const chartWidth = chartRight - chartLeft;
+    const chartHeight = chartBottom - chartTop;
+    const tickLabelFormatter = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'UTC',
+    });
+
+    context.fillStyle = '#0f172a';
+    context.fillRect(0, 0, EXPORT_WIDTH, EXPORT_HEIGHT);
+
+    context.fillStyle = 'rgba(15, 23, 42, 0.82)';
+    context.fillRect(chartLeft, chartTop, chartWidth, chartHeight);
+
+    context.strokeStyle = 'rgba(51, 65, 85, 0.8)';
+    context.lineWidth = 1;
+    for (const tick of yAxisTicks) {
+      const y = chartTop + chartHeight * (1 - tick.ratio);
+      context.beginPath();
+      context.moveTo(chartLeft, y);
+      context.lineTo(chartRight, y);
+      context.stroke();
+    }
+
+    context.font = '24px system-ui, sans-serif';
+    context.fillStyle = '#e2e8f0';
+    context.fillText('Visibility Histogram', chartLeft, 36);
+
+    context.font = '18px system-ui, sans-serif';
+    context.fillStyle = '#94a3b8';
+    context.fillText('Observation Period (UTC)', chartLeft, EXPORT_HEIGHT - 36);
+
+    context.save();
+    context.translate(28, chartBottom);
+    context.rotate(-Math.PI / 2);
+    context.fillText('Number of Visible Blocks', 0, 0);
+    context.restore();
+
+    context.font = '18px system-ui, sans-serif';
+    context.textAlign = 'right';
+    context.textBaseline = 'middle';
+    for (const tick of yAxisTicks) {
+      const y = chartTop + chartHeight * (1 - tick.ratio);
+      context.fillStyle = '#64748b';
+      context.fillText(String(tick.value), chartLeft - 16, y);
+    }
+
+    const gap = 2;
+    const totalGapWidth = gap * Math.max(bins.length - 1, 0);
+    const barWidth = Math.max((chartWidth - totalGapWidth) / bins.length, 1);
+
+    context.textAlign = 'center';
+    context.textBaseline = 'top';
+    bins.forEach((bin, index) => {
+      const x = chartLeft + index * (barWidth + gap);
+      const barHeight = (bin.visible_count / maxVisibleCount) * chartHeight;
+      const y = chartBottom - barHeight;
+      const opacity = 0.35 + (bin.visible_count / maxVisibleCount) * 0.65;
+
+      context.fillStyle = `rgba(56, 189, 248, ${opacity.toFixed(3)})`;
+      context.fillRect(x, y, barWidth, Math.max(barHeight, bin.visible_count > 0 ? 4 : 0));
+
+      context.strokeStyle = 'rgba(186, 230, 253, 0.18)';
+      context.lineWidth = 1;
+      context.strokeRect(x, y, barWidth, Math.max(barHeight, bin.visible_count > 0 ? 4 : 0));
+    });
+
+    for (const tick of xAxisTicks) {
+      const x = chartLeft + tick.index * (barWidth + gap) + barWidth / 2;
+      context.fillStyle = '#64748b';
+      context.fillText(tick.label, x, chartBottom + 20);
+    }
+
+    context.font = '16px system-ui, sans-serif';
+    context.fillStyle = '#94a3b8';
+    context.textAlign = 'left';
+    context.textBaseline = 'bottom';
+    const rangeLabel = `${tickLabelFormatter.format(new Date(bins[0].bin_start_unix * 1000))} - ${tickLabelFormatter.format(new Date(bins[bins.length - 1].bin_end_unix * 1000))}`;
+    context.fillText(rangeLabel, chartLeft, chartTop - 18);
+
+    downloadCanvasAsPng(canvas, 'visibility-histogram');
+  }, [bins, maxVisibleCount, xAxisTicks, yAxisTicks]);
+
   return (
-    <ChartPanel title="Visibility Histogram">
+    <ChartPanel
+      title="Visibility Histogram"
+      headerActions={
+        <button
+          type="button"
+          onClick={handleDownload}
+          disabled={bins.length === 0}
+          className={DOWNLOAD_BUTTON_CLASS}
+        >
+          Download PNG
+        </button>
+      }
+    >
       <div
         className={`transition-opacity duration-150 ${isLoading ? 'opacity-70' : 'opacity-100'}`}
       >
         {bins.length === 0 ? (
           <div className="flex h-[550px] items-center justify-center rounded-lg border border-dashed border-slate-700 text-sm text-slate-400">
-            {isLoading ? 'Loading visibility histogram...' : 'No visibility data for the current filters'}
+            {isLoading
+              ? 'Loading visibility histogram...'
+              : 'No visibility data for the current filters'}
           </div>
         ) : (
           <div className="grid h-[550px] grid-cols-[3rem_minmax(0,1fr)] gap-4">
