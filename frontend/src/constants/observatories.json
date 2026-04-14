@@ -1,0 +1,10 @@
+[
+  {
+    "label": "CTAO-N – Roque de los Muchachos (La Palma)",
+    "location": { "lon_deg": -17.8892, "lat_deg": 28.7624, "height": 2396.0 }
+  },
+  {
+    "label": "CTAO-S – Paranal / Cerro Armazones (Chile)",
+    "location": { "lon_deg": -70.4041, "lat_deg": -24.6272, "height": 2635.0 }
+  }
+]

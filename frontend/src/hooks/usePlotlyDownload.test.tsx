@@ -63,11 +63,13 @@ describe('usePlotlyDownload', () => {
       const { onInitialized, downloadButton } = usePlotlyDownload('Test Chart');
 
       return (
-        <div ref={(el) => {
-          if (el) {
-            onInitialized({}, el);
-          }
-        }}>
+        <div
+          ref={(el) => {
+            if (el) {
+              onInitialized({}, el);
+            }
+          }}
+        >
           {downloadButton}
         </div>
       );
@@ -87,9 +89,7 @@ describe('usePlotlyDownload', () => {
       expect(screen.getByText(/Plotly.js not loaded/i)).toBeInTheDocument();
     });
 
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('[PNG Export]')
-    );
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[PNG Export]'));
 
     // Restore Plotly
     (window as WindowWithPlotly).Plotly = originalPlotly;
@@ -104,20 +104,13 @@ describe('usePlotlyDownload', () => {
         }
       };
 
-      return (
-        <div ref={divRef}>
-          {downloadButton}
-        </div>
-      );
+      return <div ref={divRef}>{downloadButton}</div>;
     }
 
     // Mock Plotly with a slow toImage
     const mockPlotly = {
       toImage: vi.fn(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(() => resolve('data:image/png;base64,test'), 100)
-          )
+        () => new Promise((resolve) => setTimeout(() => resolve('data:image/png;base64,test'), 100))
       ),
     };
     (window as WindowWithPlotly).Plotly = mockPlotly;
@@ -145,11 +138,7 @@ describe('usePlotlyDownload', () => {
         }
       };
 
-      return (
-        <div ref={divRef}>
-          {downloadButton}
-        </div>
-      );
+      return <div ref={divRef}>{downloadButton}</div>;
     }
 
     // Mock Plotly with failing toImage
@@ -168,9 +157,6 @@ describe('usePlotlyDownload', () => {
       expect(screen.getByText(/Export failed/i)).toBeInTheDocument();
     });
 
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining('[PNG Export]'),
-      testError
-    );
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[PNG Export]'), testError);
   });
 });

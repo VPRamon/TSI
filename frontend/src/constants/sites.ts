@@ -1,5 +1,5 @@
 import type { GeographicLocation } from '@/api/types';
-import rawSites from '@root/observatories.json';
+import rawSites from './observatories.json';
 
 export interface ObservatorySite {
   label: string;

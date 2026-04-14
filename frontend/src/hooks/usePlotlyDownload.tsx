@@ -73,9 +73,9 @@ export function usePlotlyDownload(label: string): UsePlotlyDownloadResult {
 
   const downloadButton = (
     <div className="flex items-center gap-2">
-      <button 
-        type="button" 
-        onClick={handleDownload} 
+      <button
+        type="button"
+        onClick={handleDownload}
         className={BTN_CLASS}
         disabled={!graphDiv || isDownloading}
         title={error || 'Export chart as PNG'}
