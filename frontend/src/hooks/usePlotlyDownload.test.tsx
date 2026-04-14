@@ -117,9 +117,11 @@ describe('usePlotlyDownload', () => {
     }
 
     // Mock Plotly with a slow toImage
-    mockedPlotly.toImage = vi.fn<ToImageArgs, Promise<string>>().mockImplementation(
-      () => new Promise((resolve) => setTimeout(() => resolve('data:image/png;base64,test'), 100))
-    );
+    mockedPlotly.toImage = vi
+      .fn<ToImageArgs, Promise<string>>()
+      .mockImplementation(
+        () => new Promise((resolve) => setTimeout(() => resolve('data:image/png;base64,test'), 100))
+      );
 
     render(<TestComponent />);
 
