@@ -1,11 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { usePlotlyDownload } from './usePlotlyDownload';
 
+type ToImageArgs = [graphDiv: HTMLElement, options?: unknown];
+type ToImageMock = Mock<ToImageArgs, Promise<string>>;
+
 const { mockedPlotly } = vi.hoisted(() => ({
   mockedPlotly: {
-    toImage: vi.fn(),
-  } as { toImage?: ReturnType<typeof vi.fn> | undefined },
+    toImage: vi.fn<ToImageArgs, Promise<string>>(),
+  } as { toImage?: ToImageMock | undefined },
 }));
 
 vi.mock('plotly.js-dist-min', () => ({
@@ -21,7 +24,7 @@ vi.mock('@/lib/imageExport', () => ({
 describe('usePlotlyDownload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockedPlotly.toImage = vi.fn();
+    mockedPlotly.toImage = vi.fn<ToImageArgs, Promise<string>>();
     // Mock console methods to avoid noise in test output
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -114,7 +117,7 @@ describe('usePlotlyDownload', () => {
     }
 
     // Mock Plotly with a slow toImage
-    mockedPlotly.toImage = vi.fn(
+    mockedPlotly.toImage = vi.fn<ToImageArgs, Promise<string>>().mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve('data:image/png;base64,test'), 100))
     );
 
@@ -146,7 +149,7 @@ describe('usePlotlyDownload', () => {
 
     // Mock Plotly with failing toImage
     const testError = new Error('CORS blocked image export');
-    mockedPlotly.toImage = vi.fn().mockRejectedValue(testError);
+    mockedPlotly.toImage = vi.fn<ToImageArgs, Promise<string>>().mockRejectedValue(testError);
 
     render(<TestComponent />);
 
