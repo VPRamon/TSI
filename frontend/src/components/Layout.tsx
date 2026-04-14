@@ -8,7 +8,6 @@ import { useAppStore } from '@/store';
 import { useHealth } from '@/hooks';
 import { useScheduleSync, SchedulePicker, AnalysisProvider } from '@/features/schedules';
 import BrandMark from './BrandMark';
-import Icon from './Icon';
 
 // Navigation items for schedule-specific views
 const scheduleNavItems = [

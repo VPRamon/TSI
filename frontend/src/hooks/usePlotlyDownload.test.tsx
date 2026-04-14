@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { usePlotlyDownload } from './usePlotlyDownload';
+
+type WindowWithPlotly = Window & { Plotly?: unknown };
 
 // Mock the dependencies
 vi.mock('@/lib/imageExport', () => ({
@@ -32,30 +34,33 @@ describe('usePlotlyDownload', () => {
     expect(button).toBeDisabled();
   });
 
-  it('shows error when graphDiv is not initialized', async () => {
+  it('enables the button after chart initialization', async () => {
+    let capturedOnInit: ((figure: unknown, graphDiv: HTMLElement) => void) | undefined;
+
     function TestComponent() {
-      const { downloadButton } = usePlotlyDownload('Test Chart');
+      const { onInitialized, downloadButton } = usePlotlyDownload('Test Chart');
+      capturedOnInit = onInitialized;
       return <div>{downloadButton}</div>;
     }
 
     render(<TestComponent />);
 
     const button = screen.getByRole('button', { name: /Download PNG/i });
-    fireEvent.click(button);
+    expect(button).toBeDisabled();
 
-    await waitFor(() => {
-      expect(screen.getByText(/Chart element not ready/i)).toBeInTheDocument();
+    const div = document.createElement('div');
+    act(() => {
+      capturedOnInit?.({}, div);
     });
 
-    expect(console.warn).toHaveBeenCalledWith(
-      expect.stringContaining('[PNG Export]')
-    );
+    await waitFor(() => {
+      expect(button).not.toBeDisabled();
+    });
   });
 
   it('shows error when Plotly is not loaded', async () => {
     function TestComponent() {
       const { onInitialized, downloadButton } = usePlotlyDownload('Test Chart');
-      const div = document.createElement('div');
 
       return (
         <div ref={(el) => {
@@ -69,8 +74,9 @@ describe('usePlotlyDownload', () => {
     }
 
     // Mock window.Plotly to be undefined
-    const originalPlotly = (window as any).Plotly;
-    (window as any).Plotly = undefined;
+    const win = window as WindowWithPlotly;
+    const originalPlotly = win.Plotly;
+    win.Plotly = undefined;
 
     render(<TestComponent />);
 
@@ -86,7 +92,7 @@ describe('usePlotlyDownload', () => {
     );
 
     // Restore Plotly
-    (window as any).Plotly = originalPlotly;
+    (window as WindowWithPlotly).Plotly = originalPlotly;
   });
 
   it('shows loading state while exporting', async () => {
@@ -114,7 +120,7 @@ describe('usePlotlyDownload', () => {
           )
       ),
     };
-    (window as any).Plotly = mockPlotly;
+    (window as WindowWithPlotly).Plotly = mockPlotly;
 
     render(<TestComponent />);
 
@@ -151,7 +157,7 @@ describe('usePlotlyDownload', () => {
     const mockPlotly = {
       toImage: vi.fn().mockRejectedValue(testError),
     };
-    (window as any).Plotly = mockPlotly;
+    (window as WindowWithPlotly).Plotly = mockPlotly;
 
     render(<TestComponent />);
 
