@@ -244,6 +244,7 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
                   <input
                     id="period-start"
                     type="datetime-local"
+                    step="1"
                     value={periodStart}
                     onChange={(e) => setPeriodStart(e.target.value)}
                     disabled={isUploading}
@@ -260,6 +261,7 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
                   <input
                     id="period-end"
                     type="datetime-local"
+                    step="1"
                     value={periodEnd}
                     onChange={(e) => setPeriodEnd(e.target.value)}
                     disabled={isUploading}

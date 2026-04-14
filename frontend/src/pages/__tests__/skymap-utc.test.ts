@@ -36,7 +36,7 @@ function utcToMjd(utcString: string): number | null {
 
 function toDatetimeLocal(utcIso: string | null): string {
   if (!utcIso) return '';
-  return utcIso.slice(0, 16);
+  return utcIso.slice(0, 19);
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────
@@ -48,9 +48,9 @@ describe('SkyMap UTC helpers', () => {
     const dtLocal = toDatetimeLocal(utcIso);
     const recoveredMjd = utcToMjd(dtLocal);
 
-    // Allow 1-minute precision loss from slicing seconds
+    // Preserve second-level precision when feeding datetime-local controls.
     expect(recoveredMjd).not.toBeNull();
-    expect(Math.abs(recoveredMjd! - originalMjd)).toBeLessThan(1 / 1440);
+    expect(Math.abs(recoveredMjd! - originalMjd)).toBeLessThan(1 / 86400);
   });
 
   it('treats bare datetime-local strings as UTC, not local', () => {

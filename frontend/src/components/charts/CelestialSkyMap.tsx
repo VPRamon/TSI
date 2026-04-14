@@ -68,7 +68,7 @@ const HOVER_RADIUS = 12;
 function formatMjd(mjd: number): string {
   if (!Number.isFinite(mjd)) return 'Unknown';
   const date = mjdToDate(mjd);
-  return isValidDate(date) ? date.toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : 'Unknown';
+  return isValidDate(date) ? date.toISOString().replace('T', ' ').slice(0, 19) + ' UTC' : 'Unknown';
 }
 
 function formatDuration(seconds: number): string {

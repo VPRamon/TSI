@@ -2,7 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { usePlotlyDownload } from './usePlotlyDownload';
 
-type WindowWithPlotly = Window & { Plotly?: unknown };
+const { mockedPlotly } = vi.hoisted(() => ({
+  mockedPlotly: {
+    toImage: vi.fn(),
+  } as { toImage?: ReturnType<typeof vi.fn> | undefined },
+}));
+
+vi.mock('plotly.js-dist-min', () => ({
+  default: mockedPlotly,
+}));
 
 // Mock the dependencies
 vi.mock('@/lib/imageExport', () => ({
@@ -13,6 +21,7 @@ vi.mock('@/lib/imageExport', () => ({
 describe('usePlotlyDownload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedPlotly.toImage = vi.fn();
     // Mock console methods to avoid noise in test output
     vi.spyOn(console, 'warn').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -75,10 +84,8 @@ describe('usePlotlyDownload', () => {
       );
     }
 
-    // Mock window.Plotly to be undefined
-    const win = window as WindowWithPlotly;
-    const originalPlotly = win.Plotly;
-    win.Plotly = undefined;
+    const originalToImage = mockedPlotly.toImage;
+    mockedPlotly.toImage = undefined;
 
     render(<TestComponent />);
 
@@ -91,8 +98,7 @@ describe('usePlotlyDownload', () => {
 
     expect(console.error).toHaveBeenCalledWith(expect.stringContaining('[PNG Export]'));
 
-    // Restore Plotly
-    (window as WindowWithPlotly).Plotly = originalPlotly;
+    mockedPlotly.toImage = originalToImage;
   });
 
   it('shows loading state while exporting', async () => {
@@ -108,12 +114,9 @@ describe('usePlotlyDownload', () => {
     }
 
     // Mock Plotly with a slow toImage
-    const mockPlotly = {
-      toImage: vi.fn(
-        () => new Promise((resolve) => setTimeout(() => resolve('data:image/png;base64,test'), 100))
-      ),
-    };
-    (window as WindowWithPlotly).Plotly = mockPlotly;
+    mockedPlotly.toImage = vi.fn(
+      () => new Promise((resolve) => setTimeout(() => resolve('data:image/png;base64,test'), 100))
+    );
 
     render(<TestComponent />);
 
@@ -143,10 +146,7 @@ describe('usePlotlyDownload', () => {
 
     // Mock Plotly with failing toImage
     const testError = new Error('CORS blocked image export');
-    const mockPlotly = {
-      toImage: vi.fn().mockRejectedValue(testError),
-    };
-    (window as WindowWithPlotly).Plotly = mockPlotly;
+    mockedPlotly.toImage = vi.fn().mockRejectedValue(testError);
 
     render(<TestComponent />);
 

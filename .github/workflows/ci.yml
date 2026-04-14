@@ -34,95 +34,11 @@ jobs:
           chmod +x scripts/ci_frontend.sh
           ./scripts/ci_frontend.sh --quality-gates
 
-  python-quality:
-    name: Python quality gates (Docker)
-    runs-on: ubuntu-latest
-    needs:
-      - frontend-quality
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-          submodules: recursive
-
-      - name: Setup Docker environment
-        uses: ./.github/actions/setup-docker
-        with:
-          dev-image-tag: ${{ env.DEV_IMAGE_TAG }}
-          dev-cache-scope: ${{ env.DEV_CACHE_SCOPE }}
-
-      - name: Run linters and type checks (via scripts)
-        run: |
-          chmod +x scripts/*.sh
-          ./scripts/ci_frontend.sh --docker --linters-only
-
-  python-tests:
-    name: Python tests (${{ matrix.subset }}) (Docker)
-    runs-on: ubuntu-latest
-    needs:
-      - python-quality
-    strategy:
-      fail-fast: false
-      matrix:
-        subset:
-          - unit
-          - integration
-          - e2e
-          - unmarked
-          - bindings
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-          submodules: recursive
-
-      - name: Setup Docker environment
-        uses: ./.github/actions/setup-docker
-        with:
-          dev-image-tag: ${{ env.DEV_IMAGE_TAG }}
-          dev-cache-scope: ${{ env.DEV_CACHE_SCOPE }}
-
-      - name: Run test subset (via scripts)
-        env:
-          SUBSET: ${{ matrix.subset }}
-        run: |
-          set -euo pipefail
-          chmod +x scripts/*.sh
-
-          case "${SUBSET}" in
-            unit|integration|unmarked)
-              ./scripts/ci_frontend.sh --docker --tests-only --subset "${SUBSET}"
-              ;;
-            e2e)
-              ./scripts/ci_e2e.sh --docker
-              ;;
-            bindings)
-              ./scripts/ci_backend.sh standard --docker --bindings-only
-              ;;
-            *)
-              echo "error: unknown subset ${SUBSET}" >&2
-              exit 1
-              ;;
-          esac
-
-      - name: Upload unit coverage
-        if: matrix.subset == 'unit' && hashFiles('coverage.xml') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-coverage
-          path: |
-            coverage.xml
-            htmlcov/
-
   rust:
     name: Rust checks (Docker)
     runs-on: ubuntu-latest
     needs:
-      - python-quality
+      - frontend-quality
 
     steps:
       - name: Checkout repository

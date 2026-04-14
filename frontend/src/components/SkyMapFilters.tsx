@@ -182,6 +182,7 @@ const SkyMapFilters = memo(function SkyMapFilters({
             <div className="flex items-center gap-3">
               <input
                 type="datetime-local"
+                step="1"
                 value={localBeginUtc}
                 onChange={(e) => handleScheduledTimeChange('scheduledBeginUtc', e.target.value)}
                 className="rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
@@ -189,6 +190,7 @@ const SkyMapFilters = memo(function SkyMapFilters({
               <span className="text-xs text-slate-600">–</span>
               <input
                 type="datetime-local"
+                step="1"
                 value={localEndUtc}
                 onChange={(e) => handleScheduledTimeChange('scheduledEndUtc', e.target.value)}
                 className="rounded border border-slate-600 bg-slate-700 px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"

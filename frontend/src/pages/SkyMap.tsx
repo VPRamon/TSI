@@ -49,7 +49,7 @@ function utcToMjd(utcString: string): number | null {
 
 function toDatetimeLocal(utcIso: string | null): string {
   if (!utcIso) return '';
-  return utcIso.slice(0, 16);
+  return utcIso.slice(0, 19);
 }
 
 function createDefaultFilters(

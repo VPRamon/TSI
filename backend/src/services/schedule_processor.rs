@@ -7,6 +7,7 @@ use crate::api::{ModifiedJulianDate, Period, ScheduleId, SchedulingBlock};
 use crate::db::repository::FullRepository;
 use crate::db::services as db_services;
 use crate::http::dto::SchedulePeriodOverride;
+use crate::models::schedule::compute_schedule_checksum;
 use crate::services::astronomical_night::compute_astronomical_nights;
 use crate::services::job_tracker::{JobTracker, LogLevel};
 use crate::services::visibility_service::{compute_block_visibility, VisibilityInput};
@@ -61,9 +62,13 @@ pub async fn process_schedule_async(
         let import_adapter = Arc::clone(&import_adapter);
         move || {
             import_adapter.parse_schedule(&schedule_json).map(|mut s| {
-                if s.name.is_empty() {
-                    s.name = schedule_name;
+                // User-provided name always takes precedence over the adapter's placeholder.
+                if !schedule_name.is_empty() {
+                    s.name = schedule_name.clone();
                 }
+                // Salt the checksum with the name so the same file uploaded under
+                // different names produces distinct database entries.
+                s.checksum = compute_schedule_checksum(&format!("{}:{}", s.name, schedule_json));
                 s
             })
         }
