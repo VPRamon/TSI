@@ -649,6 +649,7 @@ fn test_fragmentation_data_json_roundtrip() {
         unscheduled_reasons: vec![],
         metrics: FragmentationMetrics {
             schedule_hours: Hours::new(24.0),
+            requested_hours: Hours::new(4.0),
             operable_hours: Hours::new(0.0),
             scheduled_hours: Hours::new(0.0),
             idle_operable_hours: Hours::new(0.0),

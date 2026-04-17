@@ -79,6 +79,7 @@ pub struct UnscheduledReasonSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FragmentationMetrics {
     pub schedule_hours: Hours,
+    pub requested_hours: Hours,
     pub operable_hours: Hours,
     pub scheduled_hours: Hours,
     pub idle_operable_hours: Hours,
@@ -149,6 +150,7 @@ mod tests {
             unscheduled_reasons: vec![],
             metrics: FragmentationMetrics {
                 schedule_hours: Hours::new(24.0),
+                requested_hours: Hours::new(3.0),
                 operable_hours: Hours::new(0.0),
                 scheduled_hours: Hours::new(0.0),
                 idle_operable_hours: Hours::new(0.0),

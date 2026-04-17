@@ -13,6 +13,8 @@ import type {
   ScheduleTimelineData,
   InsightsData,
   FragmentationData,
+  AltAzData,
+  AltAzRequest,
   TrendsData,
   TrendsQuery,
   ValidationReport,
@@ -184,6 +186,11 @@ class ApiClient {
     const { data } = await this.client.get<FragmentationData>(
       `/v1/schedules/${scheduleId}/fragmentation`
     );
+    return data;
+  }
+
+  async computeAltAz(scheduleId: number, request: AltAzRequest): Promise<AltAzData> {
+    const { data } = await this.client.post<AltAzData>(`/v1/schedules/${scheduleId}/alt-az`, request);
     return data;
   }
 

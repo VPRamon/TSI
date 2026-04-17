@@ -1,3 +1,4 @@
+pub mod altaz;
 pub mod compare;
 pub mod distribution;
 pub mod fragmentation;
@@ -15,15 +16,13 @@ mod tests {
     fn test_module_structure() {
         // Test that all route module constants are accessible
         assert_eq!(super::compare::GET_COMPARE_DATA, "get_compare_data");
-        assert_eq!(
-            super::distribution::GET_DISTRIBUTION_DATA,
-            "get_distribution_data"
-        );
+        assert_eq!(super::distribution::GET_DISTRIBUTION_DATA, "get_distribution_data");
         assert_eq!(super::insights::GET_INSIGHTS_DATA, "get_insights_data");
         assert_eq!(
             super::fragmentation::GET_FRAGMENTATION_DATA,
             "get_fragmentation_data"
         );
+        assert_eq!(super::altaz::GET_ALT_AZ_DATA, "get_alt_az_data");
         assert_eq!(super::skymap::GET_SKY_MAP_DATA, "get_sky_map_data");
         assert_eq!(
             super::timeline::GET_SCHEDULE_TIMELINE_DATA,

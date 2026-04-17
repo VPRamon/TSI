@@ -56,6 +56,10 @@ pub fn create_router(state: AppState) -> Router {
             get(handlers::get_visibility_histogram),
         )
         .route(
+            "/schedules/{schedule_id}/alt-az",
+            post(handlers::compute_alt_az),
+        )
+        .route(
             "/schedules/{schedule_id}/timeline",
             get(handlers::get_timeline),
         )

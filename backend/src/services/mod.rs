@@ -5,6 +5,7 @@
 //! business logic and data processing.
 
 pub mod astronomical_night;
+pub mod altaz;
 pub mod compare;
 
 pub mod distributions;
@@ -31,6 +32,7 @@ pub mod schedule_processor;
 pub mod visibility_service;
 
 pub use compare::py_get_compare_data;
+pub use altaz::compute_alt_az_data;
 pub use distributions::{py_get_distribution_data, py_get_distribution_data_analytics};
 pub use fragmentation::py_get_fragmentation_data;
 pub use import_adapter::{

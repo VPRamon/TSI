@@ -19,7 +19,7 @@ use super::dto::{
 };
 use super::error::AppError;
 use super::state::AppState;
-use crate::api::{ScheduleId, SchedulingBlock};
+use crate::api::{AltAzData, AltAzRequest, ScheduleId, SchedulingBlock};
 use crate::db::services as db_services;
 
 /// Result type for handlers.
@@ -340,6 +340,24 @@ pub async fn get_visibility_histogram(
     .map_err(|e| AppError::Internal(format!("Histogram computation error: {}", e)))?;
 
     Ok(Json(bins))
+}
+
+/// POST /v1/schedules/{schedule_id}/alt-az
+///
+/// Compute altitude and azimuth curves for selected targets over a custom time window.
+pub async fn compute_alt_az(
+    State(state): State<AppState>,
+    Path(schedule_id): Path<i64>,
+    Json(request): Json<AltAzRequest>,
+) -> HandlerResult<AltAzData> {
+    let schedule_id = ScheduleId::new(schedule_id);
+
+    let _schedule = db_services::get_schedule(state.repository.as_ref(), schedule_id).await?;
+
+    let data = crate::services::compute_alt_az_data(schedule_id, &request)
+        .map_err(AppError::Internal)?;
+
+    Ok(Json(data))
 }
 
 /// GET /v1/schedules/{schedule_id}/timeline

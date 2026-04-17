@@ -6,6 +6,11 @@
 pub use crate::routes::compare::CompareBlock;
 pub use crate::routes::compare::CompareData;
 pub use crate::routes::compare::CompareStats;
+pub use crate::routes::altaz::AltAzCurve;
+pub use crate::routes::altaz::AltAzData;
+pub use crate::routes::altaz::AltAzObservatoryRequest;
+pub use crate::routes::altaz::AltAzRequest;
+pub use crate::routes::altaz::AltAzTargetRequest;
 pub use crate::routes::compare::SchedulingChange;
 pub use crate::routes::distribution::DistributionBlock;
 pub use crate::routes::distribution::DistributionData;

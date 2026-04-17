@@ -79,6 +79,27 @@ export interface DeleteScheduleResponse {
   message: string;
 }
 
+export interface AltAzTargetRequest {
+  original_block_id: string;
+  block_name: string;
+  priority: number;
+  target_ra_deg: number;
+  target_dec_deg: number;
+}
+
+export interface AltAzObservatoryRequest {
+  lon_deg: number;
+  lat_deg: number;
+  height: number;
+}
+
+export interface AltAzRequest {
+  observatory: AltAzObservatoryRequest;
+  start_mjd: number;
+  end_mjd: number;
+  targets: AltAzTargetRequest[];
+}
+
 // =============================================================================
 // Visualization Types
 // =============================================================================
@@ -291,6 +312,7 @@ export interface UnscheduledReasonSummary {
 
 export interface FragmentationMetrics {
   schedule_hours: number;
+  requested_hours: number;
   operable_hours: number;
   scheduled_hours: number;
   idle_operable_hours: number;
@@ -304,6 +326,20 @@ export interface FragmentationMetrics {
   idle_fraction_of_operable: number;
   raw_visibility_fraction_of_operable: number;
   fit_visibility_fraction_of_operable: number;
+}
+
+export interface AltAzCurve {
+  original_block_id: string;
+  block_name: string;
+  priority: number;
+  altitudes_deg: number[];
+  azimuths_deg: number[];
+}
+
+export interface AltAzData {
+  schedule_id: number;
+  sample_times_mjd: number[];
+  curves: AltAzCurve[];
 }
 
 export interface FragmentationData {

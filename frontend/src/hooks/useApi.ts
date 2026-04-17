@@ -9,6 +9,7 @@ import type {
   CompareQuery,
   VisibilityHistogramQuery,
   UpdateScheduleRequest,
+  AltAzRequest,
 } from '@/api/types';
 
 // Query keys factory
@@ -24,6 +25,7 @@ export const queryKeys = {
   timeline: (id: number) => ['timeline', id] as const,
   insights: (id: number) => ['insights', id] as const,
   fragmentation: (id: number) => ['fragmentation', id] as const,
+  altAz: (id: number, request?: AltAzRequest) => ['altAz', id, request] as const,
   trends: (id: number, query?: TrendsQuery) => ['trends', id, query] as const,
   validationReport: (id: number) => ['validationReport', id] as const,
   compare: (id: number, otherId: number, query?: CompareQuery) =>
@@ -140,6 +142,14 @@ export function useFragmentation(scheduleId: number) {
     queryKey: queryKeys.fragmentation(scheduleId),
     queryFn: () => api.getFragmentation(scheduleId),
     enabled: scheduleId > 0,
+  });
+}
+
+export function useAltAz(scheduleId: number, request?: AltAzRequest) {
+  return useQuery({
+    queryKey: queryKeys.altAz(scheduleId, request),
+    queryFn: () => api.computeAltAz(scheduleId, request as AltAzRequest),
+    enabled: scheduleId > 0 && !!request,
   });
 }
 

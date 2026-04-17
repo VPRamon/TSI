@@ -21,7 +21,6 @@ import {
 } from '@/components';
 import type {
   FragmentationData,
-  FragmentationGap,
   FragmentationSegment,
   FragmentationSegmentKind,
   ReasonBreakdownEntry,
@@ -143,46 +142,6 @@ export function ReasonBreakdownChart({
   );
 }
 
-export function LargestGapsTable({ gaps }: { gaps: FragmentationGap[] }) {
-  if (gaps.length === 0) {
-    return <p className="text-xs text-slate-500">No idle operable gaps.</p>;
-  }
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-slate-700/50">
-            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-              Start (MJD)
-            </th>
-            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-              Stop (MJD)
-            </th>
-            <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-slate-500">
-              Duration
-            </th>
-            <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-              Cause
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-700/30">
-          {gaps.map((g, i) => (
-            <tr key={i} className="hover:bg-slate-700/20">
-              <td className="px-3 py-2 tabular-nums text-slate-300">{g.start_mjd.toFixed(4)}</td>
-              <td className="px-3 py-2 tabular-nums text-slate-300">{g.stop_mjd.toFixed(4)}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-white">
-                {formatHours(g.duration_hours)}
-              </td>
-              <td className="px-3 py-2 text-slate-300">{SEGMENT_LABELS[g.cause]}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 export function UnscheduledReasonsList({
   summaries,
 }: {
@@ -229,10 +188,10 @@ function SchedulePanel({ data, title, compareMetrics }: SchedulePanelProps) {
   const m = data.metrics;
   const delta = compareMetrics
     ? {
+        requested: m.requested_hours - compareMetrics.requested_hours,
         scheduled: m.scheduled_hours - compareMetrics.scheduled_hours,
         operable: m.operable_hours - compareMetrics.operable_hours,
         idle: m.idle_operable_hours - compareMetrics.idle_operable_hours,
-        largestGap: m.largest_gap_hours - compareMetrics.largest_gap_hours,
       }
     : null;
 
@@ -246,6 +205,7 @@ function SchedulePanel({ data, title, compareMetrics }: SchedulePanelProps) {
       </div>
 
       <MetricsGrid>
+        <MetricCard label="Requested" value={formatHours(m.requested_hours)} />
         <MetricCard
           label="Scheduled"
           value={formatHours(m.scheduled_hours)}
@@ -257,11 +217,16 @@ function SchedulePanel({ data, title, compareMetrics }: SchedulePanelProps) {
           icon={<Icon name="chart-bar" />}
         />
         <MetricCard label="Idle operable" value={formatHours(m.idle_operable_hours)} />
-        <MetricCard label="Largest gap" value={formatHours(m.largest_gap_hours)} />
       </MetricsGrid>
 
       {delta && (
         <div className="grid grid-cols-2 gap-2 rounded-md bg-slate-900/50 p-3 text-xs sm:grid-cols-4">
+          <div>
+            <p className="text-slate-500">Δ requested</p>
+            <p className={`tabular-nums ${deltaClass(delta.requested)}`}>
+              {formatDelta(delta.requested)}
+            </p>
+          </div>
           <div>
             <p className="text-slate-500">Δ scheduled</p>
             <p className={`tabular-nums ${deltaClass(delta.scheduled)}`}>
@@ -278,12 +243,6 @@ function SchedulePanel({ data, title, compareMetrics }: SchedulePanelProps) {
             <p className="text-slate-500">Δ idle</p>
             <p className={`tabular-nums ${deltaClass(delta.idle, true)}`}>
               {formatDelta(delta.idle)}
-            </p>
-          </div>
-          <div>
-            <p className="text-slate-500">Δ largest gap</p>
-            <p className={`tabular-nums ${deltaClass(delta.largestGap, true)}`}>
-              {formatDelta(delta.largestGap)}
             </p>
           </div>
         </div>
@@ -309,11 +268,6 @@ function SchedulePanel({ data, title, compareMetrics }: SchedulePanelProps) {
             </span>
           ))}
         </div>
-      </section>
-
-      <section>
-        <h3 className="mb-2 text-sm font-medium text-slate-300">Largest idle gaps</h3>
-        <LargestGapsTable gaps={data.largest_gaps} />
       </section>
 
       <section>

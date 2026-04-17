@@ -146,6 +146,11 @@ pub fn compute_fragmentation(
     }
 
     let operable_hours_val: f64 = operable_periods.iter().map(duration_hours).sum();
+    let requested_hours_val: f64 = schedule
+        .blocks
+        .iter()
+        .map(|b| b.requested_duration.value() / 3600.0)
+        .sum();
     let scheduled_hours_val = *per_kind_hours
         .get(&FragmentationSegmentKind::Scheduled)
         .unwrap_or(&0.0);
@@ -219,6 +224,7 @@ pub fn compute_fragmentation(
 
     let metrics = FragmentationMetrics {
         schedule_hours: Hours::new(duration_hours(&schedule_window)),
+        requested_hours: Hours::new(requested_hours_val),
         operable_hours: Hours::new(operable_hours_val),
         scheduled_hours: Hours::new(scheduled_hours_val),
         idle_operable_hours: Hours::new(idle_operable_hours_val.max(0.0)),
