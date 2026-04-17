@@ -9,6 +9,7 @@ const SkyMap = lazy(() => import('./pages/SkyMap'));
 const Distributions = lazy(() => import('./pages/Distributions'));
 const Timeline = lazy(() => import('./pages/Timeline'));
 const Insights = lazy(() => import('./pages/Insights'));
+const Fragmentation = lazy(() => import('./pages/Fragmentation'));
 const Trends = lazy(() => import('./pages/Trends'));
 const Validation = lazy(() => import('./pages/Validation'));
 const Compare = lazy(() => import('./pages/Compare'));
@@ -39,6 +40,7 @@ function App() {
               <Route path="visibility-map" element={<VisibilityMap />} />
               <Route path="timeline" element={<Timeline />} />
               <Route path="insights" element={<Insights />} />
+              <Route path="fragmentation" element={<Fragmentation />} />
               <Route path="trends" element={<Trends />} />
               <Route path="alt-az" element={<AltAz />} />
               <Route path="validation" element={<Validation />} />

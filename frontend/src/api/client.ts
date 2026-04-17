@@ -12,6 +12,7 @@ import type {
   DistributionData,
   ScheduleTimelineData,
   InsightsData,
+  FragmentationData,
   TrendsData,
   TrendsQuery,
   ValidationReport,
@@ -176,6 +177,13 @@ class ApiClient {
 
   async getInsights(scheduleId: number): Promise<InsightsData> {
     const { data } = await this.client.get<InsightsData>(`/v1/schedules/${scheduleId}/insights`);
+    return data;
+  }
+
+  async getFragmentation(scheduleId: number): Promise<FragmentationData> {
+    const { data } = await this.client.get<FragmentationData>(
+      `/v1/schedules/${scheduleId}/fragmentation`
+    );
     return data;
   }
 

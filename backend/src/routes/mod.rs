@@ -1,5 +1,6 @@
 pub mod compare;
 pub mod distribution;
+pub mod fragmentation;
 pub mod insights;
 pub mod landing;
 pub mod skymap;
@@ -19,6 +20,10 @@ mod tests {
             "get_distribution_data"
         );
         assert_eq!(super::insights::GET_INSIGHTS_DATA, "get_insights_data");
+        assert_eq!(
+            super::fragmentation::GET_FRAGMENTATION_DATA,
+            "get_fragmentation_data"
+        );
         assert_eq!(super::skymap::GET_SKY_MAP_DATA, "get_sky_map_data");
         assert_eq!(
             super::timeline::GET_SCHEDULE_TIMELINE_DATA,

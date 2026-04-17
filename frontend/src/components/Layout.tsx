@@ -82,6 +82,20 @@ const scheduleNavItems = [
     ),
   },
   {
+    path: 'fragmentation',
+    label: 'Fragmentation',
+    icon: (
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 6h4M10 6h2M14 6h6M4 12h6M12 12h2M16 12h4M4 18h3M9 18h4M15 18h5"
+        />
+      </svg>
+    ),
+  },
+  {
     path: 'trends',
     label: 'Trends',
     icon: (

@@ -10,6 +10,10 @@ pub use crate::routes::compare::SchedulingChange;
 pub use crate::routes::distribution::DistributionBlock;
 pub use crate::routes::distribution::DistributionData;
 pub use crate::routes::distribution::DistributionStats;
+pub use crate::routes::fragmentation::{
+    FragmentationData, FragmentationGap, FragmentationMetrics, FragmentationSegment,
+    FragmentationSegmentKind, ReasonBreakdownEntry, UnscheduledReason, UnscheduledReasonSummary,
+};
 pub use crate::routes::insights::AnalyticsMetrics;
 pub use crate::routes::insights::ConflictRecord;
 pub use crate::routes::insights::CorrelationEntry;

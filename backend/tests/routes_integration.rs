@@ -53,6 +53,10 @@ fn test_routes_module_exists() {
         "get_distribution_data"
     );
     assert_eq!(routes::insights::GET_INSIGHTS_DATA, "get_insights_data");
+    assert_eq!(
+        routes::fragmentation::GET_FRAGMENTATION_DATA,
+        "get_fragmentation_data"
+    );
     assert_eq!(routes::skymap::GET_SKY_MAP_DATA, "get_sky_map_data");
     assert_eq!(
         routes::timeline::GET_SCHEDULE_TIMELINE_DATA,
@@ -606,10 +610,99 @@ fn test_route_constants_are_strings() {
     let _: &str = routes::compare::GET_COMPARE_DATA;
     let _: &str = routes::distribution::GET_DISTRIBUTION_DATA;
     let _: &str = routes::insights::GET_INSIGHTS_DATA;
+    let _: &str = routes::fragmentation::GET_FRAGMENTATION_DATA;
     let _: &str = routes::skymap::GET_SKY_MAP_DATA;
     let _: &str = routes::timeline::GET_SCHEDULE_TIMELINE_DATA;
     let _: &str = routes::trends::GET_TRENDS_DATA;
     let _: &str = routes::validation::GET_VALIDATION_REPORT;
     let _: &str = routes::landing::LIST_SCHEDULES;
     let _: &str = routes::landing::POST_SCHEDULE;
+}
+
+// =========================================================
+// Fragmentation route tests
+// =========================================================
+
+#[test]
+fn test_fragmentation_data_json_roundtrip() {
+    use tsi_rust::api::{
+        FragmentationData, FragmentationMetrics, FragmentationSegment, FragmentationSegmentKind,
+    };
+    use qtty::Hours;
+
+    let data = FragmentationData {
+        schedule_id: ScheduleId::new(1),
+        schedule_window: Period {
+            start: ModifiedJulianDate::new(60000.0),
+            end: ModifiedJulianDate::new(60001.0),
+        },
+        operable_periods: vec![],
+        operable_source: "dark_periods".to_string(),
+        segments: vec![FragmentationSegment {
+            start_mjd: ModifiedJulianDate::new(60000.0),
+            stop_mjd: ModifiedJulianDate::new(60000.5),
+            duration_hours: Hours::new(12.0),
+            kind: FragmentationSegmentKind::NonOperable,
+        }],
+        largest_gaps: vec![],
+        reason_breakdown: vec![],
+        unscheduled_reasons: vec![],
+        metrics: FragmentationMetrics {
+            schedule_hours: Hours::new(24.0),
+            operable_hours: Hours::new(0.0),
+            scheduled_hours: Hours::new(0.0),
+            idle_operable_hours: Hours::new(0.0),
+            raw_visibility_coverage_hours: Hours::new(0.0),
+            fit_visibility_coverage_hours: Hours::new(0.0),
+            gap_count: 0,
+            gap_mean_hours: Hours::new(0.0),
+            gap_median_hours: Hours::new(0.0),
+            largest_gap_hours: Hours::new(0.0),
+            scheduled_fraction_of_operable: 0.0,
+            idle_fraction_of_operable: 0.0,
+            raw_visibility_fraction_of_operable: 0.0,
+            fit_visibility_fraction_of_operable: 0.0,
+        },
+    };
+
+    let json = serde_json::to_string(&data).expect("serialize");
+    assert!(json.contains("\"operable_source\":\"dark_periods\""));
+    assert!(json.contains("\"kind\":\"non_operable\""));
+    assert!(json.contains("\"schedule_hours\""));
+
+    let round: FragmentationData = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(round.operable_source, "dark_periods");
+    assert_eq!(round.segments.len(), 1);
+}
+
+#[tokio::test]
+async fn test_fragmentation_endpoint_registered() {
+    use axum::{
+        body::Body,
+        http::{Request, StatusCode},
+    };
+    use std::sync::Arc;
+    use tower::util::ServiceExt;
+    use tsi_rust::db::repositories::LocalRepository;
+    use tsi_rust::http::{create_router, AppState};
+
+    let repo = Arc::new(LocalRepository::new()) as Arc<dyn tsi_rust::db::repository::FullRepository>;
+    let state = AppState::new(repo);
+    let app = create_router(state);
+
+    // Hitting fragmentation for an unknown schedule should not 404 on route
+    // itself (route is registered); it returns 500 from the handler because
+    // the schedule does not exist. What we are asserting is that axum recognizes
+    // the path.
+    let request = Request::builder()
+        .method("GET")
+        .uri("/v1/schedules/999999/fragmentation")
+        .body(Body::empty())
+        .unwrap();
+    let response = app.oneshot(request).await.unwrap();
+    assert_ne!(
+        response.status(),
+        StatusCode::NOT_FOUND,
+        "fragmentation route must be registered"
+    );
 }

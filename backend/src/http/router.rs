@@ -63,6 +63,10 @@ pub fn create_router(state: AppState) -> Router {
             "/schedules/{schedule_id}/insights",
             get(handlers::get_insights),
         )
+        .route(
+            "/schedules/{schedule_id}/fragmentation",
+            get(handlers::get_fragmentation),
+        )
         .route("/schedules/{schedule_id}/trends", get(handlers::get_trends))
         .route(
             "/schedules/{schedule_id}/validation-report",

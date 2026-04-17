@@ -242,6 +242,82 @@ export interface InsightsData {
   impossible_count: number;
 }
 
+// Fragmentation
+export type FragmentationSegmentKind =
+  | 'non_operable'
+  | 'scheduled'
+  | 'no_target_visible'
+  | 'visible_but_no_task_fits'
+  | 'feasible_but_unused';
+
+export type UnscheduledReason =
+  | 'no_visibility'
+  | 'no_contiguous_fit'
+  | 'requested_exceeds_total_visibility'
+  | 'other_validation_issue'
+  | 'feasible_but_unscheduled';
+
+export interface FragmentationMjdPeriod {
+  start_mjd: number;
+  end_mjd: number;
+}
+
+export interface FragmentationSegment {
+  start_mjd: number;
+  stop_mjd: number;
+  duration_hours: number;
+  kind: FragmentationSegmentKind;
+}
+
+export interface FragmentationGap {
+  start_mjd: number;
+  stop_mjd: number;
+  duration_hours: number;
+  cause: FragmentationSegmentKind;
+}
+
+export interface ReasonBreakdownEntry {
+  kind: FragmentationSegmentKind;
+  total_hours: number;
+  fraction_of_operable: number;
+}
+
+export interface UnscheduledReasonSummary {
+  reason: UnscheduledReason;
+  block_count: number;
+  example_block_ids: string[];
+  example_block_names: string[];
+}
+
+export interface FragmentationMetrics {
+  schedule_hours: number;
+  operable_hours: number;
+  scheduled_hours: number;
+  idle_operable_hours: number;
+  raw_visibility_coverage_hours: number;
+  fit_visibility_coverage_hours: number;
+  gap_count: number;
+  gap_mean_hours: number;
+  gap_median_hours: number;
+  largest_gap_hours: number;
+  scheduled_fraction_of_operable: number;
+  idle_fraction_of_operable: number;
+  raw_visibility_fraction_of_operable: number;
+  fit_visibility_fraction_of_operable: number;
+}
+
+export interface FragmentationData {
+  schedule_id: number;
+  schedule_window: FragmentationMjdPeriod;
+  operable_periods: FragmentationMjdPeriod[];
+  operable_source: string;
+  segments: FragmentationSegment[];
+  largest_gaps: FragmentationGap[];
+  reason_breakdown: ReasonBreakdownEntry[];
+  unscheduled_reasons: UnscheduledReasonSummary[];
+  metrics: FragmentationMetrics;
+}
+
 // Trends
 export interface TrendsBlock {
   scheduling_block_id: number;

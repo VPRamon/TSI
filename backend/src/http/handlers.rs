@@ -379,6 +379,25 @@ pub async fn get_insights(
     Ok(Json(data))
 }
 
+/// GET /v1/schedules/{schedule_id}/fragmentation
+///
+/// Get fragmentation analysis data for a schedule.
+pub async fn get_fragmentation(
+    State(_state): State<AppState>,
+    Path(schedule_id): Path<i64>,
+) -> HandlerResult<crate::api::FragmentationData> {
+    let schedule_id = ScheduleId::new(schedule_id);
+
+    let data = tokio::task::spawn_blocking(move || {
+        crate::services::py_get_fragmentation_data(schedule_id)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
+    .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(data))
+}
+
 /// GET /v1/schedules/{schedule_id}/trends
 ///
 /// Get trends analysis data for a schedule.

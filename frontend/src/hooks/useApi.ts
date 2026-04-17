@@ -23,6 +23,7 @@ export const queryKeys = {
     ['visibilityHistogram', id, query] as const,
   timeline: (id: number) => ['timeline', id] as const,
   insights: (id: number) => ['insights', id] as const,
+  fragmentation: (id: number) => ['fragmentation', id] as const,
   trends: (id: number, query?: TrendsQuery) => ['trends', id, query] as const,
   validationReport: (id: number) => ['validationReport', id] as const,
   compare: (id: number, otherId: number, query?: CompareQuery) =>
@@ -130,6 +131,14 @@ export function useInsights(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.insights(scheduleId),
     queryFn: () => api.getInsights(scheduleId),
+    enabled: scheduleId > 0,
+  });
+}
+
+export function useFragmentation(scheduleId: number) {
+  return useQuery({
+    queryKey: queryKeys.fragmentation(scheduleId),
+    queryFn: () => api.getFragmentation(scheduleId),
     enabled: scheduleId > 0,
   });
 }
