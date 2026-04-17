@@ -62,9 +62,7 @@ pub async fn get_fragmentation_data(schedule_id: ScheduleId) -> Result<Fragmenta
 }
 
 /// Python/sync binding wrapper.
-pub fn py_get_fragmentation_data(
-    schedule_id: ScheduleId,
-) -> Result<FragmentationData, String> {
+pub fn py_get_fragmentation_data(schedule_id: ScheduleId) -> Result<FragmentationData, String> {
     let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
     runtime.block_on(get_fragmentation_data(schedule_id))
 }
@@ -80,21 +78,18 @@ pub fn compute_fragmentation(
     validation: &ValidationReport,
 ) -> FragmentationData {
     let schedule_window = schedule.schedule_period;
+    let schedule_name = schedule.name.trim().to_string();
 
     // Pick operable baseline: dark_periods, else astronomical_nights.
     let (operable_raw, operable_source): (Vec<Period>, &str) = if !schedule.dark_periods.is_empty()
     {
         (schedule.dark_periods.clone(), "dark_periods")
     } else {
-        (
-            schedule.astronomical_nights.clone(),
-            "astronomical_nights",
-        )
+        (schedule.astronomical_nights.clone(), "astronomical_nights")
     };
 
     // Normalize / merge operable, then clip to schedule window.
-    let operable_periods =
-        clip_periods(&merge_periods(normalize(operable_raw)), &schedule_window);
+    let operable_periods = clip_periods(&merge_periods(normalize(operable_raw)), &schedule_window);
 
     // Scheduled periods (union).
     let scheduled_union = merge_periods(
@@ -204,6 +199,30 @@ pub fn compute_fragmentation(
         (gap_hours[gap_count / 2 - 1] + gap_hours[gap_count / 2]) / 2.0
     };
     let gap_max = gap_hours.iter().copied().fold(0.0_f64, f64::max);
+    let gap_std_dev = if gap_count > 1 {
+        let mean = gap_mean;
+        let var =
+            gap_hours.iter().map(|h| (h - mean).powi(2)).sum::<f64>() / (gap_count - 1) as f64;
+        var.sqrt()
+    } else {
+        0.0
+    };
+    // Linear-interpolation p90 on the sorted gap list.
+    let gap_p90 = if gap_count == 0 {
+        0.0
+    } else if gap_count == 1 {
+        gap_hours[0]
+    } else {
+        let rank = 0.9 * (gap_count as f64 - 1.0);
+        let lo = rank.floor() as usize;
+        let hi = rank.ceil() as usize;
+        if lo == hi {
+            gap_hours[lo]
+        } else {
+            let frac = rank - lo as f64;
+            gap_hours[lo] + frac * (gap_hours[hi] - gap_hours[lo])
+        }
+    };
 
     // Largest gaps table — sort desc by duration, cap at 10.
     let mut largest_gaps = gaps.clone();
@@ -233,6 +252,8 @@ pub fn compute_fragmentation(
         gap_count,
         gap_mean_hours: Hours::new(gap_mean),
         gap_median_hours: Hours::new(gap_median),
+        gap_std_dev_hours: Hours::new(gap_std_dev),
+        gap_p90_hours: Hours::new(gap_p90),
         largest_gap_hours: Hours::new(gap_max),
         scheduled_fraction_of_operable: safe_frac(scheduled_hours_val, operable_hours_val),
         idle_fraction_of_operable: safe_frac(idle_operable_hours_val, operable_hours_val),
@@ -242,6 +263,7 @@ pub fn compute_fragmentation(
 
     FragmentationData {
         schedule_id: ScheduleId::new(schedule.id.unwrap_or(0)),
+        schedule_name,
         schedule_window,
         operable_periods,
         operable_source: operable_source.to_string(),
@@ -403,9 +425,7 @@ fn classify_segments(
         };
 
         match out.last_mut() {
-            Some(prev)
-                if prev.kind == kind && (prev.stop_mjd.value() - s).abs() < 1e-12 =>
-            {
+            Some(prev) if prev.kind == kind && (prev.stop_mjd.value() - s).abs() < 1e-12 => {
                 prev.stop_mjd = ModifiedJulianDate::new(e);
                 prev.duration_hours =
                     Hours::new((prev.stop_mjd.value() - prev.start_mjd.value()) * 24.0);
@@ -448,7 +468,10 @@ fn summarize_unscheduled_reasons(
         .chain(validation.validation_errors.iter())
         .chain(validation.validation_warnings.iter())
     {
-        issues_by_block.entry(issue.block_id).or_default().push(issue);
+        issues_by_block
+            .entry(issue.block_id)
+            .or_default()
+            .push(issue);
     }
 
     let mut buckets: HashMap<UnscheduledReason, Vec<(String, String)>> = HashMap::new();
@@ -578,10 +601,7 @@ mod tests {
             priority: 1.0,
             min_observation: 0.0.into(),
             requested_duration: 0.0.into(),
-            visibility_periods: visibility
-                .into_iter()
-                .map(|(s, e)| period(s, e))
-                .collect(),
+            visibility_periods: visibility.into_iter().map(|(s, e)| period(s, e)).collect(),
             scheduled_period: scheduled.map(|(s, e)| period(s, e)),
         }
     }
@@ -690,12 +710,7 @@ mod tests {
 
     #[test]
     fn dark_periods_takes_precedence_over_astronomical_nights() {
-        let sched = schedule_with(
-            (0.0, 1.0),
-            vec![(0.0, 0.5)],
-            vec![(0.0, 1.0)],
-            vec![],
-        );
+        let sched = schedule_with((0.0, 1.0), vec![(0.0, 0.5)], vec![(0.0, 1.0)], vec![]);
         let data = compute_fragmentation(&sched, &empty_validation());
         assert_eq!(data.operable_source, "dark_periods");
         assert!((data.metrics.operable_hours.value() - 12.0).abs() < 1e-9);
@@ -715,6 +730,34 @@ mod tests {
         let data = compute_fragmentation(&sched, &empty_validation());
         assert_eq!(data.metrics.scheduled_fraction_of_operable, 0.0);
         assert_eq!(data.metrics.idle_fraction_of_operable, 0.0);
+    }
+
+    #[test]
+    fn gap_std_dev_and_p90_are_derived_from_gap_list() {
+        // Build a fixture that produces three idle-operable gaps of
+        // 1h, 2h, and 10h durations inside the operable window.
+        // Strategy: operable covers whole 1-day window; schedule three blocks
+        // with gaps between them of 1h, 2h, and 10h.
+        // Use MJD days; 1 hour = 1/24.
+        let h = 1.0 / 24.0;
+        // Segments: [0, 0+h]=block, [gap 1h], [2h..3h]=block, [gap 2h],
+        //           [5h..6h]=block, [gap 10h], [16h..17h]=block, then end at 24h.
+        let b1 = block(1, Some((0.0, h)), vec![]);
+        let b2 = block(2, Some((2.0 * h, 3.0 * h)), vec![]);
+        let b3 = block(3, Some((5.0 * h, 6.0 * h)), vec![]);
+        let b4 = block(4, Some((16.0 * h, 17.0 * h)), vec![]);
+        let sched = schedule_with((0.0, 1.0), vec![(0.0, 1.0)], vec![], vec![b1, b2, b3, b4]);
+        let data = compute_fragmentation(&sched, &empty_validation());
+
+        // Expected gaps in hours: 1, 2, 10 (the trailing idle 7h is also a gap).
+        // 4 gaps total: 1, 2, 10, 7 → sorted: 1, 2, 7, 10.
+        assert_eq!(data.metrics.gap_count, 4);
+        let std_dev = data.metrics.gap_std_dev_hours.value();
+        // Sample stddev of {1,2,7,10} = sqrt(54/3) = sqrt(18) ≈ 4.24264
+        assert!((std_dev - 18f64.sqrt()).abs() < 1e-6, "std_dev = {std_dev}");
+        // p90 linear-interp on [1,2,7,10]: rank = 0.9*3 = 2.7 → 7 + 0.7*(10-7) = 9.1
+        let p90 = data.metrics.gap_p90_hours.value();
+        assert!((p90 - 9.1).abs() < 1e-6, "p90 = {p90}");
     }
 
     #[test]

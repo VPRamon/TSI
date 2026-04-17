@@ -321,6 +321,8 @@ export interface FragmentationMetrics {
   gap_count: number;
   gap_mean_hours: number;
   gap_median_hours: number;
+  gap_std_dev_hours: number;
+  gap_p90_hours: number;
   largest_gap_hours: number;
   scheduled_fraction_of_operable: number;
   idle_fraction_of_operable: number;
@@ -344,6 +346,7 @@ export interface AltAzData {
 
 export interface FragmentationData {
   schedule_id: number;
+  schedule_name: string;
   schedule_window: FragmentationMjdPeriod;
   operable_periods: FragmentationMjdPeriod[];
   operable_source: string;
@@ -439,14 +442,19 @@ export interface ValidationReport {
 // Compare
 export interface CompareBlock {
   scheduling_block_id: string;
+  original_block_id: string;
+  block_name: string;
   priority: number;
   scheduled: boolean;
   requested_hours: number;
+  scheduled_start_mjd: number | null;
+  scheduled_stop_mjd: number | null;
 }
 
 export interface CompareStats {
   scheduled_count: number;
   unscheduled_count: number;
+  /** Sum of scheduled priorities. Rendered in the UI as "Cumulative priority". */
   total_priority: number;
   mean_priority: number;
   median_priority: number;
@@ -462,6 +470,34 @@ export interface SchedulingChange {
   change_type: string;
 }
 
+export interface CompareDiffBlock {
+  original_block_id: string;
+  block_name: string;
+  priority: number;
+  requested_hours: number;
+  current_scheduling_block_id: string | null;
+  comparison_scheduling_block_id: string | null;
+  current_scheduled_start_mjd: number | null;
+  current_scheduled_stop_mjd: number | null;
+  comparison_scheduled_start_mjd: number | null;
+  comparison_scheduled_stop_mjd: number | null;
+}
+
+export interface RetimedBlockChange {
+  original_block_id: string;
+  block_name: string;
+  priority: number;
+  requested_hours: number;
+  current_scheduling_block_id: string | null;
+  comparison_scheduling_block_id: string | null;
+  current_scheduled_start_mjd: number | null;
+  current_scheduled_stop_mjd: number | null;
+  comparison_scheduled_start_mjd: number | null;
+  comparison_scheduled_stop_mjd: number | null;
+  start_shift_hours: number;
+  stop_shift_hours: number;
+}
+
 export interface CompareData {
   current_blocks: CompareBlock[];
   comparison_blocks: CompareBlock[];
@@ -471,6 +507,11 @@ export interface CompareData {
   only_in_current: string[];
   only_in_comparison: string[];
   scheduling_changes: SchedulingChange[];
+  scheduled_only_current: CompareDiffBlock[];
+  scheduled_only_comparison: CompareDiffBlock[];
+  only_in_current_blocks: CompareDiffBlock[];
+  only_in_comparison_blocks: CompareDiffBlock[];
+  retimed_blocks: RetimedBlockChange[];
   current_name: string;
   comparison_name: string;
 }

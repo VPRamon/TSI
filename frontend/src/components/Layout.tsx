@@ -171,6 +171,14 @@ function Layout() {
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
+  const selectedScheduleName = selectedSchedule?.schedule_name?.trim();
+  const scheduleBadgeName =
+    selectedScheduleName && selectedScheduleName.length > 0
+      ? selectedScheduleName
+      : scheduleId
+        ? `Schedule ${scheduleId}`
+        : null;
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-900">
       {/* Skip to main content link for keyboard navigation */}
@@ -234,12 +242,10 @@ function Layout() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-slate-400">Schedule</span>
                       <span className="rounded-md bg-slate-700 px-2.5 py-1 text-sm font-medium text-white">
-                        #{scheduleId}
-                        {selectedSchedule?.schedule_name && (
-                          <span className="ml-1.5 text-slate-400">
-                            • {selectedSchedule.schedule_name}
-                          </span>
-                        )}
+                        {scheduleBadgeName}
+                        <span className="ml-2 text-xs font-normal text-slate-400">
+                          #{scheduleId}
+                        </span>
                       </span>
                     </div>
 
@@ -346,12 +352,10 @@ function Layout() {
                 <div className="mb-3 flex items-center gap-2 px-1">
                   <span className="text-xs text-slate-400">Schedule</span>
                   <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs font-medium text-white">
-                    #{scheduleId}
-                    {selectedSchedule?.schedule_name && (
-                      <span className="ml-1 text-slate-400">
-                        • {selectedSchedule.schedule_name}
-                      </span>
-                    )}
+                    {scheduleBadgeName}
+                    <span className="ml-1 text-[11px] font-normal text-slate-400">
+                      #{scheduleId}
+                    </span>
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">

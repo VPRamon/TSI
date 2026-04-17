@@ -88,6 +88,8 @@ pub struct FragmentationMetrics {
     pub gap_count: usize,
     pub gap_mean_hours: Hours,
     pub gap_median_hours: Hours,
+    pub gap_std_dev_hours: Hours,
+    pub gap_p90_hours: Hours,
     pub largest_gap_hours: Hours,
     /// Fraction of operable time that is scheduled (`scheduled_hours / operable_hours`).
     pub scheduled_fraction_of_operable: f64,
@@ -103,6 +105,7 @@ pub struct FragmentationMetrics {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FragmentationData {
     pub schedule_id: crate::api::ScheduleId,
+    pub schedule_name: String,
     pub schedule_window: Period,
     /// Operable baseline used (`dark_periods` preferred, else `astronomical_nights`).
     pub operable_periods: Vec<Period>,
@@ -138,6 +141,7 @@ mod tests {
     fn test_fragmentation_data_debug() {
         let data = FragmentationData {
             schedule_id: crate::api::ScheduleId::new(1),
+            schedule_name: "Named Schedule".to_string(),
             schedule_window: Period::new(
                 ModifiedJulianDate::new(59000.0),
                 ModifiedJulianDate::new(59001.0),
@@ -159,6 +163,8 @@ mod tests {
                 gap_count: 0,
                 gap_mean_hours: Hours::new(0.0),
                 gap_median_hours: Hours::new(0.0),
+                gap_std_dev_hours: Hours::new(0.0),
+                gap_p90_hours: Hours::new(0.0),
                 largest_gap_hours: Hours::new(0.0),
                 scheduled_fraction_of_operable: 0.0,
                 idle_fraction_of_operable: 0.0,
@@ -168,6 +174,7 @@ mod tests {
         };
         let s = format!("{:?}", data);
         assert!(s.contains("FragmentationData"));
+        assert!(s.contains("Named Schedule"));
     }
 
     #[test]

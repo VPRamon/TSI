@@ -27,8 +27,13 @@ export function useScheduleSync() {
     // Find the schedule in the list
     const schedule = schedulesData.schedules.find((s) => s.schedule_id === currentId);
 
-    // Only update if different to avoid unnecessary re-renders
-    if (schedule && schedule.schedule_id !== selectedSchedule?.schedule_id) {
+    const scheduleChanged =
+      !!schedule &&
+      (schedule.schedule_id !== selectedSchedule?.schedule_id ||
+        schedule.schedule_name !== selectedSchedule?.schedule_name);
+
+    // Keep the selected schedule name in sync after imports or renames.
+    if (scheduleChanged) {
       setSelectedSchedule(schedule);
     } else if (!schedule && selectedSchedule?.schedule_id === currentId) {
       // Schedule was deleted or not found

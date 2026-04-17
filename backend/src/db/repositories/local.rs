@@ -874,19 +874,28 @@ impl VisualizationRepository for LocalRepository {
 
         let schedule = self.get_schedule_impl(schedule_id)?;
 
-        // Convert schedule blocks to CompareBlock format
+        // Convert schedule blocks to CompareBlock format. Use the stored DB
+        // id (falling back to the row index only for display) — matching is
+        // done via `original_block_id`, never row position.
         let blocks: Vec<CompareBlock> = schedule
             .blocks
             .iter()
             .enumerate()
             .map(|(idx, b)| {
                 let requested_hours = b.requested_duration.value() / 3600.0;
+                let scheduling_block_id =
+                    b.id.map(|id| id.0.to_string())
+                        .unwrap_or_else(|| format!("local-{}", idx + 1));
 
                 CompareBlock {
-                    scheduling_block_id: format!("{}", idx + 1),
+                    scheduling_block_id,
+                    original_block_id: b.original_block_id.clone(),
+                    block_name: b.block_name.clone(),
                     priority: b.priority,
                     scheduled: b.scheduled_period.is_some(),
                     requested_hours: qtty::Hours::new(requested_hours),
+                    scheduled_start_mjd: b.scheduled_period.as_ref().map(|p| p.start.value()),
+                    scheduled_stop_mjd: b.scheduled_period.as_ref().map(|p| p.end.value()),
                 }
             })
             .collect();

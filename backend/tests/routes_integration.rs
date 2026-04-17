@@ -76,9 +76,13 @@ fn test_routes_module_exists() {
 fn test_compare_block_basic() {
     let block = routes::compare::CompareBlock {
         scheduling_block_id: "test".to_string(),
+        original_block_id: "orig-test".to_string(),
+        block_name: String::new(),
         priority: 5.0,
         scheduled: true,
         requested_hours: qtty::Hours::new(1.0),
+        scheduled_start_mjd: None,
+        scheduled_stop_mjd: None,
     };
     assert_eq!(block.priority, 5.0);
     assert!(block.scheduled);
@@ -145,6 +149,11 @@ fn test_compare_data_creation() {
         only_in_current: vec![],
         only_in_comparison: vec![],
         scheduling_changes: vec![],
+        scheduled_only_current: vec![],
+        scheduled_only_comparison: vec![],
+        only_in_current_blocks: vec![],
+        only_in_comparison_blocks: vec![],
+        retimed_blocks: vec![],
         current_name: "Schedule A".to_string(),
         comparison_name: "Schedule B".to_string(),
     };
@@ -625,13 +634,14 @@ fn test_route_constants_are_strings() {
 
 #[test]
 fn test_fragmentation_data_json_roundtrip() {
+    use qtty::Hours;
     use tsi_rust::api::{
         FragmentationData, FragmentationMetrics, FragmentationSegment, FragmentationSegmentKind,
     };
-    use qtty::Hours;
 
     let data = FragmentationData {
         schedule_id: ScheduleId::new(1),
+        schedule_name: "Integration Test Schedule".to_string(),
         schedule_window: Period {
             start: ModifiedJulianDate::new(60000.0),
             end: ModifiedJulianDate::new(60001.0),
@@ -658,6 +668,8 @@ fn test_fragmentation_data_json_roundtrip() {
             gap_count: 0,
             gap_mean_hours: Hours::new(0.0),
             gap_median_hours: Hours::new(0.0),
+            gap_std_dev_hours: Hours::new(0.0),
+            gap_p90_hours: Hours::new(0.0),
             largest_gap_hours: Hours::new(0.0),
             scheduled_fraction_of_operable: 0.0,
             idle_fraction_of_operable: 0.0,
@@ -667,11 +679,13 @@ fn test_fragmentation_data_json_roundtrip() {
     };
 
     let json = serde_json::to_string(&data).expect("serialize");
+    assert!(json.contains("\"schedule_name\":\"Integration Test Schedule\""));
     assert!(json.contains("\"operable_source\":\"dark_periods\""));
     assert!(json.contains("\"kind\":\"non_operable\""));
     assert!(json.contains("\"schedule_hours\""));
 
     let round: FragmentationData = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(round.schedule_name, "Integration Test Schedule");
     assert_eq!(round.operable_source, "dark_periods");
     assert_eq!(round.segments.len(), 1);
 }
@@ -687,7 +701,8 @@ async fn test_fragmentation_endpoint_registered() {
     use tsi_rust::db::repositories::LocalRepository;
     use tsi_rust::http::{create_router, AppState};
 
-    let repo = Arc::new(LocalRepository::new()) as Arc<dyn tsi_rust::db::repository::FullRepository>;
+    let repo =
+        Arc::new(LocalRepository::new()) as Arc<dyn tsi_rust::db::repository::FullRepository>;
     let state = AppState::new(repo);
     let app = create_router(state);
 

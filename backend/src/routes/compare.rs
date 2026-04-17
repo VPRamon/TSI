@@ -6,16 +6,32 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareBlock {
+    /// Opaque per-schedule identifier (database block id as a string).
+    /// Never used as the cross-schedule match key.
     pub scheduling_block_id: String,
+    /// Canonical cross-schedule match key. Non-empty values are matched across
+    /// schedules; empty means the block is unique to its schedule.
+    #[serde(default)]
+    pub original_block_id: String,
+    #[serde(default)]
+    pub block_name: String,
     pub priority: f64,
     pub scheduled: bool,
     pub requested_hours: qtty::Hours,
+    /// Scheduled start in MJD (only populated when the block is scheduled).
+    #[serde(default)]
+    pub scheduled_start_mjd: Option<f64>,
+    /// Scheduled stop in MJD (only populated when the block is scheduled).
+    #[serde(default)]
+    pub scheduled_stop_mjd: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareStats {
     pub scheduled_count: usize,
     pub unscheduled_count: usize,
+    /// Sum of priorities over scheduled blocks. Rendered in the UI as
+    /// "Cumulative priority".
     pub total_priority: f64,
     pub mean_priority: f64,
     pub median_priority: f64,
@@ -32,231 +48,61 @@ pub struct SchedulingChange {
     pub change_type: String,
 }
 
+/// Table-ready row capturing a block's identity and both schedules' state.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompareDiffBlock {
+    pub original_block_id: String,
+    pub block_name: String,
+    pub priority: f64,
+    pub requested_hours: qtty::Hours,
+    pub current_scheduling_block_id: Option<String>,
+    pub comparison_scheduling_block_id: Option<String>,
+    pub current_scheduled_start_mjd: Option<f64>,
+    pub current_scheduled_stop_mjd: Option<f64>,
+    pub comparison_scheduled_start_mjd: Option<f64>,
+    pub comparison_scheduled_stop_mjd: Option<f64>,
+}
+
+/// A block scheduled in both schedules but with a different scheduled window.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetimedBlockChange {
+    pub original_block_id: String,
+    pub block_name: String,
+    pub priority: f64,
+    pub requested_hours: qtty::Hours,
+    pub current_scheduling_block_id: Option<String>,
+    pub comparison_scheduling_block_id: Option<String>,
+    pub current_scheduled_start_mjd: Option<f64>,
+    pub current_scheduled_stop_mjd: Option<f64>,
+    pub comparison_scheduled_start_mjd: Option<f64>,
+    pub comparison_scheduled_stop_mjd: Option<f64>,
+    pub start_shift_hours: f64,
+    pub stop_shift_hours: f64,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareData {
     pub current_blocks: Vec<CompareBlock>,
     pub comparison_blocks: Vec<CompareBlock>,
     pub current_stats: CompareStats,
     pub comparison_stats: CompareStats,
+
+    // Legacy arrays — kept for API compatibility. Populated from matched
+    // original_block_id values; frontend uses the grouped fields below.
     pub common_ids: Vec<String>,
     pub only_in_current: Vec<String>,
     pub only_in_comparison: Vec<String>,
     pub scheduling_changes: Vec<SchedulingChange>,
+
+    // Grouped diff tables.
+    pub scheduled_only_current: Vec<CompareDiffBlock>,
+    pub scheduled_only_comparison: Vec<CompareDiffBlock>,
+    pub only_in_current_blocks: Vec<CompareDiffBlock>,
+    pub only_in_comparison_blocks: Vec<CompareDiffBlock>,
+    pub retimed_blocks: Vec<RetimedBlockChange>,
+
     pub current_name: String,
     pub comparison_name: String,
 }
 
 pub const GET_COMPARE_DATA: &str = "get_compare_data";
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json;
-
-    #[test]
-    fn test_compare_block_clone() {
-        let block = CompareBlock {
-            scheduling_block_id: "test-1".to_string(),
-            priority: 5.0,
-            scheduled: true,
-            requested_hours: qtty::Hours::new(2.0),
-        };
-        let cloned = block.clone();
-        assert_eq!(cloned.scheduling_block_id, "test-1");
-        assert_eq!(cloned.priority, 5.0);
-    }
-
-    #[test]
-    fn test_compare_block_debug() {
-        let block = CompareBlock {
-            scheduling_block_id: "test-1".to_string(),
-            priority: 5.0,
-            scheduled: true,
-            requested_hours: qtty::Hours::new(2.0),
-        };
-        let debug_str = format!("{:?}", block);
-        assert!(debug_str.contains("CompareBlock"));
-    }
-
-    #[test]
-    fn test_compare_block_serialize() {
-        let block = CompareBlock {
-            scheduling_block_id: "test-1".to_string(),
-            priority: 5.0,
-            scheduled: true,
-            requested_hours: qtty::Hours::new(2.0),
-        };
-        let json = serde_json::to_string(&block).unwrap();
-        assert!(json.contains("test-1"));
-        let deserialized: CompareBlock = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.scheduling_block_id, "test-1");
-    }
-
-    #[test]
-    fn test_compare_stats_clone() {
-        let stats = CompareStats {
-            scheduled_count: 10,
-            unscheduled_count: 5,
-            total_priority: 75.0,
-            mean_priority: 5.0,
-            median_priority: 4.5,
-            total_hours: qtty::Hours::new(20.0),
-            gap_count: None,
-            gap_mean_hours: None,
-            gap_median_hours: None,
-        };
-        let cloned = stats.clone();
-        assert_eq!(cloned.scheduled_count, 10);
-    }
-
-    #[test]
-    fn test_compare_stats_debug() {
-        let stats = CompareStats {
-            scheduled_count: 10,
-            unscheduled_count: 5,
-            total_priority: 75.0,
-            mean_priority: 5.0,
-            median_priority: 4.5,
-            total_hours: qtty::Hours::new(20.0),
-            gap_count: None,
-            gap_mean_hours: None,
-            gap_median_hours: None,
-        };
-        let debug_str = format!("{:?}", stats);
-        assert!(debug_str.contains("CompareStats"));
-    }
-
-    #[test]
-    fn test_compare_stats_serialize() {
-        let stats = CompareStats {
-            scheduled_count: 10,
-            unscheduled_count: 5,
-            total_priority: 75.0,
-            mean_priority: 5.0,
-            median_priority: 4.5,
-            total_hours: qtty::Hours::new(20.0),
-            gap_count: None,
-            gap_mean_hours: None,
-            gap_median_hours: None,
-        };
-        let json = serde_json::to_string(&stats).unwrap();
-        let deserialized: CompareStats = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.scheduled_count, 10);
-    }
-
-    #[test]
-    fn test_scheduling_change_clone() {
-        let change = SchedulingChange {
-            scheduling_block_id: "block-1".to_string(),
-            priority: 3.0,
-            change_type: "newly_scheduled".to_string(),
-        };
-        let cloned = change.clone();
-        assert_eq!(cloned.change_type, "newly_scheduled");
-    }
-
-    #[test]
-    fn test_scheduling_change_debug() {
-        let change = SchedulingChange {
-            scheduling_block_id: "block-1".to_string(),
-            priority: 3.0,
-            change_type: "newly_scheduled".to_string(),
-        };
-        let debug_str = format!("{:?}", change);
-        assert!(debug_str.contains("SchedulingChange"));
-    }
-
-    #[test]
-    fn test_scheduling_change_serialize() {
-        let change = SchedulingChange {
-            scheduling_block_id: "block-1".to_string(),
-            priority: 3.0,
-            change_type: "newly_scheduled".to_string(),
-        };
-        let json = serde_json::to_string(&change).unwrap();
-        let deserialized: SchedulingChange = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.change_type, "newly_scheduled");
-    }
-
-    #[test]
-    fn test_compare_data_debug() {
-        let data = CompareData {
-            current_blocks: vec![],
-            comparison_blocks: vec![],
-            current_stats: CompareStats {
-                scheduled_count: 0,
-                unscheduled_count: 0,
-                total_priority: 0.0,
-                mean_priority: 0.0,
-                median_priority: 0.0,
-                total_hours: qtty::Hours::new(0.0),
-                gap_count: None,
-                gap_mean_hours: None,
-                gap_median_hours: None,
-            },
-            comparison_stats: CompareStats {
-                scheduled_count: 0,
-                unscheduled_count: 0,
-                total_priority: 0.0,
-                mean_priority: 0.0,
-                median_priority: 0.0,
-                total_hours: qtty::Hours::new(0.0),
-                gap_count: None,
-                gap_mean_hours: None,
-                gap_median_hours: None,
-            },
-            common_ids: vec![],
-            only_in_current: vec![],
-            only_in_comparison: vec![],
-            scheduling_changes: vec![],
-            current_name: "Schedule A".to_string(),
-            comparison_name: "Schedule B".to_string(),
-        };
-        let debug_str = format!("{:?}", data);
-        assert!(debug_str.contains("CompareData"));
-    }
-
-    #[test]
-    fn test_compare_data_serialize() {
-        let data = CompareData {
-            current_blocks: vec![],
-            comparison_blocks: vec![],
-            current_stats: CompareStats {
-                scheduled_count: 0,
-                unscheduled_count: 0,
-                total_priority: 0.0,
-                mean_priority: 0.0,
-                median_priority: 0.0,
-                total_hours: qtty::Hours::new(0.0),
-                gap_count: None,
-                gap_mean_hours: None,
-                gap_median_hours: None,
-            },
-            comparison_stats: CompareStats {
-                scheduled_count: 0,
-                unscheduled_count: 0,
-                total_priority: 0.0,
-                mean_priority: 0.0,
-                median_priority: 0.0,
-                total_hours: qtty::Hours::new(0.0),
-                gap_count: None,
-                gap_mean_hours: None,
-                gap_median_hours: None,
-            },
-            common_ids: vec![],
-            only_in_current: vec![],
-            only_in_comparison: vec![],
-            scheduling_changes: vec![],
-            current_name: "Schedule A".to_string(),
-            comparison_name: "Schedule B".to_string(),
-        };
-        let json = serde_json::to_string(&data).unwrap();
-        let deserialized: CompareData = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.current_name, "Schedule A");
-    }
-
-    #[test]
-    fn test_const_value() {
-        assert_eq!(GET_COMPARE_DATA, "get_compare_data");
-    }
-}

@@ -354,8 +354,8 @@ pub async fn compute_alt_az(
 
     let _schedule = db_services::get_schedule(state.repository.as_ref(), schedule_id).await?;
 
-    let data = crate::services::compute_alt_az_data(schedule_id, &request)
-        .map_err(AppError::Internal)?;
+    let data =
+        crate::services::compute_alt_az_data(schedule_id, &request).map_err(AppError::Internal)?;
 
     Ok(Json(data))
 }
@@ -461,18 +461,32 @@ pub async fn get_validation_report(
 ///
 /// Compare two schedules.
 pub async fn compare_schedules(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path((schedule_id, other_id)): Path<(i64, i64)>,
     Query(query): Query<CompareQuery>,
 ) -> HandlerResult<crate::api::CompareData> {
     let current_id = ScheduleId::new(schedule_id);
     let comparison_id = ScheduleId::new(other_id);
-    let current_name = query
-        .current_name
-        .unwrap_or_else(|| "Schedule A".to_string());
-    let comparison_name = query
-        .comparison_name
-        .unwrap_or_else(|| "Schedule B".to_string());
+
+    let current_name = match query.current_name {
+        Some(name) if !name.trim().is_empty() => name,
+        _ => db_services::get_schedule(state.repository.as_ref(), current_id)
+            .await
+            .ok()
+            .map(|s| s.name)
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or_else(|| format!("Schedule #{}", schedule_id)),
+    };
+
+    let comparison_name = match query.comparison_name {
+        Some(name) if !name.trim().is_empty() => name,
+        _ => db_services::get_schedule(state.repository.as_ref(), comparison_id)
+            .await
+            .ok()
+            .map(|s| s.name)
+            .filter(|name| !name.trim().is_empty())
+            .unwrap_or_else(|| format!("Schedule #{}", other_id)),
+    };
 
     let data = tokio::task::spawn_blocking(move || {
         crate::services::py_get_compare_data(

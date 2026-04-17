@@ -94,7 +94,8 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
         const message = parseError instanceof Error ? parseError.message : 'Invalid JSON content';
         throw new Error(`Invalid JSON: ${message}`);
       }
-      const name = uploadName || selectedFile.name.replace('.json', '');
+      const trimmedUploadName = uploadName.trim();
+      const name = trimmedUploadName || selectedFile.name.replace(/\.json$/i, '');
 
       const locationOverride =
         selectedSiteIdx !== SITE_FROM_FILE
@@ -176,17 +177,20 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
               htmlFor="schedule-name"
               className="mb-2 block text-sm font-medium text-slate-300"
             >
-              Schedule Name (optional)
+              Schedule Name
             </label>
             <input
               id="schedule-name"
               type="text"
               value={uploadName}
               onChange={(e) => setUploadName(e.target.value)}
-              placeholder="Leave blank to use filename"
+              placeholder="Enter the name you want to see across TSI"
               disabled={isUploading}
               className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-2.5 text-white placeholder-slate-500 transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50"
             />
+            <p className="mt-2 text-xs text-slate-500">
+              This label is used throughout the app to identify the imported schedule.
+            </p>
           </div>
 
           {/* Observatory Site */}

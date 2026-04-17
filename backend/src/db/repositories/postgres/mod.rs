@@ -1758,21 +1758,47 @@ impl VisualizationRepository for PostgresRepository {
                 .filter(schedule_blocks::schedule_id.eq(schedule_id.0))
                 .select((
                     schedule_blocks::scheduling_block_id,
+                    schedule_blocks::original_block_id,
+                    schedule_blocks::block_name,
                     schedule_blocks::priority,
                     schedule_block_analytics::scheduled,
                     schedule_block_analytics::requested_hours,
+                    schedule_block_analytics::scheduled_start_mjd,
+                    schedule_block_analytics::scheduled_stop_mjd,
                 ))
-                .load::<(i64, f64, bool, f64)>(conn)
+                .load::<(
+                    i64,
+                    Option<String>,
+                    String,
+                    f64,
+                    bool,
+                    f64,
+                    Option<f64>,
+                    Option<f64>,
+                )>(conn)
                 .map_err(map_diesel_error)?;
 
             let blocks = rows
                 .into_iter()
                 .map(
-                    |(block_id, priority, scheduled, requested_hours)| CompareBlock {
+                    |(
+                        block_id,
+                        original_block_id,
+                        block_name,
+                        priority,
+                        scheduled,
+                        requested_hours,
+                        scheduled_start_mjd,
+                        scheduled_stop_mjd,
+                    )| CompareBlock {
                         scheduling_block_id: block_id.to_string(),
+                        original_block_id: original_block_id.unwrap_or_default(),
+                        block_name,
                         priority,
                         scheduled,
                         requested_hours: requested_hours.into(),
+                        scheduled_start_mjd,
+                        scheduled_stop_mjd,
                     },
                 )
                 .collect();

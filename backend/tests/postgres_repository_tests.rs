@@ -767,7 +767,7 @@ async fn test_postgres_fetch_histogram_blocks() {
 
     // Test with filters
     let filtered = repo
-        .fetch_blocks_for_histogram(metadata.schedule_id, Some(1), Some(3), None)
+        .fetch_blocks_for_histogram(metadata.schedule_id, Some(1.0), Some(3.0), None)
         .await
         .expect("Should fetch filtered histogram blocks");
 

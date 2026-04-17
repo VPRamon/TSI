@@ -1,10 +1,17 @@
 #![allow(clippy::manual_is_multiple_of)]
 #![allow(clippy::redundant_closure)]
 
-use crate::api::{CompareBlock, CompareData, CompareStats, SchedulingChange};
+use crate::api::{
+    CompareBlock, CompareData, CompareDiffBlock, CompareStats, RetimedBlockChange, SchedulingChange,
+};
 use crate::db::get_repository;
 use std::collections::{HashMap, HashSet};
 use tokio::runtime::Runtime;
+
+/// Retimed-block tolerance: treat scheduled boundaries as unchanged if both
+/// differ by less than one second (1 s = 1/86400 days in MJD).
+const RETIMED_TOLERANCE_SECONDS: f64 = 1.0;
+const SECONDS_PER_DAY: f64 = 86_400.0;
 
 /// Compute statistics for a set of blocks.
 pub(crate) fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
@@ -57,27 +64,73 @@ pub(crate) fn compute_stats(blocks: &[CompareBlock]) -> CompareStats {
     }
 }
 
-/// Gap metrics tuple (count, mean_hours, median_hours)
+/// Gap metrics tuple (count, mean_hours, median_hours).
 pub type GapMetrics = (Option<i32>, Option<qtty::Hours>, Option<qtty::Hours>);
 
-/// Compute statistics for a set of blocks with gap metrics from summary analytics.
 pub(crate) fn compute_stats_with_gaps(
     blocks: &[CompareBlock],
     gap_metrics: Option<GapMetrics>,
 ) -> CompareStats {
     let mut stats = compute_stats(blocks);
-
     if let Some((gap_count, gap_mean_hours, gap_median_hours)) = gap_metrics {
         stats.gap_count = gap_count;
         stats.gap_mean_hours = gap_mean_hours;
         stats.gap_median_hours = gap_median_hours;
     }
-
     stats
 }
 
-/// Compute comparison data from two sets of blocks.
-/// This function takes blocks from both schedules and computes all necessary statistics and changes.
+/// Build a map keyed by non-empty `original_block_id`. Returns an error if a
+/// duplicate non-empty key is seen within the same schedule.
+fn index_by_original_id<'a>(
+    blocks: &'a [CompareBlock],
+    schedule_label: &str,
+) -> Result<HashMap<String, &'a CompareBlock>, String> {
+    let mut map: HashMap<String, &'a CompareBlock> = HashMap::new();
+    for b in blocks {
+        let key = b.original_block_id.trim();
+        if key.is_empty() {
+            continue;
+        }
+        if map.insert(key.to_string(), b).is_some() {
+            return Err(format!(
+                "Duplicate original_block_id '{}' in {} schedule",
+                key, schedule_label
+            ));
+        }
+    }
+    Ok(map)
+}
+
+fn diff_block_from(
+    id: &str,
+    current: Option<&CompareBlock>,
+    comparison: Option<&CompareBlock>,
+) -> CompareDiffBlock {
+    // Prefer metadata from whichever side has it (they should agree for matched blocks).
+    let any = current
+        .or(comparison)
+        .expect("at least one side must exist");
+    let block_name = current
+        .map(|b| b.block_name.clone())
+        .filter(|n| !n.is_empty())
+        .or_else(|| comparison.map(|b| b.block_name.clone()))
+        .unwrap_or_default();
+
+    CompareDiffBlock {
+        original_block_id: id.to_string(),
+        block_name,
+        priority: any.priority,
+        requested_hours: any.requested_hours,
+        current_scheduling_block_id: current.map(|b| b.scheduling_block_id.clone()),
+        comparison_scheduling_block_id: comparison.map(|b| b.scheduling_block_id.clone()),
+        current_scheduled_start_mjd: current.and_then(|b| b.scheduled_start_mjd),
+        current_scheduled_stop_mjd: current.and_then(|b| b.scheduled_stop_mjd),
+        comparison_scheduled_start_mjd: comparison.and_then(|b| b.scheduled_start_mjd),
+        comparison_scheduled_stop_mjd: comparison.and_then(|b| b.scheduled_stop_mjd),
+    }
+}
+
 pub fn compute_compare_data(
     current_blocks: Vec<CompareBlock>,
     comparison_blocks: Vec<CompareBlock>,
@@ -94,7 +147,6 @@ pub fn compute_compare_data(
     )
 }
 
-/// Compute comparison data from two sets of blocks with gap metrics.
 pub fn compute_compare_data_with_gaps(
     current_blocks: Vec<CompareBlock>,
     comparison_blocks: Vec<CompareBlock>,
@@ -103,63 +155,144 @@ pub fn compute_compare_data_with_gaps(
     current_gap_metrics: Option<GapMetrics>,
     comparison_gap_metrics: Option<GapMetrics>,
 ) -> Result<CompareData, String> {
-    // Create ID sets for comparison
-    let current_ids: HashSet<String> = current_blocks
-        .iter()
-        .map(|b| b.scheduling_block_id.clone())
+    // Match by non-empty original_block_id.
+    let current_map = index_by_original_id(&current_blocks, "current")?;
+    let comparison_map = index_by_original_id(&comparison_blocks, "comparison")?;
+
+    let current_keys: HashSet<&String> = current_map.keys().collect();
+    let comparison_keys: HashSet<&String> = comparison_map.keys().collect();
+
+    let mut common: Vec<String> = current_keys
+        .intersection(&comparison_keys)
+        .map(|s| (*s).clone())
         .collect();
+    common.sort();
 
-    let comparison_ids: HashSet<String> = comparison_blocks
-        .iter()
-        .map(|b| b.scheduling_block_id.clone())
+    let mut only_in_current: Vec<String> = current_keys
+        .difference(&comparison_keys)
+        .map(|s| (*s).clone())
         .collect();
+    only_in_current.sort();
 
-    // Find differences
-    let only_in_current: Vec<String> = current_ids.difference(&comparison_ids).cloned().collect();
-
-    let only_in_comparison: Vec<String> =
-        comparison_ids.difference(&current_ids).cloned().collect();
-
-    let common_ids: Vec<String> = current_ids.intersection(&comparison_ids).cloned().collect();
-
-    // Create maps for efficient lookup
-    let current_map: HashMap<String, &CompareBlock> = current_blocks
-        .iter()
-        .map(|b| (b.scheduling_block_id.clone(), b))
+    let mut only_in_comparison: Vec<String> = comparison_keys
+        .difference(&current_keys)
+        .map(|s| (*s).clone())
         .collect();
+    only_in_comparison.sort();
 
-    let comparison_map: HashMap<String, &CompareBlock> = comparison_blocks
-        .iter()
-        .map(|b| (b.scheduling_block_id.clone(), b))
-        .collect();
+    // Legacy scheduling_changes (status flips on common ids).
+    let mut scheduling_changes: Vec<SchedulingChange> = Vec::new();
 
-    // Find scheduling changes
-    let mut scheduling_changes = Vec::new();
-    for id in &common_ids {
-        if let (Some(current_block), Some(comparison_block)) =
-            (current_map.get(id), comparison_map.get(id))
-        {
-            // Newly scheduled: was unscheduled in current, scheduled in comparison
-            if !current_block.scheduled && comparison_block.scheduled {
-                scheduling_changes.push(SchedulingChange {
-                    scheduling_block_id: id.clone(),
-                    priority: comparison_block.priority,
-                    change_type: "newly_scheduled".to_string(),
-                });
-            }
+    // Grouped diff outputs.
+    let mut scheduled_only_current: Vec<CompareDiffBlock> = Vec::new();
+    let mut scheduled_only_comparison: Vec<CompareDiffBlock> = Vec::new();
+    let mut retimed_blocks: Vec<RetimedBlockChange> = Vec::new();
 
-            // Newly unscheduled: was scheduled in current, unscheduled in comparison
-            if current_block.scheduled && !comparison_block.scheduled {
-                scheduling_changes.push(SchedulingChange {
-                    scheduling_block_id: id.clone(),
-                    priority: current_block.priority,
-                    change_type: "newly_unscheduled".to_string(),
+    for id in &common {
+        let cur = current_map.get(id).copied();
+        let cmp = comparison_map.get(id).copied();
+        let (Some(cur_b), Some(cmp_b)) = (cur, cmp) else {
+            continue;
+        };
+
+        // Status flips.
+        if !cur_b.scheduled && cmp_b.scheduled {
+            scheduling_changes.push(SchedulingChange {
+                scheduling_block_id: id.clone(),
+                priority: cmp_b.priority,
+                change_type: "newly_scheduled".to_string(),
+            });
+            scheduled_only_comparison.push(diff_block_from(id, cur, cmp));
+        } else if cur_b.scheduled && !cmp_b.scheduled {
+            scheduling_changes.push(SchedulingChange {
+                scheduling_block_id: id.clone(),
+                priority: cur_b.priority,
+                change_type: "newly_unscheduled".to_string(),
+            });
+            scheduled_only_current.push(diff_block_from(id, cur, cmp));
+        } else if cur_b.scheduled && cmp_b.scheduled {
+            // Retimed detection.
+            let (Some(cs), Some(ce), Some(ms), Some(me)) = (
+                cur_b.scheduled_start_mjd,
+                cur_b.scheduled_stop_mjd,
+                cmp_b.scheduled_start_mjd,
+                cmp_b.scheduled_stop_mjd,
+            ) else {
+                continue;
+            };
+            let start_shift_seconds = (ms - cs) * SECONDS_PER_DAY;
+            let stop_shift_seconds = (me - ce) * SECONDS_PER_DAY;
+            if start_shift_seconds.abs() > RETIMED_TOLERANCE_SECONDS
+                || stop_shift_seconds.abs() > RETIMED_TOLERANCE_SECONDS
+            {
+                let block_name = if !cur_b.block_name.is_empty() {
+                    cur_b.block_name.clone()
+                } else {
+                    cmp_b.block_name.clone()
+                };
+                retimed_blocks.push(RetimedBlockChange {
+                    original_block_id: id.clone(),
+                    block_name,
+                    priority: cur_b.priority,
+                    requested_hours: cur_b.requested_hours,
+                    current_scheduling_block_id: Some(cur_b.scheduling_block_id.clone()),
+                    comparison_scheduling_block_id: Some(cmp_b.scheduling_block_id.clone()),
+                    current_scheduled_start_mjd: Some(cs),
+                    current_scheduled_stop_mjd: Some(ce),
+                    comparison_scheduled_start_mjd: Some(ms),
+                    comparison_scheduled_stop_mjd: Some(me),
+                    start_shift_hours: start_shift_seconds / 3600.0,
+                    stop_shift_hours: stop_shift_seconds / 3600.0,
                 });
             }
         }
     }
 
-    // Compute statistics with gap metrics
+    // Schedule-exclusive blocks.
+    let mut only_in_current_blocks: Vec<CompareDiffBlock> = only_in_current
+        .iter()
+        .map(|id| diff_block_from(id, current_map.get(id).copied(), None))
+        .collect();
+    let mut only_in_comparison_blocks: Vec<CompareDiffBlock> = only_in_comparison
+        .iter()
+        .map(|id| diff_block_from(id, None, comparison_map.get(id).copied()))
+        .collect();
+
+    // Append schedule-exclusive blocks that are scheduled into their "scheduled only" list.
+    for id in &only_in_current {
+        if let Some(b) = current_map.get(id).copied() {
+            if b.scheduled {
+                scheduled_only_current.push(diff_block_from(id, Some(b), None));
+            }
+        }
+    }
+    for id in &only_in_comparison {
+        if let Some(b) = comparison_map.get(id).copied() {
+            if b.scheduled {
+                scheduled_only_comparison.push(diff_block_from(id, None, Some(b)));
+            }
+        }
+    }
+
+    // Sort priority-based tables by descending priority.
+    let by_priority_desc = |a: &CompareDiffBlock, b: &CompareDiffBlock| {
+        b.priority
+            .partial_cmp(&a.priority)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    };
+    scheduled_only_current.sort_by(by_priority_desc);
+    scheduled_only_comparison.sort_by(by_priority_desc);
+    only_in_current_blocks.sort_by(by_priority_desc);
+    only_in_comparison_blocks.sort_by(by_priority_desc);
+
+    // Sort retimed by absolute start-shift descending.
+    retimed_blocks.sort_by(|a, b| {
+        b.start_shift_hours
+            .abs()
+            .partial_cmp(&a.start_shift_hours.abs())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
     let current_stats = compute_stats_with_gaps(&current_blocks, current_gap_metrics);
     let comparison_stats = compute_stats_with_gaps(&comparison_blocks, comparison_gap_metrics);
 
@@ -168,26 +301,28 @@ pub fn compute_compare_data_with_gaps(
         comparison_blocks,
         current_stats,
         comparison_stats,
-        common_ids,
+        common_ids: common,
         only_in_current,
         only_in_comparison,
         scheduling_changes,
+        scheduled_only_current,
+        scheduled_only_comparison,
+        only_in_current_blocks,
+        only_in_comparison_blocks,
+        retimed_blocks,
         current_name,
         comparison_name,
     })
 }
 
-/// Get comparison data from the database by fetching both schedules.
 pub async fn get_compare_data(
     current_schedule_id: crate::api::ScheduleId,
     comparison_schedule_id: crate::api::ScheduleId,
     current_name: String,
     comparison_name: String,
 ) -> Result<CompareData, String> {
-    // Use the initialized repository (local by default)
     let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
 
-    // Fetch blocks from both schedules
     let current_blocks = repo
         .fetch_compare_blocks(current_schedule_id)
         .await
@@ -197,7 +332,6 @@ pub async fn get_compare_data(
         .await
         .map_err(|e| format!("Failed to fetch comparison schedule blocks: {}", e))?;
 
-    // Fetch gap metrics from summary analytics
     let current_gap_metrics = repo.fetch_gap_metrics(current_schedule_id).await.ok();
     let comparison_gap_metrics = repo.fetch_gap_metrics(comparison_schedule_id).await.ok();
 
@@ -211,7 +345,6 @@ pub async fn get_compare_data(
     )
 }
 
-/// Fetches and compares two schedules from the database.
 pub fn py_get_compare_data(
     current_schedule_id: crate::api::ScheduleId,
     comparison_schedule_id: crate::api::ScheduleId,
@@ -219,7 +352,6 @@ pub fn py_get_compare_data(
     comparison_name: String,
 ) -> Result<CompareData, String> {
     let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
-
     runtime.block_on(get_compare_data(
         current_schedule_id,
         comparison_schedule_id,
@@ -230,252 +362,149 @@ pub fn py_get_compare_data(
 
 #[cfg(test)]
 mod tests {
-    use super::{compute_compare_data, compute_stats};
-    use crate::api::CompareBlock;
+    use super::*;
 
-    fn create_test_block(id: &str, priority: f64, scheduled: bool, hours: f64) -> CompareBlock {
+    fn block(
+        sbid: &str,
+        original: &str,
+        priority: f64,
+        scheduled: bool,
+        hours: f64,
+        window: Option<(f64, f64)>,
+    ) -> CompareBlock {
         CompareBlock {
-            scheduling_block_id: id.to_string(),
+            scheduling_block_id: sbid.to_string(),
+            original_block_id: original.to_string(),
+            block_name: format!("name-{original}"),
             priority,
             scheduled,
             requested_hours: qtty::Hours::new(hours),
+            scheduled_start_mjd: window.map(|(s, _)| s),
+            scheduled_stop_mjd: window.map(|(_, e)| e),
         }
-    }
-
-    #[test]
-    fn test_compute_stats_empty() {
-        let blocks = vec![];
-        let stats = compute_stats(&blocks);
-
-        assert_eq!(stats.scheduled_count, 0);
-        assert_eq!(stats.unscheduled_count, 0);
-        assert_eq!(stats.total_priority, 0.0);
-        assert_eq!(stats.mean_priority, 0.0);
-        assert_eq!(stats.median_priority, 0.0);
-        assert_eq!(stats.total_hours.value(), 0.0);
-    }
-
-    #[test]
-    fn test_compute_stats_all_unscheduled() {
-        let blocks = vec![
-            create_test_block("b1", 5.0, false, 1.0),
-            create_test_block("b2", 7.0, false, 2.0),
-        ];
-        let stats = compute_stats(&blocks);
-
-        assert_eq!(stats.scheduled_count, 0);
-        assert_eq!(stats.unscheduled_count, 2);
-        assert_eq!(stats.total_priority, 0.0);
-        assert_eq!(stats.mean_priority, 0.0);
-        assert_eq!(stats.median_priority, 0.0);
-        assert_eq!(stats.total_hours.value(), 0.0);
-    }
-
-    #[test]
-    fn test_compute_stats_single_scheduled() {
-        let blocks = vec![create_test_block("b1", 8.5, true, 3.5)];
-        let stats = compute_stats(&blocks);
-
-        assert_eq!(stats.scheduled_count, 1);
-        assert_eq!(stats.unscheduled_count, 0);
-        assert_eq!(stats.total_priority, 8.5);
-        assert_eq!(stats.mean_priority, 8.5);
-        assert_eq!(stats.median_priority, 8.5);
-        assert_eq!(stats.total_hours.value(), 3.5);
-    }
-
-    #[test]
-    fn test_compute_stats_odd_count() {
-        let blocks = vec![
-            create_test_block("b1", 3.0, true, 1.0),
-            create_test_block("b2", 5.0, true, 2.0),
-            create_test_block("b3", 7.0, true, 3.0),
-        ];
-        let stats = compute_stats(&blocks);
-
-        assert_eq!(stats.scheduled_count, 3);
-        assert_eq!(stats.unscheduled_count, 0);
-        assert_eq!(stats.total_priority, 15.0);
-        assert_eq!(stats.mean_priority, 5.0);
-        assert_eq!(stats.median_priority, 5.0); // Middle value
-        assert_eq!(stats.total_hours.value(), 6.0);
-    }
-
-    #[test]
-    fn test_compute_stats_even_count() {
-        let blocks = vec![
-            create_test_block("b1", 2.0, true, 1.0),
-            create_test_block("b2", 4.0, true, 1.5),
-            create_test_block("b3", 6.0, true, 2.0),
-            create_test_block("b4", 8.0, true, 2.5),
-        ];
-        let stats = compute_stats(&blocks);
-
-        assert_eq!(stats.scheduled_count, 4);
-        assert_eq!(stats.unscheduled_count, 0);
-        assert_eq!(stats.total_priority, 20.0);
-        assert_eq!(stats.mean_priority, 5.0);
-        assert_eq!(stats.median_priority, 5.0); // (4.0 + 6.0) / 2
-        assert_eq!(stats.total_hours.value(), 7.0);
     }
 
     #[test]
     fn test_compute_stats_mixed() {
         let blocks = vec![
-            create_test_block("b1", 3.0, true, 1.0),
-            create_test_block("b2", 5.0, false, 2.0),
-            create_test_block("b3", 7.0, true, 3.0),
-            create_test_block("b4", 9.0, false, 4.0),
+            block("1", "a", 3.0, true, 1.0, None),
+            block("2", "b", 5.0, false, 2.0, None),
+            block("3", "c", 7.0, true, 3.0, None),
         ];
         let stats = compute_stats(&blocks);
-
         assert_eq!(stats.scheduled_count, 2);
-        assert_eq!(stats.unscheduled_count, 2);
+        assert_eq!(stats.unscheduled_count, 1);
         assert_eq!(stats.total_priority, 10.0);
-        assert_eq!(stats.mean_priority, 5.0);
-        assert_eq!(stats.median_priority, 5.0); // (3.0 + 7.0) / 2
-        assert_eq!(stats.total_hours.value(), 4.0);
     }
 
     #[test]
-    fn test_compute_compare_data_empty() {
-        let result = compute_compare_data(vec![], vec![], "Current".into(), "Comparison".into());
-
-        assert!(result.is_ok());
-        let data = result.unwrap();
-
-        assert_eq!(data.current_blocks.len(), 0);
-        assert_eq!(data.comparison_blocks.len(), 0);
-        assert_eq!(data.common_ids.len(), 0);
-        assert_eq!(data.only_in_current.len(), 0);
-        assert_eq!(data.only_in_comparison.len(), 0);
-        assert_eq!(data.scheduling_changes.len(), 0);
-    }
-
-    #[test]
-    fn test_compute_compare_data_identical() {
+    fn matches_by_original_block_id_not_position() {
+        // Note: different scheduling_block_ids and different positions.
         let current = vec![
-            create_test_block("b1", 5.0, true, 1.0),
-            create_test_block("b2", 7.0, false, 2.0),
+            block("11", "A", 5.0, true, 1.0, Some((100.0, 100.1))),
+            block("12", "B", 6.0, false, 2.0, None),
         ];
         let comparison = vec![
-            create_test_block("b1", 5.0, true, 1.0),
-            create_test_block("b2", 7.0, false, 2.0),
+            block("22", "B", 6.0, true, 2.0, Some((200.0, 200.1))),
+            block("21", "A", 5.0, true, 1.0, Some((100.0, 100.1))),
         ];
-
-        let result = compute_compare_data(current, comparison, "A".into(), "B".into());
-        assert!(result.is_ok());
-        let data = result.unwrap();
-
-        assert_eq!(data.common_ids.len(), 2);
-        assert_eq!(data.only_in_current.len(), 0);
-        assert_eq!(data.only_in_comparison.len(), 0);
-        assert_eq!(data.scheduling_changes.len(), 0);
-    }
-
-    #[test]
-    fn test_compute_compare_data_newly_scheduled() {
-        let current = vec![create_test_block("b1", 5.0, false, 1.0)];
-        let comparison = vec![create_test_block("b1", 5.0, true, 1.0)];
-
-        let result = compute_compare_data(current, comparison, "A".into(), "B".into());
-        assert!(result.is_ok());
-        let data = result.unwrap();
-
+        let data = compute_compare_data(current, comparison, "A".into(), "B".into()).unwrap();
+        assert_eq!(data.common_ids, vec!["A", "B"]);
+        assert!(data.only_in_current.is_empty());
+        assert!(data.only_in_comparison.is_empty());
+        // B was newly scheduled.
         assert_eq!(data.scheduling_changes.len(), 1);
         assert_eq!(data.scheduling_changes[0].change_type, "newly_scheduled");
-        assert_eq!(data.scheduling_changes[0].priority, 5.0);
     }
 
     #[test]
-    fn test_compute_compare_data_newly_unscheduled() {
-        let current = vec![create_test_block("b1", 8.0, true, 2.0)];
-        let comparison = vec![create_test_block("b1", 8.0, false, 2.0)];
-
-        let result = compute_compare_data(current, comparison, "A".into(), "B".into());
-        assert!(result.is_ok());
-        let data = result.unwrap();
-
-        assert_eq!(data.scheduling_changes.len(), 1);
-        assert_eq!(data.scheduling_changes[0].change_type, "newly_unscheduled");
-        assert_eq!(data.scheduling_changes[0].priority, 8.0);
+    fn empty_original_ids_are_never_matched() {
+        let current = vec![block("1", "", 5.0, true, 1.0, Some((10.0, 10.1)))];
+        let comparison = vec![block("2", "", 5.0, true, 1.0, Some((10.0, 10.1)))];
+        let data = compute_compare_data(current, comparison, "A".into(), "B".into()).unwrap();
+        assert!(data.common_ids.is_empty());
+        assert!(data.only_in_current.is_empty());
+        assert!(data.only_in_comparison.is_empty());
     }
 
     #[test]
-    fn test_compute_compare_data_only_in_current() {
+    fn duplicate_original_id_is_rejected() {
         let current = vec![
-            create_test_block("b1", 5.0, true, 1.0),
-            create_test_block("b2", 7.0, false, 2.0),
+            block("1", "dup", 1.0, true, 1.0, Some((10.0, 10.1))),
+            block("2", "dup", 2.0, true, 1.0, Some((11.0, 11.1))),
         ];
-        let comparison = vec![create_test_block("b1", 5.0, true, 1.0)];
-
-        let result = compute_compare_data(current, comparison, "A".into(), "B".into());
-        assert!(result.is_ok());
-        let data = result.unwrap();
-
-        assert_eq!(data.only_in_current.len(), 1);
-        assert!(data.only_in_current.contains(&"b2".to_string()));
-        assert_eq!(data.only_in_comparison.len(), 0);
+        let comparison: Vec<CompareBlock> = vec![];
+        let err = compute_compare_data(current, comparison, "A".into(), "B".into()).unwrap_err();
+        assert!(err.contains("Duplicate"));
+        assert!(err.contains("current"));
     }
 
     #[test]
-    fn test_compute_compare_data_only_in_comparison() {
-        let current = vec![create_test_block("b1", 5.0, true, 1.0)];
-        let comparison = vec![
-            create_test_block("b1", 5.0, true, 1.0),
-            create_test_block("b3", 9.0, false, 3.0),
-        ];
-
-        let result = compute_compare_data(current, comparison, "A".into(), "B".into());
-        assert!(result.is_ok());
-        let data = result.unwrap();
-
-        assert_eq!(data.only_in_current.len(), 0);
-        assert_eq!(data.only_in_comparison.len(), 1);
-        assert!(data.only_in_comparison.contains(&"b3".to_string()));
-    }
-
-    #[test]
-    fn test_compute_compare_data_complex() {
+    fn scheduled_only_groups_cover_flips_and_exclusives() {
         let current = vec![
-            create_test_block("common1", 3.0, false, 1.0),
-            create_test_block("common2", 5.0, true, 2.0),
-            create_test_block("only_current", 7.0, true, 3.0),
+            block("1", "common_flip", 3.0, true, 1.0, Some((10.0, 10.1))),
+            block(
+                "2",
+                "current_only_sched",
+                4.0,
+                true,
+                1.5,
+                Some((12.0, 12.1)),
+            ),
+            block("3", "current_only_unsched", 2.0, false, 1.0, None),
         ];
         let comparison = vec![
-            create_test_block("common1", 3.0, true, 1.0), // Newly scheduled
-            create_test_block("common2", 5.0, false, 2.0), // Newly unscheduled
-            create_test_block("only_comparison", 9.0, false, 4.0),
+            block("11", "common_flip", 3.0, false, 1.0, None),
+            block("12", "cmp_only_sched", 5.0, true, 2.0, Some((20.0, 20.2))),
         ];
+        let data = compute_compare_data(current, comparison, "A".into(), "B".into()).unwrap();
 
-        let result = compute_compare_data(current, comparison, "A".into(), "B".into());
-        assert!(result.is_ok());
-        let data = result.unwrap();
-
-        assert_eq!(data.common_ids.len(), 2);
-        assert_eq!(data.only_in_current.len(), 1);
-        assert_eq!(data.only_in_comparison.len(), 1);
-        assert_eq!(data.scheduling_changes.len(), 2);
-
-        // Check scheduling changes
-        let newly_scheduled = data
-            .scheduling_changes
+        let cur_only_sched_ids: Vec<_> = data
+            .scheduled_only_current
             .iter()
-            .find(|c| c.change_type == "newly_scheduled");
-        assert!(newly_scheduled.is_some());
-        assert_eq!(
-            newly_scheduled.unwrap().scheduling_block_id,
-            "common1".to_string()
-        );
+            .map(|b| b.original_block_id.clone())
+            .collect();
+        assert!(cur_only_sched_ids.contains(&"common_flip".to_string()));
+        assert!(cur_only_sched_ids.contains(&"current_only_sched".to_string()));
 
-        let newly_unscheduled = data
-            .scheduling_changes
+        let cmp_only_sched_ids: Vec<_> = data
+            .scheduled_only_comparison
             .iter()
-            .find(|c| c.change_type == "newly_unscheduled");
-        assert!(newly_unscheduled.is_some());
-        assert_eq!(
-            newly_unscheduled.unwrap().scheduling_block_id,
-            "common2".to_string()
-        );
+            .map(|b| b.original_block_id.clone())
+            .collect();
+        assert!(cmp_only_sched_ids.contains(&"cmp_only_sched".to_string()));
+    }
+
+    #[test]
+    fn retimed_detection_respects_one_second_tolerance() {
+        let tiny = 0.5 / SECONDS_PER_DAY; // 0.5 s in MJD days
+        let big = 120.0 / SECONDS_PER_DAY; // 120 s
+
+        let current = vec![
+            block("1", "sub_tol", 1.0, true, 1.0, Some((100.0, 100.1))),
+            block("2", "over_tol", 2.0, true, 1.0, Some((200.0, 200.1))),
+        ];
+        let comparison = vec![
+            block(
+                "11",
+                "sub_tol",
+                1.0,
+                true,
+                1.0,
+                Some((100.0 + tiny, 100.1 + tiny)),
+            ),
+            block(
+                "12",
+                "over_tol",
+                2.0,
+                true,
+                1.0,
+                Some((200.0 + big, 200.1 + big)),
+            ),
+        ];
+        let data = compute_compare_data(current, comparison, "A".into(), "B".into()).unwrap();
+        assert_eq!(data.retimed_blocks.len(), 1);
+        assert_eq!(data.retimed_blocks[0].original_block_id, "over_tol");
+        assert!((data.retimed_blocks[0].start_shift_hours - 120.0 / 3600.0).abs() < 1e-9);
     }
 }

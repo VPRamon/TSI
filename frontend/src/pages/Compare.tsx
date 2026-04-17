@@ -1,39 +1,197 @@
 /**
- * Compare page - Compare two schedules.
- * Uses consistent layout primitives and chart theming.
+ * Compare page - Audit-oriented comparison of two schedules.
+ *
+ * Block matching is keyed on non-empty `original_block_id`, never on row
+ * position or database block id. Gap metrics come from the fragmentation
+ * endpoint so they reflect operable-only gaps.
  */
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
-import { useCompare, usePlotlyTheme } from '@/hooks';
+import { useCompare, useFragmentation, usePlotlyTheme, useSchedules } from '@/hooks';
 import {
-  LoadingSpinner,
+  ChartPanel,
   ErrorMessage,
   Icon,
+  LoadingSpinner,
   MetricCard,
-  PlotlyChart,
-  PageHeader,
   PageContainer,
-  MetricsGrid,
-  ChartPanel,
+  PageHeader,
+  PlotlyChart,
 } from '@/components';
-import { CHANGE_TYPE_COLORS, type ChangeTypeKey } from '@/constants/colors';
+import { mjdToDate, isValidDate } from '@/constants/dates';
+import type {
+  CompareDiffBlock,
+  FragmentationMetrics,
+  RetimedBlockChange,
+} from '@/api/types';
 
-/** Consistent pair of colors for current vs comparison schedule */
 const SCHEDULE_COLORS = {
-  current: '#3b82f6', // blue-500
-  currentEdge: '#2563eb', // blue-600
-  comparison: '#f59e0b', // amber-500
-  comparisonEdge: '#d97706', // amber-600
+  current: '#3b82f6',
+  comparison: '#f59e0b',
 } as const;
+
+function formatMjdUtc(mjd: number | null | undefined): string {
+  if (mjd == null || !Number.isFinite(mjd)) return '—';
+  const d = mjdToDate(mjd);
+  if (!isValidDate(d)) return '—';
+  return d.toISOString().replace('T', ' ').replace(/\.\d+Z$/, 'Z');
+}
+
+function formatHours(h: number | null | undefined, digits = 2): string {
+  if (h == null || !Number.isFinite(h)) return '—';
+  return `${h.toFixed(digits)} h`;
+}
+
+function SummaryPanel({
+  title,
+  color,
+  scheduledCount,
+  unscheduledCount,
+  cumulativePriority,
+  scheduledHours,
+  metrics,
+}: {
+  title: string;
+  color: string;
+  scheduledCount: number;
+  unscheduledCount: number;
+  cumulativePriority: number;
+  scheduledHours: number;
+  metrics: FragmentationMetrics | undefined;
+}) {
+  return (
+    <ChartPanel title={title}>
+      <div className="mb-3 h-1 w-12 rounded" style={{ background: color }} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <MetricCard label="Scheduled" value={scheduledCount.toLocaleString()} icon={<Icon name="check-circle" />} />
+        <MetricCard label="Unscheduled" value={unscheduledCount.toLocaleString()} icon={<Icon name="x-circle" />} />
+        <MetricCard label="Cumulative priority" value={cumulativePriority.toFixed(2)} icon={<Icon name="star" />} />
+        <MetricCard label="Scheduled hours" value={formatHours(scheduledHours, 1)} icon={<Icon name="clock" />} />
+        <MetricCard label="Gap count" value={metrics ? metrics.gap_count.toLocaleString() : '—'} />
+        <MetricCard label="Gap mean" value={metrics ? formatHours(metrics.gap_mean_hours) : '—'} />
+        <MetricCard label="Gap stddev" value={metrics ? formatHours(metrics.gap_std_dev_hours) : '—'} />
+        <MetricCard label="Gap p90" value={metrics ? formatHours(metrics.gap_p90_hours) : '—'} />
+        <MetricCard label="Largest gap" value={metrics ? formatHours(metrics.largest_gap_hours) : '—'} />
+      </div>
+    </ChartPanel>
+  );
+}
+
+function DiffTable({
+  title,
+  rows,
+  currentName,
+  comparisonName,
+}: {
+  title: string;
+  rows: CompareDiffBlock[];
+  currentName: string;
+  comparisonName: string;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <ChartPanel title={`${title} (${rows.length})`}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-700 text-slate-400">
+              <th className="px-3 py-2 text-left">Original ID</th>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-right">Priority</th>
+              <th className="px-3 py-2 text-right">Requested</th>
+              <th className="px-3 py-2 text-left">{currentName} start (UTC)</th>
+              <th className="px-3 py-2 text-left">{currentName} stop (UTC)</th>
+              <th className="px-3 py-2 text-left">{comparisonName} start (UTC)</th>
+              <th className="px-3 py-2 text-left">{comparisonName} stop (UTC)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 100).map((r) => (
+              <tr key={r.original_block_id} className="border-b border-slate-700/50">
+                <td className="px-3 py-2 font-mono text-white">{r.original_block_id}</td>
+                <td className="px-3 py-2 text-slate-300">{r.block_name || '—'}</td>
+                <td className="px-3 py-2 text-right text-slate-300">{r.priority.toFixed(2)}</td>
+                <td className="px-3 py-2 text-right text-slate-300">{formatHours(r.requested_hours)}</td>
+                <td className="px-3 py-2 text-slate-400">{formatMjdUtc(r.current_scheduled_start_mjd)}</td>
+                <td className="px-3 py-2 text-slate-400">{formatMjdUtc(r.current_scheduled_stop_mjd)}</td>
+                <td className="px-3 py-2 text-slate-400">{formatMjdUtc(r.comparison_scheduled_start_mjd)}</td>
+                <td className="px-3 py-2 text-slate-400">{formatMjdUtc(r.comparison_scheduled_stop_mjd)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length > 100 && (
+          <p className="mt-3 text-center text-slate-400">… and {rows.length - 100} more rows</p>
+        )}
+      </div>
+    </ChartPanel>
+  );
+}
+
+function RetimedTable({
+  rows,
+  currentName,
+  comparisonName,
+}: {
+  rows: RetimedBlockChange[];
+  currentName: string;
+  comparisonName: string;
+}) {
+  if (rows.length === 0) return null;
+  return (
+    <ChartPanel title={`Retimed common blocks (${rows.length})`}>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-700 text-slate-400">
+              <th className="px-3 py-2 text-left">Original ID</th>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-right">Priority</th>
+              <th className="px-3 py-2 text-right">Start shift</th>
+              <th className="px-3 py-2 text-right">Stop shift</th>
+              <th className="px-3 py-2 text-left">{currentName} start (UTC)</th>
+              <th className="px-3 py-2 text-left">{comparisonName} start (UTC)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.slice(0, 100).map((r) => (
+              <tr key={r.original_block_id} className="border-b border-slate-700/50">
+                <td className="px-3 py-2 font-mono text-white">{r.original_block_id}</td>
+                <td className="px-3 py-2 text-slate-300">{r.block_name || '—'}</td>
+                <td className="px-3 py-2 text-right text-slate-300">{r.priority.toFixed(2)}</td>
+                <td className="px-3 py-2 text-right text-slate-300">{formatHours(r.start_shift_hours)}</td>
+                <td className="px-3 py-2 text-right text-slate-300">{formatHours(r.stop_shift_hours)}</td>
+                <td className="px-3 py-2 text-slate-400">{formatMjdUtc(r.current_scheduled_start_mjd)}</td>
+                <td className="px-3 py-2 text-slate-400">{formatMjdUtc(r.comparison_scheduled_start_mjd)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length > 100 && (
+          <p className="mt-3 text-center text-slate-400">… and {rows.length - 100} more rows</p>
+        )}
+      </div>
+    </ChartPanel>
+  );
+}
 
 function Compare() {
   const { scheduleId, otherId } = useParams();
   const currentId = parseInt(scheduleId ?? '0', 10);
   const comparisonId = parseInt(otherId ?? '0', 10);
+  const { data: schedulesData } = useSchedules();
 
-  const { data, isLoading, error, refetch } = useCompare(currentId, comparisonId);
+  const compareQuery = useMemo(() => {
+    const currentName = schedulesData?.schedules.find((s) => s.schedule_id === currentId)?.schedule_name;
+    const comparisonName = schedulesData?.schedules.find((s) => s.schedule_id === comparisonId)?.schedule_name;
+    if (!currentName && !comparisonName) return undefined;
+    return { current_name: currentName, comparison_name: comparisonName };
+  }, [comparisonId, currentId, schedulesData?.schedules]);
 
-  // ── Chart themes (called unconditionally) ────────────────────────
+  const { data, isLoading, error, refetch } = useCompare(currentId, comparisonId, compareQuery);
+  const currentFrag = useFragmentation(currentId);
+  const comparisonFrag = useFragmentation(comparisonId);
+
   const { layout: priorityLayout, config } = usePlotlyTheme({
     title: 'Priority Distribution',
     xAxis: { title: 'Priority' },
@@ -41,108 +199,32 @@ function Compare() {
     barMode: 'overlay',
   });
 
-  const { layout: statusLayout } = usePlotlyTheme({
-    title: 'Scheduling Status',
-    yAxis: { title: 'Number of Blocks' },
-    barMode: 'group',
-  });
-
-  const { layout: changesLayout } = usePlotlyTheme({
-    title: 'Scheduling Changes',
-    yAxis: { title: 'Number of Blocks' },
-    showLegend: false,
-  });
-
-  const { layout: timeLayout } = usePlotlyTheme({
-    title: 'Requested Hours Distribution',
+  const { layout: hoursLayout } = usePlotlyTheme({
+    title: 'Requested Hours',
     yAxis: { title: 'Requested Hours' },
   });
 
-  // ── Chart data ───────────────────────────────────────────────────
   const priorityDistributionData = useMemo((): Plotly.Data[] => {
     if (!data) return [];
-    const currentPriorities = data.current_blocks.map((b) => b.priority);
-    const comparisonPriorities = data.comparison_blocks.map((b) => b.priority);
-
-    const currentTrace = {
-      x: currentPriorities,
-      type: 'histogram' as const,
-      name: data.current_name,
-      opacity: 0.7,
-      marker: { color: SCHEDULE_COLORS.current },
-      nbinsx: 30,
-    };
-
-    const comparisonTrace = {
-      x: comparisonPriorities,
-      type: 'histogram' as const,
-      name: data.comparison_name,
-      opacity: 0.7,
-      marker: { color: SCHEDULE_COLORS.comparison },
-      nbinsx: 30,
-    };
-
-    // Larger dataset first for better visibility
-    return currentPriorities.length >= comparisonPriorities.length
-      ? [currentTrace, comparisonTrace]
-      : [comparisonTrace, currentTrace];
-  }, [data]);
-
-  const schedulingStatusData = useMemo((): Plotly.Data[] => {
-    if (!data) return [];
     return [
       {
+        x: data.current_blocks.map((b) => b.priority),
+        type: 'histogram' as const,
         name: data.current_name,
-        x: ['Scheduled', 'Unscheduled'],
-        y: [data.current_stats.scheduled_count, data.current_stats.unscheduled_count],
-        type: 'bar',
+        opacity: 0.7,
         marker: { color: SCHEDULE_COLORS.current },
-        text: [
-          data.current_stats.scheduled_count.toLocaleString(),
-          data.current_stats.unscheduled_count.toLocaleString(),
-        ],
-        textposition: 'auto',
-        textfont: { color: 'white', size: 12 },
       },
       {
+        x: data.comparison_blocks.map((b) => b.priority),
+        type: 'histogram' as const,
         name: data.comparison_name,
-        x: ['Scheduled', 'Unscheduled'],
-        y: [data.comparison_stats.scheduled_count, data.comparison_stats.unscheduled_count],
-        type: 'bar',
+        opacity: 0.7,
         marker: { color: SCHEDULE_COLORS.comparison },
-        text: [
-          data.comparison_stats.scheduled_count.toLocaleString(),
-          data.comparison_stats.unscheduled_count.toLocaleString(),
-        ],
-        textposition: 'auto',
-        textfont: { color: 'white', size: 12 },
       },
     ];
   }, [data]);
 
-  const changesData = useMemo((): Plotly.Data[] => {
-    if (!data) return [];
-    const newlyScheduled = data.scheduling_changes.filter(
-      (c) => c.change_type === 'newly_scheduled'
-    ).length;
-    const newlyUnscheduled = data.scheduling_changes.filter(
-      (c) => c.change_type === 'newly_unscheduled'
-    ).length;
-
-    return [
-      {
-        x: ['Newly Scheduled', 'Newly Unscheduled'],
-        y: [newlyScheduled, newlyUnscheduled],
-        type: 'bar',
-        marker: { color: ['#22c55e', '#ef4444'] },
-        text: [newlyScheduled.toLocaleString(), newlyUnscheduled.toLocaleString()],
-        textposition: 'auto',
-        textfont: { color: 'white', size: 14 },
-      },
-    ];
-  }, [data]);
-
-  const timeDistributionData = useMemo((): Plotly.Data[] => {
+  const hoursData = useMemo((): Plotly.Data[] => {
     if (!data) return [];
     return [
       {
@@ -150,8 +232,6 @@ function Compare() {
         type: 'box',
         name: data.current_name,
         marker: { color: SCHEDULE_COLORS.current },
-        fillcolor: SCHEDULE_COLORS.current,
-        line: { color: SCHEDULE_COLORS.currentEdge, width: 2 },
         boxmean: 'sd',
       },
       {
@@ -159,14 +239,11 @@ function Compare() {
         type: 'box',
         name: data.comparison_name,
         marker: { color: SCHEDULE_COLORS.comparison },
-        fillcolor: SCHEDULE_COLORS.comparison,
-        line: { color: SCHEDULE_COLORS.comparisonEdge, width: 2 },
         boxmean: 'sd',
       },
     ];
   }, [data]);
 
-  // ── Loading / error states ───────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -174,7 +251,6 @@ function Compare() {
       </div>
     );
   }
-
   if (error) {
     return (
       <ErrorMessage
@@ -184,10 +260,14 @@ function Compare() {
       />
     );
   }
+  if (!data) return <ErrorMessage message="No data available" />;
 
-  if (!data) {
-    return <ErrorMessage message="No data available" />;
-  }
+  const deltaScheduled =
+    data.comparison_stats.scheduled_count - data.current_stats.scheduled_count;
+  const deltaPriority =
+    data.comparison_stats.total_priority - data.current_stats.total_priority;
+  const deltaHours =
+    data.comparison_stats.total_hours - data.current_stats.total_hours;
 
   return (
     <PageContainer>
@@ -196,153 +276,81 @@ function Compare() {
         description={`${data.current_name} vs ${data.comparison_name}`}
       />
 
-      {/* Side-by-side stats */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <ChartPanel title={data.current_name}>
-          <div className="grid grid-cols-2 gap-4">
-            <MetricCard
-              label="Scheduled"
-              value={data.current_stats.scheduled_count}
-              icon={<Icon name="check-circle" />}
-            />
-            <MetricCard
-              label="Unscheduled"
-              value={data.current_stats.unscheduled_count}
-              icon={<Icon name="x-circle" />}
-            />
-            <MetricCard
-              label="Mean Priority"
-              value={data.current_stats.mean_priority.toFixed(2)}
-              icon={<Icon name="star" />}
-            />
-            <MetricCard
-              label="Total Hours"
-              value={`${data.current_stats.total_hours.toFixed(1)}h`}
-              icon={<Icon name="clock" />}
-            />
-          </div>
-        </ChartPanel>
-
-        <ChartPanel title={data.comparison_name}>
-          <div className="grid grid-cols-2 gap-4">
-            <MetricCard
-              label="Scheduled"
-              value={data.comparison_stats.scheduled_count}
-              icon={<Icon name="check-circle" />}
-            />
-            <MetricCard
-              label="Unscheduled"
-              value={data.comparison_stats.unscheduled_count}
-              icon={<Icon name="x-circle" />}
-            />
-            <MetricCard
-              label="Mean Priority"
-              value={data.comparison_stats.mean_priority.toFixed(2)}
-              icon={<Icon name="star" />}
-            />
-            <MetricCard
-              label="Total Hours"
-              value={`${data.comparison_stats.total_hours.toFixed(1)}h`}
-              icon={<Icon name="clock" />}
-            />
-          </div>
-        </ChartPanel>
-      </div>
-
-      {/* Overlap summary */}
-      <MetricsGrid>
-        <MetricCard
-          label="Common Blocks"
-          value={data.common_ids.length}
-          icon={<Icon name="link" />}
-        />
-        <MetricCard
-          label={`Only in ${data.current_name}`}
-          value={data.only_in_current.length}
-          icon={<Icon name="arrow-right" />}
-        />
-        <MetricCard
-          label={`Only in ${data.comparison_name}`}
-          value={data.only_in_comparison.length}
-          icon={<Icon name="arrow-left" />}
-        />
-      </MetricsGrid>
-
-      {/* Charts in 2×2 grid */}
+      {/* Side-by-side schedule summary panels */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartPanel title="Priority Distribution">
-          <PlotlyChart
-            data={priorityDistributionData}
-            layout={priorityLayout}
-            config={config}
-            height="400px"
-          />
-        </ChartPanel>
-
-        <ChartPanel title="Scheduling Status">
-          <PlotlyChart
-            data={schedulingStatusData}
-            layout={statusLayout}
-            config={config}
-            height="400px"
-          />
-        </ChartPanel>
-
-        <ChartPanel title="Scheduling Changes">
-          <PlotlyChart data={changesData} layout={changesLayout} config={config} height="350px" />
-        </ChartPanel>
-
-        <ChartPanel title="Requested Hours">
-          <PlotlyChart
-            data={timeDistributionData}
-            layout={timeLayout}
-            config={config}
-            height="350px"
-          />
-        </ChartPanel>
+        <SummaryPanel
+          title={data.current_name}
+          color={SCHEDULE_COLORS.current}
+          scheduledCount={data.current_stats.scheduled_count}
+          unscheduledCount={data.current_stats.unscheduled_count}
+          cumulativePriority={data.current_stats.total_priority}
+          scheduledHours={data.current_stats.total_hours}
+          metrics={currentFrag.data?.metrics}
+        />
+        <SummaryPanel
+          title={data.comparison_name}
+          color={SCHEDULE_COLORS.comparison}
+          scheduledCount={data.comparison_stats.scheduled_count}
+          unscheduledCount={data.comparison_stats.unscheduled_count}
+          cumulativePriority={data.comparison_stats.total_priority}
+          scheduledHours={data.comparison_stats.total_hours}
+          metrics={comparisonFrag.data?.metrics}
+        />
       </div>
 
-      {/* Scheduling changes table */}
-      {data.scheduling_changes.length > 0 && (
-        <ChartPanel title={`Scheduling Changes (${data.scheduling_changes.length})`}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="px-4 py-3 text-left text-slate-400">Block ID</th>
-                  <th className="px-4 py-3 text-right text-slate-400">Priority</th>
-                  <th className="px-4 py-3 text-center text-slate-400">Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.scheduling_changes.slice(0, 20).map((change) => (
-                  <tr key={change.scheduling_block_id} className="border-b border-slate-700/50">
-                    <td className="px-4 py-3 text-white">{change.scheduling_block_id}</td>
-                    <td className="px-4 py-3 text-right text-slate-300">
-                      {change.priority.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span
-                        className={`rounded px-2 py-1 text-xs ${
-                          CHANGE_TYPE_COLORS[change.change_type as ChangeTypeKey] ||
-                          'bg-slate-500/20 text-slate-400'
-                        }`}
-                      >
-                        {change.change_type}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {data.scheduling_changes.length > 20 && (
-              <p className="mt-4 text-center text-slate-400">
-                ... and {data.scheduling_changes.length - 20} more changes
-              </p>
-            )}
-          </div>
+      {/* Compact delta strip */}
+      <ChartPanel title="Delta (comparison − current)">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <MetricCard label="Δ scheduled" value={deltaScheduled >= 0 ? `+${deltaScheduled}` : `${deltaScheduled}`} />
+          <MetricCard
+            label="Δ cumulative priority"
+            value={deltaPriority >= 0 ? `+${deltaPriority.toFixed(2)}` : deltaPriority.toFixed(2)}
+          />
+          <MetricCard label="Δ scheduled hours" value={formatHours(deltaHours)} />
+          <MetricCard label="Retimed blocks" value={data.retimed_blocks.length} />
+        </div>
+      </ChartPanel>
+
+      {/* Detailed tables */}
+      <DiffTable
+        title={`Scheduled only in ${data.current_name}`}
+        rows={data.scheduled_only_current}
+        currentName={data.current_name}
+        comparisonName={data.comparison_name}
+      />
+      <DiffTable
+        title={`Scheduled only in ${data.comparison_name}`}
+        rows={data.scheduled_only_comparison}
+        currentName={data.current_name}
+        comparisonName={data.comparison_name}
+      />
+      <DiffTable
+        title={`Only present in ${data.current_name}`}
+        rows={data.only_in_current_blocks}
+        currentName={data.current_name}
+        comparisonName={data.comparison_name}
+      />
+      <DiffTable
+        title={`Only present in ${data.comparison_name}`}
+        rows={data.only_in_comparison_blocks}
+        currentName={data.current_name}
+        comparisonName={data.comparison_name}
+      />
+      <RetimedTable
+        rows={data.retimed_blocks}
+        currentName={data.current_name}
+        comparisonName={data.comparison_name}
+      />
+
+      {/* Secondary context distributions */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <ChartPanel title="Priority distribution">
+          <PlotlyChart data={priorityDistributionData} layout={priorityLayout} config={config} height="350px" />
         </ChartPanel>
-      )}
+        <ChartPanel title="Requested hours distribution">
+          <PlotlyChart data={hoursData} layout={hoursLayout} config={config} height="350px" />
+        </ChartPanel>
+      </div>
     </PageContainer>
   );
 }

@@ -27,6 +27,13 @@ import type {
   UnscheduledReasonSummary,
 } from '@/api/types';
 
+function getScheduleDisplayName(
+  schedule: Pick<FragmentationData, 'schedule_id' | 'schedule_name'>
+) {
+  const trimmedName = schedule.schedule_name.trim();
+  return trimmedName.length > 0 ? trimmedName : `Schedule ${schedule.schedule_id}`;
+}
+
 // ──────────────────────────────────────────────────────────────────────────
 // Presentation helpers
 // ──────────────────────────────────────────────────────────────────────────
@@ -111,11 +118,7 @@ export function FragmentationTimelineStrip({
   );
 }
 
-export function ReasonBreakdownChart({
-  entries,
-}: {
-  entries: ReasonBreakdownEntry[];
-}) {
+export function ReasonBreakdownChart({ entries }: { entries: ReasonBreakdownEntry[] }) {
   const max = Math.max(...entries.map((e) => e.total_hours), 1e-9);
   return (
     <div className="space-y-2">
@@ -123,16 +126,14 @@ export function ReasonBreakdownChart({
         const width = (entry.total_hours / max) * 100;
         return (
           <div key={entry.kind} className="flex items-center gap-2">
-            <div className="w-44 shrink-0 text-xs text-slate-400">
-              {SEGMENT_LABELS[entry.kind]}
-            </div>
+            <div className="w-44 shrink-0 text-xs text-slate-400">{SEGMENT_LABELS[entry.kind]}</div>
             <div className="relative h-4 flex-1 overflow-hidden rounded bg-slate-700/30">
               <div
                 className={`${SEGMENT_COLORS[entry.kind]} h-full`}
                 style={{ width: `${width}%` }}
               />
             </div>
-            <div className="w-32 shrink-0 text-right tabular-nums text-xs text-slate-300">
+            <div className="w-32 shrink-0 text-right text-xs tabular-nums text-slate-300">
               {formatHours(entry.total_hours)} · {formatPercent(entry.fraction_of_operable)}
             </div>
           </div>
@@ -142,11 +143,7 @@ export function ReasonBreakdownChart({
   );
 }
 
-export function UnscheduledReasonsList({
-  summaries,
-}: {
-  summaries: UnscheduledReasonSummary[];
-}) {
+export function UnscheduledReasonsList({ summaries }: { summaries: UnscheduledReasonSummary[] }) {
   return (
     <div className="space-y-2">
       {summaries.map((s) => (
@@ -363,7 +360,11 @@ function Fragmentation() {
     <PageContainer>
       <PageHeader
         title="Fragmentation"
-        description="Schedule fragmentation measured against the telescope-operable baseline."
+        description={
+          compareMode && secondary.data
+            ? `${getScheduleDisplayName(primary.data)} vs ${getScheduleDisplayName(secondary.data)}`
+            : `${getScheduleDisplayName(primary.data)} measured against the telescope-operable baseline.`
+        }
         actions={headerActions}
       />
 
@@ -371,17 +372,17 @@ function Fragmentation() {
         <div className="grid gap-4 lg:grid-cols-2">
           <SchedulePanel
             data={primary.data}
-            title={`Schedule #${primary.data.schedule_id}`}
+            title={getScheduleDisplayName(primary.data)}
             compareMetrics={secondary.data.metrics}
           />
           <SchedulePanel
             data={secondary.data}
-            title={`Schedule #${secondary.data.schedule_id}`}
+            title={getScheduleDisplayName(secondary.data)}
             compareMetrics={primary.data.metrics}
           />
         </div>
       ) : (
-        <SchedulePanel data={primary.data} title={`Schedule #${primary.data.schedule_id}`} />
+        <SchedulePanel data={primary.data} title={getScheduleDisplayName(primary.data)} />
       )}
     </PageContainer>
   );
