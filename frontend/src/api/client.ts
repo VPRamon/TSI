@@ -122,6 +122,11 @@ class ApiClient {
     return data;
   }
 
+  async getSchedule(scheduleId: number): Promise<unknown> {
+    const { data } = await this.client.get<unknown>(`/v1/schedules/${scheduleId}`);
+    return data;
+  }
+
   async createSchedule(request: CreateScheduleRequest): Promise<CreateScheduleResponse> {
     const { data } = await this.client.post<CreateScheduleResponse>('/v1/schedules', request);
     return data;

@@ -38,7 +38,7 @@ describe('NotFoundError', () => {
   it('creates a 404 error with resource info', () => {
     const error = new NotFoundError('Schedule', 123);
 
-    expect(error.message).toBe('Schedule with ID 123 was not found');
+    expect(error.message).toBe('Schedule was not found');
     expect(error.statusCode).toBe(404);
     expect(error.resourceType).toBe('Schedule');
     expect(error.resourceId).toBe(123);

@@ -9,6 +9,8 @@ use axum::{
     Json,
 };
 use futures::stream::Stream;
+use serde::Serialize;
+use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::time::Duration;
 
@@ -24,6 +26,114 @@ use crate::db::services as db_services;
 
 /// Result type for handlers.
 pub type HandlerResult<T> = Result<Json<T>, AppError>;
+
+fn normalize_schedule_name(name: &str) -> String {
+    name.trim().to_lowercase()
+}
+
+fn has_duplicate_schedule_name(
+    schedules: &[crate::api::ScheduleInfo],
+    candidate_name: &str,
+    exclude_id: Option<ScheduleId>,
+) -> bool {
+    let normalized_candidate = normalize_schedule_name(candidate_name);
+
+    schedules.iter().any(|schedule| {
+        if let Some(exclude) = exclude_id {
+            if schedule.schedule_id == exclude {
+                return false;
+            }
+        }
+
+        normalize_schedule_name(&schedule.schedule_name) == normalized_candidate
+    })
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct NativeScheduleExport {
+    name: String,
+    schedule_period: crate::api::Period,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    dark_periods: Vec<crate::api::Period>,
+    geographic_location: crate::api::GeographicLocation,
+    blocks: Vec<NativeScheduleBlockExport>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    possible_periods: Option<BTreeMap<String, Vec<crate::api::Period>>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct NativeScheduleBlockExport {
+    original_block_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    block_name: Option<String>,
+    target_ra: qtty::Degrees,
+    target_dec: qtty::Degrees,
+    constraints: crate::api::Constraints,
+    priority: f64,
+    min_observation: qtty::Seconds,
+    requested_duration: qtty::Seconds,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    visibility_periods: Vec<crate::api::Period>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scheduled_period: Option<crate::api::Period>,
+}
+
+fn build_possible_periods_map(
+    blocks: &[crate::api::SchedulingBlock],
+) -> Option<BTreeMap<String, Vec<crate::api::Period>>> {
+    let mut map = BTreeMap::new();
+
+    for block in blocks {
+        if block.visibility_periods.is_empty() {
+            continue;
+        }
+
+        let key = block.original_block_id.trim();
+        if key.is_empty() {
+            continue;
+        }
+
+        map.insert(key.to_string(), block.visibility_periods.clone());
+    }
+
+    if map.is_empty() {
+        None
+    } else {
+        Some(map)
+    }
+}
+
+impl From<&crate::api::Schedule> for NativeScheduleExport {
+    fn from(schedule: &crate::api::Schedule) -> Self {
+        Self {
+            name: schedule.name.clone(),
+            schedule_period: schedule.schedule_period,
+            dark_periods: schedule.dark_periods.clone(),
+            geographic_location: schedule.geographic_location,
+            blocks: schedule
+                .blocks
+                .iter()
+                .map(|block| NativeScheduleBlockExport {
+                    original_block_id: block.original_block_id.clone(),
+                    block_name: if block.block_name.trim().is_empty() {
+                        None
+                    } else {
+                        Some(block.block_name.clone())
+                    },
+                    target_ra: block.target_ra,
+                    target_dec: block.target_dec,
+                    constraints: block.constraints.clone(),
+                    priority: block.priority,
+                    min_observation: block.min_observation,
+                    requested_duration: block.requested_duration,
+                    visibility_periods: block.visibility_periods.clone(),
+                    scheduled_period: block.scheduled_period,
+                })
+                .collect(),
+            possible_periods: build_possible_periods_map(&schedule.blocks),
+        }
+    }
+}
 
 fn block_matches_visibility_histogram_query(
     block: &SchedulingBlock,
@@ -95,6 +205,44 @@ pub async fn list_schedules(State(state): State<AppState>) -> HandlerResult<Sche
     }))
 }
 
+/// GET /v1/schedules/{schedule_id}
+///
+/// Get a single schedule by ID.
+pub async fn get_schedule(
+    State(state): State<AppState>,
+    Path(schedule_id): Path<i64>,
+) -> HandlerResult<serde_json::Value> {
+    let schedule_id = ScheduleId::new(schedule_id);
+    let schedule = db_services::get_schedule(state.repository.as_ref(), schedule_id).await?;
+
+    // Always export canonical native TSI schedule JSON, independent of the
+    // adapter used at import time.
+    let export = NativeScheduleExport::from(&schedule);
+
+    let export_json = serde_json::to_string(&export).map_err(|e| {
+        AppError::Internal(format!(
+            "Failed to serialize canonical schedule export for schedule {}: {}",
+            schedule_id, e
+        ))
+    })?;
+
+    crate::models::schedule::validate_schedule_json_str(&export_json).map_err(|e| {
+        AppError::Internal(format!(
+            "Canonical schedule export failed validation for schedule {}: {}",
+            schedule_id, e
+        ))
+    })?;
+
+    let export_value = serde_json::from_str(&export_json).map_err(|e| {
+        AppError::Internal(format!(
+            "Failed to materialize canonical schedule export for schedule {}: {}",
+            schedule_id, e
+        ))
+    })?;
+
+    Ok(Json(export_value))
+}
+
 /// POST /v1/schedules
 ///
 /// Create a new schedule asynchronously. Returns a job ID for tracking progress.
@@ -102,6 +250,8 @@ pub async fn create_schedule(
     State(state): State<AppState>,
     Json(mut request): Json<CreateScheduleRequest>,
 ) -> Result<(axum::http::StatusCode, Json<CreateScheduleResponse>), AppError> {
+    request.name = request.name.trim().to_string();
+
     // Apply geographic location override when provided. This replaces any
     // `geographic_location` embedded in the schedule JSON, allowing callers
     // to select a well-known site (e.g. OBS-N, OBS-S) at load time.
@@ -128,6 +278,16 @@ pub async fn create_schedule(
             return Err(AppError::BadRequest(format!(
                 "schedule_period_override: start_mjd ({}) must be strictly less than end_mjd ({})",
                 ov.start_mjd, ov.end_mjd
+            )));
+        }
+    }
+
+    if !request.name.is_empty() {
+        let schedules = db_services::list_schedules(state.repository.as_ref()).await?;
+        if has_duplicate_schedule_name(&schedules, &request.name, None) {
+            return Err(AppError::BadRequest(format!(
+                "A schedule named '{}' already exists. Please choose a different name.",
+                request.name
             )));
         }
     }
@@ -191,7 +351,7 @@ pub async fn delete_schedule(
 pub async fn update_schedule(
     State(state): State<AppState>,
     Path(schedule_id): Path<i64>,
-    Json(request): Json<UpdateScheduleRequest>,
+    Json(mut request): Json<UpdateScheduleRequest>,
 ) -> HandlerResult<ScheduleInfoDto> {
     if request.name.is_none() && request.location.is_none() {
         return Err(AppError::BadRequest(
@@ -200,6 +360,26 @@ pub async fn update_schedule(
     }
 
     let schedule_id = ScheduleId::new(schedule_id);
+
+    if let Some(name) = request.name.as_ref() {
+        let trimmed_name = name.trim();
+        if trimmed_name.is_empty() {
+            return Err(AppError::BadRequest(
+                "Schedule name cannot be empty".to_string(),
+            ));
+        }
+
+        let schedules = db_services::list_schedules(state.repository.as_ref()).await?;
+        if has_duplicate_schedule_name(&schedules, trimmed_name, Some(schedule_id)) {
+            return Err(AppError::BadRequest(format!(
+                "A schedule named '{}' already exists. Please choose a different name.",
+                trimmed_name
+            )));
+        }
+
+        request.name = Some(trimmed_name.to_string());
+    }
+
     let info = db_services::update_schedule_metadata(
         state.repository.as_ref(),
         schedule_id,

@@ -9,6 +9,10 @@ import { LoadingSpinner, ErrorMessage } from '@/components';
 import type { ScheduleInfo, GeographicLocation } from '@/api/types';
 import { OBSERVATORY_SITES, formatSiteLabel } from '@/constants';
 
+function normalizeScheduleName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
 // =============================================================================
 // Icons
 // =============================================================================
@@ -116,7 +120,6 @@ function DeleteConfirmDialog({
         </p>
         <p className="mb-6 rounded-lg bg-slate-900/60 px-3 py-2 text-sm font-medium text-white">
           {schedule.schedule_name}
-          <span className="ml-2 text-xs text-slate-500">ID: {schedule.schedule_id}</span>
         </p>
         <p className="mb-6 text-xs text-red-400">
           This action cannot be undone. All associated data (blocks, analytics, validation results)
@@ -146,19 +149,38 @@ function DeleteConfirmDialog({
 
 interface EditScheduleDialogProps {
   schedule: ScheduleInfo;
+  existingSchedules: ScheduleInfo[];
   onSave: (name: string, location?: GeographicLocation) => void;
   onCancel: () => void;
   isSaving: boolean;
 }
 
-function EditScheduleDialog({ schedule, onSave, onCancel, isSaving }: EditScheduleDialogProps) {
+function EditScheduleDialog({
+  schedule,
+  existingSchedules,
+  onSave,
+  onCancel,
+  isSaving,
+}: EditScheduleDialogProps) {
   const [name, setName] = useState(schedule.schedule_name);
   const [selectedSiteIdx, setSelectedSiteIdx] = useState<string>('');
+  const normalizedName = normalizeScheduleName(name);
+  const duplicateNameExists =
+    normalizedName.length > 0 &&
+    existingSchedules.some(
+      (item) =>
+        item.schedule_id !== schedule.schedule_id &&
+        normalizeScheduleName(item.schedule_name) === normalizedName
+    );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) return;
+
+    if (duplicateNameExists) {
+      return;
+    }
 
     const location =
       selectedSiteIdx !== ''
@@ -200,6 +222,11 @@ function EditScheduleDialog({ schedule, onSave, onCancel, isSaving }: EditSchedu
             placeholder="Enter schedule name"
             required
           />
+          {duplicateNameExists && (
+            <p className="mt-1 text-xs text-red-400" role="alert">
+              A schedule with this name already exists.
+            </p>
+          )}
         </div>
 
         {/* Observatory Location */}
@@ -239,7 +266,7 @@ function EditScheduleDialog({ schedule, onSave, onCancel, isSaving }: EditSchedu
           </button>
           <button
             type="submit"
-            disabled={isSaving || !name.trim()}
+            disabled={isSaving || !name.trim() || duplicateNameExists}
             className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
           >
             {isSaving ? <LoadingSpinner size="sm" /> : <PencilIcon />}
@@ -268,7 +295,6 @@ function ScheduleRow({ schedule, onEdit, onDelete, onOpen }: ScheduleRowProps) {
         <p className="truncate font-medium text-white transition-colors group-hover:text-indigo-300">
           {schedule.schedule_name}
         </p>
-        <p className="mt-0.5 text-xs text-slate-500">ID: {schedule.schedule_id}</p>
       </button>
 
       <div className="ml-4 flex shrink-0 items-center gap-2">
@@ -326,10 +352,26 @@ function ScheduleManagement() {
 
   const handleUpdate = async (name: string, location?: GeographicLocation) => {
     if (!editingSchedule) return;
+
+    const trimmedName = name.trim();
+    const duplicateNameExists = schedules.some(
+      (schedule) =>
+        schedule.schedule_id !== editingSchedule.schedule_id &&
+        normalizeScheduleName(schedule.schedule_name) === normalizeScheduleName(trimmedName)
+    );
+
+    if (duplicateNameExists) {
+      setFeedback({
+        type: 'error',
+        message: 'A schedule with this name already exists. Please choose a different name.',
+      });
+      return;
+    }
+
     try {
       const request: { name?: string; location?: GeographicLocation } = {};
-      if (name !== editingSchedule.schedule_name) {
-        request.name = name;
+      if (trimmedName !== editingSchedule.schedule_name.trim()) {
+        request.name = trimmedName;
       }
       if (location) {
         request.location = location;
@@ -341,7 +383,7 @@ function ScheduleManagement() {
       });
       setFeedback({
         type: 'success',
-        message: `Schedule "${name}" updated successfully.`,
+        message: `Schedule "${trimmedName}" updated successfully.`,
       });
       setEditingSchedule(null);
     } catch (err) {
@@ -483,6 +525,7 @@ function ScheduleManagement() {
       {editingSchedule && (
         <EditScheduleDialog
           schedule={editingSchedule}
+          existingSchedules={schedules}
           onSave={handleUpdate}
           onCancel={() => setEditingSchedule(null)}
           isSaving={updateSchedule.isPending}

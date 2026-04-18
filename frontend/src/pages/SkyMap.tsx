@@ -158,7 +158,7 @@ function SkyMap() {
             title={isNotFound ? 'Schedule Not Found' : 'Failed to load sky map'}
             message={
               isNotFound
-                ? `Schedule ${id} does not exist. It may have been deleted or the server may have restarted.`
+                ? 'The requested schedule does not exist. It may have been deleted or the server may have restarted.'
                 : errorMessage
             }
             onRetry={isNotFound ? undefined : () => refetch()}

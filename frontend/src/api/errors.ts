@@ -30,7 +30,7 @@ export class NotFoundError extends ApiRequestError {
   public readonly resourceId: string | number;
 
   constructor(resourceType: string, resourceId: string | number) {
-    super(`${resourceType} with ID ${resourceId} was not found`, 404, false);
+    super(`${resourceType} was not found`, 404, false);
     this.name = 'NotFoundError';
     this.resourceType = resourceType;
     this.resourceId = resourceId;

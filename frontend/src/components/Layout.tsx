@@ -176,7 +176,7 @@ function Layout() {
     selectedScheduleName && selectedScheduleName.length > 0
       ? selectedScheduleName
       : scheduleId
-        ? `Schedule ${scheduleId}`
+        ? 'Selected Schedule'
         : null;
 
   return (

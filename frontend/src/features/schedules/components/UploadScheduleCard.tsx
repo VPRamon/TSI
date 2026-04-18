@@ -4,10 +4,14 @@
  */
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCreateSchedule } from '@/hooks';
+import { useCreateSchedule, useSchedules } from '@/hooks';
 import { LoadingSpinner, LogStream } from '@/components';
 import { OBSERVATORY_SITES, SITE_FROM_FILE, formatSiteLabel } from '@/constants';
 import { dateToMjd } from '@/constants/dates';
+
+function normalizeScheduleName(name: string): string {
+  return name.trim().toLowerCase();
+}
 
 // SVG Icons
 const UploadIcon = () => (
@@ -39,6 +43,7 @@ export interface UploadScheduleCardProps {
 
 function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
   const createSchedule = useCreateSchedule();
+  const { data: schedulesData } = useSchedules();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadName, setUploadName] = useState('');
@@ -96,6 +101,20 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
       }
       const trimmedUploadName = uploadName.trim();
       const name = trimmedUploadName || selectedFile.name.replace(/\.json$/i, '');
+
+      const isDuplicateName =
+        !!name &&
+        !!schedulesData?.schedules?.some(
+          (schedule) => normalizeScheduleName(schedule.schedule_name) === normalizeScheduleName(name)
+        );
+
+      if (isDuplicateName) {
+        const message = `A schedule named "${name}" already exists. Please choose a different name.`;
+        setUploadError(message);
+        onError?.(message);
+        setIsUploading(false);
+        return;
+      }
 
       const locationOverride =
         selectedSiteIdx !== SITE_FROM_FILE
@@ -218,65 +237,89 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
           </div>
 
           {/* Schedule Period Override */}
-          <div className="rounded-lg border border-slate-700/60 bg-slate-900/30 p-4">
-            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-300">
-              <input
-                type="checkbox"
-                checked={periodOverrideEnabled}
-                onChange={(e) => {
-                  setPeriodOverrideEnabled(e.target.checked);
-                  setPeriodError('');
-                }}
-                disabled={isUploading}
-                className="h-4 w-4 rounded border-slate-600 bg-slate-800 accent-blue-500 disabled:cursor-not-allowed"
-              />
-              Override Schedule Period
-            </label>
-            <p className="mt-1 text-xs text-slate-500">
-              Optional. Use when the uploaded file has no scheduled blocks or does not define the
-              schedule window explicitly.
-            </p>
+          <div className="rounded-lg border border-slate-700/60 bg-slate-900/20">
+            <button
+              type="button"
+              onClick={() => {
+                setPeriodOverrideEnabled((prev) => !prev);
+                setPeriodError('');
+              }}
+              aria-expanded={periodOverrideEnabled}
+              disabled={isUploading}
+              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-slate-800/40 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-slate-300">Override Schedule Period</span>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${
+                    periodOverrideEnabled
+                      ? 'bg-blue-500/20 text-blue-300'
+                      : 'bg-slate-700/60 text-slate-400'
+                  }`}
+                >
+                  {periodOverrideEnabled ? 'On' : 'Off'}
+                </span>
+              </div>
+              <svg
+                className={`h-4 w-4 text-slate-400 transition-transform ${
+                  periodOverrideEnabled ? 'rotate-180' : ''
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
             {periodOverrideEnabled && (
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <div>
-                  <label
-                    htmlFor="period-start"
-                    className="mb-1 block text-xs font-medium text-slate-400"
-                  >
-                    Start (UTC)
-                  </label>
-                  <input
-                    id="period-start"
-                    type="datetime-local"
-                    step="1"
-                    value={periodStart}
-                    onChange={(e) => setPeriodStart(e.target.value)}
-                    disabled={isUploading}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-white transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
+              <div className="border-t border-slate-700/50 px-3 pb-3 pt-2">
+                <p className="mb-2 text-xs text-slate-500">
+                  Optional. Use when the uploaded file has no scheduled blocks or does not define
+                  the schedule window explicitly.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label
+                      htmlFor="period-start"
+                      className="mb-1 block text-xs font-medium text-slate-400"
+                    >
+                      Start (UTC)
+                    </label>
+                    <input
+                      id="period-start"
+                      type="datetime-local"
+                      step="1"
+                      value={periodStart}
+                      onChange={(e) => setPeriodStart(e.target.value)}
+                      disabled={isUploading}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-white transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="period-end"
+                      className="mb-1 block text-xs font-medium text-slate-400"
+                    >
+                      End (UTC)
+                    </label>
+                    <input
+                      id="period-end"
+                      type="datetime-local"
+                      step="1"
+                      value={periodEnd}
+                      onChange={(e) => setPeriodEnd(e.target.value)}
+                      disabled={isUploading}
+                      className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-white transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                  {periodError && (
+                    <p className="col-span-2 text-xs text-red-400" role="alert">
+                      {periodError}
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <label
-                    htmlFor="period-end"
-                    className="mb-1 block text-xs font-medium text-slate-400"
-                  >
-                    End (UTC)
-                  </label>
-                  <input
-                    id="period-end"
-                    type="datetime-local"
-                    step="1"
-                    value={periodEnd}
-                    onChange={(e) => setPeriodEnd(e.target.value)}
-                    disabled={isUploading}
-                    className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-white transition-all focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </div>
-                {periodError && (
-                  <p className="col-span-2 text-xs text-red-400" role="alert">
-                    {periodError}
-                  </p>
-                )}
               </div>
             )}
           </div>

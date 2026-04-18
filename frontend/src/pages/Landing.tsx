@@ -4,24 +4,147 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import JSZip from 'jszip';
+import { api } from '@/api';
+import type { ScheduleInfo } from '@/api/types';
 import { useSchedules } from '@/hooks';
 import { LoadingSpinner, ErrorMessage } from '@/components';
 import { LandingHeader, UploadScheduleCard, ScheduleListCard } from '@/features/schedules';
+
+function buildScheduleFilename(schedule: ScheduleInfo): string {
+  const normalized = schedule.schedule_name
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  const fallback = 'schedule';
+  const stem = normalized.length > 0 ? normalized : fallback;
+  return `${stem}.json`;
+}
+
+function buildUniqueFilename(filename: string, counters: Map<string, number>): string {
+  const stem = filename.replace(/\.json$/i, '');
+  const seen = counters.get(stem) ?? 0;
+  counters.set(stem, seen + 1);
+
+  if (seen === 0) {
+    return `${stem}.json`;
+  }
+
+  return `${stem}_${seen + 1}.json`;
+}
+
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function triggerJsonDownload(content: string, filename: string): void {
+  const blob = new Blob([content], { type: 'application/json' });
+  triggerBlobDownload(blob, filename);
+}
+
+function buildZipFilename(): string {
+  const date = new Date().toISOString().slice(0, 10);
+  return `schedules_${date}.zip`;
+}
 
 function Landing() {
   const navigate = useNavigate();
   const { data, isLoading, error, refetch } = useSchedules();
   const [pageError, setPageError] = useState('');
+  const [downloadingScheduleIds, setDownloadingScheduleIds] = useState<Set<number>>(new Set());
+  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const handleScheduleClick = (scheduleId: number) => {
     // Verify schedule exists in the current list before navigating
     const scheduleExists = data?.schedules?.some((s) => s.schedule_id === scheduleId);
     if (!scheduleExists) {
-      setPageError(`Schedule ${scheduleId} not found. Please refresh the page.`);
+      setPageError('Selected schedule was not found. Please refresh the page.');
       refetch();
       return;
     }
     navigate(`/schedules/${scheduleId}/validation`);
+  };
+
+  const handleScheduleDownload = async (schedule: ScheduleInfo) => {
+    // Verify schedule still exists before requesting full payload.
+    const scheduleExists = data?.schedules?.some((s) => s.schedule_id === schedule.schedule_id);
+    if (!scheduleExists) {
+      setPageError('Selected schedule was not found. Please refresh the page.');
+      refetch();
+      return;
+    }
+
+    setPageError('');
+    setDownloadingScheduleIds((prev) => {
+      const next = new Set(prev);
+      next.add(schedule.schedule_id);
+      return next;
+    });
+
+    try {
+      const schedulePayload = await api.getSchedule(schedule.schedule_id);
+      const filename = buildScheduleFilename(schedule);
+      const json = JSON.stringify(schedulePayload, null, 2);
+      triggerJsonDownload(json, filename);
+    } catch {
+      setPageError('Failed to download schedule JSON. Please try again.');
+    } finally {
+      setDownloadingScheduleIds((prev) => {
+        const next = new Set(prev);
+        next.delete(schedule.schedule_id);
+        return next;
+      });
+    }
+  };
+
+  const handleDownloadAll = async () => {
+    const schedules = data?.schedules ?? [];
+    if (schedules.length === 0) {
+      return;
+    }
+
+    setPageError('');
+    setIsDownloadingAll(true);
+
+    const scheduleIds = schedules.map((schedule) => schedule.schedule_id);
+    setDownloadingScheduleIds((prev) => {
+      const next = new Set(prev);
+      scheduleIds.forEach((id) => next.add(id));
+      return next;
+    });
+
+    try {
+      const zip = new JSZip();
+      const filenameCounters = new Map<string, number>();
+
+      for (const schedule of schedules) {
+        const schedulePayload = await api.getSchedule(schedule.schedule_id);
+        const json = JSON.stringify(schedulePayload, null, 2);
+        const filename = buildUniqueFilename(buildScheduleFilename(schedule), filenameCounters);
+        zip.file(filename, json);
+      }
+
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      triggerBlobDownload(zipBlob, buildZipFilename());
+    } catch {
+      setPageError('Failed to download all schedules. Please try again.');
+    } finally {
+      setIsDownloadingAll(false);
+      setDownloadingScheduleIds((prev) => {
+        const next = new Set(prev);
+        scheduleIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    }
   };
 
   if (isLoading) {
@@ -83,34 +206,13 @@ function Landing() {
             schedules={data?.schedules ?? []}
             total={data?.total ?? 0}
             onScheduleClick={handleScheduleClick}
+            onScheduleDownload={handleScheduleDownload}
+            onDownloadAll={handleDownloadAll}
+            onManageSchedules={() => navigate('/manage')}
+            downloadingScheduleIds={downloadingScheduleIds}
+            isDownloadingAll={isDownloadingAll}
           />
         </div>
-
-        {/* Manage Schedules Link */}
-        {(data?.total ?? 0) > 0 && (
-          <div className="text-center">
-            <button
-              onClick={() => navigate('/manage')}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-700/50 bg-slate-800/50 px-4 py-2.5 text-sm text-slate-400 transition-all hover:border-slate-600 hover:bg-slate-800/80 hover:text-white"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                />
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                />
-              </svg>
-              Manage Schedules
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -146,7 +146,6 @@ export function SchedulePicker({
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 focus:bg-slate-700 focus:outline-none"
                 role="option"
               >
-                <span className="font-mono text-xs text-slate-500">#{schedule.schedule_id}</span>
                 <span className="truncate">{schedule.schedule_name}</span>
               </button>
             ))

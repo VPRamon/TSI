@@ -29,6 +29,36 @@ const ChevronRightIcon = () => (
   </svg>
 );
 
+const DownloadIcon = () => (
+  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.75}
+      d="M12 4v10m0 0 4-4m-4 4-4-4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+    />
+  </svg>
+);
+
+const ManageIcon = () => (
+  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.75}
+      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+    />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
+const SpinnerIcon = () => (
+  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+  </svg>
+);
+
 export interface ScheduleListCardProps {
   /** List of schedules to display */
   schedules: ScheduleInfo[];
@@ -36,9 +66,28 @@ export interface ScheduleListCardProps {
   total: number;
   /** Callback when a schedule is clicked */
   onScheduleClick: (scheduleId: number) => void;
+  /** Callback when a schedule JSON download is requested */
+  onScheduleDownload: (schedule: ScheduleInfo) => void;
+  /** Callback when all schedules download is requested */
+  onDownloadAll: () => void;
+  /** Callback when schedule management page is requested */
+  onManageSchedules: () => void;
+  /** IDs currently downloading */
+  downloadingScheduleIds?: ReadonlySet<number>;
+  /** Whether all schedules are currently downloading */
+  isDownloadingAll?: boolean;
 }
 
-function ScheduleListCard({ schedules, total, onScheduleClick }: ScheduleListCardProps) {
+function ScheduleListCard({
+  schedules,
+  total,
+  onScheduleClick,
+  onScheduleDownload,
+  onDownloadAll,
+  onManageSchedules,
+  downloadingScheduleIds,
+  isDownloadingAll,
+}: ScheduleListCardProps) {
   const isEmpty = schedules.length === 0;
 
   return (
@@ -71,6 +120,8 @@ function ScheduleListCard({ schedules, total, onScheduleClick }: ScheduleListCar
                   key={schedule.schedule_id}
                   schedule={schedule}
                   onClick={() => onScheduleClick(schedule.schedule_id)}
+                  onDownload={() => onScheduleDownload(schedule)}
+                  isDownloading={downloadingScheduleIds?.has(schedule.schedule_id) ?? false}
                 />
               ))}
             </div>
@@ -80,9 +131,36 @@ function ScheduleListCard({ schedules, total, onScheduleClick }: ScheduleListCar
         {/* Info Footer */}
         {!isEmpty && (
           <div className="border-t border-slate-700/50 pt-4">
-            <p className="text-center text-xs text-slate-500">
-              {total} {total === 1 ? 'schedule' : 'schedules'} available
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-slate-500">{total} available</p>
+              <div className="ml-auto flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onManageSchedules}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-600/60 bg-slate-800/70 px-3 py-2 text-xs font-medium text-slate-200 transition-all duration-200 hover:border-slate-500/70 hover:bg-slate-700/80 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-500/50"
+                  title="Manage schedules"
+                  aria-label="Manage schedules"
+                >
+                  <ManageIcon />
+                  <span>Manage Schedules</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onDownloadAll}
+                  disabled={isDownloadingAll}
+                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300 transition-all duration-200 hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+                  title={isDownloadingAll ? 'Downloading all schedules...' : 'Download all schedules'}
+                  aria-label={
+                    isDownloadingAll
+                      ? 'Downloading all schedules'
+                      : 'Download all schedules as JSON'
+                  }
+                >
+                  {isDownloadingAll ? <SpinnerIcon /> : <DownloadIcon />}
+                  <span>Download all</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -108,22 +186,42 @@ function EmptyState() {
 interface ScheduleListItemProps {
   schedule: ScheduleInfo;
   onClick: () => void;
+  onDownload: () => void;
+  isDownloading: boolean;
 }
 
-function ScheduleListItem({ schedule, onClick }: ScheduleListItemProps) {
+function ScheduleListItem({ schedule, onClick, onDownload, isDownloading }: ScheduleListItemProps) {
   return (
-    <button
-      onClick={onClick}
-      className="group/item flex w-full items-center justify-between rounded-lg border border-slate-700/30 bg-slate-900/40 p-4 text-left transition-all duration-200 hover:border-indigo-500/30 hover:bg-slate-900/70 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-    >
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-medium text-white transition-colors group-hover/item:text-indigo-300">
-          {schedule.schedule_name}
-        </p>
-        <p className="mt-0.5 text-xs text-slate-500">ID: {schedule.schedule_id}</p>
-      </div>
-      <ChevronRightIcon />
-    </button>
+    <div className="flex items-stretch gap-2">
+      <button
+        type="button"
+        onClick={onClick}
+        className="group/item flex min-h-[56px] min-w-0 flex-1 items-center justify-between rounded-lg border border-slate-700/30 bg-slate-900/40 p-4 text-left transition-all duration-200 hover:border-indigo-500/30 hover:bg-slate-900/70 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-white transition-colors group-hover/item:text-indigo-300">
+            {schedule.schedule_name}
+          </p>
+        </div>
+        <ChevronRightIcon />
+      </button>
+
+      <button
+        type="button"
+        onClick={onDownload}
+        disabled={isDownloading}
+        className="inline-flex min-h-[56px] items-center gap-1.5 rounded-lg border border-slate-700/50 bg-slate-900/40 px-3 py-3 text-xs font-medium text-slate-300 transition-all duration-200 hover:border-emerald-500/50 hover:bg-slate-900/70 hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+        title={isDownloading ? 'Downloading JSON...' : 'Download JSON'}
+        aria-label={
+          isDownloading
+            ? `Downloading ${schedule.schedule_name} JSON`
+            : `Download ${schedule.schedule_name} as JSON`
+        }
+      >
+        {isDownloading ? <SpinnerIcon /> : <DownloadIcon />}
+        <span>JSON</span>
+      </button>
+    </div>
   );
 }
 

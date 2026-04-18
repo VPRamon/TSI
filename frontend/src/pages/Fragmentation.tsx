@@ -31,7 +31,7 @@ function getScheduleDisplayName(
   schedule: Pick<FragmentationData, 'schedule_id' | 'schedule_name'>
 ) {
   const trimmedName = schedule.schedule_name.trim();
-  return trimmedName.length > 0 ? trimmedName : `Schedule ${schedule.schedule_id}`;
+  return trimmedName.length > 0 ? trimmedName : 'Unnamed Schedule';
 }
 
 // ──────────────────────────────────────────────────────────────────────────
