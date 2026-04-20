@@ -23,7 +23,14 @@ import type {
   CompareDiffBlock,
   FragmentationMetrics,
   RetimedBlockChange,
+  CompareBlock,
 } from '@/api/types';
+import {
+  deriveCoverageSeries,
+  deriveSummary,
+  deriveDisagreements,
+} from '@/lib/cumulativeCoverage';
+import type { DisagreementRow } from '@/lib/cumulativeCoverage';
 
 const SCHEDULE_COLORS = {
   current: '#3b82f6',
@@ -175,6 +182,188 @@ function RetimedTable({
   );
 }
 
+function DisagreementsTable({
+  rows,
+  currentName,
+  comparisonName,
+}: {
+  rows: DisagreementRow[];
+  currentName: string;
+  comparisonName: string;
+}) {
+  if (rows.length === 0) return null;
+  const visible = rows.slice(0, 20);
+  return (
+    <div className="mt-4">
+      <h3 className="mb-2 text-sm font-semibold text-slate-300">
+        Highest-Priority Disagreements ({rows.length})
+      </h3>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-700 text-slate-400">
+              <th className="px-3 py-2 text-left">Original ID</th>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-right">Priority</th>
+              <th className="px-3 py-2 text-center">{currentName}</th>
+              <th className="px-3 py-2 text-center">{comparisonName}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((r) => (
+              <tr key={r.original_block_id} className="border-b border-slate-700/50">
+                <td className="px-3 py-2 font-mono text-white">{r.original_block_id}</td>
+                <td className="px-3 py-2 text-slate-300">{r.block_name || '—'}</td>
+                <td className="px-3 py-2 text-right text-slate-300">{r.priority.toFixed(2)}</td>
+                <td className="px-3 py-2 text-center">
+                  <span className={r.current_scheduled ? 'text-green-400' : 'text-red-400'}>
+                    {r.current_scheduled ? 'Scheduled' : 'Unscheduled'}
+                  </span>
+                  {r.current_scheduled && r.current_start_mjd != null && (
+                    <span className="ml-1 text-slate-500 text-xs">{formatMjdUtc(r.current_start_mjd)}</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-center">
+                  <span className={r.comparison_scheduled ? 'text-green-400' : 'text-red-400'}>
+                    {r.comparison_scheduled ? 'Scheduled' : 'Unscheduled'}
+                  </span>
+                  {r.comparison_scheduled && r.comparison_start_mjd != null && (
+                    <span className="ml-1 text-slate-500 text-xs">{formatMjdUtc(r.comparison_start_mjd)}</span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length > 20 && (
+          <p className="mt-2 text-center text-slate-400 text-xs">… and {rows.length - 20} more rows</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CumulativeCoveragePanel({
+  currentBlocks,
+  comparisonBlocks,
+  commonIds,
+  currentName,
+  comparisonName,
+  coverageLayout,
+  config,
+}: {
+  currentBlocks: CompareBlock[];
+  comparisonBlocks: CompareBlock[];
+  commonIds: string[];
+  currentName: string;
+  comparisonName: string;
+  coverageLayout: Partial<Plotly.Layout>;
+  config: Partial<Plotly.Config>;
+}) {
+  const points = useMemo(
+    () => deriveCoverageSeries(currentBlocks, comparisonBlocks, commonIds),
+    [currentBlocks, comparisonBlocks, commonIds],
+  );
+
+  const summary = useMemo(() => deriveSummary(points), [points]);
+
+  const disagreements = useMemo(
+    () => deriveDisagreements(currentBlocks, comparisonBlocks, commonIds),
+    [currentBlocks, comparisonBlocks, commonIds],
+  );
+
+  const chartData = useMemo((): Plotly.Data[] => {
+    if (points.length === 0) return [];
+
+    const ranks = points.map((p) => p.rank);
+    const curCum = points.map((p) => p.current_cumulative);
+    const cmpCum = points.map((p) => p.comparison_cumulative);
+
+    const hoverText = points.map(
+      (p) =>
+        `<b>Rank ${p.rank}</b><br>` +
+        `ID: ${p.original_block_id}<br>` +
+        `Name: ${p.block_name || '—'}<br>` +
+        `Priority: ${p.priority.toFixed(2)}<br>` +
+        `${currentName}: ${p.current_scheduled ? `scheduled (+${p.current_increment.toFixed(2)})` : 'unscheduled (+0)'}<br>` +
+        `${comparisonName}: ${p.comparison_scheduled ? `scheduled (+${p.comparison_increment.toFixed(2)})` : 'unscheduled (+0)'}<br>` +
+        `Cumulative — ${currentName}: ${p.current_cumulative.toFixed(2)}, ${comparisonName}: ${p.comparison_cumulative.toFixed(2)}`,
+    );
+
+    return [
+      {
+        x: ranks,
+        y: curCum,
+        type: 'scatter',
+        mode: 'lines',
+        name: currentName,
+        line: { color: SCHEDULE_COLORS.current, shape: 'hv' },
+        hovertext: hoverText,
+        hoverinfo: 'text',
+      },
+      {
+        x: ranks,
+        y: cmpCum,
+        type: 'scatter',
+        mode: 'lines',
+        name: comparisonName,
+        line: { color: SCHEDULE_COLORS.comparison, shape: 'hv' },
+        hovertext: hoverText,
+        hoverinfo: 'text',
+      },
+      {
+        x: [1, points.length],
+        y: [summary.total_matched_priority, summary.total_matched_priority],
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Priority ceiling',
+        line: { color: '#64748b', dash: 'dash', width: 1 },
+        hoverinfo: 'skip',
+      },
+    ];
+  }, [points, summary, currentName, comparisonName]);
+
+  if (points.length === 0) return null;
+
+  const lead10Sign = summary.lead_after_top10 >= 0 ? '+' : '';
+  const finalSign = summary.final_delta >= 0 ? '+' : '';
+
+  return (
+    <ChartPanel title="Cumulative Priority Coverage">
+      {/* Summary strip */}
+      <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <MetricCard label="Matched tasks" value={summary.matched_task_count.toLocaleString()} />
+        <MetricCard
+          label="Priority ceiling"
+          value={summary.total_matched_priority.toFixed(2)}
+        />
+        <MetricCard
+          label="Lead after top 10 tasks"
+          value={`${lead10Sign}${summary.lead_after_top10.toFixed(2)}`}
+        />
+        <MetricCard
+          label="Final Δ (comparison − current)"
+          value={`${finalSign}${summary.final_delta.toFixed(2)}`}
+        />
+      </div>
+
+      <PlotlyChart data={chartData} layout={coverageLayout} config={config} height="350px" />
+
+      <p className="mt-2 text-xs text-slate-500">
+        Chart uses matched tasks only (tasks present in both schedules via{' '}
+        <code className="font-mono">original_block_id</code>). Tasks unique to one schedule appear
+        in the tables below.
+      </p>
+
+      <DisagreementsTable
+        rows={disagreements}
+        currentName={currentName}
+        comparisonName={comparisonName}
+      />
+    </ChartPanel>
+  );
+}
+
 function Compare() {
   const { scheduleId, otherId } = useParams();
   const currentId = parseInt(scheduleId ?? '0', 10);
@@ -202,6 +391,12 @@ function Compare() {
   const { layout: hoursLayout } = usePlotlyTheme({
     title: 'Requested Hours',
     yAxis: { title: 'Requested Hours' },
+  });
+
+  const { layout: coverageLayout } = usePlotlyTheme({
+    title: 'Cumulative Priority by Ranked Task',
+    xAxis: { title: 'Matched task rank (highest priority first)' },
+    yAxis: { title: 'Cumulative scheduled priority' },
   });
 
   const priorityDistributionData = useMemo((): Plotly.Data[] => {
@@ -310,6 +505,17 @@ function Compare() {
           <MetricCard label="Retimed blocks" value={data.retimed_blocks.length} />
         </div>
       </ChartPanel>
+
+      {/* Cumulative priority coverage */}
+      <CumulativeCoveragePanel
+        currentBlocks={data.current_blocks}
+        comparisonBlocks={data.comparison_blocks}
+        commonIds={data.common_ids}
+        currentName={data.current_name}
+        comparisonName={data.comparison_name}
+        coverageLayout={coverageLayout}
+        config={config}
+      />
 
       {/* Detailed tables */}
       <DiffTable
