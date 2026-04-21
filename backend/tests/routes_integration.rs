@@ -156,6 +156,28 @@ fn test_compare_data_creation() {
         retimed_blocks: vec![],
         current_name: "Schedule A".to_string(),
         comparison_name: "Schedule B".to_string(),
+        advanced_compare: routes::compare::AdvancedCompare {
+            params_used: routes::compare::AdvancedCompareParams {
+                epsilon_minutes: 5.0,
+                min_block_size: 3,
+                merge_epsilon_minutes: 5.0,
+            },
+            global_metrics: routes::compare::AdvancedGlobalMetrics {
+                match_ratio: 0.0,
+                matched_count: 0,
+                timed_common_count: 0,
+                only_in_current_count: 0,
+                only_in_comparison_count: 0,
+                coherent_block_count: 0,
+                ungrouped_common_count: 0,
+                order_preservation_ratio: None,
+                global_shift_median_minutes: None,
+                local_shift_mad_minutes: None,
+                ignored_missing_key_current: 0,
+                ignored_missing_key_comparison: 0,
+            },
+            blocks: vec![],
+        },
     };
     assert_eq!(data.current_name, "Schedule A");
     assert_eq!(data.comparison_name, "Schedule B");

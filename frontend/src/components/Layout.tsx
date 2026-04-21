@@ -3,7 +3,7 @@
  * Professional app shell for analysis workspace.
  */
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useParams, useLocation } from 'react-router-dom';
+import { Outlet, NavLink, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '@/store';
 import { useHealth } from '@/hooks';
 import { useScheduleSync, SchedulePicker, AnalysisProvider } from '@/features/schedules';
@@ -144,6 +144,7 @@ function Layout() {
   const { selectedSchedule } = useAppStore();
   const { data: health } = useHealth();
   const location = useLocation();
+  const navigate = useNavigate();
   const isLanding = location.pathname === '/';
   // Sync route scheduleId with Zustand store
   useScheduleSync();
@@ -286,12 +287,19 @@ function Layout() {
 
                       {/* Compare picker dropdown */}
                       {showComparePicker && (
-                        <div className="absolute right-0 top-full z-50 mt-2 w-64">
+                        <div className="absolute right-0 top-full z-50 mt-2 w-72">
                           <SchedulePicker
-                            excludeId={parseInt(scheduleId, 10)}
-                            navigateToCompare
-                            placeholder="Compare with..."
-                            onSelect={() => setShowComparePicker(false)}
+                            multiSelect
+                            initialSelectedIds={
+                              scheduleId ? [parseInt(scheduleId, 10)] : []
+                            }
+                            placeholder="Search schedules..."
+                            onConfirm={(schedules) => {
+                              setShowComparePicker(false);
+                              navigate(
+                                `/compare?ids=${schedules.map((s) => s.schedule_id).join(',')}`
+                              );
+                            }}
                           />
                         </div>
                       )}

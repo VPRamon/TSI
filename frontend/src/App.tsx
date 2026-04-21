@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ErrorBoundary, LoadingSpinner } from './components';
 import Layout from './components/Layout';
 
@@ -26,6 +26,11 @@ function PageLoader() {
   );
 }
 
+function OldCompareRedirect() {
+  const { scheduleId, otherId } = useParams<{ scheduleId: string; otherId: string }>();
+  return <Navigate to={`/compare?ids=${scheduleId},${otherId}`} replace />;
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -34,6 +39,7 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Landing />} />
             <Route path="manage" element={<ScheduleManagement />} />
+            <Route path="compare" element={<Compare />} />
             <Route path="schedules/:scheduleId">
               <Route path="sky-map" element={<SkyMap />} />
               <Route path="distributions" element={<Distributions />} />
@@ -44,7 +50,7 @@ function App() {
               <Route path="trends" element={<Trends />} />
               <Route path="alt-az" element={<AltAz />} />
               <Route path="validation" element={<Validation />} />
-              <Route path="compare/:otherId" element={<Compare />} />
+              <Route path="compare/:otherId" element={<OldCompareRedirect />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

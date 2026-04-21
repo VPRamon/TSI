@@ -8,9 +8,13 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 // Re-export existing DTOs that are already serializable
 pub use crate::api::{
+    // Compare
+    AdvancedCompare,
+    AdvancedCompareParams,
+    AdvancedGlobalMetrics,
     // Insights
     AnalyticsMetrics,
-    // Compare
+    CoherentBlock,
     CompareBlock,
     CompareData,
     CompareStats,
@@ -139,6 +143,17 @@ pub struct CompareQuery {
     /// Name for the comparison schedule (optional)
     #[serde(default)]
     pub comparison_name: Option<String>,
+    /// Shift-continuity tolerance in minutes for the advanced segmentation.
+    /// Default: 5.0
+    #[serde(default)]
+    pub epsilon_minutes: Option<f64>,
+    /// Minimum number of tasks for a coherent block to survive. Default: 3
+    #[serde(default)]
+    pub min_block_size: Option<usize>,
+    /// Merge tolerance in minutes for adjacent coherent blocks.
+    /// Default: same as `epsilon_minutes`.
+    #[serde(default)]
+    pub merge_epsilon_minutes: Option<f64>,
 }
 
 /// Query parameters for visibility histogram endpoint.

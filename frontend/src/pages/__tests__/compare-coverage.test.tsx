@@ -1,196 +1,247 @@
 /**
- * Render tests for the Cumulative Priority Coverage panel in Compare.tsx.
+ * Tests for the redesigned multi-schedule Compare page.
  *
- * The panel and its sub-components are not exported, so we test through
- * the compare helper outputs (unit-tested separately) and by rendering
- * the full page with mocked hooks.
+ * Route: /compare?ids=1,2
+ *
+ * Tests:
+ *   - Empty state (no IDs) shows select-schedules prompt
+ *   - With 2+ IDs renders summary table metric labels
+ *   - Schedule chip header renders schedule names
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
-import { render } from '../../test/test-utils';
-import {
-  deriveCoverageSeries,
-  deriveSummary,
-  deriveDisagreements,
-} from '../../lib/cumulativeCoverage';
-import type { CompareBlock } from '../../api/types';
+import { MemoryRouterProvider } from '../../test/test-utils';
+import { render } from '@testing-library/react';
+import type { InsightsData, FragmentationData } from '../../api/types';
 
-// ─── Shared test data ───────────────────────────────────────────────
-
-function makeBlock(
-  id: string,
-  priority: number,
-  scheduled: boolean,
-  name = '',
-): CompareBlock {
-  return {
-    scheduling_block_id: `sched-${id}`,
-    original_block_id: id,
-    block_name: name || id,
-    priority,
-    scheduled,
-    requested_hours: 1,
-    scheduled_start_mjd: scheduled ? 60000 : null,
-    scheduled_stop_mjd: scheduled ? 60001 : null,
-  };
-}
-
-const currentBlocks: CompareBlock[] = [
-  makeBlock('A', 10, true, 'Alpha'),
-  makeBlock('B', 8, false, 'Beta'),
-  makeBlock('C', 6, true, 'Gamma'),
-  makeBlock('D', 4, true, 'Delta'),
-];
-
-const comparisonBlocks: CompareBlock[] = [
-  makeBlock('A', 10, false, 'Alpha'),
-  makeBlock('B', 8, true, 'Beta'),
-  makeBlock('C', 6, true, 'Gamma'),
-  makeBlock('D', 4, false, 'Delta'),
-];
-
-const commonIds = ['A', 'B', 'C', 'D'];
-
-// ─── Helper-level "render" assertions (no DOM needed) ────────────────
-
-describe('Coverage panel derived metrics', () => {
-  const points = deriveCoverageSeries(currentBlocks, comparisonBlocks, commonIds);
-  const summary = deriveSummary(points);
-
-  it('matched_task_count equals commonIds length', () => {
-    expect(summary.matched_task_count).toBe(4);
-  });
-
-  it('total_matched_priority is sum of per-task max priorities', () => {
-    // max priorities: A=10, B=8, C=6, D=4 → 28
-    expect(summary.total_matched_priority).toBeCloseTo(28);
-  });
-
-  it('lead_after_top10 is clamped to available task count (4)', () => {
-    // All 4 tasks fit within top-10 window — uses index 3 (last point)
-    const last = points[points.length - 1];
-    expect(summary.lead_after_top10).toBeCloseTo(
-      last.comparison_cumulative - last.current_cumulative,
-    );
-  });
-
-  it('final_delta equals comparison minus current at last rank', () => {
-    const last = points[points.length - 1];
-    expect(summary.final_delta).toBeCloseTo(
-      last.comparison_cumulative - last.current_cumulative,
-    );
-  });
-});
-
-describe('Disagreement table derived rows', () => {
-  const rows = deriveDisagreements(currentBlocks, comparisonBlocks, commonIds);
-
-  it('shows highest-priority status flips first', () => {
-    // A (priority 10) and B (priority 8) and D (priority 4) differ
-    expect(rows[0].original_block_id).toBe('A');
-    expect(rows[0].priority).toBeCloseTo(10);
-  });
-
-  it('excludes tasks with matching status', () => {
-    // C is scheduled in both → excluded
-    const cIds = rows.map((r) => r.original_block_id);
-    expect(cIds).not.toContain('C');
-  });
-
-  it('includes all disagreeing tasks', () => {
-    expect(rows).toHaveLength(3); // A, B, D disagree
-  });
-
-  it('current and comparison scheduled flags are correct', () => {
-    const a = rows.find((r) => r.original_block_id === 'A')!;
-    expect(a.current_scheduled).toBe(true);
-    expect(a.comparison_scheduled).toBe(false);
-  });
-});
-
-// ─── Smoke test: panel caption and title via mocked hooks ─────────────
+// ─── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('react-plotly.js', () => ({ default: () => null }));
 vi.mock('plotly.js-dist-min', () => ({
   default: { newPlot: vi.fn(), react: vi.fn(), purge: vi.fn() },
 }));
+
 vi.mock('../../hooks', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../hooks')>();
   return {
     ...actual,
-    useCompare: vi.fn(),
-    useFragmentation: vi.fn(() => ({ data: undefined, isLoading: false, error: null })),
-    useSchedules: vi.fn(() => ({ data: undefined })),
+    useInsights: vi.fn(),
+    useFragmentation: vi.fn(),
+    useSchedules: vi.fn(),
   };
 });
 
 import * as hooks from '../../hooks';
 import Compare from '../Compare';
 
-const mockCompareData = {
-  current_blocks: currentBlocks,
-  comparison_blocks: comparisonBlocks,
-  current_stats: {
-    scheduled_count: 3,
-    unscheduled_count: 1,
-    total_priority: 20,
-    mean_priority: 5,
-    median_priority: 5,
-    total_hours: 3,
-    gap_count: null,
-    gap_mean_hours: null,
-    gap_median_hours: null,
-  },
-  comparison_stats: {
-    scheduled_count: 2,
-    unscheduled_count: 2,
-    total_priority: 14,
-    mean_priority: 7,
-    median_priority: 7,
-    total_hours: 2,
-    gap_count: null,
-    gap_mean_hours: null,
-    gap_median_hours: null,
-  },
-  common_ids: commonIds,
-  only_in_current: [],
-  only_in_comparison: [],
-  scheduling_changes: [],
-  scheduled_only_current: [],
-  scheduled_only_comparison: [],
-  only_in_current_blocks: [],
-  only_in_comparison_blocks: [],
-  retimed_blocks: [],
-  current_name: 'Schedule A',
-  comparison_name: 'Schedule B',
+// ─── Realistic stub data ──────────────────────────────────────────────────────
+
+function makeInsightsData(scheduledCount: number): InsightsData {
+  const blocks = Array.from({ length: scheduledCount + 2 }, (_, i) => ({
+    scheduling_block_id: i + 1,
+    original_block_id: `OB-${i + 1}`,
+    block_name: `Block ${i + 1}`,
+    priority: 10 - i,
+    total_visibility_hours: 4,
+    requested_hours: 2,
+    elevation_range_deg: 45,
+    scheduled: i < scheduledCount,
+    scheduled_start_mjd: i < scheduledCount ? 60000 + i : null,
+    scheduled_stop_mjd: i < scheduledCount ? 60001 + i : null,
+  }));
+
+  return {
+    blocks,
+    metrics: {
+      total_observations: blocks.length,
+      scheduled_count: scheduledCount,
+      unscheduled_count: blocks.length - scheduledCount,
+      scheduling_rate: scheduledCount / blocks.length,
+      mean_priority: 8,
+      median_priority: 8,
+      mean_priority_scheduled: 9,
+      mean_priority_unscheduled: 6,
+      total_visibility_hours: 40,
+      mean_requested_hours: 2,
+    },
+    correlations: [],
+    top_priority: [],
+    top_visibility: [],
+    conflicts: [],
+    total_count: blocks.length,
+    scheduled_count: scheduledCount,
+    impossible_count: 0,
+  };
+}
+
+function makeFragmentationData(scheduleId: number, name: string): FragmentationData {
+  return {
+    schedule_id: scheduleId,
+    schedule_name: name,
+    schedule_window: { start_mjd: 59000, end_mjd: 60000 },
+    operable_periods: [],
+    operable_source: 'dark_time',
+    segments: [],
+    largest_gaps: [],
+    reason_breakdown: [],
+    unscheduled_reasons: [],
+    metrics: {
+      schedule_hours: 200,
+      requested_hours: 150,
+      operable_hours: 180,
+      scheduled_hours: 120,
+      idle_operable_hours: 60,
+      raw_visibility_coverage_hours: 170,
+      fit_visibility_coverage_hours: 150,
+      gap_count: 5,
+      gap_mean_hours: 2.5,
+      gap_median_hours: 2.0,
+      gap_std_dev_hours: 0.8,
+      gap_p90_hours: 4.0,
+      largest_gap_hours: 6.0,
+      scheduled_fraction_of_operable: 0.67,
+      idle_fraction_of_operable: 0.33,
+      raw_visibility_fraction_of_operable: 0.94,
+      fit_visibility_fraction_of_operable: 0.83,
+    },
+  };
+}
+
+type UseQueryResult<T> = {
+  data: T | undefined;
+  isLoading: boolean;
+  error: Error | null;
 };
 
-describe('Compare page coverage panel smoke test', () => {
-  beforeEach(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    vi.mocked(hooks.useCompare).mockReturnValue({ data: mockCompareData, isLoading: false, error: null, refetch: vi.fn() } as any);
+function makeHookResult<T>(data: T): UseQueryResult<T> {
+  return { data, isLoading: false, error: null };
+}
+
+function makeLoadingResult(): UseQueryResult<undefined> {
+  return { data: undefined, isLoading: true, error: null };
+}
+
+// ─── Test helpers ─────────────────────────────────────────────────────────────
+
+function renderCompare(path = '/compare') {
+  return render(
+    <MemoryRouterProvider initialEntries={[path]}>
+      <Compare />
+    </MemoryRouterProvider>
+  );
+}
+
+beforeEach(() => {
+  vi.mocked(hooks.useSchedules).mockReturnValue(
+    makeHookResult({
+      schedules: [
+        { schedule_id: 1, schedule_name: 'Schedule Alpha' },
+        { schedule_id: 2, schedule_name: 'Schedule Beta' },
+      ],
+      total: 2,
+    }) as ReturnType<typeof hooks.useSchedules>
+  );
+
+  // Default: return realistic data for IDs 1 and 2; disabled/empty for 0
+  vi.mocked(hooks.useInsights).mockImplementation((id: number) => {
+    if (id === 1) return makeHookResult(makeInsightsData(3)) as ReturnType<typeof hooks.useInsights>;
+    if (id === 2) return makeHookResult(makeInsightsData(2)) as ReturnType<typeof hooks.useInsights>;
+    // id === 0: disabled query — not loading, no data
+    return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useInsights>;
   });
 
-  it('renders the panel title', () => {
-    render(<Compare />);
-    expect(screen.getByText('Cumulative Priority Coverage')).toBeInTheDocument();
-  });
-
-  it('renders the matched-tasks caption', () => {
-    render(<Compare />);
-    expect(screen.getByText(/matched tasks only/i)).toBeInTheDocument();
-  });
-
-  it('renders matched tasks metric', () => {
-    render(<Compare />);
-    expect(screen.getByText('Matched tasks')).toBeInTheDocument();
-    expect(screen.getByText('4')).toBeInTheDocument();
-  });
-
-  it('renders disagreements table with highest-priority flip first', () => {
-    render(<Compare />);
-    expect(screen.getByText(/Highest-Priority Disagreements/i)).toBeInTheDocument();
-    const cells = screen.getAllByText('A');
-    expect(cells.length).toBeGreaterThan(0);
+  vi.mocked(hooks.useFragmentation).mockImplementation((id: number) => {
+    if (id === 1)
+      return makeHookResult(makeFragmentationData(1, 'Schedule Alpha')) as ReturnType<
+        typeof hooks.useFragmentation
+      >;
+    if (id === 2)
+      return makeHookResult(makeFragmentationData(2, 'Schedule Beta')) as ReturnType<
+        typeof hooks.useFragmentation
+      >;
+    // id === 0: disabled query — not loading, no data
+    return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useFragmentation>;
   });
 });
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
+describe('Compare page — empty state', () => {
+  it('shows select-schedules prompt when no IDs in URL', () => {
+    renderCompare('/compare');
+    expect(screen.getByText(/add schedules to compare/i)).toBeInTheDocument();
+  });
+
+  it('shows select-schedules prompt when fewer than 2 valid IDs', () => {
+    renderCompare('/compare?ids=1');
+    expect(screen.getByText(/add schedules to compare/i)).toBeInTheDocument();
+  });
+
+  it('renders "Compare Schedules" page title', () => {
+    renderCompare('/compare');
+    expect(screen.getByText('Compare Schedules')).toBeInTheDocument();
+  });
+});
+
+describe('Compare page — 2+ schedules', () => {
+  it('renders summary metrics table with expected metric labels', () => {
+    renderCompare('/compare?ids=1,2');
+
+    const expectedLabels = [
+      'Scheduled tasks',
+      'Unscheduled tasks',
+      'Scheduling rate',
+      'Cumulative priority',
+      'Mean priority (sched.)',
+      'Scheduled hours',
+      'Operable hours',
+      'Gap count',
+      'Gap mean',
+      'Gap p90',
+      'Largest gap',
+    ];
+
+    for (const label of expectedLabels) {
+      expect(screen.getByText(label)).toBeInTheDocument();
+    }
+  });
+
+  it('renders schedule chip header with schedule names', () => {
+    renderCompare('/compare?ids=1,2');
+    expect(screen.getAllByText(/Schedule Alpha/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Schedule Beta/).length).toBeGreaterThan(0);
+  });
+
+  it('renders "Summary Metrics" panel title', () => {
+    renderCompare('/compare?ids=1,2');
+    expect(screen.getByText('Summary Metrics')).toBeInTheDocument();
+  });
+
+  it('renders block status table panel', () => {
+    renderCompare('/compare?ids=1,2');
+    expect(screen.getByText(/Block Status/i)).toBeInTheDocument();
+  });
+
+  it('renders block IDs from insights data in the block table', () => {
+    renderCompare('/compare?ids=1,2');
+    // Blocks from makeInsightsData have original_block_id OB-1, OB-2, etc.
+    expect(screen.getAllByText(/^OB-/).length).toBeGreaterThan(0);
+  });
+});
+
+describe('Compare page — loading state', () => {
+  it('shows loading spinner while data is loading', () => {
+    vi.mocked(hooks.useInsights).mockImplementation((id: number) => {
+      if (id === 0) return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useInsights>;
+      return makeLoadingResult() as ReturnType<typeof hooks.useInsights>;
+    });
+    vi.mocked(hooks.useFragmentation).mockImplementation((id: number) => {
+      if (id === 0) return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useFragmentation>;
+      return makeLoadingResult() as ReturnType<typeof hooks.useFragmentation>;
+    });
+    renderCompare('/compare?ids=1,2');
+    // Loading spinner should be present (LoadingSpinner has role="status")
+    expect(document.querySelector('[role="status"]')).toBeTruthy();
+  });
+});
+

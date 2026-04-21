@@ -9,9 +9,9 @@ interface AppState {
   selectedSchedule: ScheduleInfo | null;
   setSelectedSchedule: (schedule: ScheduleInfo | null) => void;
 
-  // Comparison schedule (for compare page)
-  comparisonSchedule: ScheduleInfo | null;
-  setComparisonSchedule: (schedule: ScheduleInfo | null) => void;
+  // Comparison schedule IDs (for compare page)
+  comparisonScheduleIds: number[];
+  setComparisonScheduleIds: (ids: number[]) => void;
 
   // UI state
   sidebarOpen: boolean;
@@ -24,9 +24,9 @@ export const useAppStore = create<AppState>((set) => ({
   selectedSchedule: null,
   setSelectedSchedule: (schedule) => set({ selectedSchedule: schedule }),
 
-  // Comparison schedule
-  comparisonSchedule: null,
-  setComparisonSchedule: (schedule) => set({ comparisonSchedule: schedule }),
+  // Comparison schedule IDs
+  comparisonScheduleIds: [],
+  setComparisonScheduleIds: (ids) => set({ comparisonScheduleIds: ids }),
 
   // UI state
   sidebarOpen: true,

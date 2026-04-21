@@ -514,6 +514,51 @@ export interface CompareData {
   retimed_blocks: RetimedBlockChange[];
   current_name: string;
   comparison_name: string;
+  advanced_compare: AdvancedCompare;
+}
+
+// Advanced Compare
+export interface AdvancedCompareParams {
+  epsilon_minutes: number;
+  min_block_size: number;
+  merge_epsilon_minutes: number;
+}
+
+export interface AdvancedGlobalMetrics {
+  match_ratio: number;
+  matched_count: number;
+  timed_common_count: number;
+  only_in_current_count: number;
+  only_in_comparison_count: number;
+  coherent_block_count: number;
+  ungrouped_common_count: number;
+  order_preservation_ratio: number | null;
+  global_shift_median_minutes: number | null;
+  local_shift_mad_minutes: number | null;
+  ignored_missing_key_current: number;
+  ignored_missing_key_comparison: number;
+}
+
+export interface CoherentBlock {
+  block_index: number;
+  original_block_ids: string[];
+  size: number;
+  pos_a_start: number;
+  pos_a_end: number;
+  pos_b_start: number;
+  pos_b_end: number;
+  start_a_mjd: number;
+  end_a_mjd: number;
+  start_b_mjd: number;
+  end_b_mjd: number;
+  avg_shift_minutes: number;
+  shift_std_minutes: number;
+}
+
+export interface AdvancedCompare {
+  params_used: AdvancedCompareParams;
+  global_metrics: AdvancedGlobalMetrics;
+  blocks: CoherentBlock[];
 }
 
 // Visibility Map
@@ -553,6 +598,9 @@ export interface TrendsQuery {
 export interface CompareQuery {
   current_name?: string;
   comparison_name?: string;
+  epsilon_minutes?: number;
+  min_block_size?: number;
+  merge_epsilon_minutes?: number;
 }
 
 export interface VisibilityHistogramQuery {

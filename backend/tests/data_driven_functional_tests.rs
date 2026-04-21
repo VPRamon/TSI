@@ -798,6 +798,9 @@ async fn test_full_workflow_compare_schedules() {
         comparison_blocks,
         "Schedule A".to_string(),
         "Schedule B".to_string(),
+        None,
+        None,
+        None,
     )
     .expect("Failed to compute compare data");
 

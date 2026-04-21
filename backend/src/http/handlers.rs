@@ -674,6 +674,9 @@ pub async fn compare_schedules(
             comparison_id,
             current_name,
             comparison_name,
+            query.epsilon_minutes,
+            query.min_block_size,
+            query.merge_epsilon_minutes,
         )
     })
     .await

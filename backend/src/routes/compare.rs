@@ -80,6 +80,74 @@ pub struct RetimedBlockChange {
     pub stop_shift_hours: f64,
 }
 
+// =========================================================
+// Advanced compare types
+// =========================================================
+
+/// Parameters actually used by the advanced compare pipeline, echoed back so
+/// the caller can verify which defaults were applied.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvancedCompareParams {
+    pub epsilon_minutes: f64,
+    pub min_block_size: usize,
+    pub merge_epsilon_minutes: f64,
+}
+
+/// Global metrics for the advanced coherent-block comparison.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvancedGlobalMetrics {
+    /// `common / (common + only_in_current + only_in_comparison)` over
+    /// identifiable blocks (non-empty `original_block_id`).
+    pub match_ratio: f64,
+    pub matched_count: usize,
+    /// Common tasks with valid `scheduled_start_mjd` + `scheduled_stop_mjd`
+    /// in **both** schedules.
+    pub timed_common_count: usize,
+    pub only_in_current_count: usize,
+    pub only_in_comparison_count: usize,
+    pub coherent_block_count: usize,
+    pub ungrouped_common_count: usize,
+    /// `LIS(pos_b ordered by pos_a) / timed_common_count`.
+    /// `null` when `timed_common_count == 0`.
+    pub order_preservation_ratio: Option<f64>,
+    /// Median of per-task `shift_minutes` (comparison − current start).
+    /// `null` when `timed_common_count == 0`.
+    pub global_shift_median_minutes: Option<f64>,
+    /// MAD (median absolute deviation) of per-task shift relative to the
+    /// global median. `null` when `timed_common_count == 0`.
+    pub local_shift_mad_minutes: Option<f64>,
+    /// Blocks with empty `original_block_id` in the current schedule.
+    pub ignored_missing_key_current: usize,
+    /// Blocks with empty `original_block_id` in the comparison schedule.
+    pub ignored_missing_key_comparison: usize,
+}
+
+/// A single coherent block in the segmented comparison.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoherentBlock {
+    pub block_index: usize,
+    pub original_block_ids: Vec<String>,
+    pub size: usize,
+    pub pos_a_start: usize,
+    pub pos_a_end: usize,
+    pub pos_b_start: usize,
+    pub pos_b_end: usize,
+    pub start_a_mjd: f64,
+    pub end_a_mjd: f64,
+    pub start_b_mjd: f64,
+    pub end_b_mjd: f64,
+    pub avg_shift_minutes: f64,
+    pub shift_std_minutes: f64,
+}
+
+/// Top-level wrapper for the advanced compare payload.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvancedCompare {
+    pub params_used: AdvancedCompareParams,
+    pub global_metrics: AdvancedGlobalMetrics,
+    pub blocks: Vec<CoherentBlock>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompareData {
     pub current_blocks: Vec<CompareBlock>,
@@ -103,6 +171,8 @@ pub struct CompareData {
 
     pub current_name: String,
     pub comparison_name: String,
+
+    pub advanced_compare: AdvancedCompare,
 }
 
 pub const GET_COMPARE_DATA: &str = "get_compare_data";
