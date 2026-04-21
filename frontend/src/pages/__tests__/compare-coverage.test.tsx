@@ -302,6 +302,66 @@ describe('Compare page — 2+ schedules', () => {
     expect(screen.getByText('1000002306')).toBeInTheDocument();
     expect(screen.queryByText('1000002306:1000002306')).not.toBeInTheDocument();
   });
+
+  it('sorts the block status table by Block ID when the header is clicked', async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(hooks.useInsights).mockImplementation((id: number) => {
+      if (id === 0) {
+        return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useInsights>;
+      }
+
+      const data = makeInsightsData(id === 1 ? 3 : 2);
+      data.blocks = [
+        {
+          ...data.blocks[0],
+          original_block_id: 'OB-10',
+          priority: 9,
+          requested_hours: 2,
+          scheduled: true,
+          scheduled_start_mjd: 60010,
+        },
+        {
+          ...data.blocks[1],
+          original_block_id: 'OB-2',
+          priority: 7,
+          requested_hours: 1,
+          scheduled: true,
+          scheduled_start_mjd: 60002,
+        },
+        {
+          ...data.blocks[2],
+          original_block_id: 'OB-1',
+          priority: 8,
+          requested_hours: 3,
+          scheduled: true,
+          scheduled_start_mjd: 60001,
+        },
+      ];
+
+      return makeHookResult(data) as ReturnType<typeof hooks.useInsights>;
+    });
+
+    renderCompare('/schedules/1/compare/2');
+
+    const blockIdHeader = screen.getByRole('columnheader', { name: /block id/i });
+    const blockTable = blockIdHeader.closest('table');
+    expect(blockTable).toBeTruthy();
+
+    const getVisibleBlockIds = () =>
+      within(blockTable as HTMLTableElement)
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => within(row).getAllByRole('cell')[0]?.textContent?.trim());
+
+    expect(getVisibleBlockIds().slice(0, 3)).toEqual(['OB-10', 'OB-1', 'OB-2']);
+
+    await user.click(within(blockIdHeader).getByRole('button', { name: /block id/i }));
+    expect(getVisibleBlockIds().slice(0, 3)).toEqual(['OB-1', 'OB-2', 'OB-10']);
+
+    await user.click(within(blockIdHeader).getByRole('button', { name: /block id/i }));
+    expect(getVisibleBlockIds().slice(0, 3)).toEqual(['OB-10', 'OB-2', 'OB-1']);
+  });
 });
 
 describe('Compare page — loading state', () => {

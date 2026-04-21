@@ -429,9 +429,103 @@ interface BlockEntry {
   >;
 }
 
+type BlockSortField =
+  | { kind: 'blockId' }
+  | { kind: 'priority' }
+  | { kind: 'duration' }
+  | { kind: 'schedule'; scheduleId: number };
+
+type BlockSortDirection = 'asc' | 'desc';
+
+function compareText(left: string, right: string): number {
+  return left.localeCompare(right, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function compareNumber(left: number, right: number): number {
+  return left - right;
+}
+
+function compareScheduleEntry(
+  left:
+    | {
+        scheduled: boolean;
+        start_mjd: number | null;
+        requested_hours: number;
+      }
+    | undefined,
+  right:
+    | {
+        scheduled: boolean;
+        start_mjd: number | null;
+        requested_hours: number;
+      }
+    | undefined
+): number {
+  const leftRank = left ? (left.scheduled ? 0 : 1) : 2;
+  const rightRank = right ? (right.scheduled ? 0 : 1) : 2;
+
+  if (leftRank !== rightRank) {
+    return leftRank - rightRank;
+  }
+
+  if (left?.scheduled && right?.scheduled) {
+    const leftStart = left.start_mjd ?? Number.POSITIVE_INFINITY;
+    const rightStart = right.start_mjd ?? Number.POSITIVE_INFINITY;
+    const byStart = compareNumber(leftStart, rightStart);
+    if (byStart !== 0) {
+      return byStart;
+    }
+  }
+
+  return 0;
+}
+
+function sortBlocks(
+  blocks: BlockEntry[],
+  sortField: BlockSortField,
+  sortDirection: BlockSortDirection
+): BlockEntry[] {
+  const directionMultiplier = sortDirection === 'asc' ? 1 : -1;
+
+  return [...blocks].sort((left, right) => {
+    let comparison = 0;
+
+    switch (sortField.kind) {
+      case 'blockId':
+        comparison = compareText(left.original_block_id, right.original_block_id);
+        break;
+      case 'priority':
+        comparison = compareNumber(left.maxPriority, right.maxPriority);
+        break;
+      case 'duration':
+        comparison = compareNumber(left.maxRequestedHours, right.maxRequestedHours);
+        break;
+      case 'schedule':
+        comparison = compareScheduleEntry(
+          left.perSchedule[sortField.scheduleId],
+          right.perSchedule[sortField.scheduleId]
+        );
+        break;
+    }
+
+    if (comparison !== 0) {
+      return comparison * directionMultiplier;
+    }
+
+    const byPriority = compareNumber(left.maxPriority, right.maxPriority);
+    if (byPriority !== 0) {
+      return byPriority * -1;
+    }
+
+    return compareText(left.original_block_id, right.original_block_id);
+  });
+}
+
 function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
   const [page, setPage] = useState(0);
   const [showDifferencesOnly, setShowDifferencesOnly] = useState(false);
+  const [sortField, setSortField] = useState<BlockSortField>({ kind: 'priority' });
+  const [sortDirection, setSortDirection] = useState<BlockSortDirection>('desc');
   const refId = schedules[0]?.id;
 
   const blockMap = useMemo(() => {
@@ -462,8 +556,8 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
   }, [schedules]);
 
   const sortedBlocks = useMemo(
-    () => [...blockMap.values()].sort((a, b) => b.maxPriority - a.maxPriority),
-    [blockMap]
+    () => sortBlocks([...blockMap.values()], sortField, sortDirection),
+    [blockMap, sortDirection, sortField]
   );
 
   const filteredBlocks = useMemo(() => {
@@ -485,7 +579,42 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
 
   useEffect(() => {
     setPage(0);
-  }, [showDifferencesOnly, schedules]);
+  }, [showDifferencesOnly, schedules, sortDirection, sortField]);
+
+  const isSortFieldActive = (field: BlockSortField): boolean => {
+    if (field.kind !== sortField.kind) return false;
+    if (field.kind === 'schedule' && sortField.kind === 'schedule') {
+      return field.scheduleId === sortField.scheduleId;
+    }
+    return true;
+  };
+
+  const getAriaSort = (field: BlockSortField): 'none' | 'ascending' | 'descending' =>
+    isSortFieldActive(field)
+      ? sortDirection === 'asc'
+        ? 'ascending'
+        : 'descending'
+      : 'none';
+
+  const handleSort = (field: BlockSortField) => {
+    if (isSortFieldActive(field)) {
+      setSortDirection((value) => (value === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortField(field);
+    setSortDirection(field.kind === 'blockId' ? 'asc' : 'desc');
+  };
+
+  const renderSortLabel = (field: BlockSortField) => {
+    if (!isSortFieldActive(field)) {
+      return <span className="ml-1 text-slate-600">↕</span>;
+    }
+
+    return (
+      <span className="ml-1 text-sky-400">{sortDirection === 'asc' ? '↑' : '↓'}</span>
+    );
+  };
 
   const totalPages = Math.ceil(filteredBlocks.length / PAGE_SIZE);
   const pageBlocks = filteredBlocks.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -519,12 +648,53 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700 text-slate-400">
-              <th className="sticky left-0 bg-slate-800/90 px-3 py-2 text-left">Block ID</th>
-              <th className="px-3 py-2 text-right">Priority</th>
-              <th className="px-3 py-2 text-right">Duration (min)</th>
+              <th
+                aria-sort={getAriaSort({ kind: 'blockId' })}
+                className="sticky left-0 bg-slate-800/90 px-3 py-2 text-left"
+              >
+                <button
+                  type="button"
+                  onClick={() => handleSort({ kind: 'blockId' })}
+                  className="inline-flex items-center gap-1 text-left hover:text-white"
+                >
+                  <span>Block ID</span>
+                  {renderSortLabel({ kind: 'blockId' })}
+                </button>
+              </th>
+              <th aria-sort={getAriaSort({ kind: 'priority' })} className="px-3 py-2 text-right">
+                <button
+                  type="button"
+                  onClick={() => handleSort({ kind: 'priority' })}
+                  className="inline-flex items-center gap-1 hover:text-white"
+                >
+                  <span>Priority</span>
+                  {renderSortLabel({ kind: 'priority' })}
+                </button>
+              </th>
+              <th aria-sort={getAriaSort({ kind: 'duration' })} className="px-3 py-2 text-right">
+                <button
+                  type="button"
+                  onClick={() => handleSort({ kind: 'duration' })}
+                  className="inline-flex items-center gap-1 hover:text-white"
+                >
+                  <span>Duration (min)</span>
+                  {renderSortLabel({ kind: 'duration' })}
+                </button>
+              </th>
               {schedules.map((s) => (
-                <th key={s.id} className="px-3 py-2 text-center whitespace-nowrap">
-                  <div>{s.name}</div>
+                <th
+                  key={s.id}
+                  aria-sort={getAriaSort({ kind: 'schedule', scheduleId: s.id })}
+                  className="px-3 py-2 text-center whitespace-nowrap"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSort({ kind: 'schedule', scheduleId: s.id })}
+                    className="inline-flex items-center gap-1 hover:text-white"
+                  >
+                    <span>{s.name}</span>
+                    {renderSortLabel({ kind: 'schedule', scheduleId: s.id })}
+                  </button>
                   {s.id === refId && (
                     <div className="mt-0.5">
                       <span className="rounded-sm bg-sky-700/60 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300">
