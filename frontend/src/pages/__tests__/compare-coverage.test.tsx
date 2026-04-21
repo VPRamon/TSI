@@ -1,10 +1,10 @@
 /**
  * Tests for the redesigned multi-schedule Compare page.
  *
- * Route: /compare?ids=1,2
+ * Route: /schedules/:scheduleId/compare/:otherIds
  *
  * Tests:
- *   - Empty state (no IDs) shows select-schedules prompt
+ *   - Empty state (no otherIds) shows select-schedules prompt
  *   - With 2+ IDs renders summary table metric labels
  *   - Schedule chip header renders schedule names
  */
@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { MemoryRouterProvider } from '../../test/test-utils';
 import { render } from '@testing-library/react';
+import { Routes, Route } from 'react-router-dom';
 import type { InsightsData, FragmentationData } from '../../api/types';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -123,10 +124,13 @@ function makeLoadingResult(): UseQueryResult<undefined> {
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
 
-function renderCompare(path = '/compare') {
+function renderCompare(path = '/schedules/1/compare') {
   return render(
     <MemoryRouterProvider initialEntries={[path]}>
-      <Compare />
+      <Routes>
+        <Route path="/schedules/:scheduleId/compare" element={<Compare />} />
+        <Route path="/schedules/:scheduleId/compare/:otherIds" element={<Compare />} />
+      </Routes>
     </MemoryRouterProvider>
   );
 }
@@ -168,24 +172,24 @@ beforeEach(() => {
 
 describe('Compare page — empty state', () => {
   it('shows select-schedules prompt when no IDs in URL', () => {
-    renderCompare('/compare');
+    renderCompare('/schedules/1/compare');
     expect(screen.getByText(/add schedules to compare/i)).toBeInTheDocument();
   });
 
-  it('shows select-schedules prompt when fewer than 2 valid IDs', () => {
-    renderCompare('/compare?ids=1');
+  it('shows select-schedules prompt when only reference in URL', () => {
+    renderCompare('/schedules/1/compare');
     expect(screen.getByText(/add schedules to compare/i)).toBeInTheDocument();
   });
 
   it('renders "Compare Schedules" page title', () => {
-    renderCompare('/compare');
+    renderCompare('/schedules/1/compare');
     expect(screen.getByText('Compare Schedules')).toBeInTheDocument();
   });
 });
 
 describe('Compare page — 2+ schedules', () => {
   it('renders summary metrics table with expected metric labels', () => {
-    renderCompare('/compare?ids=1,2');
+    renderCompare('/schedules/1/compare/2');
 
     const expectedLabels = [
       'Scheduled tasks',
@@ -207,23 +211,23 @@ describe('Compare page — 2+ schedules', () => {
   });
 
   it('renders schedule chip header with schedule names', () => {
-    renderCompare('/compare?ids=1,2');
+    renderCompare('/schedules/1/compare/2');
     expect(screen.getAllByText(/Schedule Alpha/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Schedule Beta/).length).toBeGreaterThan(0);
   });
 
   it('renders "Summary Metrics" panel title', () => {
-    renderCompare('/compare?ids=1,2');
+    renderCompare('/schedules/1/compare/2');
     expect(screen.getByText('Summary Metrics')).toBeInTheDocument();
   });
 
   it('renders block status table panel', () => {
-    renderCompare('/compare?ids=1,2');
+    renderCompare('/schedules/1/compare/2');
     expect(screen.getByText(/Block Status/i)).toBeInTheDocument();
   });
 
   it('renders block IDs from insights data in the block table', () => {
-    renderCompare('/compare?ids=1,2');
+    renderCompare('/schedules/1/compare/2');
     // Blocks from makeInsightsData have original_block_id OB-1, OB-2, etc.
     expect(screen.getAllByText(/^OB-/).length).toBeGreaterThan(0);
   });
@@ -239,7 +243,7 @@ describe('Compare page — loading state', () => {
       if (id === 0) return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useFragmentation>;
       return makeLoadingResult() as ReturnType<typeof hooks.useFragmentation>;
     });
-    renderCompare('/compare?ids=1,2');
+    renderCompare('/schedules/1/compare/2');
     // Loading spinner should be present (LoadingSpinner has role="status")
     expect(document.querySelector('[role="status"]')).toBeTruthy();
   });

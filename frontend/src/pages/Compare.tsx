@@ -1,17 +1,18 @@
 /**
  * Compare page — multi-schedule field table with reference baseline.
  *
- * Route: /compare?ids=ref,other1,other2,...
+ * Route: /schedules/:scheduleId/compare/:otherIds
  *
- * ids[0] is the reference schedule. All other schedules show their value
- * plus a coloured Δ relative to the reference (green = better, red = worse).
+ * scheduleId is the reference schedule. otherIds is a comma-separated list of
+ * additional schedule IDs. All non-reference schedules show their value plus a
+ * coloured Δ relative to the reference (green = better, red = worse).
  *
  * Shows:
  *   1. Summary metrics table (rows = metrics, columns = schedules)
  *   2. Block status table (rows = tasks aligned by original_block_id, columns = schedules)
  */
 import { useState, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useInsights, useFragmentation, useSchedules } from '@/hooks';
 import {
   ChartPanel,
@@ -562,20 +563,22 @@ function ScheduleChips({
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 function ComparePage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { scheduleId: scheduleIdParam, otherIds: otherIdsParam } = useParams<{
+    scheduleId: string;
+    otherIds?: string;
+  }>();
   const navigate = useNavigate();
   const [showEmptyPicker, setShowEmptyPicker] = useState(false);
 
-  const idsParam = searchParams.get('ids') ?? '';
-  const ids = useMemo(
-    () =>
-      idsParam
-        .split(',')
-        .map((s) => parseInt(s.trim(), 10))
-        .filter((n) => Number.isFinite(n) && n > 0)
-        .slice(0, 10),
-    [idsParam]
-  );
+  const ids = useMemo(() => {
+    const refId = parseInt(scheduleIdParam ?? '0', 10);
+    const others = (otherIdsParam ?? '')
+      .split(',')
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const all = refId > 0 ? [refId, ...others] : others;
+    return [...new Set(all)].slice(0, 10);
+  }, [scheduleIdParam, otherIdsParam]);
 
   const { data: schedulesData } = useSchedules();
   const scheduleInfoMap = useMemo(() => {
@@ -596,16 +599,20 @@ function ComparePage() {
 
   const handleRemove = (id: number) => {
     const next = ids.filter((i) => i !== id);
-    if (next.length === 0) {
-      navigate('/compare');
+    if (next.length <= 1) {
+      // Only reference left (or empty) — go to compare empty state for that schedule
+      const remainingRef = next[0] ?? ids[0];
+      navigate(`/schedules/${remainingRef}/compare`);
     } else {
-      setSearchParams({ ids: next.join(',') });
+      const [ref, ...others] = next;
+      navigate(`/schedules/${ref}/compare/${others.join(',')}`);
     }
   };
 
   const handleAdd = (selected: ScheduleInfo[]) => {
-    const next = [...new Set([...ids, ...selected.map((s) => s.schedule_id)])];
-    setSearchParams({ ids: next.join(',') });
+    const next = [...new Set([...ids, ...selected.map((s) => s.schedule_id)])].slice(0, 10);
+    const [ref, ...others] = next;
+    navigate(`/schedules/${ref}/compare/${others.join(',')}`);
   };
 
   const anyLoading = schedules.some((s) => s.isLoading);
@@ -629,7 +636,8 @@ function ComparePage() {
                 placeholder="Search schedules..."
                 onConfirm={(selected) => {
                   setShowEmptyPicker(false);
-                  setSearchParams({ ids: selected.map((s) => s.schedule_id).join(',') });
+                  const [ref, ...others] = selected.map((s) => s.schedule_id);
+                  navigate(`/schedules/${ref}/compare/${others.join(',')}`);
                 }}
               />
             ) : (

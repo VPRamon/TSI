@@ -296,8 +296,9 @@ function Layout() {
                             placeholder="Search schedules..."
                             onConfirm={(schedules) => {
                               setShowComparePicker(false);
+                              const [ref, ...others] = schedules.map((s) => s.schedule_id);
                               navigate(
-                                `/compare?ids=${schedules.map((s) => s.schedule_id).join(',')}`
+                                `/schedules/${ref}/compare/${others.join(',')}`
                               );
                             }}
                           />
