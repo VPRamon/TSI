@@ -1,7 +1,10 @@
 /**
- * Compare page — multi-schedule field table.
+ * Compare page — multi-schedule field table with reference baseline.
  *
- * Route: /compare?ids=1,2,3
+ * Route: /compare?ids=ref,other1,other2,...
+ *
+ * ids[0] is the reference schedule. All other schedules show their value
+ * plus a coloured Δ relative to the reference (green = better, red = worse).
  *
  * Shows:
  *   1. Summary metrics table (rows = metrics, columns = schedules)
@@ -180,7 +183,56 @@ const METRIC_ROWS: MetricRow[] = [
   },
 ];
 
+// ─── Delta helpers ───────────────────────────────────────────────────────────
+
+/** Format a raw numeric delta with sign. */
+function formatDelta(delta: number, row: MetricRow): string {
+  const sign = delta >= 0 ? '+' : '−';
+  const abs = Math.abs(delta);
+
+  if (row.label === 'Scheduling rate') {
+    return `${sign}${(abs * 100).toFixed(1)} pp`;
+  }
+  if (row.label.toLowerCase().includes('hour') ||
+      row.label.toLowerCase().includes('gap') ||
+      row.label === 'Scheduled hours' ||
+      row.label === 'Operable hours') {
+    return `${sign}${abs.toFixed(2)} h`;
+  }
+  if (row.label === 'Scheduled tasks' || row.label === 'Unscheduled tasks' || row.label === 'Gap count') {
+    return `${sign}${Math.round(abs).toLocaleString()}`;
+  }
+  return `${sign}${abs.toFixed(2)}`;
+}
+
+/** True if a positive delta means the comparison schedule is better than ref. */
+function deltaIsGood(delta: number, bestIs: 'max' | 'min'): boolean {
+  if (delta === 0) return false;
+  return bestIs === 'max' ? delta > 0 : delta < 0;
+}
+
+function DeltaBadge({
+  delta,
+  row,
+}: {
+  delta: number;
+  row: MetricRow;
+}) {
+  if (delta === 0) return <span className="ml-1 text-xs text-slate-500">—</span>;
+  const good = deltaIsGood(delta, row.bestIs);
+  const colorClass = good ? 'text-emerald-400' : 'text-red-400';
+  const arrow = good ? '▲' : '▼';
+  return (
+    <span className={`ml-1 text-xs tabular-nums ${colorClass}`} title="vs reference">
+      {arrow} {formatDelta(delta, row)}
+    </span>
+  );
+}
+
 function SummaryTable({ schedules }: { schedules: ScheduleData[] }) {
+  const ref = schedules[0];
+  const rest = schedules.slice(1);
+
   return (
     <ChartPanel title="Summary Metrics">
       <div className="overflow-x-auto">
@@ -188,7 +240,17 @@ function SummaryTable({ schedules }: { schedules: ScheduleData[] }) {
           <thead>
             <tr className="border-b border-slate-700 text-slate-400">
               <th className="sticky left-0 bg-slate-800/90 px-3 py-2 text-left">Metric</th>
-              {schedules.map((s) => (
+              {/* Reference column header */}
+              <th className="px-3 py-2 text-right whitespace-nowrap">
+                <div>{ref.name}<span className="ml-1 text-xs text-slate-500">#{ref.id}</span></div>
+                <div className="mt-0.5">
+                  <span className="rounded-sm bg-sky-700/60 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300">
+                    Reference
+                  </span>
+                </div>
+              </th>
+              {/* Comparison column headers */}
+              {rest.map((s) => (
                 <th key={s.id} className="px-3 py-2 text-right whitespace-nowrap">
                   {s.name}
                   <span className="ml-1 text-xs text-slate-500">#{s.id}</span>
@@ -198,39 +260,37 @@ function SummaryTable({ schedules }: { schedules: ScheduleData[] }) {
           </thead>
           <tbody>
             {METRIC_ROWS.map((row) => {
-              const values = schedules.map((s) => row.getValue(s));
-              const nonNullValues = values.filter((v): v is number => v != null);
-              const bestValue =
-                nonNullValues.length > 0
-                  ? row.bestIs === 'max'
-                    ? Math.max(...nonNullValues)
-                    : Math.min(...nonNullValues)
-                  : null;
+              const refValue = row.getValue(ref);
 
               return (
                 <tr key={row.label} className="border-b border-slate-700/50">
                   <td className="sticky left-0 bg-slate-800/90 px-3 py-2 text-slate-300 whitespace-nowrap">
                     {row.label}
                   </td>
-                  {schedules.map((s, idx) => {
-                    const v = values[idx];
-                    const isBest =
-                      v != null &&
-                      bestValue != null &&
-                      nonNullValues.length > 1 &&
-                      v === bestValue;
+                  {/* Reference cell — plain value, sky tint */}
+                  <td className="bg-sky-950/20 px-3 py-2 text-right tabular-nums text-slate-200">
+                    {ref.isLoading ? '…' : row.format(refValue)}
+                  </td>
+                  {/* Comparison cells — value + delta badge */}
+                  {rest.map((s) => {
+                    const v = row.getValue(s);
+                    const delta =
+                      v != null && refValue != null ? v - refValue : null;
                     return (
                       <td
                         key={s.id}
-                        className={`px-3 py-2 text-right tabular-nums ${
-                          s.isLoading
-                            ? 'text-slate-500'
-                            : isBest
-                              ? 'font-semibold text-emerald-400'
-                              : 'text-slate-300'
-                        }`}
+                        className={`px-3 py-2 text-right tabular-nums ${s.isLoading ? 'text-slate-500' : 'text-slate-300'}`}
                       >
-                        {s.isLoading ? '…' : row.format(v)}
+                        {s.isLoading ? (
+                          '…'
+                        ) : (
+                          <>
+                            {row.format(v)}
+                            {delta != null && refValue != null && (
+                              <DeltaBadge delta={delta} row={row} />
+                            )}
+                          </>
+                        )}
                       </td>
                     );
                   })}
@@ -258,6 +318,7 @@ interface BlockEntry {
 
 function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
   const [page, setPage] = useState(0);
+  const refId = schedules[0]?.id;
 
   const blockMap = useMemo(() => {
     const map = new Map<string, BlockEntry>();
@@ -313,7 +374,14 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
               <th className="px-3 py-2 text-right">Priority</th>
               {schedules.map((s) => (
                 <th key={s.id} className="px-3 py-2 text-center whitespace-nowrap">
-                  {s.name}
+                  <div>{s.name}</div>
+                  {s.id === refId && (
+                    <div className="mt-0.5">
+                      <span className="rounded-sm bg-sky-700/60 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300">
+                        Reference
+                      </span>
+                    </div>
+                  )}
                 </th>
               ))}
             </tr>
@@ -330,6 +398,9 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
                 </td>
                 {schedules.map((s) => {
                   const entry = block.perSchedule[s.id];
+                  const refEntry = block.perSchedule[refId];
+                  const isRef = s.id === refId;
+
                   if (!entry) {
                     return (
                       <td key={s.id} className="px-3 py-2 text-center text-slate-600">
@@ -337,17 +408,31 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
                       </td>
                     );
                   }
+
+                  // Compute diff vs reference for non-reference columns
+                  const diffIndicator = (() => {
+                    if (isRef || !refEntry) return null;
+                    if (entry.scheduled && !refEntry.scheduled)
+                      return <span className="ml-1 text-[10px] font-bold text-emerald-400" title="Gained vs reference">▲</span>;
+                    if (!entry.scheduled && refEntry.scheduled)
+                      return <span className="ml-1 text-[10px] font-bold text-red-400" title="Lost vs reference">▼</span>;
+                    return null;
+                  })();
+
                   return (
-                    <td key={s.id} className="px-3 py-2 text-center">
+                    <td key={s.id} className={`px-3 py-2 text-center ${isRef ? 'bg-sky-950/20' : ''}`}>
                       {entry.scheduled ? (
                         <span className="text-emerald-400">
                           ✓{' '}
                           <span className="text-xs font-mono">
                             {formatMjdUtc(entry.start_mjd)}
                           </span>
+                          {diffIndicator}
                         </span>
                       ) : (
-                        <span className="text-red-400">✗</span>
+                        <span className="text-red-400">
+                          ✗{diffIndicator}
+                        </span>
                       )}
                     </td>
                   );
@@ -402,23 +487,47 @@ function ScheduleChips({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {ids.map((id) => {
+      {ids.map((id, idx) => {
         const info = scheduleInfoMap.get(id);
         const label = info?.schedule_name ?? `#${id}`;
+        const isRef = idx === 0;
         return (
           <span
             key={id}
-            className="flex items-center gap-1 rounded-full border border-slate-600 bg-slate-700 px-3 py-1 text-sm text-white"
+            className={`flex items-center gap-1 rounded-full border px-3 py-1 text-sm text-white ${
+              isRef
+                ? 'border-sky-500 bg-sky-900/50 ring-1 ring-sky-500/40'
+                : 'border-slate-600 bg-slate-700'
+            }`}
           >
+            {isRef && (
+              <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-sky-300">
+                REF
+              </span>
+            )}
             {label}
-            <button
-              type="button"
-              onClick={() => onRemove(id)}
-              className="ml-1 text-slate-400 hover:text-red-400"
-              aria-label={`Remove ${label}`}
-            >
-              ×
-            </button>
+            {/* Reference chip cannot be removed if there are other schedules — swap instead */}
+            {!isRef && (
+              <button
+                type="button"
+                onClick={() => onRemove(id)}
+                className="ml-1 text-slate-400 hover:text-red-400"
+                aria-label={`Remove ${label}`}
+              >
+                ×
+              </button>
+            )}
+            {isRef && ids.length > 1 && (
+              <button
+                type="button"
+                onClick={() => onRemove(id)}
+                className="ml-1 text-slate-500 hover:text-red-400"
+                aria-label={`Remove reference ${label}`}
+                title="Remove reference (next schedule becomes reference)"
+              >
+                ×
+              </button>
+            )}
           </span>
         );
       })}
