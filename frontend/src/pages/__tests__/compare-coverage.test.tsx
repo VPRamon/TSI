@@ -9,9 +9,8 @@
  *   - Schedule chip header renders schedule names
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/react';
-import { MemoryRouterProvider } from '../../test/test-utils';
-import { render } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import { MemoryRouterProvider, userEvent } from '../../test/test-utils';
 import { Routes, Route } from 'react-router-dom';
 import type { InsightsData, FragmentationData } from '../../api/types';
 
@@ -32,7 +31,16 @@ vi.mock('../../hooks', async (importOriginal) => {
   };
 });
 
+vi.mock('@/hooks/useApi', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/hooks/useApi')>();
+  return {
+    ...actual,
+    useSchedules: vi.fn(),
+  };
+});
+
 import * as hooks from '../../hooks';
+import * as apiHooks from '@/hooks/useApi';
 import Compare from '../Compare';
 
 // ─── Realistic stub data ──────────────────────────────────────────────────────
@@ -136,14 +144,19 @@ function renderCompare(path = '/schedules/1/compare') {
 }
 
 beforeEach(() => {
+  const schedulesResult = makeHookResult({
+    schedules: [
+      { schedule_id: 1, schedule_name: 'Schedule Alpha' },
+      { schedule_id: 2, schedule_name: 'Schedule Beta' },
+    ],
+    total: 2,
+  });
+
   vi.mocked(hooks.useSchedules).mockReturnValue(
-    makeHookResult({
-      schedules: [
-        { schedule_id: 1, schedule_name: 'Schedule Alpha' },
-        { schedule_id: 2, schedule_name: 'Schedule Beta' },
-      ],
-      total: 2,
-    }) as ReturnType<typeof hooks.useSchedules>
+    schedulesResult as ReturnType<typeof hooks.useSchedules>
+  );
+  vi.mocked(apiHooks.useSchedules).mockReturnValue(
+    schedulesResult as ReturnType<typeof apiHooks.useSchedules>
   );
 
   // Default: return realistic data for IDs 1 and 2; disabled/empty for 0
@@ -221,15 +234,73 @@ describe('Compare page — 2+ schedules', () => {
     expect(screen.getByText('Summary Metrics')).toBeInTheDocument();
   });
 
+  it('toggles full screen for compare tables', async () => {
+    const user = userEvent.setup();
+
+    renderCompare('/schedules/1/compare/2');
+
+    const openButtons = screen.getAllByRole('button', { name: /enter full screen for/i });
+    expect(openButtons).toHaveLength(2);
+
+    await user.click(screen.getByRole('button', { name: /enter full screen for summary metrics/i }));
+
+    expect(
+      screen.getByRole('button', { name: /exit full screen for summary metrics/i })
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /exit full screen for summary metrics/i }));
+
+    expect(
+      screen.getByRole('button', { name: /enter full screen for summary metrics/i })
+    ).toBeInTheDocument();
+  });
+
+  it('keeps the route schedule fixed as reference and out of the add-schedule dropdown', async () => {
+    const user = userEvent.setup();
+
+    renderCompare('/schedules/1/compare/2');
+
+    expect(screen.queryByLabelText('Remove reference Schedule Alpha')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /\+ add schedule/i }));
+    await user.click(screen.getByRole('button', { name: /open dropdown/i }));
+
+    const listbox = await screen.findByRole('listbox');
+    expect(within(listbox).queryByText('Schedule Alpha')).not.toBeInTheDocument();
+    expect(await within(listbox).findByText('Schedule Beta')).toBeInTheDocument();
+  });
+
   it('renders block status table panel', () => {
     renderCompare('/schedules/1/compare/2');
     expect(screen.getByText(/Block Status/i)).toBeInTheDocument();
+  });
+
+  it('renders duration column in minutes in the block table', () => {
+    renderCompare('/schedules/1/compare/2');
+    expect(screen.getByText('Duration (min)')).toBeInTheDocument();
+    expect(screen.getAllByText('120').length).toBeGreaterThan(0);
   });
 
   it('renders block IDs from insights data in the block table', () => {
     renderCompare('/schedules/1/compare/2');
     // Blocks from makeInsightsData have original_block_id OB-1, OB-2, etc.
     expect(screen.getAllByText(/^OB-/).length).toBeGreaterThan(0);
+  });
+
+  it('collapses duplicated colon-separated block IDs in the block table display', () => {
+    vi.mocked(hooks.useInsights).mockImplementation((id: number) => {
+      if (id === 0) {
+        return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useInsights>;
+      }
+
+      const data = makeInsightsData(id === 1 ? 3 : 2);
+      data.blocks[0].original_block_id = '1000002306:1000002306';
+      return makeHookResult(data) as ReturnType<typeof hooks.useInsights>;
+    });
+
+    renderCompare('/schedules/1/compare/2');
+    expect(screen.getByText('1000002306')).toBeInTheDocument();
+    expect(screen.queryByText('1000002306:1000002306')).not.toBeInTheDocument();
   });
 });
 
@@ -248,4 +319,3 @@ describe('Compare page — loading state', () => {
     expect(document.querySelector('[role="status"]')).toBeTruthy();
   });
 });
-

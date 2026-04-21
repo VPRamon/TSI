@@ -89,6 +89,12 @@ function Distributions() {
     barMode: 'overlay',
   });
 
+  const { layout: requestedDurationLayout } = usePlotlyTheme({
+    xAxis: { title: 'Requested Duration (hours)' },
+    yAxis: { title: 'Count' },
+    barMode: 'overlay',
+  });
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -147,6 +153,23 @@ function Distributions() {
     },
   ];
 
+  const requestedDurationHistogram: Plotly.Data[] = [
+    {
+      type: 'histogram',
+      x: data.blocks.filter((b) => b.scheduled).map((b) => b.requested_hours),
+      name: 'Scheduled',
+      marker: { color: STATUS_COLORS.scheduled },
+      opacity: 0.7,
+    },
+    {
+      type: 'histogram',
+      x: data.blocks.filter((b) => !b.scheduled).map((b) => b.requested_hours),
+      name: 'Unscheduled',
+      marker: { color: STATUS_COLORS.unscheduled },
+      opacity: 0.7,
+    },
+  ];
+
   const priorityDetails: DistributionDetail[] = [
     { label: 'Mean', value: data.priority_stats.mean.toFixed(2) },
     { label: 'Median', value: data.priority_stats.median.toFixed(2) },
@@ -164,6 +187,16 @@ function Distributions() {
     {
       label: 'Range',
       value: `${data.visibility_stats.min.toFixed(0)} – ${data.visibility_stats.max.toFixed(0)}h`,
+    },
+  ];
+
+  const requestedDurationDetails: DistributionDetail[] = [
+    { label: 'Mean', value: `${data.requested_hours_stats.mean.toFixed(1)}h` },
+    { label: 'Median', value: `${data.requested_hours_stats.median.toFixed(1)}h` },
+    { label: 'Std Dev', value: `${data.requested_hours_stats.std_dev.toFixed(1)}h` },
+    {
+      label: 'Range',
+      value: `${data.requested_hours_stats.min.toFixed(1)} – ${data.requested_hours_stats.max.toFixed(1)}h`,
     },
   ];
 
@@ -205,6 +238,14 @@ function Distributions() {
         details={visibilityDetails}
         chartData={visibilityHistogram}
         layout={visibilityLayout}
+        config={config}
+      />
+
+      <DistributionSection
+        title="Requested Duration Distribution"
+        details={requestedDurationDetails}
+        chartData={requestedDurationHistogram}
+        layout={requestedDurationLayout}
         config={config}
       />
     </PageContainer>

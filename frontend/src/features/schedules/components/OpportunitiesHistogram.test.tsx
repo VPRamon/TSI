@@ -66,4 +66,25 @@ describe('OpportunitiesHistogram', () => {
     expect(bars[1]).toHaveStyle({ height: '0%' });
     expect(bars[1]).not.toHaveStyle({ minHeight: '2px' });
   });
+
+  it('renders the y-axis with the largest value at the top and zero at the bottom', () => {
+    render(
+      <OpportunitiesHistogram
+        histogramData={[
+          {
+            bin_start_unix: 1712966400,
+            bin_end_unix: 1712970000,
+            visible_count: 3,
+          },
+        ]}
+      />
+    );
+
+    const yAxisLabels = screen.getAllByText(/^[0-9]+$/);
+
+    expect(yAxisLabels[0]).toHaveTextContent('3');
+    expect(yAxisLabels[yAxisLabels.length - 1]).toHaveTextContent('0');
+    expect(yAxisLabels[0].parentElement).toHaveStyle({ top: '0%' });
+    expect(yAxisLabels[yAxisLabels.length - 1].parentElement).toHaveStyle({ top: '100%' });
+  });
 });

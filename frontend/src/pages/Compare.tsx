@@ -11,7 +11,7 @@
  *   1. Summary metrics table (rows = metrics, columns = schedules)
  *   2. Block status table (rows = tasks aligned by original_block_id, columns = schedules)
  */
-import { useState, useMemo } from 'react';
+import { type ReactNode, useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useInsights, useFragmentation, useSchedules } from '@/hooks';
 import {
@@ -39,6 +39,17 @@ function formatMjdUtc(mjd: number | null | undefined): string {
     .replace(/\.\d+Z$/, ' Z');
 }
 
+function formatBlockId(blockId: string): string {
+  const parts = blockId
+    .split(':')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+  if (parts.length > 1 && parts.every((part) => part === parts[0])) {
+    return parts[0];
+  }
+  return blockId;
+}
+
 function pct(v: number): string {
   return `${(v * 100).toFixed(1)} %`;
 }
@@ -51,6 +62,107 @@ function fmt2(v: number | null | undefined): string {
 function fmtH(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return '—';
   return `${v.toFixed(2)} h`;
+}
+
+function FullscreenButton({
+  isFullscreen,
+  onClick,
+  label,
+}: {
+  isFullscreen: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-lg border border-slate-600 p-1.5 text-slate-300 transition-colors hover:bg-slate-700"
+      aria-label={isFullscreen ? `Exit full screen for ${label}` : `Enter full screen for ${label}`}
+      title={isFullscreen ? 'Exit full screen' : 'Full screen'}
+    >
+      {isFullscreen ? (
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 15H5v4m0-4 5 5m5-5h4v4m0-4-5 5M9 9H5V5m0 4 5-5m5 5h4V5m0 4-5-5"
+          />
+        </svg>
+      ) : (
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M8 3H5a2 2 0 00-2 2v3m16 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M8 21H5a2 2 0 01-2-2v-3"
+          />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+function ComparePanel({
+  title,
+  children,
+  headerActions,
+}: {
+  title: string;
+  children: ReactNode;
+  headerActions?: ReactNode;
+}) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsFullscreen(false);
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isFullscreen]);
+
+  const panel = (
+    <ChartPanel
+      title={title}
+      className={isFullscreen ? 'flex h-full flex-col' : ''}
+      headerActions={
+        <div className="flex items-center gap-2">
+          {headerActions}
+          <FullscreenButton
+            isFullscreen={isFullscreen}
+            onClick={() => setIsFullscreen((value) => !value)}
+            label={title}
+          />
+        </div>
+      }
+    >
+      <div className={isFullscreen ? 'max-h-[calc(100vh-11rem)] overflow-auto' : ''}>{children}</div>
+    </ChartPanel>
+  );
+
+  if (!isFullscreen) return panel;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-950/85 p-2 backdrop-blur-sm sm:p-4 lg:p-5">
+      <div className="mx-auto h-full w-full max-w-none">
+        {panel}
+      </div>
+    </div>
+  );
 }
 
 // ─── Per-schedule data loader ────────────────────────────────────────────────
@@ -235,7 +347,7 @@ function SummaryTable({ schedules }: { schedules: ScheduleData[] }) {
   const rest = schedules.slice(1);
 
   return (
-    <ChartPanel title="Summary Metrics">
+    <ComparePanel title="Summary Metrics">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -301,7 +413,7 @@ function SummaryTable({ schedules }: { schedules: ScheduleData[] }) {
           </tbody>
         </table>
       </div>
-    </ChartPanel>
+    </ComparePanel>
   );
 }
 
@@ -310,6 +422,7 @@ function SummaryTable({ schedules }: { schedules: ScheduleData[] }) {
 interface BlockEntry {
   original_block_id: string;
   maxPriority: number;
+  maxRequestedHours: number;
   perSchedule: Record<
     number,
     { scheduled: boolean; start_mjd: number | null; requested_hours: number }
@@ -318,6 +431,7 @@ interface BlockEntry {
 
 function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
   const [page, setPage] = useState(0);
+  const [showDifferencesOnly, setShowDifferencesOnly] = useState(false);
   const refId = schedules[0]?.id;
 
   const blockMap = useMemo(() => {
@@ -330,11 +444,13 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
           map.set(key, {
             original_block_id: key,
             maxPriority: b.priority,
+            maxRequestedHours: b.requested_hours,
             perSchedule: {},
           });
         }
         const entry = map.get(key)!;
         entry.maxPriority = Math.max(entry.maxPriority, b.priority);
+        entry.maxRequestedHours = Math.max(entry.maxRequestedHours, b.requested_hours);
         entry.perSchedule[s.id] = {
           scheduled: b.scheduled,
           start_mjd: b.scheduled_start_mjd,
@@ -350,18 +466,53 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
     [blockMap]
   );
 
-  const totalPages = Math.ceil(sortedBlocks.length / PAGE_SIZE);
-  const pageBlocks = sortedBlocks.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const filteredBlocks = useMemo(() => {
+    if (!showDifferencesOnly) return sortedBlocks;
+
+    return sortedBlocks.filter((block) => {
+      const states = schedules.map((s) => {
+        const entry = block.perSchedule[s.id];
+        if (!entry) return 'missing' as const;
+        return entry.scheduled ? 'scheduled' : 'unscheduled';
+      });
+
+      const allScheduled = states.every((state) => state === 'scheduled');
+      const allUnscheduled = states.every((state) => state === 'unscheduled');
+
+      return !allScheduled && !allUnscheduled;
+    });
+  }, [showDifferencesOnly, sortedBlocks, schedules]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [showDifferencesOnly, schedules]);
+
+  const totalPages = Math.ceil(filteredBlocks.length / PAGE_SIZE);
+  const pageBlocks = filteredBlocks.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
-    <ChartPanel
-      title={`Block Status (${sortedBlocks.length} unique blocks)`}
+    <ComparePanel
+      title={`Block Status (${filteredBlocks.length} of ${sortedBlocks.length} unique blocks)`}
       headerActions={
-        totalPages > 1 ? (
-          <span className="text-xs text-slate-400">
-            Page {page + 1} / {totalPages}
-          </span>
-        ) : undefined
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowDifferencesOnly((v) => !v)}
+            className={`rounded-lg border px-2.5 py-1 text-xs transition-colors ${
+              showDifferencesOnly
+                ? 'border-emerald-500/60 bg-emerald-900/30 text-emerald-300'
+                : 'border-slate-600 text-slate-300 hover:bg-slate-700'
+            }`}
+            title="Hide rows that are all scheduled or all unscheduled"
+          >
+            {showDifferencesOnly ? 'Show all rows' : 'Differences only'}
+          </button>
+          {totalPages > 1 && (
+            <span className="text-xs text-slate-400">
+              Page {page + 1} / {totalPages}
+            </span>
+          )}
+        </div>
       }
     >
       <div className="overflow-x-auto">
@@ -370,6 +521,7 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
             <tr className="border-b border-slate-700 text-slate-400">
               <th className="sticky left-0 bg-slate-800/90 px-3 py-2 text-left">Block ID</th>
               <th className="px-3 py-2 text-right">Priority</th>
+              <th className="px-3 py-2 text-right">Duration (min)</th>
               {schedules.map((s) => (
                 <th key={s.id} className="px-3 py-2 text-center whitespace-nowrap">
                   <div>{s.name}</div>
@@ -388,10 +540,13 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
             {pageBlocks.map((block) => (
               <tr key={block.original_block_id} className="border-b border-slate-700/50">
                 <td className="sticky left-0 bg-slate-800/90 px-3 py-2 font-mono text-white">
-                  {block.original_block_id}
+                  {formatBlockId(block.original_block_id)}
                 </td>
                 <td className="px-3 py-2 text-right text-slate-300 tabular-nums">
                   {block.maxPriority.toFixed(2)}
+                </td>
+                <td className="px-3 py-2 text-right text-slate-300 tabular-nums">
+                  {Math.round(block.maxRequestedHours * 60).toLocaleString()}
                 </td>
                 {schedules.map((s) => {
                   const entry = block.perSchedule[s.id];
@@ -418,9 +573,6 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
                             <span className="mr-1 text-[10px] font-bold text-emerald-400" title="Gained vs reference">▲</span>
                           )}
                           {formatMjdUtc(entry.start_mjd)}
-                          <span className="ml-1 text-emerald-600">
-                            · {entry.requested_hours.toFixed(1)} h
-                          </span>
                         </span>
                       ) : (
                         <span className="text-red-400">✗</span>
@@ -457,19 +609,21 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
           </button>
         </div>
       )}
-    </ChartPanel>
+    </ComparePanel>
   );
 }
 
 // ─── Schedule chip header ────────────────────────────────────────────────────
 
 function ScheduleChips({
-  ids,
+  comparisonIds,
+  refId,
   scheduleInfoMap,
   onRemove,
   onAdd,
 }: {
-  ids: number[];
+  comparisonIds: number[];
+  refId: number;
   scheduleInfoMap: Map<number, ScheduleInfo>;
   onRemove: (id: number) => void;
   onAdd: (schedules: ScheduleInfo[]) => void;
@@ -478,47 +632,23 @@ function ScheduleChips({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {ids.map((id, idx) => {
+      {comparisonIds.map((id) => {
         const info = scheduleInfoMap.get(id);
         const label = info?.schedule_name ?? `#${id}`;
-        const isRef = idx === 0;
         return (
           <span
             key={id}
-            className={`flex items-center gap-1 rounded-full border px-3 py-1 text-sm text-white ${
-              isRef
-                ? 'border-sky-500 bg-sky-900/50 ring-1 ring-sky-500/40'
-                : 'border-slate-600 bg-slate-700'
-            }`}
+            className="flex items-center gap-1 rounded-full border border-slate-600 bg-slate-700 px-3 py-1 text-sm text-white"
           >
-            {isRef && (
-              <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-sky-300">
-                REF
-              </span>
-            )}
             {label}
-            {/* Reference chip cannot be removed if there are other schedules — swap instead */}
-            {!isRef && (
-              <button
-                type="button"
-                onClick={() => onRemove(id)}
-                className="ml-1 text-slate-400 hover:text-red-400"
-                aria-label={`Remove ${label}`}
-              >
-                ×
-              </button>
-            )}
-            {isRef && ids.length > 1 && (
-              <button
-                type="button"
-                onClick={() => onRemove(id)}
-                className="ml-1 text-slate-500 hover:text-red-400"
-                aria-label={`Remove reference ${label}`}
-                title="Remove reference (next schedule becomes reference)"
-              >
-                ×
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => onRemove(id)}
+              className="ml-1 text-slate-400 hover:text-red-400"
+              aria-label={`Remove ${label}`}
+            >
+              ×
+            </button>
           </span>
         );
       })}
@@ -536,8 +666,9 @@ function ScheduleChips({
           <div className="absolute left-0 top-full z-50 mt-2 w-72">
             <SchedulePicker
               multiSelect
-              initialSelectedIds={ids}
-              placeholder="Search schedules..."
+              excludeId={refId}
+              initialSelectedIds={comparisonIds}
+              placeholder="Search schedules to compare..."
               onConfirm={(schedules) => {
                 setShowPicker(false);
                 onAdd(schedules);
@@ -560,15 +691,23 @@ function ComparePage() {
   const navigate = useNavigate();
   const [showEmptyPicker, setShowEmptyPicker] = useState(false);
 
-  const ids = useMemo(() => {
-    const refId = parseInt(scheduleIdParam ?? '0', 10);
+  const refId = useMemo(
+    () => parseInt(scheduleIdParam ?? '0', 10),
+    [scheduleIdParam]
+  );
+
+  const comparisonIds = useMemo(() => {
     const others = (otherIdsParam ?? '')
       .split(',')
       .map((s) => parseInt(s.trim(), 10))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    const all = refId > 0 ? [refId, ...others] : others;
-    return [...new Set(all)].slice(0, 10);
-  }, [scheduleIdParam, otherIdsParam]);
+      .filter((n) => Number.isFinite(n) && n > 0 && n !== refId);
+    return [...new Set(others)].slice(0, 9);
+  }, [otherIdsParam, refId]);
+
+  const ids = useMemo(
+    () => (refId > 0 ? [refId, ...comparisonIds] : comparisonIds),
+    [comparisonIds, refId]
+  );
 
   const { data: schedulesData } = useSchedules();
   const scheduleInfoMap = useMemo(() => {
@@ -588,33 +727,39 @@ function ComparePage() {
   const schedules = allData.slice(0, ids.length);
 
   const handleRemove = (id: number) => {
-    const next = ids.filter((i) => i !== id);
-    if (next.length <= 1) {
-      // Only reference left (or empty) — go to compare empty state for that schedule
-      const remainingRef = next[0] ?? ids[0];
-      navigate(`/schedules/${remainingRef}/compare`);
-    } else {
-      const [ref, ...others] = next;
-      navigate(`/schedules/${ref}/compare/${others.join(',')}`);
+    const next = comparisonIds.filter((comparisonId) => comparisonId !== id);
+    if (next.length === 0) {
+      navigate(`/schedules/${refId}/compare`);
+      return;
     }
+    navigate(`/schedules/${refId}/compare/${next.join(',')}`);
   };
 
   const handleAdd = (selected: ScheduleInfo[]) => {
-    const next = [...new Set([...ids, ...selected.map((s) => s.schedule_id)])].slice(0, 10);
-    const [ref, ...others] = next;
-    navigate(`/schedules/${ref}/compare/${others.join(',')}`);
+    const next = [...new Set(
+      selected
+        .map((schedule) => schedule.schedule_id)
+        .filter((scheduleId) => scheduleId !== refId)
+    )].slice(0, 9);
+
+    if (next.length === 0) {
+      navigate(`/schedules/${refId}/compare`);
+      return;
+    }
+
+    navigate(`/schedules/${refId}/compare/${next.join(',')}`);
   };
 
   const anyLoading = schedules.some((s) => s.isLoading);
   const anyError = schedules.find((s) => s.error);
 
   // Empty state
-  if (ids.length < 2) {
+  if (comparisonIds.length === 0) {
     return (
       <PageContainer>
         <PageHeader
           title="Compare Schedules"
-          description="Select two or more schedules to compare their metrics side by side."
+          description="Select one or more schedules to compare against the loaded schedule."
         />
         <div className="flex flex-col items-center gap-4 py-12">
           <p className="text-slate-400">Add schedules to compare</p>
@@ -622,12 +767,17 @@ function ComparePage() {
             {showEmptyPicker ? (
               <SchedulePicker
                 multiSelect
-                initialSelectedIds={ids}
-                placeholder="Search schedules..."
+                excludeId={refId}
+                initialSelectedIds={comparisonIds}
+                placeholder="Search schedules to compare..."
                 onConfirm={(selected) => {
                   setShowEmptyPicker(false);
-                  const [ref, ...others] = selected.map((s) => s.schedule_id);
-                  navigate(`/schedules/${ref}/compare/${others.join(',')}`);
+                  const next = [...new Set(
+                    selected
+                      .map((schedule) => schedule.schedule_id)
+                      .filter((scheduleId) => scheduleId !== refId)
+                  )].slice(0, 9);
+                  navigate(`/schedules/${refId}/compare/${next.join(',')}`);
                 }}
               />
             ) : (
@@ -647,11 +797,15 @@ function ComparePage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Compare Schedules" />
+      <PageHeader
+        title="Compare Schedules"
+        description="The loaded schedule is used as the reference baseline."
+      />
 
       {/* Schedule chips */}
       <ScheduleChips
-        ids={ids}
+        comparisonIds={comparisonIds}
+        refId={refId}
         scheduleInfoMap={scheduleInfoMap}
         onRemove={handleRemove}
         onAdd={handleAdd}

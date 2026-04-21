@@ -27,6 +27,8 @@ interface SchedulePickerProps {
   initialSelectedIds?: number[];
   /** Callback called with confirmed schedules (multi-select mode) */
   onConfirm?: (schedules: ScheduleInfo[]) => void;
+  /** Minimum selections required before confirm is enabled */
+  minSelections?: number;
 }
 
 export function SchedulePicker({
@@ -38,6 +40,7 @@ export function SchedulePicker({
   multiSelect = false,
   initialSelectedIds = [],
   onConfirm,
+  minSelections = 1,
 }: SchedulePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -49,10 +52,10 @@ export function SchedulePicker({
 
   const { data: schedulesData, isLoading } = useSchedules();
 
-  // All schedules (excluding excludeId in single-select mode)
+  // All schedules (excluding excludeId when provided)
   const allSchedules =
     schedulesData?.schedules.filter((s) => {
-      if (!multiSelect && excludeId && s.schedule_id === excludeId) return false;
+      if (excludeId && s.schedule_id === excludeId) return false;
       return true;
     }) ?? [];
 
@@ -86,6 +89,10 @@ export function SchedulePicker({
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
+
+  useEffect(() => {
+    setSelectedIds(new Set(initialSelectedIds));
+  }, [initialSelectedIds]);
 
   const handleSelect = useCallback(
     (schedule: ScheduleInfo) => {
@@ -206,13 +213,13 @@ export function SchedulePicker({
             <div className="border-t border-slate-700 p-2">
               <button
                 type="button"
-                disabled={selectedCount < 2}
+                disabled={selectedCount < minSelections}
                 onClick={handleConfirm}
                 className="w-full rounded-md bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-500 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {selectedCount < 2
-                  ? `Select at least 2 schedules`
-                  : `Compare ${selectedCount} schedules`}
+                {selectedCount < minSelections
+                  ? `Select at least ${minSelections} schedule${minSelections === 1 ? '' : 's'}`
+                  : `Compare ${selectedCount} schedule${selectedCount === 1 ? '' : 's'}`}
               </button>
             </div>
           </div>

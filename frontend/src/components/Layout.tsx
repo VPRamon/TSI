@@ -3,10 +3,10 @@
  * Professional app shell for analysis workspace.
  */
 import { useState, useEffect } from 'react';
-import { Outlet, NavLink, useParams, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useParams, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/store';
 import { useHealth } from '@/hooks';
-import { useScheduleSync, SchedulePicker, AnalysisProvider } from '@/features/schedules';
+import { useScheduleSync, AnalysisProvider } from '@/features/schedules';
 import BrandMark from './BrandMark';
 
 // Navigation items for schedule-specific views
@@ -144,13 +144,9 @@ function Layout() {
   const { selectedSchedule } = useAppStore();
   const { data: health } = useHealth();
   const location = useLocation();
-  const navigate = useNavigate();
   const isLanding = location.pathname === '/';
   // Sync route scheduleId with Zustand store
   useScheduleSync();
-
-  // Compare picker state
-  const [showComparePicker, setShowComparePicker] = useState(false);
 
   // Mobile menu state
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -165,7 +161,6 @@ function Layout() {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMobileMenuOpen(false);
-        setShowComparePicker(false);
       }
     };
     document.addEventListener('keydown', handleEscape);
@@ -250,61 +245,31 @@ function Layout() {
                       </span>
                     </div>
 
-                    {/* Compare action */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowComparePicker(!showComparePicker)}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-700/50 px-3 py-1.5 text-sm text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+                    <NavLink
+                      to={`/schedules/${scheduleId}/compare`}
+                      className={({ isActive }) =>
+                        `flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                          isActive
+                            ? 'border-sky-500/60 bg-sky-900/30 text-sky-200'
+                            : 'border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white'
+                        }`
+                      }
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
                       >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                          />
-                        </svg>
-                        Compare
-                        <svg
-                          className={`h-3 w-3 transition-transform ${showComparePicker ? 'rotate-180' : ''}`}
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-
-                      {/* Compare picker dropdown */}
-                      {showComparePicker && (
-                        <div className="absolute right-0 top-full z-50 mt-2 w-72">
-                          <SchedulePicker
-                            multiSelect
-                            initialSelectedIds={
-                              scheduleId ? [parseInt(scheduleId, 10)] : []
-                            }
-                            placeholder="Search schedules..."
-                            onConfirm={(schedules) => {
-                              setShowComparePicker(false);
-                              const [ref, ...others] = schedules.map((s) => s.schedule_id);
-                              navigate(
-                                `/schedules/${ref}/compare/${others.join(',')}`
-                              );
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                        />
+                      </svg>
+                      Compare
+                    </NavLink>
                   </div>
                 )}
 
@@ -368,6 +333,26 @@ function Layout() {
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
+                  <NavLink
+                    to={`/schedules/${scheduleId}/compare`}
+                    className={({ isActive }) =>
+                      `col-span-2 flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-sky-900/40 text-sky-200'
+                          : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                      }`
+                    }
+                  >
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                      />
+                    </svg>
+                    <span>Compare</span>
+                  </NavLink>
                   {scheduleNavItems.map((item) => (
                     <NavLink
                       key={item.path}

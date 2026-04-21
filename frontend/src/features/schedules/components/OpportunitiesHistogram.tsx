@@ -196,7 +196,7 @@ const OpportunitiesHistogram = memo(function OpportunitiesHistogram({
                 <div
                   key={`${tick.ratio}-${tick.value}`}
                   className="absolute left-0 right-0 flex -translate-y-1/2 items-center justify-end"
-                  style={{ top: `${tick.ratio * 100}%` }}
+                  style={{ top: `${(1 - tick.ratio) * 100}%` }}
                 >
                   <span className="text-xs tabular-nums text-slate-500">{tick.value}</span>
                 </div>
@@ -209,7 +209,7 @@ const OpportunitiesHistogram = memo(function OpportunitiesHistogram({
                   <div
                     key={`grid-${tick.ratio}`}
                     className="pointer-events-none absolute inset-x-0 border-t border-slate-700/50"
-                    style={{ top: `${tick.ratio * 100}%` }}
+                    style={{ top: `${(1 - tick.ratio) * 100}%` }}
                   />
                 ))}
 
