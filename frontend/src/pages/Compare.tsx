@@ -309,11 +309,10 @@ function SummaryTable({ schedules }: { schedules: ScheduleData[] }) {
 
 interface BlockEntry {
   original_block_id: string;
-  name: string;
   maxPriority: number;
   perSchedule: Record<
     number,
-    { scheduled: boolean; start_mjd: number | null; stop_mjd: number | null }
+    { scheduled: boolean; start_mjd: number | null; requested_hours: number }
   >;
 }
 
@@ -330,7 +329,6 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
         if (!map.has(key)) {
           map.set(key, {
             original_block_id: key,
-            name: b.block_name,
             maxPriority: b.priority,
             perSchedule: {},
           });
@@ -340,7 +338,7 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
         entry.perSchedule[s.id] = {
           scheduled: b.scheduled,
           start_mjd: b.scheduled_start_mjd,
-          stop_mjd: b.scheduled_stop_mjd,
+          requested_hours: b.requested_hours,
         };
       }
     }
@@ -370,8 +368,7 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700 text-slate-400">
-              <th className="sticky left-0 bg-slate-800/90 px-3 py-2 text-left">Original ID</th>
-              <th className="px-3 py-2 text-left">Name</th>
+              <th className="sticky left-0 bg-slate-800/90 px-3 py-2 text-left">Block ID</th>
               <th className="px-3 py-2 text-right">Priority</th>
               {schedules.map((s) => (
                 <th key={s.id} className="px-3 py-2 text-center whitespace-nowrap">
@@ -393,7 +390,6 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
                 <td className="sticky left-0 bg-slate-800/90 px-3 py-2 font-mono text-white">
                   {block.original_block_id}
                 </td>
-                <td className="px-3 py-2 text-slate-300">{block.name || '—'}</td>
                 <td className="px-3 py-2 text-right text-slate-300 tabular-nums">
                   {block.maxPriority.toFixed(2)}
                 </td>
@@ -410,30 +406,24 @@ function BlockStatusTable({ schedules }: { schedules: ScheduleData[] }) {
                     );
                   }
 
-                  // Compute diff vs reference for non-reference columns
-                  const diffIndicator = (() => {
-                    if (isRef || !refEntry) return null;
-                    if (entry.scheduled && !refEntry.scheduled)
-                      return <span className="ml-1 text-[10px] font-bold text-emerald-400" title="Gained vs reference">▲</span>;
-                    if (!entry.scheduled && refEntry.scheduled)
-                      return <span className="ml-1 text-[10px] font-bold text-red-400" title="Lost vs reference">▼</span>;
-                    return null;
-                  })();
+                  // Gained vs reference indicator (only on scheduled cells)
+                  const gainedVsRef =
+                    !isRef && refEntry && entry.scheduled && !refEntry.scheduled;
 
                   return (
                     <td key={s.id} className={`px-3 py-2 text-center ${isRef ? 'bg-sky-950/20' : ''}`}>
                       {entry.scheduled ? (
-                        <span className="text-emerald-400">
-                          ✓{' '}
-                          <span className="text-xs font-mono">
-                            {formatMjdUtc(entry.start_mjd)}
+                        <span className="text-emerald-400 text-xs font-mono">
+                          {gainedVsRef && (
+                            <span className="mr-1 text-[10px] font-bold text-emerald-400" title="Gained vs reference">▲</span>
+                          )}
+                          {formatMjdUtc(entry.start_mjd)}
+                          <span className="ml-1 text-emerald-600">
+                            · {entry.requested_hours.toFixed(1)} h
                           </span>
-                          {diffIndicator}
                         </span>
                       ) : (
-                        <span className="text-red-400">
-                          ✗{diffIndicator}
-                        </span>
+                        <span className="text-red-400">✗</span>
                       )}
                     </td>
                   );
