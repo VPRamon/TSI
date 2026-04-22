@@ -9,6 +9,7 @@
 use crate::api;
 use crate::services::visibility_service::{compute_block_visibility, VisibilityInput};
 use anyhow::{Context, Result};
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 #[derive(serde::Deserialize)]
@@ -107,38 +108,44 @@ pub fn parse_schedule_json_str(json_schedule_json: &str) -> Result<api::Schedule
     // - Store large possible_periods in a separate compressed file/table
     // - Lazy-load visibility periods on demand rather than materializing all at once
     match input.possible_periods {
-        Some(mut map) => {
-            for block in &mut schedule.blocks {
-                if let Some(periods) = map.remove(&block.original_block_id) {
+        Some(map) => {
+            let location = schedule.geographic_location;
+            let period = schedule.schedule_period;
+            let nights = schedule.astronomical_nights.clone();
+            schedule.blocks.par_iter_mut().for_each(|block| {
+                if let Some(periods) = map.get(&block.original_block_id).cloned() {
                     // Provided: use as-is.
                     block.visibility_periods = periods;
                 } else {
                     // Key missing from map: compute fallback for this block.
                     block.visibility_periods = compute_block_visibility(&VisibilityInput {
-                        location: &schedule.geographic_location,
-                        schedule_period: &schedule.schedule_period,
+                        location: &location,
+                        schedule_period: &period,
                         target_ra: block.target_ra,
                         target_dec: block.target_dec,
                         constraints: &block.constraints,
                         min_duration: block.min_observation,
-                        astronomical_nights: Some(&schedule.astronomical_nights),
+                        astronomical_nights: Some(&nights),
                     });
                 }
-            }
+            });
         }
         None => {
             // No possible_periods at all: compute visibility for every block.
-            for block in &mut schedule.blocks {
+            let location = schedule.geographic_location;
+            let period = schedule.schedule_period;
+            let nights = schedule.astronomical_nights.clone();
+            schedule.blocks.par_iter_mut().for_each(|block| {
                 block.visibility_periods = compute_block_visibility(&VisibilityInput {
-                    location: &schedule.geographic_location,
-                    schedule_period: &schedule.schedule_period,
+                    location: &location,
+                    schedule_period: &period,
                     target_ra: block.target_ra,
                     target_dec: block.target_dec,
                     constraints: &block.constraints,
                     min_duration: block.min_observation,
-                    astronomical_nights: Some(&schedule.astronomical_nights),
+                    astronomical_nights: Some(&nights),
                 });
-            }
+            });
         }
     }
 

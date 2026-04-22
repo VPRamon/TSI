@@ -57,9 +57,10 @@ function UploadSection() {
   const siteIdxRef = useRef(siteIdx);
   siteIdxRef.current = siteIdx;
 
-  const [activeIdx, setActiveIdx] = useState<number | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Derived: any file is currently uploading.
+  const isRunning = entries.some((e) => e.status === 'uploading');
 
   const addFiles = useCallback(
     (fileList: FileList | File[]) => {
@@ -94,23 +95,7 @@ function UploadSection() {
     [setEntries]
   );
 
-  // Advance the queue after a file completes or errors.
-  const advanceQueue = useCallback(
-    (completedIdx: number) => {
-      const current = entriesRef.current;
-      const nextIdx = current.findIndex((e, i) => i > completedIdx && e.status === 'pending');
-      if (nextIdx === -1) {
-        setIsRunning(false);
-        setActiveIdx(null);
-      } else {
-        setActiveIdx(nextIdx);
-        doUpload(nextIdx); // eslint-disable-line @typescript-eslint/no-use-before-define
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [setEntries]
-  );
-
+  // Upload a single file by index; runs concurrently with other doUpload calls.
   const doUpload = useCallback(
     async (idx: number) => {
       const entry = entriesRef.current[idx];
@@ -136,24 +121,23 @@ function UploadSection() {
         setEntries((prev) =>
           prev.map((e, i) => (i === idx ? { ...e, jobId: resp.job_id } : e))
         );
-        // Queue advancement fires from the LogStream onComplete / onError callbacks.
+        // Status transitions to 'done' / 'error' via LogStream onComplete / onError.
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Upload failed';
         setEntries((prev) =>
           prev.map((e, i) => (i === idx ? { ...e, status: 'error', error: msg } : e))
         );
-        advanceQueue(idx);
       }
     },
-    [createSchedule, setEntries, advanceQueue]
+    [createSchedule, setEntries]
   );
 
-  const startQueue = useCallback(() => {
-    const firstIdx = entriesRef.current.findIndex((e) => e.status === 'pending');
-    if (firstIdx === -1) return;
-    setIsRunning(true);
-    setActiveIdx(firstIdx);
-    doUpload(firstIdx);
+  // Fire all pending uploads simultaneously.
+  const startAll = useCallback(() => {
+    const pending = entriesRef.current
+      .map((e, i) => ({ e, i }))
+      .filter(({ e }) => e.status === 'pending');
+    pending.forEach(({ i }) => doUpload(i));
   }, [doUpload]);
 
   const pendingCount = entries.filter((e) => e.status === 'pending').length;
@@ -335,8 +319,8 @@ function UploadSection() {
                   <p className="mt-1.5 pl-7 text-xs text-red-400">{entry.error}</p>
                 )}
 
-                {/* Live log stream for the active upload */}
-                {entry.status === 'uploading' && entry.jobId && idx === activeIdx && (
+                {/* Live log stream — shown for every actively uploading file */}
+                {entry.status === 'uploading' && entry.jobId && (
                   <div className="mt-2 pl-7">
                     <LogStream
                       jobId={entry.jobId}
@@ -346,7 +330,6 @@ function UploadSection() {
                         setEntries((prev) =>
                           prev.map((e, i) => (i === idx ? { ...e, status: 'done', jobId: null } : e))
                         );
-                        advanceQueue(idx);
                       }}
                       onError={(err) => {
                         setEntries((prev) =>
@@ -354,7 +337,6 @@ function UploadSection() {
                             i === idx ? { ...e, status: 'error', error: err, jobId: null } : e
                           )
                         );
-                        advanceQueue(idx);
                       }}
                     />
                   </div>
@@ -388,7 +370,7 @@ function UploadSection() {
               )}
               <button
                 type="button"
-                onClick={startQueue}
+                onClick={startAll}
                 disabled={isRunning || pendingCount === 0}
                 className="rounded-xl bg-sky-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
               >

@@ -12,6 +12,7 @@ use crate::services::astronomical_night::compute_astronomical_nights;
 use crate::services::job_tracker::{JobTracker, LogLevel};
 use crate::services::visibility_service::{compute_block_visibility, VisibilityInput};
 use crate::services::ScheduleImportAdapter;
+use rayon::prelude::*;
 use std::sync::Arc;
 
 /// Process a schedule asynchronously: parse, compute nights, store, and populate analytics.
@@ -262,7 +263,7 @@ fn apply_visibility_override(
     nights: &[Period],
     location: &crate::api::GeographicLocation,
 ) {
-    for block in blocks.iter_mut() {
+    blocks.par_iter_mut().for_each(|block| {
         block.visibility_periods = compute_block_visibility(&VisibilityInput {
             location,
             schedule_period: period,
@@ -272,7 +273,7 @@ fn apply_visibility_override(
             min_duration: block.min_observation,
             astronomical_nights: Some(nights),
         });
-    }
+    });
 }
 
 #[cfg(test)]
