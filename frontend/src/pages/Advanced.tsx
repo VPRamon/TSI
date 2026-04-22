@@ -7,16 +7,409 @@
  *
  * Hard constraint: once a schedule from a group is checked, only schedules
  * from that same group can be checked.
+ *
+ * An upload section allows importing multiple schedule files at once
+ * (file picker with multiple-select or drag-and-drop). Files are uploaded
+ * sequentially; once all finish the new schedules appear in the group list.
  */
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSchedules } from '@/hooks';
+import { useSchedules, useCreateSchedule } from '@/hooks';
 import type { ScheduleInfo } from '@/api/types';
-import { ErrorMessage, LoadingSpinner, PageContainer, PageHeader } from '@/components';
+import { ErrorMessage, LoadingSpinner, LogStream, PageContainer, PageHeader } from '@/components';
+import { OBSERVATORY_SITES, SITE_FROM_FILE, formatSiteLabel } from '@/constants';
 
 // ---------------------------------------------------------------------------
-// MJD helpers
+// Upload section — types & state
 // ---------------------------------------------------------------------------
+
+type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
+
+interface FileEntry {
+  id: string;
+  file: File;
+  name: string;
+  status: UploadStatus;
+  jobId: string | null;
+  error: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// UploadSection component
+// ---------------------------------------------------------------------------
+
+function UploadSection() {
+  const createSchedule = useCreateSchedule();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use a ref to always access the latest entries inside async callbacks.
+  const entriesRef = useRef<FileEntry[]>([]);
+  const [entries, setEntriesState] = useState<FileEntry[]>([]);
+  const setEntries = useCallback((updater: (prev: FileEntry[]) => FileEntry[]) => {
+    setEntriesState((prev) => {
+      const next = updater(prev);
+      entriesRef.current = next;
+      return next;
+    });
+  }, []);
+
+  const [siteIdx, setSiteIdx] = useState('0');
+  const siteIdxRef = useRef(siteIdx);
+  siteIdxRef.current = siteIdx;
+
+  const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const addFiles = useCallback(
+    (fileList: FileList | File[]) => {
+      const newEntries: FileEntry[] = Array.from(fileList)
+        .filter((f) => f.name.toLowerCase().endsWith('.json'))
+        .map((f) => ({
+          id: `${f.name}-${Date.now()}-${Math.random()}`,
+          file: f,
+          name: f.name.replace(/\.json$/i, ''),
+          status: 'pending' as UploadStatus,
+          jobId: null,
+          error: null,
+        }));
+      if (newEntries.length > 0) {
+        setEntries((prev) => [...prev, ...newEntries]);
+      }
+    },
+    [setEntries]
+  );
+
+  const removeEntry = useCallback(
+    (id: string) => {
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+    },
+    [setEntries]
+  );
+
+  const updateName = useCallback(
+    (id: string, name: string) => {
+      setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, name } : e)));
+    },
+    [setEntries]
+  );
+
+  // Advance the queue after a file completes or errors.
+  const advanceQueue = useCallback(
+    (completedIdx: number) => {
+      const current = entriesRef.current;
+      const nextIdx = current.findIndex((e, i) => i > completedIdx && e.status === 'pending');
+      if (nextIdx === -1) {
+        setIsRunning(false);
+        setActiveIdx(null);
+      } else {
+        setActiveIdx(nextIdx);
+        doUpload(nextIdx); // eslint-disable-line @typescript-eslint/no-use-before-define
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [setEntries]
+  );
+
+  const doUpload = useCallback(
+    async (idx: number) => {
+      const entry = entriesRef.current[idx];
+      if (!entry) return;
+
+      setEntries((prev) => prev.map((e, i) => (i === idx ? { ...e, status: 'uploading' } : e)));
+
+      try {
+        const content = await entry.file.text();
+        const scheduleJson: unknown = JSON.parse(content);
+        const loc =
+          siteIdxRef.current !== SITE_FROM_FILE
+            ? OBSERVATORY_SITES[parseInt(siteIdxRef.current, 10)]?.location
+            : undefined;
+
+        const resp = await createSchedule.mutateAsync({
+          name: entry.name.trim() || entry.file.name.replace(/\.json$/i, ''),
+          schedule_json: scheduleJson,
+          populate_analytics: true,
+          location_override: loc,
+        });
+
+        setEntries((prev) =>
+          prev.map((e, i) => (i === idx ? { ...e, jobId: resp.job_id } : e))
+        );
+        // Queue advancement fires from the LogStream onComplete / onError callbacks.
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Upload failed';
+        setEntries((prev) =>
+          prev.map((e, i) => (i === idx ? { ...e, status: 'error', error: msg } : e))
+        );
+        advanceQueue(idx);
+      }
+    },
+    [createSchedule, setEntries, advanceQueue]
+  );
+
+  const startQueue = useCallback(() => {
+    const firstIdx = entriesRef.current.findIndex((e) => e.status === 'pending');
+    if (firstIdx === -1) return;
+    setIsRunning(true);
+    setActiveIdx(firstIdx);
+    doUpload(firstIdx);
+  }, [doUpload]);
+
+  const pendingCount = entries.filter((e) => e.status === 'pending').length;
+  const doneCount = entries.filter((e) => e.status === 'done').length;
+  const allDone = entries.length > 0 && entries.every((e) => e.status === 'done' || e.status === 'error');
+
+  return (
+    <section className="rounded-2xl border border-slate-700 bg-slate-900/60 p-5">
+      <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.22em] text-slate-400">
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          />
+        </svg>
+        Import schedules
+      </h2>
+
+      {/* Drop zone */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragOver(true);
+        }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          addFiles(e.dataTransfer.files);
+        }}
+        onClick={() => fileInputRef.current?.click()}
+        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-6 py-8 text-center transition-all ${
+          isDragOver
+            ? 'border-sky-400 bg-sky-500/10 text-sky-300'
+            : 'border-slate-600 text-slate-400 hover:border-sky-500/50 hover:bg-slate-800/40 hover:text-slate-300'
+        }`}
+        role="button"
+        tabIndex={0}
+        aria-label="Drop JSON files here or click to browse"
+        onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
+      >
+        <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          />
+        </svg>
+        <p className="text-sm font-medium">
+          {isDragOver ? 'Drop JSON files here' : 'Drop JSON files here or click to browse'}
+        </p>
+        <p className="text-xs opacity-70">Multiple files supported</p>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        multiple
+        className="sr-only"
+        onChange={(e) => {
+          if (e.target.files) addFiles(e.target.files);
+          e.target.value = '';
+        }}
+      />
+
+      {entries.length > 0 && (
+        <>
+          {/* Observatory site selector */}
+          <div className="mt-4">
+            <label
+              htmlFor="upload-site"
+              className="mb-1.5 block text-xs font-medium text-slate-400"
+            >
+              Observatory site (applied to all files)
+            </label>
+            <select
+              id="upload-site"
+              value={siteIdx}
+              onChange={(e) => setSiteIdx(e.target.value)}
+              disabled={isRunning}
+              className="w-full max-w-xs rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white outline-none transition focus:border-sky-500 disabled:opacity-50"
+            >
+              {OBSERVATORY_SITES.map((site, i) => (
+                <option key={i} value={String(i)}>
+                  {formatSiteLabel(site)}
+                </option>
+              ))}
+              <option value={SITE_FROM_FILE}>Use location from file</option>
+            </select>
+          </div>
+
+          {/* File queue */}
+          <ul className="mt-4 space-y-2">
+            {entries.map((entry, idx) => (
+              <li
+                key={entry.id}
+                className="rounded-xl border border-slate-700/60 bg-slate-800/40 px-4 py-3"
+              >
+                <div className="flex items-center gap-3">
+                  {/* Status icon */}
+                  <span className="shrink-0">
+                    {entry.status === 'pending' && (
+                      <span className="h-4 w-4 rounded-full border-2 border-slate-600 bg-transparent inline-block" />
+                    )}
+                    {entry.status === 'uploading' && <LoadingSpinner size="sm" />}
+                    {entry.status === 'done' && (
+                      <svg
+                        className="h-4 w-4 text-emerald-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                    {entry.status === 'error' && (
+                      <svg
+                        className="h-4 w-4 text-red-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2.5}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    )}
+                  </span>
+
+                  {/* Editable name */}
+                  <input
+                    type="text"
+                    value={entry.name}
+                    onChange={(e) => updateName(entry.id, e.target.value)}
+                    disabled={entry.status !== 'pending'}
+                    placeholder={entry.file.name.replace(/\.json$/i, '')}
+                    className="min-w-0 flex-1 rounded-lg border border-transparent bg-transparent px-2 py-0.5 text-sm text-white placeholder-slate-500 outline-none transition focus:border-slate-600 focus:bg-slate-900 disabled:opacity-60"
+                  />
+
+                  {/* Filename hint */}
+                  <span className="hidden shrink-0 text-xs text-slate-500 sm:inline">
+                    {entry.file.name}
+                  </span>
+
+                  {/* Remove button (only when not actively uploading) */}
+                  {entry.status !== 'uploading' && (
+                    <button
+                      type="button"
+                      onClick={() => removeEntry(entry.id)}
+                      className="shrink-0 text-slate-500 hover:text-red-400 transition-colors"
+                      aria-label={`Remove ${entry.file.name}`}
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {/* Error message */}
+                {entry.status === 'error' && entry.error && (
+                  <p className="mt-1.5 pl-7 text-xs text-red-400">{entry.error}</p>
+                )}
+
+                {/* Live log stream for the active upload */}
+                {entry.status === 'uploading' && entry.jobId && idx === activeIdx && (
+                  <div className="mt-2 pl-7">
+                    <LogStream
+                      jobId={entry.jobId}
+                      apiBaseUrl="/api"
+                      maxHeight="160px"
+                      onComplete={() => {
+                        setEntries((prev) =>
+                          prev.map((e, i) => (i === idx ? { ...e, status: 'done', jobId: null } : e))
+                        );
+                        advanceQueue(idx);
+                      }}
+                      onError={(err) => {
+                        setEntries((prev) =>
+                          prev.map((e, i) =>
+                            i === idx ? { ...e, status: 'error', error: err, jobId: null } : e
+                          )
+                        );
+                        advanceQueue(idx);
+                      }}
+                    />
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {/* Action row */}
+          <div className="mt-4 flex items-center justify-between gap-4">
+            {allDone ? (
+              <p className="text-sm text-emerald-400">
+                {doneCount} schedule{doneCount !== 1 ? 's' : ''} imported — they now appear in the
+                groups below.
+              </p>
+            ) : (
+              <p className="text-sm text-slate-400">
+                {pendingCount} file{pendingCount !== 1 ? 's' : ''} ready to upload
+              </p>
+            )}
+
+            <div className="flex items-center gap-2">
+              {!isRunning && (
+                <button
+                  type="button"
+                  onClick={() => setEntries(() => [])}
+                  className="rounded-lg px-3 py-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors"
+                >
+                  Clear all
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={startQueue}
+                disabled={isRunning || pendingCount === 0}
+                className="rounded-xl bg-sky-600 px-5 py-2 text-sm font-semibold text-white shadow transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {isRunning ? (
+                  <span className="flex items-center gap-2">
+                    <LoadingSpinner size="sm" />
+                    Uploading…
+                  </span>
+                ) : (
+                  `Upload ${pendingCount} file${pendingCount !== 1 ? 's' : ''}`
+                )}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+
 
 const MJD_TO_UNIX_OFFSET_DAYS = 40587;
 
@@ -256,9 +649,12 @@ function AdvancedPage() {
         description="Select two or more schedules from the same observatory and schedule period, then choose which one acts as the reference."
       />
 
+      {/* Upload section — always shown so users can import new files */}
+      <UploadSection />
+
       {groups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/50 px-6 py-16 text-center text-slate-400">
-          No schedules found. Import a schedule from the home page to get started.
+          No schedules in the database yet. Use the import section above to get started.
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
