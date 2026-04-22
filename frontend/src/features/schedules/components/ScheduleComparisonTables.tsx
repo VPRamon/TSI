@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { mjdToDate, isValidDate } from '@/constants/dates';
 import type { ScheduleAnalysisData } from '../hooks/useScheduleAnalysisData';
 
@@ -283,9 +283,7 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
   );
 
   const orderedComparisons = useMemo(() => {
-    if (!selectedOrderMetric) {
-      return comparisons;
-    }
+    if (!selectedOrderMetric) return comparisons;
 
     const directionMultiplier = orderDirection === 'asc' ? 1 : -1;
 
@@ -293,75 +291,54 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
       const leftValue = selectedOrderMetric.getValue(left);
       const rightValue = selectedOrderMetric.getValue(right);
 
-      if (leftValue == null && rightValue == null) {
-        return compareText(left.name, right.name);
-      }
-
-      if (leftValue == null) {
-        return 1;
-      }
-
-      if (rightValue == null) {
-        return -1;
-      }
+      if (leftValue == null && rightValue == null) return compareText(left.name, right.name);
+      if (leftValue == null) return 1;
+      if (rightValue == null) return -1;
 
       const byMetric = compareNumber(leftValue, rightValue);
-      if (byMetric !== 0) {
-        return byMetric * directionMultiplier;
-      }
+      if (byMetric !== 0) return byMetric * directionMultiplier;
 
       const byName = compareText(left.name, right.name);
-      if (byName !== 0) {
-        return byName;
-      }
+      if (byName !== 0) return byName;
 
       return compareNumber(left.id, right.id);
     });
   }, [comparisons, orderDirection, selectedOrderMetric]);
 
+  const handleMetricClick = useCallback(
+    (label: string) => {
+      if (orderMetricLabel === label) {
+        setOrderDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
+      } else {
+        setOrderMetricLabel(label);
+        const metric = METRIC_ROWS.find((r) => r.label === label);
+        setOrderDirection(metric?.bestIs === 'max' ? 'desc' : 'asc');
+      }
+    },
+    [orderMetricLabel]
+  );
+
+  const renderSortIndicator = (label: string) => {
+    if (orderMetricLabel !== label) return <span className="ml-1 text-slate-600">↕</span>;
+    return (
+      <span className="ml-1 text-sky-400">{orderDirection === 'asc' ? '↑' : '↓'}</span>
+    );
+  };
+
   return (
     <ComparePanel
       title="Summary Metrics"
       headerActions={
-        <div className="flex items-center gap-2">
-          <label htmlFor="summary-metric-order" className="text-xs text-slate-400">
-            Order schedules by
-          </label>
-          <select
-            id="summary-metric-order"
-            value={orderMetricLabel}
-            onChange={(event) => {
-              const nextLabel = event.target.value;
-              setOrderMetricLabel(nextLabel);
-
-              const nextMetric = METRIC_ROWS.find((row) => row.label === nextLabel);
-              if (nextMetric) {
-                setOrderDirection(nextMetric.bestIs === 'max' ? 'desc' : 'asc');
-              }
-            }}
-            className="rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-200"
-            aria-label="Order schedules by metric"
-          >
-            <option value="">Route order</option>
-            {METRIC_ROWS.map((row) => (
-              <option key={row.label} value={row.label}>
-                {row.label}
-              </option>
-            ))}
-          </select>
+        selectedOrderMetric ? (
           <button
             type="button"
-            onClick={() =>
-              setOrderDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'))
-            }
-            disabled={!selectedOrderMetric}
-            className="rounded-md border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Toggle summary schedule sort direction"
-            title="Toggle sort direction"
+            onClick={() => setOrderMetricLabel('')}
+            className="text-xs text-slate-400 transition-colors hover:text-slate-200"
+            title="Clear sort"
           >
-            {orderDirection === 'asc' ? 'Asc' : 'Desc'}
+            ✕ Clear sort
           </button>
-        </div>
+        ) : undefined
       }
     >
       <div className="overflow-x-auto">
@@ -391,29 +368,56 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
           <tbody>
             {METRIC_ROWS.map((row) => {
               const referenceValue = row.getValue(reference);
+              const isActive = orderMetricLabel === row.label;
 
               return (
                 <tr key={row.label} className="border-b border-slate-700/50">
-                  <td className="sticky left-0 whitespace-nowrap bg-slate-900 px-3 py-2 text-slate-300">
-                    {row.label}
+                  <td
+                    className={`sticky left-0 cursor-pointer select-none whitespace-nowrap bg-slate-900 px-3 py-2 text-left transition-colors ${
+                      isActive ? 'text-sky-300 hover:text-sky-200' : 'text-slate-300 hover:text-white'
+                    }`}
+                    onClick={() => handleMetricClick(row.label)}
+                    title={`Sort schedules by ${row.label}`}
+                  >
+                    <span className="inline-flex items-center gap-0.5">
+                      {row.label}
+                      {renderSortIndicator(row.label)}
+                    </span>
                   </td>
+
                   <td className="bg-sky-950/20 px-3 py-2 text-right tabular-nums text-slate-200">
                     {reference.isLoading ? '…' : row.format(referenceValue)}
                   </td>
+
                   {orderedComparisons.map((schedule) => {
                     const value = row.getValue(schedule);
+                    const delta =
+                      value != null && referenceValue != null ? value - referenceValue : null;
+                    const good =
+                      delta != null && delta !== 0 ? deltaIsGood(delta, row.bestIs) : null;
+
+                    const colorClass =
+                      schedule.isLoading
+                        ? 'text-slate-500'
+                        : good === true
+                          ? 'bg-emerald-950/30 text-emerald-300'
+                          : good === false
+                            ? 'bg-red-950/30 text-red-400'
+                            : 'text-slate-200';
 
                     return (
                       <td
                         key={schedule.id}
-                        className={`px-3 py-2 text-right tabular-nums ${
-                          schedule.isLoading ? 'text-slate-500' : 'text-slate-300'
-                        }`}
+                        className={`px-3 py-2 text-right tabular-nums ${colorClass}`}
                       >
                         {schedule.isLoading ? (
                           '…'
                         ) : (
-                          row.format(value)
+                          <>
+                            {row.format(value)}
+                            {good === true && <span className="ml-1 text-xs">▲</span>}
+                            {good === false && <span className="ml-1 text-xs">▼</span>}
+                          </>
                         )}
                       </td>
                     );
