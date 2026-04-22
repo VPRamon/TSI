@@ -273,11 +273,97 @@ function DeltaBadge({ delta, row }: { delta: number; row: MetricRow }) {
 }
 
 export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] }) {
+  const [orderMetricLabel, setOrderMetricLabel] = useState<string>('');
+  const [orderDirection, setOrderDirection] = useState<'asc' | 'desc'>('desc');
   const reference = schedules[0];
   const comparisons = schedules.slice(1);
+  const selectedOrderMetric = useMemo(
+    () => METRIC_ROWS.find((row) => row.label === orderMetricLabel) ?? null,
+    [orderMetricLabel]
+  );
+
+  const orderedComparisons = useMemo(() => {
+    if (!selectedOrderMetric) {
+      return comparisons;
+    }
+
+    const directionMultiplier = orderDirection === 'asc' ? 1 : -1;
+
+    return [...comparisons].sort((left, right) => {
+      const leftValue = selectedOrderMetric.getValue(left);
+      const rightValue = selectedOrderMetric.getValue(right);
+
+      if (leftValue == null && rightValue == null) {
+        return compareText(left.name, right.name);
+      }
+
+      if (leftValue == null) {
+        return 1;
+      }
+
+      if (rightValue == null) {
+        return -1;
+      }
+
+      const byMetric = compareNumber(leftValue, rightValue);
+      if (byMetric !== 0) {
+        return byMetric * directionMultiplier;
+      }
+
+      const byName = compareText(left.name, right.name);
+      if (byName !== 0) {
+        return byName;
+      }
+
+      return compareNumber(left.id, right.id);
+    });
+  }, [comparisons, orderDirection, selectedOrderMetric]);
 
   return (
-    <ComparePanel title="Summary Metrics">
+    <ComparePanel
+      title="Summary Metrics"
+      headerActions={
+        <div className="flex items-center gap-2">
+          <label htmlFor="summary-metric-order" className="text-xs text-slate-400">
+            Order schedules by
+          </label>
+          <select
+            id="summary-metric-order"
+            value={orderMetricLabel}
+            onChange={(event) => {
+              const nextLabel = event.target.value;
+              setOrderMetricLabel(nextLabel);
+
+              const nextMetric = METRIC_ROWS.find((row) => row.label === nextLabel);
+              if (nextMetric) {
+                setOrderDirection(nextMetric.bestIs === 'max' ? 'desc' : 'asc');
+              }
+            }}
+            className="rounded-md border border-slate-600 bg-slate-800 px-2 py-1 text-xs text-slate-200"
+            aria-label="Order schedules by metric"
+          >
+            <option value="">Route order</option>
+            {METRIC_ROWS.map((row) => (
+              <option key={row.label} value={row.label}>
+                {row.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() =>
+              setOrderDirection((direction) => (direction === 'asc' ? 'desc' : 'asc'))
+            }
+            disabled={!selectedOrderMetric}
+            className="rounded-md border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Toggle summary schedule sort direction"
+            title="Toggle sort direction"
+          >
+            {orderDirection === 'asc' ? 'Asc' : 'Desc'}
+          </button>
+        </div>
+      }
+    >
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -294,7 +380,7 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
                   </span>
                 </div>
               </th>
-              {comparisons.map((schedule) => (
+              {orderedComparisons.map((schedule) => (
                 <th key={schedule.id} className="whitespace-nowrap px-3 py-2 text-right">
                   {schedule.name}
                   <span className="ml-1 text-xs text-slate-500">#{schedule.id}</span>
@@ -314,7 +400,7 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
                   <td className="bg-sky-950/20 px-3 py-2 text-right tabular-nums text-slate-200">
                     {reference.isLoading ? '…' : row.format(referenceValue)}
                   </td>
-                  {comparisons.map((schedule) => {
+                  {orderedComparisons.map((schedule) => {
                     const value = row.getValue(schedule);
 
                     return (

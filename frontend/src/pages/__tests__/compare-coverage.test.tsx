@@ -238,6 +238,68 @@ describe('Compare page — 2+ schedules', () => {
     expect(screen.getByText('Summary Metrics')).toBeInTheDocument();
   });
 
+  it('orders summary schedule columns by selected metric while keeping reference fixed', async () => {
+    const user = userEvent.setup();
+
+    const schedulesResult = {
+      schedules: [
+        { schedule_id: 1, schedule_name: 'Schedule Alpha' },
+        { schedule_id: 2, schedule_name: 'Schedule Beta' },
+        { schedule_id: 3, schedule_name: 'Schedule Gamma' },
+      ],
+      total: 3,
+    };
+
+    vi.mocked(hooks.useSchedules).mockReturnValue({
+      data: schedulesResult,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof hooks.useSchedules>);
+    vi.mocked(apiHooks.useSchedules).mockReturnValue({
+      data: schedulesResult,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof apiHooks.useSchedules>);
+
+    vi.mocked(schedulesFeature.useScheduleAnalysisData).mockImplementation((ids: number[]) =>
+      ids.map((id) => {
+        if (id === 1) return makeScheduleAnalysisData(1, 'Schedule Alpha', 3);
+        if (id === 2) return makeScheduleAnalysisData(2, 'Schedule Beta', 1);
+        if (id === 3) return makeScheduleAnalysisData(3, 'Schedule Gamma', 4);
+        return makeScheduleAnalysisData(id, `Schedule #${id}`, 1);
+      })
+    );
+
+    renderCompare('/schedules/1/compare/2,3');
+
+    await user.selectOptions(screen.getByLabelText(/order schedules by metric/i), 'Scheduled tasks');
+
+    const summaryTable = screen
+      .getByRole('heading', { name: 'Summary Metrics' })
+      .closest('section')
+      ?.querySelector('table');
+    expect(summaryTable).toBeTruthy();
+
+    const getSummaryHeaders = () =>
+      within(summaryTable as HTMLTableElement)
+        .getAllByRole('columnheader')
+        .map((header) => header.textContent?.replace(/\s+/g, ' ').trim() ?? '');
+
+    expect(getSummaryHeaders()[1]).toContain('Schedule Alpha');
+    expect(getSummaryHeaders()[2]).toContain('Schedule Gamma');
+    expect(getSummaryHeaders()[3]).toContain('Schedule Beta');
+
+    await user.click(
+      screen.getByRole('button', { name: /toggle summary schedule sort direction/i })
+    );
+
+    expect(getSummaryHeaders()[1]).toContain('Schedule Alpha');
+    expect(getSummaryHeaders()[2]).toContain('Schedule Beta');
+    expect(getSummaryHeaders()[3]).toContain('Schedule Gamma');
+  });
+
   it('toggles full screen for compare tables', async () => {
     const user = userEvent.setup();
 
