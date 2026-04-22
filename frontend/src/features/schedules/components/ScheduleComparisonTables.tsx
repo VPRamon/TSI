@@ -316,8 +316,6 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
                   </td>
                   {comparisons.map((schedule) => {
                     const value = row.getValue(schedule);
-                    const delta =
-                      value != null && referenceValue != null ? value - referenceValue : null;
 
                     return (
                       <td
@@ -329,12 +327,7 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
                         {schedule.isLoading ? (
                           '…'
                         ) : (
-                          <>
-                            {row.format(value)}
-                            {delta != null && referenceValue != null ? (
-                              <DeltaBadge delta={delta} row={row} />
-                            ) : null}
-                          </>
+                          row.format(value)
                         )}
                       </td>
                     );
