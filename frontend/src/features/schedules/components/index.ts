@@ -8,6 +8,7 @@ export { default as FilterSettings, type FilterParams } from './FilterSettings';
 export { default as OpportunitiesHistogram } from './OpportunitiesHistogram';
 export { SchedulePicker } from './SchedulePicker';
 export { SummaryTable, BlockStatusTable } from './ScheduleComparisonTables';
+export { ComparisonCharts } from './ScheduleComparisonCharts';
 export { BlocksTable, type TableBlock } from './BlocksTable';
 export { BlockDetailsDrawer } from './BlockDetailsDrawer';
 export { ExportMenu } from './ExportMenu';

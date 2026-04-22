@@ -8,6 +8,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useSchedules } from '@/hooks';
 import {
   BlockStatusTable,
+  ComparisonCharts,
   SchedulePicker,
   SummaryTable,
   useScheduleAnalysisData,
@@ -224,6 +225,7 @@ function ComparePage() {
       ) : (
         <>
           <SummaryTable schedules={schedules} />
+          <ComparisonCharts schedules={schedules} />
           <BlockStatusTable schedules={schedules} />
         </>
       )}
