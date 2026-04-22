@@ -5,11 +5,16 @@ import { describe, it, expect } from 'vitest';
 import { toScheduleViewModel, toSkyMapViewModel, toDistributionViewModel } from './schedule';
 import type { ScheduleInfo, SkyMapData, DistributionData } from '@/api';
 
+const mockLocation = { lat_deg: 28.76, lon_deg: -17.89, height: 2200 };
+const mockPeriod = { start_mjd: 60000, end_mjd: 60007 };
+
 describe('toScheduleViewModel', () => {
   it('converts schedule info to view model', () => {
     const schedule: ScheduleInfo = {
       schedule_id: 1,
       schedule_name: 'Test Schedule',
+      observer_location: mockLocation,
+      schedule_period: mockPeriod,
     };
 
     const result = toScheduleViewModel(schedule);
@@ -23,6 +28,8 @@ describe('toScheduleViewModel', () => {
     const schedule: ScheduleInfo = {
       schedule_id: 2,
       schedule_name: 'This is a very long schedule name that exceeds the limit',
+      observer_location: mockLocation,
+      schedule_period: mockPeriod,
     };
 
     const result = toScheduleViewModel(schedule);
@@ -35,6 +42,8 @@ describe('toScheduleViewModel', () => {
     const schedule: ScheduleInfo = {
       schedule_id: 3,
       schedule_name: 'Short name',
+      observer_location: mockLocation,
+      schedule_period: mockPeriod,
     };
 
     const result = toScheduleViewModel(schedule);

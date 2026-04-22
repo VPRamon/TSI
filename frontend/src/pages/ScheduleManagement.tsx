@@ -99,34 +99,58 @@ function ChevronLeftIcon() {
 // =============================================================================
 
 interface DeleteConfirmDialogProps {
-  schedule: ScheduleInfo;
+  schedules: ScheduleInfo[];
   onConfirm: () => void;
   onCancel: () => void;
   isDeleting: boolean;
 }
 
 function DeleteConfirmDialog({
-  schedule,
+  schedules,
   onConfirm,
   onCancel,
   isDeleting,
 }: DeleteConfirmDialogProps) {
+  const isBulkDelete = schedules.length > 1;
+  const previewSchedules = schedules.slice(0, 5);
+  const remainingCount = schedules.length - previewSchedules.length;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-md rounded-2xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-        <h3 className="mb-2 text-lg font-semibold text-white">Delete Schedule</h3>
-        <p className="mb-1 text-sm text-slate-300">
-          Are you sure you want to delete this schedule?
+        <h3 className="mb-2 text-lg font-semibold text-white">
+          {isBulkDelete ? 'Delete Schedules' : 'Delete Schedule'}
+        </h3>
+        <p className="mb-3 text-sm text-slate-300">
+          {isBulkDelete
+            ? `Are you sure you want to delete these ${schedules.length} schedules?`
+            : 'Are you sure you want to delete this schedule?'}
         </p>
-        <p className="mb-6 rounded-lg bg-slate-900/60 px-3 py-2 text-sm font-medium text-white">
-          {schedule.schedule_name}
-        </p>
+        {isBulkDelete ? (
+          <div className="mb-6 rounded-lg bg-slate-900/60 px-3 py-2">
+            <ul className="space-y-1 text-sm font-medium text-white">
+              {previewSchedules.map((schedule) => (
+                <li key={schedule.schedule_id}>{schedule.schedule_name}</li>
+              ))}
+              {remainingCount > 0 && (
+                <li className="text-slate-400">
+                  and {remainingCount} more schedule{remainingCount === 1 ? '' : 's'}
+                </li>
+              )}
+            </ul>
+          </div>
+        ) : (
+          <p className="mb-6 rounded-lg bg-slate-900/60 px-3 py-2 text-sm font-medium text-white">
+            {schedules[0]?.schedule_name}
+          </p>
+        )}
         <p className="mb-6 text-xs text-red-400">
           This action cannot be undone. All associated data (blocks, analytics, validation results)
           will be permanently removed.
         </p>
         <div className="flex justify-end gap-3">
           <button
+            type="button"
             onClick={onCancel}
             disabled={isDeleting}
             className="rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white disabled:opacity-50"
@@ -134,12 +158,15 @@ function DeleteConfirmDialog({
             Cancel
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             disabled={isDeleting}
             className="flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
           >
             {isDeleting ? <LoadingSpinner size="sm" /> : <TrashIcon />}
-            {isDeleting ? 'Deleting...' : 'Delete'}
+            {isDeleting
+              ? 'Deleting...'
+              : `Delete ${schedules.length} schedule${schedules.length === 1 ? '' : 's'}`}
           </button>
         </div>
       </div>
@@ -187,7 +214,6 @@ function EditScheduleDialog({
         ? OBSERVATORY_SITES[parseInt(selectedSiteIdx, 10)]?.location
         : undefined;
 
-    // Only submit if something actually changed
     const nameChanged = trimmedName !== schedule.schedule_name;
     if (!nameChanged && !location) {
       onCancel();
@@ -205,7 +231,6 @@ function EditScheduleDialog({
       >
         <h3 className="mb-6 text-lg font-semibold text-white">Edit Schedule</h3>
 
-        {/* Schedule Name */}
         <div className="mb-4">
           <label
             htmlFor="schedule-name"
@@ -229,7 +254,6 @@ function EditScheduleDialog({
           )}
         </div>
 
-        {/* Observatory Location */}
         <div className="mb-6">
           <label
             htmlFor="schedule-site"
@@ -280,25 +304,46 @@ function EditScheduleDialog({
 
 interface ScheduleRowProps {
   schedule: ScheduleInfo;
+  isSelected: boolean;
+  onToggleSelect: (scheduleId: number) => void;
   onEdit: (schedule: ScheduleInfo) => void;
   onDelete: (schedule: ScheduleInfo) => void;
   onOpen: (scheduleId: number) => void;
 }
 
-function ScheduleRow({ schedule, onEdit, onDelete, onOpen }: ScheduleRowProps) {
+function ScheduleRow({
+  schedule,
+  isSelected,
+  onToggleSelect,
+  onEdit,
+  onDelete,
+  onOpen,
+}: ScheduleRowProps) {
   return (
     <div className="group flex items-center justify-between rounded-lg border border-slate-700/30 bg-slate-900/40 p-4 transition-all duration-200 hover:border-slate-600/50 hover:bg-slate-900/70">
-      <button
-        onClick={() => onOpen(schedule.schedule_id)}
-        className="min-w-0 flex-1 text-left focus:outline-none"
-      >
-        <p className="truncate font-medium text-white transition-colors group-hover:text-indigo-300">
-          {schedule.schedule_name}
-        </p>
-      </button>
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => onToggleSelect(schedule.schedule_id)}
+          onClick={(event) => event.stopPropagation()}
+          className="h-4 w-4 rounded border-slate-500 bg-slate-700 text-red-600 focus:ring-red-500"
+          aria-label={`Select ${schedule.schedule_name}`}
+        />
+        <button
+          type="button"
+          onClick={() => onOpen(schedule.schedule_id)}
+          className="min-w-0 flex-1 text-left focus:outline-none"
+        >
+          <p className="truncate font-medium text-white transition-colors group-hover:text-indigo-300">
+            {schedule.schedule_name}
+          </p>
+        </button>
+      </div>
 
       <div className="ml-4 flex shrink-0 items-center gap-2">
         <button
+          type="button"
           onClick={() => onEdit(schedule)}
           className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700 hover:text-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
           title="Edit schedule"
@@ -307,6 +352,7 @@ function ScheduleRow({ schedule, onEdit, onDelete, onOpen }: ScheduleRowProps) {
           <PencilIcon />
         </button>
         <button
+          type="button"
           onClick={() => onDelete(schedule)}
           className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/50"
           title="Delete schedule"
@@ -329,24 +375,95 @@ function ScheduleManagement() {
   const deleteSchedule = useDeleteSchedule();
   const updateSchedule = useUpdateSchedule();
 
+  const schedules = data?.schedules ?? [];
   const [editingSchedule, setEditingSchedule] = useState<ScheduleInfo | null>(null);
-  const [deletingSchedule, setDeletingSchedule] = useState<ScheduleInfo | null>(null);
+  const [deleteTargetIds, setDeleteTargetIds] = useState<number[] | null>(null);
+  const [selectedScheduleIds, setSelectedScheduleIds] = useState<Set<number>>(new Set());
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null
   );
 
+  const selectedSchedules = schedules.filter((schedule) =>
+    selectedScheduleIds.has(schedule.schedule_id)
+  );
+  const allSchedulesSelected = schedules.length > 0 && selectedScheduleIds.size === schedules.length;
+  const deleteTargets =
+    deleteTargetIds === null
+      ? []
+      : schedules.filter((schedule) => deleteTargetIds.includes(schedule.schedule_id));
+
+  const toggleScheduleSelection = (scheduleId: number) => {
+    setSelectedScheduleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(scheduleId)) {
+        next.delete(scheduleId);
+      } else {
+        next.add(scheduleId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedScheduleIds(allSchedulesSelected ? new Set() : new Set(schedules.map((s) => s.schedule_id)));
+  };
+
+  const openDeleteDialogForIds = (scheduleIds: number[]) => {
+    if (scheduleIds.length === 0) return;
+    setDeleteTargetIds(scheduleIds);
+  };
+
   const handleDelete = async () => {
-    if (!deletingSchedule) return;
+    if (!deleteTargetIds || deleteTargetIds.length === 0) return;
+
+    const deletedIds = new Set<number>();
+    let failedScheduleName: string | null = null;
+
     try {
-      await deleteSchedule.mutateAsync(deletingSchedule.schedule_id);
+      for (const schedule of schedules) {
+        if (!deleteTargetIds.includes(schedule.schedule_id)) {
+          continue;
+        }
+
+        await deleteSchedule.mutateAsync(schedule.schedule_id);
+        deletedIds.add(schedule.schedule_id);
+      }
+
+      setSelectedScheduleIds((prev) => {
+        const next = new Set(prev);
+        for (const deletedId of deletedIds) {
+          next.delete(deletedId);
+        }
+        return next;
+      });
       setFeedback({
         type: 'success',
-        message: `Schedule "${deletingSchedule.schedule_name}" deleted successfully.`,
+        message: `Deleted ${deletedIds.size} schedule${deletedIds.size === 1 ? '' : 's'} successfully.`,
       });
-      setDeletingSchedule(null);
+      setDeleteTargetIds(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to delete schedule';
-      setFeedback({ type: 'error', message });
+      failedScheduleName =
+        schedules.find((schedule) => deleteTargetIds.includes(schedule.schedule_id) && !deletedIds.has(schedule.schedule_id))
+          ?.schedule_name ?? null;
+
+      setSelectedScheduleIds((prev) => {
+        const next = new Set(prev);
+        for (const deletedId of deletedIds) {
+          next.delete(deletedId);
+        }
+        return next;
+      });
+      setDeleteTargetIds(null);
+
+      const baseMessage =
+        err instanceof Error ? err.message : 'Failed to delete the selected schedules';
+      const failedPrefix = failedScheduleName
+        ? `Deletion stopped at "${failedScheduleName}". `
+        : 'Deletion stopped before the batch could complete. ';
+      setFeedback({
+        type: 'error',
+        message: `${failedPrefix}${baseMessage}`,
+      });
     }
   };
 
@@ -416,11 +533,8 @@ function ScheduleManagement() {
     );
   }
 
-  const schedules = data?.schedules ?? [];
-
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Background */}
       <div
         className="absolute inset-0 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950"
         aria-hidden="true"
@@ -435,10 +549,9 @@ function ScheduleManagement() {
         aria-hidden="true"
       />
 
-      {/* Content */}
       <div className="relative z-10 mx-auto max-w-3xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
-        {/* Back to Home */}
         <button
+          type="button"
           onClick={() => navigate('/')}
           className="mb-8 flex items-center gap-1.5 text-sm text-slate-400 transition-colors hover:text-white"
         >
@@ -446,7 +559,6 @@ function ScheduleManagement() {
           Back to Home
         </button>
 
-        {/* Header */}
         <div className="mb-10 flex items-start gap-4">
           <div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-400">
             <SettingsIcon />
@@ -460,7 +572,6 @@ function ScheduleManagement() {
           </div>
         </div>
 
-        {/* Feedback toast */}
         {feedback && (
           <div
             className={`mb-6 rounded-lg border px-4 py-3 text-sm ${
@@ -472,6 +583,7 @@ function ScheduleManagement() {
           >
             {feedback.message}
             <button
+              type="button"
               onClick={() => setFeedback(null)}
               className="ml-3 text-xs underline opacity-70 hover:opacity-100"
             >
@@ -480,7 +592,6 @@ function ScheduleManagement() {
           </div>
         )}
 
-        {/* Schedule List */}
         <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-6 backdrop-blur-sm">
           {schedules.length === 0 ? (
             <div className="py-12 text-center">
@@ -491,18 +602,57 @@ function ScheduleManagement() {
             </div>
           ) : (
             <>
-              <div className="mb-4 flex items-center justify-between">
-                <p className="text-sm text-slate-400">
-                  {schedules.length} {schedules.length === 1 ? 'schedule' : 'schedules'}
-                </p>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-sm text-slate-400">
+                    {schedules.length} {schedules.length === 1 ? 'schedule' : 'schedules'}
+                  </p>
+                  <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={allSchedulesSelected}
+                      onChange={handleSelectAll}
+                      className="h-4 w-4 rounded border-slate-500 bg-slate-700 text-red-600 focus:ring-red-500"
+                      aria-label="Select all schedules"
+                    />
+                    Select all
+                  </label>
+                  {selectedSchedules.length > 0 && (
+                    <span className="rounded-full bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-300">
+                      {selectedSchedules.length} selected
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {selectedSchedules.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedScheduleIds(new Set())}
+                      className="rounded-lg border border-slate-600 px-3 py-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white"
+                    >
+                      Clear selection
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => openDeleteDialogForIds(selectedSchedules.map((s) => s.schedule_id))}
+                    disabled={selectedSchedules.length === 0}
+                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <TrashIcon />
+                    Delete selected
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 {schedules.map((schedule) => (
                   <ScheduleRow
                     key={schedule.schedule_id}
                     schedule={schedule}
+                    isSelected={selectedScheduleIds.has(schedule.schedule_id)}
+                    onToggleSelect={toggleScheduleSelection}
                     onEdit={setEditingSchedule}
-                    onDelete={setDeletingSchedule}
+                    onDelete={(item) => openDeleteDialogForIds([item.schedule_id])}
                     onOpen={handleOpen}
                   />
                 ))}
@@ -512,12 +662,11 @@ function ScheduleManagement() {
         </div>
       </div>
 
-      {/* Dialogs */}
-      {deletingSchedule && (
+      {deleteTargetIds && deleteTargets.length > 0 && (
         <DeleteConfirmDialog
-          schedule={deletingSchedule}
+          schedules={deleteTargets}
           onConfirm={handleDelete}
-          onCancel={() => setDeletingSchedule(null)}
+          onCancel={() => setDeleteTargetIds(null)}
           isDeleting={deleteSchedule.isPending}
         />
       )}

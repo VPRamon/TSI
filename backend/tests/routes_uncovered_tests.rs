@@ -1,7 +1,28 @@
 //! Integration tests for routes/visibility.rs and routes/landing.rs
 //! These tests exercise route module structure without requiring Python runtime.
 
+use tsi_rust::api::{ModifiedJulianDate, Period, ScheduleId};
+use tsi_rust::qtty::{Degrees, Meters};
 use tsi_rust::routes;
+use tsi_rust::routes::landing::ScheduleInfo;
+use tsi_rust::siderust::coordinates::centers::Geodetic;
+use tsi_rust::siderust::coordinates::frames::ECEF;
+
+fn make_schedule_info(id: i64, name: &str) -> ScheduleInfo {
+    ScheduleInfo {
+        schedule_id: ScheduleId::new(id),
+        schedule_name: name.to_string(),
+        observer_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.89),
+            Degrees::new(28.76),
+            Meters::new(2200.0),
+        ),
+        schedule_period: Period {
+            start: ModifiedJulianDate::new(60000.0),
+            end: ModifiedJulianDate::new(60007.0),
+        },
+    }
+}
 
 #[test]
 fn test_visibility_constants_values() {
@@ -75,13 +96,7 @@ fn test_visibility_map_data_creation() {
 
 #[test]
 fn test_schedule_info_creation() {
-    use tsi_rust::api::ScheduleId;
-    use tsi_rust::routes::landing::ScheduleInfo;
-
-    let info = ScheduleInfo {
-        schedule_id: ScheduleId::new(42),
-        schedule_name: "My Schedule".to_string(),
-    };
+    let info = make_schedule_info(42, "My Schedule");
 
     assert_eq!(info.schedule_id.value(), 42);
     assert_eq!(info.schedule_name, "My Schedule");
@@ -125,13 +140,7 @@ fn test_visibility_map_data_serialization() {
 
 #[test]
 fn test_schedule_info_serialization() {
-    use tsi_rust::api::ScheduleId;
-    use tsi_rust::routes::landing::ScheduleInfo;
-
-    let info = ScheduleInfo {
-        schedule_id: ScheduleId::new(42),
-        schedule_name: "Test".to_string(),
-    };
+    let info = make_schedule_info(42, "Test");
 
     let json = serde_json::to_string(&info).unwrap();
     assert!(json.contains("\"schedule_name\":\"Test\""));
@@ -173,13 +182,7 @@ fn test_visibility_map_data_clone() {
 
 #[test]
 fn test_schedule_info_clone() {
-    use tsi_rust::api::ScheduleId;
-    use tsi_rust::routes::landing::ScheduleInfo;
-
-    let info = ScheduleInfo {
-        schedule_id: ScheduleId::new(1),
-        schedule_name: "Test".to_string(),
-    };
+    let info = make_schedule_info(1, "Test");
 
     let cloned = info.clone();
     assert_eq!(cloned.schedule_id.value(), info.schedule_id.value());
@@ -220,13 +223,7 @@ fn test_visibility_map_data_debug() {
 
 #[test]
 fn test_schedule_info_debug() {
-    use tsi_rust::api::ScheduleId;
-    use tsi_rust::routes::landing::ScheduleInfo;
-
-    let info = ScheduleInfo {
-        schedule_id: ScheduleId::new(1),
-        schedule_name: "Test".to_string(),
-    };
+    let info = make_schedule_info(1, "Test");
 
     let debug_str = format!("{:?}", info);
     assert!(debug_str.contains("ScheduleInfo"));

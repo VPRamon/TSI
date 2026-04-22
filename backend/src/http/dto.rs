@@ -222,6 +222,17 @@ pub struct ScheduleInfoDto {
     pub schedule_id: i64,
     /// Schedule name
     pub schedule_name: String,
+    /// Geographic location of the observatory.
+    pub observer_location: crate::api::GeographicLocation,
+    /// Overall time window of the schedule (MJD).
+    pub schedule_period: SchedulePeriodDto,
+}
+
+/// Schedule period in MJD, as returned by the list endpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchedulePeriodDto {
+    pub start_mjd: f64,
+    pub end_mjd: f64,
 }
 
 impl From<crate::api::ScheduleInfo> for ScheduleInfoDto {
@@ -229,6 +240,11 @@ impl From<crate::api::ScheduleInfo> for ScheduleInfoDto {
         Self {
             schedule_id: info.schedule_id.value(),
             schedule_name: info.schedule_name,
+            observer_location: info.observer_location,
+            schedule_period: SchedulePeriodDto {
+                start_mjd: info.schedule_period.start.value(),
+                end_mjd: info.schedule_period.end.value(),
+            },
         }
     }
 }

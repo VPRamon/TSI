@@ -48,14 +48,24 @@ const ManageIcon = () => (
       strokeWidth={1.75}
       d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
     />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.75}
+      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+    />
   </svg>
 );
 
 const SpinnerIcon = () => (
   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
-    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    <path
+      d="M22 12a10 10 0 0 0-10-10"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
@@ -72,6 +82,8 @@ export interface ScheduleListCardProps {
   onDownloadAll: () => void;
   /** Callback when schedule management page is requested */
   onManageSchedules: () => void;
+  /** Callback when advanced workspace is requested */
+  onOpenAdvanced?: () => void;
   /** IDs currently downloading */
   downloadingScheduleIds?: ReadonlySet<number>;
   /** Whether all schedules are currently downloading */
@@ -85,6 +97,7 @@ function ScheduleListCard({
   onScheduleDownload,
   onDownloadAll,
   onManageSchedules,
+  onOpenAdvanced,
   downloadingScheduleIds,
   isDownloadingAll,
 }: ScheduleListCardProps) {
@@ -134,6 +147,18 @@ function ScheduleListCard({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-slate-500">{total} available</p>
               <div className="ml-auto flex items-center gap-2">
+                {onOpenAdvanced ? (
+                  <button
+                    type="button"
+                    onClick={onOpenAdvanced}
+                    className="inline-flex items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-medium text-sky-200 transition-all duration-200 hover:border-sky-400/60 hover:bg-sky-500/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                    title="Open advanced workspace"
+                    aria-label="Open advanced workspace"
+                  >
+                    <DatabaseIcon />
+                    <span>Advanced</span>
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={onManageSchedules}
@@ -149,7 +174,9 @@ function ScheduleListCard({
                   onClick={onDownloadAll}
                   disabled={isDownloadingAll}
                   className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300 transition-all duration-200 hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-60"
-                  title={isDownloadingAll ? 'Downloading all schedules...' : 'Download all schedules'}
+                  title={
+                    isDownloadingAll ? 'Downloading all schedules...' : 'Download all schedules'
+                  }
                   aria-label={
                     isDownloadingAll
                       ? 'Downloading all schedules'

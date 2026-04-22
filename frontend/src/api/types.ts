@@ -10,6 +10,8 @@
 export interface ScheduleInfo {
   schedule_id: number;
   schedule_name: string;
+  observer_location: GeographicLocation;
+  schedule_period: { start_mjd: number; end_mjd: number };
 }
 
 export interface ScheduleListResponse {

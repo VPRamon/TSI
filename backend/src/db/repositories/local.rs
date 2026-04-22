@@ -105,6 +105,8 @@ impl LocalRepository {
         let metadata = crate::api::ScheduleInfo {
             schedule_id,
             schedule_name: schedule.name.clone(),
+            observer_location: schedule.geographic_location,
+            schedule_period: schedule.schedule_period,
         };
 
         data.schedule_metadata.insert(schedule_id.0, metadata);
@@ -322,10 +324,19 @@ impl ScheduleRepository for LocalRepository {
             schedule.geographic_location = location;
         }
 
+        // Capture updated values before splitting borrows
+        let updated_location = data
+            .schedules
+            .get(&schedule_id.0)
+            .map(|s| s.geographic_location);
+
         // Update metadata
         if let Some(meta) = data.schedule_metadata.get_mut(&schedule_id.0) {
             if let Some(name) = new_name {
                 meta.schedule_name = name;
+            }
+            if let Some(loc) = updated_location {
+                meta.observer_location = loc;
             }
         }
 

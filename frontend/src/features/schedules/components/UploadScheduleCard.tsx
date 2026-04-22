@@ -39,9 +39,17 @@ const FileIcon = () => (
 export interface UploadScheduleCardProps {
   /** Callback when upload error occurs */
   onError?: (message: string) => void;
+  /** Callback when upload completes successfully */
+  onUploadComplete?: (result: { schedule_id: number; schedule_name?: string }) => void;
+  /** Whether to navigate to the validation page after upload completes */
+  navigateOnComplete?: boolean;
 }
 
-function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
+function UploadScheduleCard({
+  onError,
+  onUploadComplete,
+  navigateOnComplete = true,
+}: UploadScheduleCardProps) {
   const createSchedule = useCreateSchedule();
   const { data: schedulesData } = useSchedules();
   const navigate = useNavigate();
@@ -105,7 +113,8 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
       const isDuplicateName =
         !!name &&
         !!schedulesData?.schedules?.some(
-          (schedule) => normalizeScheduleName(schedule.schedule_name) === normalizeScheduleName(name)
+          (schedule) =>
+            normalizeScheduleName(schedule.schedule_name) === normalizeScheduleName(name)
         );
 
       if (isDuplicateName) {
@@ -159,8 +168,11 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
 
     // Navigate to the schedule validation page if we have a schedule_id
     if (result && typeof result === 'object' && 'schedule_id' in result) {
-      const scheduleId = (result as { schedule_id: number }).schedule_id;
-      setTimeout(() => navigate(`/schedules/${scheduleId}/validation`), 1500);
+      const completed = result as { schedule_id: number; schedule_name?: string };
+      onUploadComplete?.(completed);
+      if (navigateOnComplete) {
+        setTimeout(() => navigate(`/schedules/${completed.schedule_id}/validation`), 1500);
+      }
     }
   };
 
@@ -269,7 +281,12 @@ function UploadScheduleCard({ onError }: UploadScheduleCardProps) {
                 viewBox="0 0 24 24"
                 aria-hidden="true"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 9l-7 7-7-7"
+                />
               </svg>
             </button>
 

@@ -364,6 +364,15 @@ fn test_schedule_info_creation() {
     let info = routes::landing::ScheduleInfo {
         schedule_id: ScheduleId::new(1),
         schedule_name: "test".to_string(),
+        observer_location: Geodetic::<ECEF>::new(
+            Degrees::new(-17.89),
+            Degrees::new(28.76),
+            Meters::new(2200.0),
+        ),
+        schedule_period: Period {
+            start: ModifiedJulianDate::new(60000.0),
+            end: ModifiedJulianDate::new(60007.0),
+        },
     };
     assert_eq!(info.schedule_id.value(), 1);
     assert_eq!(info.schedule_name, "test");

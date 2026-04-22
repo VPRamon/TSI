@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouterProvider, userEvent } from '../../test/test-utils';
 import { Routes, Route } from 'react-router-dom';
-import type { InsightsData, FragmentationData } from '../../api/types';
+import type { ScheduleAnalysisData } from '@/features/schedules';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -25,9 +25,15 @@ vi.mock('../../hooks', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../hooks')>();
   return {
     ...actual,
-    useInsights: vi.fn(),
-    useFragmentation: vi.fn(),
     useSchedules: vi.fn(),
+  };
+});
+
+vi.mock('../../features/schedules', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../features/schedules')>();
+  return {
+    ...actual,
+    useScheduleAnalysisData: vi.fn(),
   };
 });
 
@@ -40,12 +46,17 @@ vi.mock('@/hooks/useApi', async (importOriginal) => {
 });
 
 import * as hooks from '../../hooks';
+import * as schedulesFeature from '../../features/schedules';
 import * as apiHooks from '@/hooks/useApi';
 import Compare from '../Compare';
 
 // ─── Realistic stub data ──────────────────────────────────────────────────────
 
-function makeInsightsData(scheduledCount: number): InsightsData {
+function makeScheduleAnalysisData(
+  scheduleId: number,
+  name: string,
+  scheduledCount: number
+): ScheduleAnalysisData {
   const blocks = Array.from({ length: scheduledCount + 2 }, (_, i) => ({
     scheduling_block_id: i + 1,
     original_block_id: `OB-${i + 1}`,
@@ -60,74 +71,74 @@ function makeInsightsData(scheduledCount: number): InsightsData {
   }));
 
   return {
-    blocks,
-    metrics: {
-      total_observations: blocks.length,
+    id: scheduleId,
+    name,
+    isLoading: false,
+    error: null,
+    insights: {
+      blocks,
+      metrics: {
+        total_observations: blocks.length,
+        scheduled_count: scheduledCount,
+        unscheduled_count: blocks.length - scheduledCount,
+        scheduling_rate: scheduledCount / blocks.length,
+        mean_priority: 8,
+        median_priority: 8,
+        mean_priority_scheduled: 9,
+        mean_priority_unscheduled: 6,
+        total_visibility_hours: 40,
+        mean_requested_hours: 2,
+      },
+      correlations: [],
+      top_priority: [],
+      top_visibility: [],
+      conflicts: [],
+      total_count: blocks.length,
       scheduled_count: scheduledCount,
-      unscheduled_count: blocks.length - scheduledCount,
-      scheduling_rate: scheduledCount / blocks.length,
-      mean_priority: 8,
-      median_priority: 8,
-      mean_priority_scheduled: 9,
-      mean_priority_unscheduled: 6,
-      total_visibility_hours: 40,
-      mean_requested_hours: 2,
+      impossible_count: 0,
     },
-    correlations: [],
-    top_priority: [],
-    top_visibility: [],
-    conflicts: [],
-    total_count: blocks.length,
-    scheduled_count: scheduledCount,
-    impossible_count: 0,
+    fragmentation: {
+      schedule_id: scheduleId,
+      schedule_name: name,
+      schedule_window: { start_mjd: 59000, end_mjd: 60000 },
+      operable_periods: [],
+      operable_source: 'dark_time',
+      segments: [],
+      largest_gaps: [],
+      reason_breakdown: [],
+      unscheduled_reasons: [],
+      metrics: {
+        schedule_hours: 200,
+        requested_hours: 150,
+        operable_hours: 180,
+        scheduled_hours: 120,
+        idle_operable_hours: 60,
+        raw_visibility_coverage_hours: 170,
+        fit_visibility_coverage_hours: 150,
+        gap_count: 5,
+        gap_mean_hours: 2.5,
+        gap_median_hours: 2.0,
+        gap_std_dev_hours: 0.8,
+        gap_p90_hours: 4.0,
+        largest_gap_hours: 6.0,
+        scheduled_fraction_of_operable: 0.67,
+        idle_fraction_of_operable: 0.33,
+        raw_visibility_fraction_of_operable: 0.94,
+        fit_visibility_fraction_of_operable: 0.83,
+      },
+    },
   };
 }
 
-function makeFragmentationData(scheduleId: number, name: string): FragmentationData {
+function makeLoadingAnalysisData(scheduleId: number): ScheduleAnalysisData {
   return {
-    schedule_id: scheduleId,
-    schedule_name: name,
-    schedule_window: { start_mjd: 59000, end_mjd: 60000 },
-    operable_periods: [],
-    operable_source: 'dark_time',
-    segments: [],
-    largest_gaps: [],
-    reason_breakdown: [],
-    unscheduled_reasons: [],
-    metrics: {
-      schedule_hours: 200,
-      requested_hours: 150,
-      operable_hours: 180,
-      scheduled_hours: 120,
-      idle_operable_hours: 60,
-      raw_visibility_coverage_hours: 170,
-      fit_visibility_coverage_hours: 150,
-      gap_count: 5,
-      gap_mean_hours: 2.5,
-      gap_median_hours: 2.0,
-      gap_std_dev_hours: 0.8,
-      gap_p90_hours: 4.0,
-      largest_gap_hours: 6.0,
-      scheduled_fraction_of_operable: 0.67,
-      idle_fraction_of_operable: 0.33,
-      raw_visibility_fraction_of_operable: 0.94,
-      fit_visibility_fraction_of_operable: 0.83,
-    },
+    id: scheduleId,
+    name: `Schedule #${scheduleId}`,
+    insights: undefined,
+    fragmentation: undefined,
+    isLoading: true,
+    error: null,
   };
-}
-
-type UseQueryResult<T> = {
-  data: T | undefined;
-  isLoading: boolean;
-  error: Error | null;
-};
-
-function makeHookResult<T>(data: T): UseQueryResult<T> {
-  return { data, isLoading: false, error: null };
-}
-
-function makeLoadingResult(): UseQueryResult<undefined> {
-  return { data: undefined, isLoading: true, error: null };
 }
 
 // ─── Test helpers ─────────────────────────────────────────────────────────────
@@ -144,41 +155,34 @@ function renderCompare(path = '/schedules/1/compare') {
 }
 
 beforeEach(() => {
-  const schedulesResult = makeHookResult({
+  const schedulesResult = {
     schedules: [
       { schedule_id: 1, schedule_name: 'Schedule Alpha' },
       { schedule_id: 2, schedule_name: 'Schedule Beta' },
     ],
     total: 2,
-  });
+  };
 
-  vi.mocked(hooks.useSchedules).mockReturnValue(
-    schedulesResult as ReturnType<typeof hooks.useSchedules>
+  vi.mocked(hooks.useSchedules).mockReturnValue({
+    data: schedulesResult,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof hooks.useSchedules>);
+  vi.mocked(apiHooks.useSchedules).mockReturnValue({
+    data: schedulesResult,
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof apiHooks.useSchedules>);
+
+  vi.mocked(schedulesFeature.useScheduleAnalysisData).mockImplementation((ids: number[]) =>
+    ids.map((id) => {
+      if (id === 1) return makeScheduleAnalysisData(1, 'Schedule Alpha', 3);
+      if (id === 2) return makeScheduleAnalysisData(2, 'Schedule Beta', 2);
+      return makeScheduleAnalysisData(id, `Schedule #${id}`, 1);
+    })
   );
-  vi.mocked(apiHooks.useSchedules).mockReturnValue(
-    schedulesResult as ReturnType<typeof apiHooks.useSchedules>
-  );
-
-  // Default: return realistic data for IDs 1 and 2; disabled/empty for 0
-  vi.mocked(hooks.useInsights).mockImplementation((id: number) => {
-    if (id === 1) return makeHookResult(makeInsightsData(3)) as ReturnType<typeof hooks.useInsights>;
-    if (id === 2) return makeHookResult(makeInsightsData(2)) as ReturnType<typeof hooks.useInsights>;
-    // id === 0: disabled query — not loading, no data
-    return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useInsights>;
-  });
-
-  vi.mocked(hooks.useFragmentation).mockImplementation((id: number) => {
-    if (id === 1)
-      return makeHookResult(makeFragmentationData(1, 'Schedule Alpha')) as ReturnType<
-        typeof hooks.useFragmentation
-      >;
-    if (id === 2)
-      return makeHookResult(makeFragmentationData(2, 'Schedule Beta')) as ReturnType<
-        typeof hooks.useFragmentation
-      >;
-    // id === 0: disabled query — not loading, no data
-    return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useFragmentation>;
-  });
 });
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -242,7 +246,9 @@ describe('Compare page — 2+ schedules', () => {
     const openButtons = screen.getAllByRole('button', { name: /enter full screen for/i });
     expect(openButtons).toHaveLength(2);
 
-    await user.click(screen.getByRole('button', { name: /enter full screen for summary metrics/i }));
+    await user.click(
+      screen.getByRole('button', { name: /enter full screen for summary metrics/i })
+    );
 
     expect(
       screen.getByRole('button', { name: /exit full screen for summary metrics/i })
@@ -288,15 +294,19 @@ describe('Compare page — 2+ schedules', () => {
   });
 
   it('collapses duplicated colon-separated block IDs in the block table display', () => {
-    vi.mocked(hooks.useInsights).mockImplementation((id: number) => {
-      if (id === 0) {
-        return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useInsights>;
-      }
-
-      const data = makeInsightsData(id === 1 ? 3 : 2);
-      data.blocks[0].original_block_id = '1000002306:1000002306';
-      return makeHookResult(data) as ReturnType<typeof hooks.useInsights>;
-    });
+    vi.mocked(schedulesFeature.useScheduleAnalysisData).mockImplementation((ids: number[]) =>
+      ids.map((id) => {
+        const data = makeScheduleAnalysisData(
+          id,
+          id === 1 ? 'Schedule Alpha' : 'Schedule Beta',
+          id === 1 ? 3 : 2
+        );
+        if (data.insights) {
+          data.insights.blocks[0].original_block_id = '1000002306:1000002306';
+        }
+        return data;
+      })
+    );
 
     renderCompare('/schedules/1/compare/2');
     expect(screen.getByText('1000002306')).toBeInTheDocument();
@@ -306,41 +316,44 @@ describe('Compare page — 2+ schedules', () => {
   it('sorts the block status table by Block ID when the header is clicked', async () => {
     const user = userEvent.setup();
 
-    vi.mocked(hooks.useInsights).mockImplementation((id: number) => {
-      if (id === 0) {
-        return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useInsights>;
-      }
-
-      const data = makeInsightsData(id === 1 ? 3 : 2);
-      data.blocks = [
-        {
-          ...data.blocks[0],
-          original_block_id: 'OB-10',
-          priority: 9,
-          requested_hours: 2,
-          scheduled: true,
-          scheduled_start_mjd: 60010,
-        },
-        {
-          ...data.blocks[1],
-          original_block_id: 'OB-2',
-          priority: 7,
-          requested_hours: 1,
-          scheduled: true,
-          scheduled_start_mjd: 60002,
-        },
-        {
-          ...data.blocks[2],
-          original_block_id: 'OB-1',
-          priority: 8,
-          requested_hours: 3,
-          scheduled: true,
-          scheduled_start_mjd: 60001,
-        },
-      ];
-
-      return makeHookResult(data) as ReturnType<typeof hooks.useInsights>;
-    });
+    vi.mocked(schedulesFeature.useScheduleAnalysisData).mockImplementation((ids: number[]) =>
+      ids.map((id) => {
+        const data = makeScheduleAnalysisData(
+          id,
+          id === 1 ? 'Schedule Alpha' : 'Schedule Beta',
+          id === 1 ? 3 : 2
+        );
+        if (data.insights) {
+          data.insights.blocks = [
+            {
+              ...data.insights.blocks[0],
+              original_block_id: 'OB-10',
+              priority: 9,
+              requested_hours: 2,
+              scheduled: true,
+              scheduled_start_mjd: 60010,
+            },
+            {
+              ...data.insights.blocks[1],
+              original_block_id: 'OB-2',
+              priority: 7,
+              requested_hours: 1,
+              scheduled: true,
+              scheduled_start_mjd: 60002,
+            },
+            {
+              ...data.insights.blocks[2],
+              original_block_id: 'OB-1',
+              priority: 8,
+              requested_hours: 3,
+              scheduled: true,
+              scheduled_start_mjd: 60001,
+            },
+          ];
+        }
+        return data;
+      })
+    );
 
     renderCompare('/schedules/1/compare/2');
 
@@ -366,14 +379,9 @@ describe('Compare page — 2+ schedules', () => {
 
 describe('Compare page — loading state', () => {
   it('shows loading spinner while data is loading', () => {
-    vi.mocked(hooks.useInsights).mockImplementation((id: number) => {
-      if (id === 0) return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useInsights>;
-      return makeLoadingResult() as ReturnType<typeof hooks.useInsights>;
-    });
-    vi.mocked(hooks.useFragmentation).mockImplementation((id: number) => {
-      if (id === 0) return { data: undefined, isLoading: false, error: null } as ReturnType<typeof hooks.useFragmentation>;
-      return makeLoadingResult() as ReturnType<typeof hooks.useFragmentation>;
-    });
+    vi.mocked(schedulesFeature.useScheduleAnalysisData).mockImplementation((ids: number[]) =>
+      ids.map((id) => makeLoadingAnalysisData(id))
+    );
     renderCompare('/schedules/1/compare/2');
     // Loading spinner should be present (LoadingSpinner has role="status")
     expect(document.querySelector('[role="status"]')).toBeTruthy();

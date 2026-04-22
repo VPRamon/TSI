@@ -706,9 +706,23 @@ impl ScheduleRepository for PostgresRepository {
                     .select(ScheduleRow::as_select())
                     .first::<ScheduleRow>(tx)
                 {
+                    let schedule_period = json_to_period(&existing.schedule_period_json)?
+                        .ok_or_else(|| {
+                            RepositoryError::InternalError(
+                                "schedule_period_json is null for existing schedule".to_string(),
+                            )
+                        })?;
+                    let observer_location: crate::api::GeographicLocation =
+                        serde_json::from_value(existing.observer_location_json).map_err(|e| {
+                            RepositoryError::InternalError(format!(
+                                "Failed to parse observer_location_json: {e}"
+                            ))
+                        })?;
                     return Ok(ScheduleInfo {
                         schedule_id: ScheduleId(existing.schedule_id),
                         schedule_name: existing.schedule_name,
+                        observer_location,
+                        schedule_period,
                     });
                 }
 
@@ -782,6 +796,8 @@ impl ScheduleRepository for PostgresRepository {
                 Ok(ScheduleInfo {
                     schedule_id: ScheduleId(inserted.schedule_id),
                     schedule_name: inserted.schedule_name,
+                    observer_location: schedule.geographic_location,
+                    schedule_period: schedule.schedule_period,
                 })
             })
         })
@@ -812,19 +828,38 @@ impl ScheduleRepository for PostgresRepository {
 
     async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
         self.with_conn(|conn| {
-            let rows: Vec<(i64, String)> = schedules::table
-                .select((schedules::schedule_id, schedules::schedule_name))
+            let rows: Vec<(i64, String, Value, Value)> = schedules::table
+                .select((
+                    schedules::schedule_id,
+                    schedules::schedule_name,
+                    schedules::schedule_period_json,
+                    schedules::observer_location_json,
+                ))
                 .order(schedules::uploaded_at.desc())
                 .load(conn)
                 .map_err(map_diesel_error)?;
 
-            Ok(rows
-                .into_iter()
-                .map(|(id, name)| ScheduleInfo {
-                    schedule_id: ScheduleId(id),
-                    schedule_name: name,
+            rows.into_iter()
+                .map(|(id, name, period_json, location_json)| {
+                    let schedule_period = json_to_period(&period_json)?.ok_or_else(|| {
+                        RepositoryError::InternalError(
+                            "schedule_period_json is null for listed schedule".to_string(),
+                        )
+                    })?;
+                    let observer_location: crate::api::GeographicLocation =
+                        serde_json::from_value(location_json).map_err(|e| {
+                            RepositoryError::InternalError(format!(
+                                "Failed to parse observer_location_json: {e}"
+                            ))
+                        })?;
+                    Ok(ScheduleInfo {
+                        schedule_id: ScheduleId(id),
+                        schedule_name: name,
+                        observer_location,
+                        schedule_period,
+                    })
                 })
-                .collect())
+                .collect()
         })
         .await
     }
@@ -982,15 +1017,34 @@ impl ScheduleRepository for PostgresRepository {
             }
 
             // Fetch updated metadata
-            let (id, name) = schedules::table
+            let (id, name, period_json, location_json) = schedules::table
                 .filter(schedules::schedule_id.eq(schedule_id.0))
-                .select((schedules::schedule_id, schedules::schedule_name))
-                .first::<(i64, String)>(conn)
+                .select((
+                    schedules::schedule_id,
+                    schedules::schedule_name,
+                    schedules::schedule_period_json,
+                    schedules::observer_location_json,
+                ))
+                .first::<(i64, String, Value, Value)>(conn)
                 .map_err(map_diesel_error)?;
+
+            let schedule_period = json_to_period(&period_json)?.ok_or_else(|| {
+                RepositoryError::InternalError(
+                    "schedule_period_json is null after update".to_string(),
+                )
+            })?;
+            let observer_location: crate::api::GeographicLocation =
+                serde_json::from_value(location_json).map_err(|e| {
+                    RepositoryError::InternalError(format!(
+                        "Failed to parse observer_location_json after update: {e}"
+                    ))
+                })?;
 
             Ok(ScheduleInfo {
                 schedule_id: ScheduleId(id),
                 schedule_name: name,
+                observer_location,
+                schedule_period,
             })
         })
         .await
