@@ -119,6 +119,16 @@ function SkyMap() {
     };
   }, [data, activeFilters]);
 
+  const [showPath, setShowPath] = useState(false);
+
+  const pathBlocks = useMemo(
+    () =>
+      filteredBlocks.scheduled
+        .slice()
+        .sort((a, b) => (a.scheduled_period!.start - b.scheduled_period!.start)),
+    [filteredBlocks.scheduled]
+  );
+
   const handleReset = useCallback(() => {
     if (data) {
       setFilters(
@@ -231,13 +241,31 @@ function SkyMap() {
         <ChartPanel
           title="Celestial Coordinates (Aitoff)"
           headerActions={
-            <button
-              type="button"
-              onClick={handleDownloadSkyMap}
-              className={SECONDARY_ACTION_BUTTON_CLASS}
-            >
-              Download PNG
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPath((prev) => !prev)}
+                className={[
+                  SECONDARY_ACTION_BUTTON_CLASS,
+                  showPath
+                    ? 'border-amber-500 bg-amber-900/40 text-amber-300 hover:bg-amber-800/50'
+                    : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                aria-pressed={showPath}
+                title={showPath ? 'Hide observation path' : 'Show observation path'}
+              >
+                Display Path
+              </button>
+              <button
+                type="button"
+                onClick={handleDownloadSkyMap}
+                className={SECONDARY_ACTION_BUTTON_CLASS}
+              >
+                Download PNG
+              </button>
+            </div>
           }
         >
           <CelestialSkyMap
@@ -245,6 +273,8 @@ function SkyMap() {
             bins={data.priority_bins}
             containerId={SKY_MAP_CONTAINER_ID}
             showCoordinateGuide
+            showPath={showPath}
+            pathBlocks={pathBlocks}
           />
         </ChartPanel>
       </div>

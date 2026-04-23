@@ -46,6 +46,14 @@ export interface CelestialSkyMapProps {
   /** Container element ID – must be unique per page. */
   containerId?: string;
   showCoordinateGuide?: boolean;
+  /**
+   * Ordered list of scheduled blocks to draw as a directed path overlay.
+   * Should already be sorted by observation start time.
+   * Only rendered when `showPath` is true.
+   */
+  pathBlocks?: LightweightBlock[];
+  /** When true, draws directed arrows between consecutive `pathBlocks`. */
+  showPath?: boolean;
 }
 
 // ── Tooltip helpers ────────────────────────────────────────────────────────────
@@ -62,8 +70,74 @@ interface TooltipState {
   y: number;
 }
 
+/** Draws a polyline through an array of canvas [x,y] points. */
+function drawSegmentLine(ctx: CanvasRenderingContext2D, pts: [number, number][]): void {
+  if (pts.length < 2) return;
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = '#e2e8f0'; // slate-200
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]);
+  ctx.stroke();
+}
+
 /** Pixel distance (in canvas space) within which hovering snaps to a target. */
 const HOVER_RADIUS = 12;
+
+/** Degrees → radians */
+const D2R = Math.PI / 180;
+/** Radians → degrees */
+const R2D = 180 / Math.PI;
+
+/**
+ * Returns N+1 evenly-spaced intermediate points along the great-circle arc
+ * from (lonA, decA) to (lonB, decB) using 3-D SLERP.
+ *
+ * Coordinates are in the d3-celestial geographic convention (lon ∈ [-180, 180],
+ * dec ∈ [-90, 90], both in degrees).  Because this works in 3-D it handles
+ * all RA wrap-around cases correctly without any modular arithmetic.
+ */
+function sampleGreatCircle(
+  lonA: number,
+  decA: number,
+  lonB: number,
+  decB: number,
+  nSteps: number
+): [number, number][] {
+  // Convert to 3-D unit vectors
+  const φ1 = decA * D2R;
+  const λ1 = lonA * D2R;
+  const φ2 = decB * D2R;
+  const λ2 = lonB * D2R;
+
+  const ax = Math.cos(φ1) * Math.cos(λ1);
+  const ay = Math.cos(φ1) * Math.sin(λ1);
+  const az = Math.sin(φ1);
+  const bx = Math.cos(φ2) * Math.cos(λ2);
+  const by = Math.cos(φ2) * Math.sin(λ2);
+  const bz = Math.sin(φ2);
+
+  const dot = Math.max(-1, Math.min(1, ax * bx + ay * by + az * bz));
+  const omega = Math.acos(dot);
+  if (omega < 1e-9) return [[lonA, decA]];
+
+  const sinOmega = Math.sin(omega);
+  const pts: [number, number][] = [];
+
+  for (let i = 0; i <= nSteps; i++) {
+    const t = i / nSteps;
+    const wa = Math.sin((1 - t) * omega) / sinOmega;
+    const wb = Math.sin(t * omega) / sinOmega;
+    const px = wa * ax + wb * bx;
+    const py = wa * ay + wb * by;
+    const pz = wa * az + wb * bz;
+    const lat = Math.asin(Math.max(-1, Math.min(1, pz))) * R2D;
+    const lon = Math.atan2(py, px) * R2D;
+    pts.push([lon, lat]);
+  }
+  return pts;
+}
 
 function formatMjd(mjd: number): string {
   if (!Number.isFinite(mjd)) return 'Unknown';
@@ -89,9 +163,13 @@ function CelestialSkyMap({
   bins,
   containerId = 'celestial-map',
   showCoordinateGuide = true,
+  pathBlocks,
+  showPath = false,
 }: CelestialSkyMapProps) {
   const blocksRef = useRef(blocks);
   const binsRef = useRef(bins);
+  const pathBlocksRef = useRef(pathBlocks);
+  const showPathRef = useRef(showPath);
   const initializedRef = useRef(false);
   const drawnPointsRef = useRef<DrawnPoint[]>([]);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
@@ -99,6 +177,8 @@ function CelestialSkyMap({
   // Keep refs current on every render so redrawF always uses latest data.
   blocksRef.current = blocks;
   binsRef.current = bins;
+  pathBlocksRef.current = pathBlocks;
+  showPathRef.current = showPath;
 
   // ── Initialize the map once ─────────────────────────────────────────────
   useEffect(() => {
@@ -160,6 +240,87 @@ function CelestialSkyMap({
         ctx.stroke();
 
         ctx.globalAlpha = 1;
+      }
+
+      // ── Observation path overlay ─────────────────────────────────────
+      if (showPathRef.current) {
+        const path = pathBlocksRef.current;
+        if (path && path.length > 1) {
+          ctx.save();
+
+          for (let i = 0; i < path.length - 1; i++) {
+            const cur = path[i];
+            const nxt = path[i + 1];
+
+            const lonA = cur.target_ra_deg > 180 ? cur.target_ra_deg - 360 : cur.target_ra_deg;
+            const lonB = nxt.target_ra_deg > 180 ? nxt.target_ra_deg - 360 : nxt.target_ra_deg;
+
+            // Sample the great-circle arc so the path is geodesically correct
+            // under any projection / rotation, and correctly wraps RA.
+            const gcPts = sampleGreatCircle(lonA, cur.target_dec_deg, lonB, nxt.target_dec_deg, 32);
+
+            // Project each sample, then split into sub-paths wherever consecutive
+            // projected x-coordinates jump by more than 40 % of the map width.
+            // Such a jump means the arc crossed the antimeridian (the left/right
+            // edge of the Aitoff ellipse), so we draw the two halves separately
+            // — the line disappears at one edge and re-appears at the other,
+            // exactly like a flight path crossing the date-line on a world map.
+            const { width: mapWidth } = Celestial.metrics();
+            const splitThreshold = mapWidth * 0.4;
+
+            const subPaths: [number, number][][] = [];
+            let current: [number, number][] = [];
+
+            for (const [lon, dec] of gcPts) {
+              if (!Celestial.clip([lon, dec])) {
+                // Off-hemisphere (relevant for non-Aitoff projections): flush.
+                if (current.length >= 2) subPaths.push(current);
+                current = [];
+                continue;
+              }
+              const pt = Celestial.mapProjection([lon, dec]) as [number, number];
+              if (current.length > 0) {
+                const prev = current[current.length - 1];
+                if (Math.abs(pt[0] - prev[0]) > splitThreshold) {
+                  // Antimeridian crossing — close current sub-path and start new.
+                  if (current.length >= 2) subPaths.push(current);
+                  current = [];
+                }
+              }
+              current.push(pt);
+            }
+            if (current.length >= 2) subPaths.push(current);
+
+            if (subPaths.length === 0) continue;
+
+            for (const sp of subPaths) drawSegmentLine(ctx, sp);
+
+            // Arrowhead at the very end of the last visible sub-path.
+            const lastSp = subPaths[subPaths.length - 1];
+            const [px, py] = lastSp[lastSp.length - 2];
+            const [qx, qy] = lastSp[lastSp.length - 1];
+            const angle = Math.atan2(qy - py, qx - px);
+            const headLen = 9;
+
+            ctx.globalAlpha = 0.85;
+            ctx.strokeStyle = '#fbbf24'; // amber-400
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(qx, qy);
+            ctx.lineTo(
+              qx - headLen * Math.cos(angle - Math.PI / 6),
+              qy - headLen * Math.sin(angle - Math.PI / 6)
+            );
+            ctx.moveTo(qx, qy);
+            ctx.lineTo(
+              qx - headLen * Math.cos(angle + Math.PI / 6),
+              qy - headLen * Math.sin(angle + Math.PI / 6)
+            );
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
       }
     };
 
@@ -236,11 +397,11 @@ function CelestialSkyMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [containerId, showCoordinateGuide]);
 
-  // ── Redraw whenever the filtered block set changes ──────────────────────
+  // ── Redraw whenever the filtered block set or path visibility changes ──────
   useEffect(() => {
     if (!initializedRef.current) return;
     window.Celestial?.redraw();
-  }, [blocks, bins]);
+  }, [blocks, bins, showPath, pathBlocks]);
 
   // ── Hover detection ─────────────────────────────────────────────────────
   const handleMouseMove = useCallback(
