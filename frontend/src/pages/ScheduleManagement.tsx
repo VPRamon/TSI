@@ -4,7 +4,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSchedules, useDeleteSchedule, useUpdateSchedule } from '@/hooks';
+import { useSchedules, useDeleteSchedules, useUpdateSchedule } from '@/hooks';
 import { LoadingSpinner, ErrorMessage } from '@/components';
 import type { ScheduleInfo, GeographicLocation } from '@/api/types';
 import { OBSERVATORY_SITES, formatSiteLabel } from '@/constants';
@@ -372,7 +372,7 @@ function ScheduleRow({
 function ScheduleManagement() {
   const navigate = useNavigate();
   const { data, isLoading, error, refetch } = useSchedules();
-  const deleteSchedule = useDeleteSchedule();
+  const deleteSchedules = useDeleteSchedules();
   const updateSchedule = useUpdateSchedule();
 
   const schedules = data?.schedules ?? [];
@@ -415,54 +415,35 @@ function ScheduleManagement() {
 
   const handleDelete = async () => {
     if (!deleteTargetIds || deleteTargetIds.length === 0) return;
-
-    const deletedIds = new Set<number>();
-    let failedScheduleName: string | null = null;
+    const targetIds = [...deleteTargetIds];
 
     try {
-      for (const schedule of schedules) {
-        if (!deleteTargetIds.includes(schedule.schedule_id)) {
-          continue;
-        }
-
-        await deleteSchedule.mutateAsync(schedule.schedule_id);
-        deletedIds.add(schedule.schedule_id);
-      }
+      const result = await deleteSchedules.mutateAsync(targetIds);
+      const deletedCount =
+        typeof result.deleted_count === 'number' ? result.deleted_count : targetIds.length;
 
       setSelectedScheduleIds((prev) => {
         const next = new Set(prev);
-        for (const deletedId of deletedIds) {
-          next.delete(deletedId);
+        for (const targetId of targetIds) {
+          next.delete(targetId);
         }
         return next;
       });
+
       setFeedback({
         type: 'success',
-        message: `Deleted ${deletedIds.size} schedule${deletedIds.size === 1 ? '' : 's'} successfully.`,
+        message:
+          deletedCount === targetIds.length
+            ? `Deleted ${deletedCount} schedule${deletedCount === 1 ? '' : 's'} successfully.`
+            : `Deleted ${deletedCount} of ${targetIds.length} selected schedules.`,
       });
       setDeleteTargetIds(null);
     } catch (err) {
-      failedScheduleName =
-        schedules.find((schedule) => deleteTargetIds.includes(schedule.schedule_id) && !deletedIds.has(schedule.schedule_id))
-          ?.schedule_name ?? null;
-
-      setSelectedScheduleIds((prev) => {
-        const next = new Set(prev);
-        for (const deletedId of deletedIds) {
-          next.delete(deletedId);
-        }
-        return next;
-      });
       setDeleteTargetIds(null);
-
-      const baseMessage =
-        err instanceof Error ? err.message : 'Failed to delete the selected schedules';
-      const failedPrefix = failedScheduleName
-        ? `Deletion stopped at "${failedScheduleName}". `
-        : 'Deletion stopped before the batch could complete. ';
       setFeedback({
         type: 'error',
-        message: `${failedPrefix}${baseMessage}`,
+        message:
+          err instanceof Error ? err.message : 'Failed to delete the selected schedules',
       });
     }
   };
@@ -667,7 +648,7 @@ function ScheduleManagement() {
           schedules={deleteTargets}
           onConfirm={handleDelete}
           onCancel={() => setDeleteTargetIds(null)}
-          isDeleting={deleteSchedule.isPending}
+          isDeleting={deleteSchedules.isPending}
         />
       )}
 

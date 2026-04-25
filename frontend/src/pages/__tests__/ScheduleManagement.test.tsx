@@ -13,7 +13,7 @@ vi.mock('@/hooks', async (importOriginal) => {
   return {
     ...actual,
     useSchedules: vi.fn(),
-    useDeleteSchedule: vi.fn(),
+    useDeleteSchedules: vi.fn(),
     useUpdateSchedule: vi.fn(),
   };
 });
@@ -21,7 +21,7 @@ vi.mock('@/hooks', async (importOriginal) => {
 import * as hooks from '@/hooks';
 import ScheduleManagement from '../ScheduleManagement';
 
-type MutationResult<TArgs extends unknown[] = [number]> = {
+type MutationResult<TArgs extends unknown[] = [number[]]> = {
   mutateAsync: (...args: TArgs) => Promise<unknown>;
   isPending: boolean;
 };
@@ -47,7 +47,7 @@ const schedulesResponse = {
 
 describe('ScheduleManagement', () => {
   const deleteMutation: MutationResult = {
-    mutateAsync: vi.fn().mockResolvedValue({ message: 'deleted' }),
+    mutateAsync: vi.fn().mockResolvedValue({ deleted_count: 1, message: 'deleted' }),
     isPending: false,
   };
 
@@ -68,8 +68,8 @@ describe('ScheduleManagement', () => {
       error: null,
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof hooks.useSchedules>);
-    vi.mocked(hooks.useDeleteSchedule).mockReturnValue(
-      deleteMutation as unknown as ReturnType<typeof hooks.useDeleteSchedule>
+    vi.mocked(hooks.useDeleteSchedules).mockReturnValue(
+      deleteMutation as unknown as ReturnType<typeof hooks.useDeleteSchedules>
     );
     vi.mocked(hooks.useUpdateSchedule).mockReturnValue(
       updateMutation as unknown as ReturnType<typeof hooks.useUpdateSchedule>
@@ -115,13 +115,13 @@ describe('ScheduleManagement', () => {
     expect(screen.queryByText('3 selected')).not.toBeInTheDocument();
   });
 
-  it('deletes selected schedules sequentially and clears selection after success', async () => {
+  it('deletes selected schedules in one batch call and clears selection after success', async () => {
     const user = userEvent.setup();
-    const mutateAsync = vi.fn().mockResolvedValue({ message: 'deleted' });
-    vi.mocked(hooks.useDeleteSchedule).mockReturnValue({
+    const mutateAsync = vi.fn().mockResolvedValue({ deleted_count: 2, message: 'deleted' });
+    vi.mocked(hooks.useDeleteSchedules).mockReturnValue({
       mutateAsync,
       isPending: false,
-    } as unknown as ReturnType<typeof hooks.useDeleteSchedule>);
+    } as unknown as ReturnType<typeof hooks.useDeleteSchedules>);
 
     renderScheduleManagement();
 
@@ -131,8 +131,8 @@ describe('ScheduleManagement', () => {
     await user.click(screen.getByRole('button', { name: /delete 2 schedules/i }));
 
     await waitFor(() => {
-      expect(mutateAsync).toHaveBeenNthCalledWith(1, 1);
-      expect(mutateAsync).toHaveBeenNthCalledWith(2, 2);
+      expect(mutateAsync).toHaveBeenCalledTimes(1);
+      expect(mutateAsync).toHaveBeenCalledWith([1, 2]);
     });
 
     expect(screen.getByRole('alert')).toHaveTextContent('Deleted 2 schedules successfully.');
@@ -143,14 +143,11 @@ describe('ScheduleManagement', () => {
 
   it('shows an error on partial failure and keeps remaining schedules selected', async () => {
     const user = userEvent.setup();
-    const mutateAsync = vi
-      .fn()
-      .mockResolvedValueOnce({ message: 'deleted' })
-      .mockRejectedValueOnce(new Error('Server exploded'));
-    vi.mocked(hooks.useDeleteSchedule).mockReturnValue({
+    const mutateAsync = vi.fn().mockRejectedValue(new Error('Server exploded'));
+    vi.mocked(hooks.useDeleteSchedules).mockReturnValue({
       mutateAsync,
       isPending: false,
-    } as unknown as ReturnType<typeof hooks.useDeleteSchedule>);
+    } as unknown as ReturnType<typeof hooks.useDeleteSchedules>);
 
     renderScheduleManagement();
 
@@ -160,15 +157,13 @@ describe('ScheduleManagement', () => {
     await user.click(screen.getByRole('button', { name: /delete 2 schedules/i }));
 
     await waitFor(() => {
-      expect(mutateAsync).toHaveBeenNthCalledWith(1, 1);
-      expect(mutateAsync).toHaveBeenNthCalledWith(2, 2);
+      expect(mutateAsync).toHaveBeenCalledTimes(1);
+      expect(mutateAsync).toHaveBeenCalledWith([1, 2]);
     });
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Deletion stopped at "Schedule Beta". Server exploded'
-    );
-    expect(screen.getByText('1 selected')).toBeInTheDocument();
-    expect(screen.getByLabelText('Select Schedule Alpha')).not.toBeChecked();
+    expect(screen.getByRole('alert')).toHaveTextContent('Server exploded');
+    expect(screen.getByText('2 selected')).toBeInTheDocument();
+    expect(screen.getByLabelText('Select Schedule Alpha')).toBeChecked();
     expect(screen.getByLabelText('Select Schedule Beta')).toBeChecked();
   });
 

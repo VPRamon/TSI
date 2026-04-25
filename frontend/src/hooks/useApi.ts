@@ -78,6 +78,32 @@ export function useDeleteSchedule() {
   });
 }
 
+// Bulk-delete schedules. The backend currently exposes only single-schedule
+// delete, so this hook sequences calls client-side and reports the count of
+// successfully deleted schedules. The shape mirrors the planned bulk endpoint
+// (`{ deleted_count, message }`) so callers can switch transparently when it
+// ships.
+export function useDeleteSchedules() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (scheduleIds: number[]) => {
+      let deleted = 0;
+      for (const id of scheduleIds) {
+        await api.deleteSchedule(id);
+        deleted += 1;
+      }
+      return {
+        deleted_count: deleted,
+        message: `Deleted ${deleted} schedule${deleted === 1 ? '' : 's'}`,
+      };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.schedules });
+    },
+  });
+}
+
 // Update schedule mutation
 export function useUpdateSchedule() {
   const queryClient = useQueryClient();
