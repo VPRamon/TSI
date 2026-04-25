@@ -36,6 +36,17 @@ pub fn create_router(state: AppState) -> Router {
             delete(handlers::delete_schedule),
         )
         .route("/schedules/{schedule_id}", patch(handlers::update_schedule))
+        // Environment CRUD
+        .route("/environments", get(handlers::list_environments))
+        .route("/environments", post(handlers::create_environment))
+        .route(
+            "/environments/{environment_id}",
+            get(handlers::get_environment),
+        )
+        .route(
+            "/environments/{environment_id}",
+            delete(handlers::delete_environment),
+        )
         // Job management
         .route("/jobs/{job_id}", get(handlers::get_job_status))
         .route("/jobs/{job_id}/logs", get(handlers::stream_job_logs))

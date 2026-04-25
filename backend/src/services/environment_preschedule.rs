@@ -48,10 +48,8 @@ pub struct BlockVisibilitySummary {
 /// Preschedule payload containing astronomical nights and block visibility summaries
 pub fn compute_env_preschedule(schedule: &Schedule) -> EnvPreschedulePayload {
     // Compute astronomical nights for the location and period
-    let astronomical_nights = compute_astronomical_nights(
-        &schedule.geographic_location,
-        &schedule.schedule_period,
-    );
+    let astronomical_nights =
+        compute_astronomical_nights(&schedule.geographic_location, &schedule.schedule_period);
 
     // Compute visibility for each block
     let mut block_visibility = HashMap::new();

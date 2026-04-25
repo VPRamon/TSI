@@ -267,6 +267,44 @@ pub struct DeleteScheduleResponse {
     pub message: String,
 }
 
+// ===========================
+// Environment Endpoints DTOs
+// ===========================
+
+/// Request to create a new environment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateEnvironmentRequest {
+    /// Name of the environment (must be unique)
+    pub name: String,
+}
+
+/// Response containing environment information.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentResponse {
+    pub environment_id: i64,
+    pub name: String,
+    pub structure: Option<crate::api::EnvironmentStructure>,
+    pub created_at: String,
+}
+
+/// List of environments response.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentListResponse {
+    pub environments: Vec<EnvironmentResponse>,
+    pub total: usize,
+}
+
+impl From<crate::api::EnvironmentInfo> for EnvironmentResponse {
+    fn from(info: crate::api::EnvironmentInfo) -> Self {
+        Self {
+            environment_id: info.environment_id,
+            name: info.name,
+            structure: info.structure,
+            created_at: info.created_at.to_rfc3339(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -767,6 +767,79 @@ pub async fn stream_job_logs(
     ))
 }
 
+// ===========================
+// Environment Handlers
+// ===========================
+
+/// List all environments.
+pub async fn list_environments(
+    State(state): State<AppState>,
+) -> HandlerResult<super::dto::EnvironmentListResponse> {
+    let environments = state
+        .repository
+        .list_environments()
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    let total = environments.len();
+    let environments = environments.into_iter().map(|e| e.into()).collect();
+
+    Ok(Json(super::dto::EnvironmentListResponse {
+        environments,
+        total,
+    }))
+}
+
+/// Get environment by ID.
+pub async fn get_environment(
+    State(state): State<AppState>,
+    Path(environment_id): Path<i64>,
+) -> HandlerResult<super::dto::EnvironmentResponse> {
+    let environment = state
+        .repository
+        .get_environment(environment_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    match environment {
+        Some(env) => Ok(Json(env.into())),
+        None => Err(AppError::NotFound(format!(
+            "Environment {} not found",
+            environment_id
+        ))),
+    }
+}
+
+/// Create a new environment.
+pub async fn create_environment(
+    State(state): State<AppState>,
+    Json(req): Json<super::dto::CreateEnvironmentRequest>,
+) -> HandlerResult<super::dto::EnvironmentResponse> {
+    let environment = state
+        .repository
+        .create_environment(&req.name)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(environment.into()))
+}
+
+/// Delete an environment.
+pub async fn delete_environment(
+    State(state): State<AppState>,
+    Path(environment_id): Path<i64>,
+) -> HandlerResult<DeleteScheduleResponse> {
+    state
+        .repository
+        .delete_environment(environment_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(DeleteScheduleResponse {
+        message: format!("Environment {} deleted successfully", environment_id),
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
