@@ -21,6 +21,7 @@ fn make_schedule_info(id: i64, name: &str) -> ScheduleInfo {
             start: ModifiedJulianDate::new(60000.0),
             end: ModifiedJulianDate::new(60007.0),
         },
+        environment_id: None,
     }
 }
 

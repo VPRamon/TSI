@@ -10,6 +10,9 @@ pub struct ScheduleInfo {
     pub observer_location: GeographicLocation,
     /// Overall time window of the schedule in MJD.
     pub schedule_period: Period,
+    /// Optional environment assignment.
+    #[serde(default)]
+    pub environment_id: Option<i64>,
 }
 
 pub const LIST_SCHEDULES: &str = "list_schedules";
@@ -36,6 +39,7 @@ mod tests {
                 start: ModifiedJulianDate::new(60000.0),
                 end: ModifiedJulianDate::new(60007.0),
             },
+            environment_id: None,
         }
     }
 

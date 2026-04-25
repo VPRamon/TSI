@@ -56,6 +56,9 @@ use siderust::coordinates::frames::ECEF;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ScheduleId(pub i64);
 
+/// Environment identifier (database primary key).
+pub type EnvironmentId = i64;
+
 /// Target identifier.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct TargetId(pub i64);
@@ -292,6 +295,36 @@ impl Schedule {
             blocks,
         }
     }
+}
+
+/// Environment structure fingerprint.
+///
+/// Captures the defining characteristics of an environment that must be
+/// identical across all schedules assigned to it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EnvironmentStructure {
+    /// Schedule period start in MJD
+    pub period_start_mjd: f64,
+    /// Schedule period end in MJD
+    pub period_end_mjd: f64,
+    /// Observer latitude in degrees
+    pub lat_deg: f64,
+    /// Observer longitude in degrees
+    pub lon_deg: f64,
+    /// Observer elevation in meters
+    pub elevation_m: f64,
+    /// Hash of the canonical block set
+    pub blocks_hash: String,
+}
+
+/// Environment information with assigned schedules.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentInfo {
+    pub environment_id: EnvironmentId,
+    pub name: String,
+    pub structure: Option<EnvironmentStructure>,
+    pub schedule_ids: Vec<ScheduleId>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
 #[cfg(test)]

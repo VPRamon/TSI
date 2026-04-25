@@ -53,9 +53,22 @@ struct LocalData {
     // Validation data
     validation_results: HashMap<i64, crate::api::ValidationReport>,
 
+    // Environment data
+    environments: HashMap<
+        i64,
+        (
+            String,
+            Option<crate::api::EnvironmentStructure>,
+            chrono::DateTime<chrono::Utc>,
+        ),
+    >,
+    preschedule: HashMap<i64, serde_json::Value>,
+    schedule_environment: HashMap<i64, i64>, // schedule_id -> env_id
+
     // ID counters
     next_schedule_id: i64,
     next_block_id: i64,
+    next_environment_id: i64,
 
     // Connection health
     is_healthy: bool,
@@ -69,6 +82,7 @@ impl LocalRepository {
                 is_healthy: true,
                 next_schedule_id: 1,
                 next_block_id: 1,
+                next_environment_id: 1,
                 ..Default::default()
             })),
         }
@@ -107,6 +121,7 @@ impl LocalRepository {
             schedule_name: schedule.name.clone(),
             observer_location: schedule.geographic_location,
             schedule_period: schedule.schedule_period,
+            environment_id: data.schedule_environment.get(&schedule_id.0).copied(),
         };
 
         data.schedule_metadata.insert(schedule_id.0, metadata);
@@ -128,6 +143,7 @@ impl LocalRepository {
             is_healthy: data.is_healthy,
             next_schedule_id: 1,
             next_block_id: 1,
+            next_environment_id: 1,
             ..Default::default()
         };
     }
@@ -295,6 +311,7 @@ impl ScheduleRepository for LocalRepository {
         data.analytics_exists.remove(&schedule_id.0);
         data.validation_results.remove(&schedule_id.0);
         data.possible_periods.remove(&schedule_id.0);
+        data.schedule_environment.remove(&schedule_id.0);
         // Remove blocks belonging to this schedule
         let block_ids_to_remove: Vec<i64> = data.blocks.iter().map(|(&id, _)| id).collect();
         // We can't easily filter by schedule_id in local repo for blocks,
@@ -993,6 +1010,221 @@ impl VisualizationRepository for LocalRepository {
     }
 }
 
+// ==================== Environment Repository ====================
+
+#[async_trait]
+impl crate::db::repository::EnvironmentRepository for LocalRepository {
+    async fn list_environments(&self) -> RepositoryResult<Vec<crate::api::EnvironmentInfo>> {
+        self.check_health()?;
+        let data = self.data.read().unwrap();
+
+        let mut result = Vec::new();
+        for (&env_id, (name, structure, created_at)) in &data.environments {
+            // Collect schedule IDs assigned to this environment
+            let schedule_ids: Vec<ScheduleId> = data
+                .schedule_environment
+                .iter()
+                .filter(|&(_, &eid)| eid == env_id)
+                .map(|(&sid, _)| ScheduleId(sid))
+                .collect();
+
+            result.push(crate::api::EnvironmentInfo {
+                environment_id: env_id,
+                name: name.clone(),
+                structure: structure.clone(),
+                schedule_ids,
+                created_at: *created_at,
+            });
+        }
+
+        result.sort_by_key(|env| env.environment_id);
+        Ok(result)
+    }
+
+    async fn get_environment(
+        &self,
+        id: crate::api::EnvironmentId,
+    ) -> RepositoryResult<Option<crate::api::EnvironmentInfo>> {
+        self.check_health()?;
+        let data = self.data.read().unwrap();
+
+        match data.environments.get(&id) {
+            Some((name, structure, created_at)) => {
+                // Collect schedule IDs assigned to this environment
+                let schedule_ids: Vec<ScheduleId> = data
+                    .schedule_environment
+                    .iter()
+                    .filter(|&(_, &eid)| eid == id)
+                    .map(|(&sid, _)| ScheduleId(sid))
+                    .collect();
+
+                Ok(Some(crate::api::EnvironmentInfo {
+                    environment_id: id,
+                    name: name.clone(),
+                    structure: structure.clone(),
+                    schedule_ids,
+                    created_at: *created_at,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+
+    async fn create_environment(
+        &self,
+        name: &str,
+    ) -> RepositoryResult<crate::api::EnvironmentInfo> {
+        self.check_health()?;
+        let mut data = self.data.write().unwrap();
+
+        // Check for existing environment with same name (case-insensitive)
+        let name_lower = name.trim().to_lowercase();
+        for (existing_name, _, _) in data.environments.values() {
+            if existing_name.trim().to_lowercase() == name_lower {
+                return Err(RepositoryError::validation(format!(
+                    "Environment with name '{}' already exists",
+                    name
+                )));
+            }
+        }
+
+        let env_id = data.next_environment_id;
+        data.next_environment_id += 1;
+
+        let created_at = chrono::Utc::now();
+        data.environments
+            .insert(env_id, (name.to_string(), None, created_at));
+
+        Ok(crate::api::EnvironmentInfo {
+            environment_id: env_id,
+            name: name.to_string(),
+            structure: None,
+            schedule_ids: vec![],
+            created_at,
+        })
+    }
+
+    async fn delete_environment(&self, id: crate::api::EnvironmentId) -> RepositoryResult<()> {
+        self.check_health()?;
+        let mut data = self.data.write().unwrap();
+
+        if data.environments.remove(&id).is_none() {
+            return Err(RepositoryError::not_found(format!(
+                "Environment {} not found",
+                id
+            )));
+        }
+
+        // Remove preschedule cache
+        data.preschedule.remove(&id);
+
+        // Unassign all schedules from this environment
+        data.schedule_environment
+            .retain(|_, &mut env_id| env_id != id);
+
+        // Update schedule metadata to reflect unassignment
+        for (_, meta) in data.schedule_metadata.iter_mut() {
+            if meta.environment_id == Some(id) {
+                meta.environment_id = None;
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn initialise_environment(
+        &self,
+        id: crate::api::EnvironmentId,
+        structure: &crate::api::EnvironmentStructure,
+        preschedule: &serde_json::Value,
+    ) -> RepositoryResult<()> {
+        self.check_health()?;
+        let mut data = self.data.write().unwrap();
+
+        let current_entry = data
+            .environments
+            .get(&id)
+            .ok_or_else(|| RepositoryError::not_found(format!("Environment {} not found", id)))?;
+
+        let name = current_entry.0.clone();
+        let current_structure = current_entry.1.clone();
+        let created_at = current_entry.2;
+
+        match current_structure {
+            None => {
+                // Uninitialized - set structure and preschedule
+                data.environments
+                    .insert(id, (name, Some(structure.clone()), created_at));
+                data.preschedule.insert(id, preschedule.clone());
+                Ok(())
+            }
+            Some(existing) if existing == *structure => {
+                // Structure matches - just update preschedule
+                data.preschedule.insert(id, preschedule.clone());
+                Ok(())
+            }
+            Some(_) => {
+                // Structure mismatch
+                Err(RepositoryError::validation(format!(
+                    "Environment {} already has a different structure",
+                    id
+                )))
+            }
+        }
+    }
+
+    async fn assign_schedule(
+        &self,
+        schedule_id: ScheduleId,
+        env_id: crate::api::EnvironmentId,
+    ) -> RepositoryResult<()> {
+        self.check_health()?;
+        let mut data = self.data.write().unwrap();
+
+        // Check schedule exists
+        if !data.schedules.contains_key(&schedule_id.0) {
+            return Err(RepositoryError::not_found(format!(
+                "Schedule {} not found",
+                schedule_id
+            )));
+        }
+
+        // Assign schedule to environment
+        data.schedule_environment.insert(schedule_id.0, env_id);
+
+        // Update schedule metadata
+        if let Some(meta) = data.schedule_metadata.get_mut(&schedule_id.0) {
+            meta.environment_id = Some(env_id);
+        }
+
+        Ok(())
+    }
+
+    async fn unassign_schedule(&self, schedule_id: ScheduleId) -> RepositoryResult<()> {
+        self.check_health()?;
+        let mut data = self.data.write().unwrap();
+
+        // Remove assignment (no-op if not assigned)
+        data.schedule_environment.remove(&schedule_id.0);
+
+        // Update schedule metadata
+        if let Some(meta) = data.schedule_metadata.get_mut(&schedule_id.0) {
+            meta.environment_id = None;
+        }
+
+        Ok(())
+    }
+
+    async fn get_preschedule(
+        &self,
+        env_id: crate::api::EnvironmentId,
+    ) -> RepositoryResult<Option<serde_json::Value>> {
+        self.check_health()?;
+        let data = self.data.read().unwrap();
+        Ok(data.preschedule.get(&env_id).cloned())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1121,5 +1353,193 @@ mod tests {
 
         repo.delete_schedule_analytics(schedule_id).await.unwrap();
         assert!(!repo.has_analytics_data(schedule_id).await.unwrap());
+    }
+
+    // ==================== Environment Tests ====================
+
+    #[tokio::test]
+    async fn test_create_and_list_environments() {
+        let repo = LocalRepository::new();
+
+        let env1 = repo.create_environment("Test Env 1").await.unwrap();
+        assert_eq!(env1.name, "Test Env 1");
+        assert!(env1.structure.is_none());
+        assert!(env1.schedule_ids.is_empty());
+
+        let _env2 = repo.create_environment("Test Env 2").await.unwrap();
+
+        let envs = repo.list_environments().await.unwrap();
+        assert_eq!(envs.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_create_environment_duplicate_name() {
+        let repo = LocalRepository::new();
+
+        repo.create_environment("Test Env").await.unwrap();
+        let result = repo.create_environment("test env").await; // Case-insensitive
+        assert!(matches!(
+            result,
+            Err(RepositoryError::ValidationError { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_environment_structure_initialization() {
+        let repo = LocalRepository::new();
+
+        let env = repo.create_environment("Test Env").await.unwrap();
+        let env_id = env.environment_id;
+
+        let structure = crate::api::EnvironmentStructure {
+            period_start_mjd: 60000.0,
+            period_end_mjd: 60007.0,
+            lat_deg: -17.89,
+            lon_deg: 28.76,
+            elevation_m: 2200.0,
+            blocks_hash: "test_hash".to_string(),
+        };
+
+        let preschedule = serde_json::json!({
+            "dark_periods": [],
+            "astronomical_nights": [],
+            "block_visibility": {}
+        });
+
+        // Initialize structure
+        repo.initialise_environment(env_id, &structure, &preschedule)
+            .await
+            .unwrap();
+
+        let env = repo.get_environment(env_id).await.unwrap().unwrap();
+        assert!(env.structure.is_some());
+        assert_eq!(env.structure.as_ref().unwrap().blocks_hash, "test_hash");
+
+        // Update preschedule with matching structure (should succeed)
+        let preschedule2 = serde_json::json!({"updated": true});
+        repo.initialise_environment(env_id, &structure, &preschedule2)
+            .await
+            .unwrap();
+
+        // Try to set different structure (should fail)
+        let mut different_structure = structure.clone();
+        different_structure.lat_deg = 20.0;
+        let result = repo
+            .initialise_environment(env_id, &different_structure, &preschedule)
+            .await;
+        assert!(matches!(
+            result,
+            Err(RepositoryError::ValidationError { .. })
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_assign_and_unassign_schedule() {
+        let repo = LocalRepository::new();
+
+        let schedule = Schedule {
+            id: None,
+            name: "Test Schedule".to_string(),
+            blocks: vec![],
+            dark_periods: vec![],
+            geographic_location: Geodetic::<ECEF>::new(
+                Degrees::new(-17.89),
+                Degrees::new(28.76),
+                Meters::new(2200.0),
+            ),
+            astronomical_nights: vec![],
+            checksum: "test".to_string(),
+            schedule_period: default_schedule_period(),
+        };
+
+        let meta = repo.store_schedule(&schedule).await.unwrap();
+        let schedule_id = meta.schedule_id;
+
+        let env = repo.create_environment("Test Env").await.unwrap();
+        let env_id = env.environment_id;
+
+        // Assign schedule to environment
+        repo.assign_schedule(schedule_id, env_id).await.unwrap();
+
+        let env = repo.get_environment(env_id).await.unwrap().unwrap();
+        assert_eq!(env.schedule_ids.len(), 1);
+        assert_eq!(env.schedule_ids[0], schedule_id);
+
+        let meta = repo.list_schedules().await.unwrap();
+        assert_eq!(meta[0].environment_id, Some(env_id));
+
+        // Unassign schedule
+        repo.unassign_schedule(schedule_id).await.unwrap();
+
+        let env = repo.get_environment(env_id).await.unwrap().unwrap();
+        assert!(env.schedule_ids.is_empty());
+
+        let meta = repo.list_schedules().await.unwrap();
+        assert_eq!(meta[0].environment_id, None);
+    }
+
+    #[tokio::test]
+    async fn test_delete_environment() {
+        let repo = LocalRepository::new();
+
+        let env = repo.create_environment("Test Env").await.unwrap();
+        let env_id = env.environment_id;
+
+        let schedule = Schedule {
+            id: None,
+            name: "Test Schedule".to_string(),
+            blocks: vec![],
+            dark_periods: vec![],
+            geographic_location: Geodetic::<ECEF>::new(
+                Degrees::new(-17.89),
+                Degrees::new(28.76),
+                Meters::new(2200.0),
+            ),
+            astronomical_nights: vec![],
+            checksum: "test".to_string(),
+            schedule_period: default_schedule_period(),
+        };
+        let meta = repo.store_schedule(&schedule).await.unwrap();
+        repo.assign_schedule(meta.schedule_id, env_id)
+            .await
+            .unwrap();
+
+        // Delete environment
+        repo.delete_environment(env_id).await.unwrap();
+
+        // Environment should be gone
+        let result = repo.get_environment(env_id).await.unwrap();
+        assert!(result.is_none());
+
+        // Schedule should be unassigned
+        let meta = repo.list_schedules().await.unwrap();
+        assert_eq!(meta[0].environment_id, None);
+    }
+
+    #[tokio::test]
+    async fn test_preschedule_cache() {
+        let repo = LocalRepository::new();
+
+        let env = repo.create_environment("Test Env").await.unwrap();
+        let env_id = env.environment_id;
+
+        let structure = crate::api::EnvironmentStructure {
+            period_start_mjd: 60000.0,
+            period_end_mjd: 60007.0,
+            lat_deg: -17.89,
+            lon_deg: 28.76,
+            elevation_m: 2200.0,
+            blocks_hash: "test_hash".to_string(),
+        };
+
+        let preschedule = serde_json::json!({"test": "data"});
+
+        repo.initialise_environment(env_id, &structure, &preschedule)
+            .await
+            .unwrap();
+
+        let cached = repo.get_preschedule(env_id).await.unwrap();
+        assert!(cached.is_some());
+        assert_eq!(cached.unwrap(), preschedule);
     }
 }

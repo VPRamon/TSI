@@ -37,6 +37,7 @@
 //! ```
 
 pub mod analytics;
+pub mod environment;
 pub mod error;
 pub mod schedule;
 pub mod validation;
@@ -47,6 +48,7 @@ pub use error::{ErrorContext, RepositoryError, RepositoryResult};
 
 // Re-export all traits
 pub use analytics::AnalyticsRepository;
+pub use environment::EnvironmentRepository;
 pub use schedule::ScheduleRepository;
 pub use validation::ValidationRepository;
 pub use visualization::VisualizationRepository;
@@ -75,16 +77,18 @@ pub trait FullRepository:
     + AnalyticsRepository
     + ValidationRepository
     + VisualizationRepository
+    + EnvironmentRepository
     + std::fmt::Debug
 {
 }
 
-// Blanket implementation: any type implementing all four traits automatically implements FullRepository
+// Blanket implementation: any type implementing all traits automatically implements FullRepository
 impl<T> FullRepository for T where
     T: ScheduleRepository
         + AnalyticsRepository
         + ValidationRepository
         + VisualizationRepository
+        + EnvironmentRepository
         + std::fmt::Debug
 {
 }

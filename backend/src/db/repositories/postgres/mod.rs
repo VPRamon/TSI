@@ -723,6 +723,7 @@ impl ScheduleRepository for PostgresRepository {
                         schedule_name: existing.schedule_name,
                         observer_location,
                         schedule_period,
+                        environment_id: existing.environment_id,
                     });
                 }
 
@@ -799,6 +800,7 @@ impl ScheduleRepository for PostgresRepository {
                     schedule_name: inserted.schedule_name,
                     observer_location: schedule.geographic_location,
                     schedule_period: schedule.schedule_period,
+                    environment_id: None,
                 })
             })
         })
@@ -829,19 +831,20 @@ impl ScheduleRepository for PostgresRepository {
 
     async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>> {
         self.with_conn(|conn| {
-            let rows: Vec<(i64, String, Value, Value)> = schedules::table
+            let rows: Vec<(i64, String, Value, Value, Option<i64>)> = schedules::table
                 .select((
                     schedules::schedule_id,
                     schedules::schedule_name,
                     schedules::schedule_period_json,
                     schedules::observer_location_json,
+                    schedules::environment_id,
                 ))
                 .order(schedules::uploaded_at.desc())
                 .load(conn)
                 .map_err(map_diesel_error)?;
 
             rows.into_iter()
-                .map(|(id, name, period_json, location_json)| {
+                .map(|(id, name, period_json, location_json, env_id)| {
                     let schedule_period = json_to_period(&period_json)?.ok_or_else(|| {
                         RepositoryError::InternalError(
                             "schedule_period_json is null for listed schedule".to_string(),
@@ -858,6 +861,7 @@ impl ScheduleRepository for PostgresRepository {
                         schedule_name: name,
                         observer_location,
                         schedule_period,
+                        environment_id: env_id,
                     })
                 })
                 .collect()
@@ -1018,15 +1022,16 @@ impl ScheduleRepository for PostgresRepository {
             }
 
             // Fetch updated metadata
-            let (id, name, period_json, location_json) = schedules::table
+            let (id, name, period_json, location_json, env_id) = schedules::table
                 .filter(schedules::schedule_id.eq(schedule_id.0))
                 .select((
                     schedules::schedule_id,
                     schedules::schedule_name,
                     schedules::schedule_period_json,
                     schedules::observer_location_json,
+                    schedules::environment_id,
                 ))
-                .first::<(i64, String, Value, Value)>(conn)
+                .first::<(i64, String, Value, Value, Option<i64>)>(conn)
                 .map_err(map_diesel_error)?;
 
             let schedule_period = json_to_period(&period_json)?.ok_or_else(|| {
@@ -1046,6 +1051,7 @@ impl ScheduleRepository for PostgresRepository {
                 schedule_name: name,
                 observer_location,
                 schedule_period,
+                environment_id: env_id,
             })
         })
         .await
@@ -2016,6 +2022,375 @@ impl VisualizationRepository for PostgresRepository {
                 )),
                 None => Ok((None, None, None)),
             }
+        })
+        .await
+    }
+}
+
+// ==================== Environment Repository ====================
+
+#[async_trait]
+impl crate::db::repository::EnvironmentRepository for PostgresRepository {
+    async fn list_environments(&self) -> RepositoryResult<Vec<crate::api::EnvironmentInfo>> {
+        self.with_conn(|conn| {
+            // Fetch all environments
+            let env_rows: Vec<EnvironmentRow> = environments::table
+                .select(EnvironmentRow::as_select())
+                .order(environments::environment_id.asc())
+                .load(conn)
+                .map_err(map_diesel_error)?;
+
+            // Fetch schedule-to-environment mappings
+            let schedule_mappings: Vec<(i64, i64)> = schedules::table
+                .filter(schedules::environment_id.is_not_null())
+                .select((schedules::schedule_id, schedules::environment_id))
+                .load::<(i64, Option<i64>)>(conn)
+                .map_err(map_diesel_error)?
+                .into_iter()
+                .filter_map(|(sid, maybe_eid)| maybe_eid.map(|eid| (sid, eid)))
+                .collect();
+
+            // Group schedules by environment
+            let mut env_schedules: std::collections::HashMap<i64, Vec<ScheduleId>> =
+                std::collections::HashMap::new();
+            for (sid, eid) in schedule_mappings {
+                env_schedules
+                    .entry(eid)
+                    .or_insert_with(Vec::new)
+                    .push(ScheduleId(sid));
+            }
+
+            // Build result
+            let mut result = Vec::new();
+            for env_row in env_rows {
+                let structure = if let (
+                    Some(start_mjd),
+                    Some(end_mjd),
+                    Some(lat),
+                    Some(lon),
+                    Some(elev),
+                    Some(hash),
+                ) = (
+                    env_row.period_start_mjd,
+                    env_row.period_end_mjd,
+                    env_row.lat_deg,
+                    env_row.lon_deg,
+                    env_row.elevation_m,
+                    env_row.blocks_hash,
+                ) {
+                    Some(crate::api::EnvironmentStructure {
+                        period_start_mjd: start_mjd,
+                        period_end_mjd: end_mjd,
+                        lat_deg: lat,
+                        lon_deg: lon,
+                        elevation_m: elev,
+                        blocks_hash: hash,
+                    })
+                } else {
+                    None
+                };
+
+                let schedule_ids = env_schedules
+                    .remove(&env_row.environment_id)
+                    .unwrap_or_default();
+
+                result.push(crate::api::EnvironmentInfo {
+                    environment_id: env_row.environment_id,
+                    name: env_row.name,
+                    structure,
+                    schedule_ids,
+                    created_at: env_row.created_at,
+                });
+            }
+
+            Ok(result)
+        })
+        .await
+    }
+
+    async fn get_environment(
+        &self,
+        id: crate::api::EnvironmentId,
+    ) -> RepositoryResult<Option<crate::api::EnvironmentInfo>> {
+        self.with_conn(move |conn| {
+            let env_row = environments::table
+                .filter(environments::environment_id.eq(id))
+                .select(EnvironmentRow::as_select())
+                .first::<EnvironmentRow>(conn)
+                .optional()
+                .map_err(map_diesel_error)?;
+
+            match env_row {
+                Some(env_row) => {
+                    // Fetch schedule IDs for this environment
+                    let schedule_ids: Vec<ScheduleId> = schedules::table
+                        .filter(schedules::environment_id.eq(id))
+                        .select(schedules::schedule_id)
+                        .load::<i64>(conn)
+                        .map_err(map_diesel_error)?
+                        .into_iter()
+                        .map(ScheduleId)
+                        .collect();
+
+                    let structure = if let (
+                        Some(start_mjd),
+                        Some(end_mjd),
+                        Some(lat),
+                        Some(lon),
+                        Some(elev),
+                        Some(hash),
+                    ) = (
+                        env_row.period_start_mjd,
+                        env_row.period_end_mjd,
+                        env_row.lat_deg,
+                        env_row.lon_deg,
+                        env_row.elevation_m,
+                        env_row.blocks_hash,
+                    ) {
+                        Some(crate::api::EnvironmentStructure {
+                            period_start_mjd: start_mjd,
+                            period_end_mjd: end_mjd,
+                            lat_deg: lat,
+                            lon_deg: lon,
+                            elevation_m: elev,
+                            blocks_hash: hash,
+                        })
+                    } else {
+                        None
+                    };
+
+                    Ok(Some(crate::api::EnvironmentInfo {
+                        environment_id: env_row.environment_id,
+                        name: env_row.name,
+                        structure,
+                        schedule_ids,
+                        created_at: env_row.created_at,
+                    }))
+                }
+                None => Ok(None),
+            }
+        })
+        .await
+    }
+
+    async fn create_environment(
+        &self,
+        name: &str,
+    ) -> RepositoryResult<crate::api::EnvironmentInfo> {
+        let name = name.to_string();
+        self.with_conn(move |conn| {
+            // Check for duplicate name (case-insensitive)
+            let name_lower = name.trim().to_lowercase();
+            let existing: Vec<String> = environments::table
+                .select(environments::name)
+                .load(conn)
+                .map_err(map_diesel_error)?;
+            for existing_name in existing {
+                if existing_name.trim().to_lowercase() == name_lower {
+                    return Err(RepositoryError::validation(format!(
+                        "Environment with name '{}' already exists",
+                        name
+                    )));
+                }
+            }
+
+            // Insert new environment
+            let new_env = NewEnvironmentRow {
+                name: name.clone(),
+                period_start_mjd: None,
+                period_end_mjd: None,
+                lat_deg: None,
+                lon_deg: None,
+                elevation_m: None,
+                blocks_hash: None,
+            };
+
+            let inserted: EnvironmentRow = diesel::insert_into(environments::table)
+                .values(&new_env)
+                .returning(EnvironmentRow::as_returning())
+                .get_result(conn)
+                .map_err(map_diesel_error)?;
+
+            Ok(crate::api::EnvironmentInfo {
+                environment_id: inserted.environment_id,
+                name: inserted.name,
+                structure: None,
+                schedule_ids: vec![],
+                created_at: inserted.created_at,
+            })
+        })
+        .await
+    }
+
+    async fn delete_environment(&self, id: crate::api::EnvironmentId) -> RepositoryResult<()> {
+        self.with_conn(move |conn| {
+            conn.transaction(|tx| {
+                // Check environment exists
+                let existing = environments::table
+                    .filter(environments::environment_id.eq(id))
+                    .count()
+                    .get_result::<i64>(tx)
+                    .map_err(map_diesel_error)?;
+
+                if existing == 0 {
+                    return Err(RepositoryError::not_found(format!(
+                        "Environment {} not found",
+                        id
+                    )));
+                }
+
+                // Unassign all schedules from this environment
+                diesel::update(schedules::table.filter(schedules::environment_id.eq(id)))
+                    .set(schedules::environment_id.eq::<Option<i64>>(None))
+                    .execute(tx)
+                    .map_err(map_diesel_error)?;
+
+                // Delete preschedule cache (CASCADE)
+                diesel::delete(
+                    environment_preschedule::table
+                        .filter(environment_preschedule::environment_id.eq(id)),
+                )
+                .execute(tx)
+                .map_err(map_diesel_error)?;
+
+                // Delete environment
+                diesel::delete(environments::table.filter(environments::environment_id.eq(id)))
+                    .execute(tx)
+                    .map_err(map_diesel_error)?;
+
+                Ok(())
+            })
+        })
+        .await
+    }
+
+    async fn initialise_environment(
+        &self,
+        id: crate::api::EnvironmentId,
+        structure: &crate::api::EnvironmentStructure,
+        preschedule: &serde_json::Value,
+    ) -> RepositoryResult<()> {
+        let structure = structure.clone();
+        let preschedule = preschedule.clone();
+        self.with_conn(move |conn| {
+            conn.transaction(|tx| {
+                // Fetch current environment
+                let env_row = environments::table
+                    .filter(environments::environment_id.eq(id))
+                    .select(EnvironmentRow::as_select())
+                    .first::<EnvironmentRow>(tx)
+                    .optional()
+                    .map_err(map_diesel_error)?
+                    .ok_or_else(|| {
+                        RepositoryError::not_found(format!("Environment {} not found", id))
+                    })?;
+
+                // Check if structure is compatible
+                let is_initialized = env_row.period_start_mjd.is_some();
+                if is_initialized {
+                    // Verify structure matches
+                    let matches = env_row.period_start_mjd == Some(structure.period_start_mjd)
+                        && env_row.period_end_mjd == Some(structure.period_end_mjd)
+                        && env_row.lat_deg == Some(structure.lat_deg)
+                        && env_row.lon_deg == Some(structure.lon_deg)
+                        && env_row.elevation_m == Some(structure.elevation_m)
+                        && env_row.blocks_hash.as_ref() == Some(&structure.blocks_hash);
+
+                    if !matches {
+                        return Err(RepositoryError::validation(format!(
+                            "Environment {} already has a different structure",
+                            id
+                        )));
+                    }
+                } else {
+                    // Initialize structure
+                    let changeset = EnvironmentStructureChangeset {
+                        period_start_mjd: Some(structure.period_start_mjd),
+                        period_end_mjd: Some(structure.period_end_mjd),
+                        lat_deg: Some(structure.lat_deg),
+                        lon_deg: Some(structure.lon_deg),
+                        elevation_m: Some(structure.elevation_m),
+                        blocks_hash: Some(structure.blocks_hash.clone()),
+                    };
+
+                    diesel::update(environments::table.filter(environments::environment_id.eq(id)))
+                        .set(&changeset)
+                        .execute(tx)
+                        .map_err(map_diesel_error)?;
+                }
+
+                // Upsert preschedule cache
+                diesel::insert_into(environment_preschedule::table)
+                    .values(&EnvironmentPrescheduleRow {
+                        environment_id: id,
+                        payload_json: preschedule,
+                        computed_at: chrono::Utc::now(),
+                    })
+                    .on_conflict(environment_preschedule::environment_id)
+                    .do_update()
+                    .set((
+                        environment_preschedule::payload_json
+                            .eq(excluded(environment_preschedule::payload_json)),
+                        environment_preschedule::computed_at.eq(diesel::dsl::now),
+                    ))
+                    .execute(tx)
+                    .map_err(map_diesel_error)?;
+
+                Ok(())
+            })
+        })
+        .await
+    }
+
+    async fn assign_schedule(
+        &self,
+        schedule_id: ScheduleId,
+        env_id: crate::api::EnvironmentId,
+    ) -> RepositoryResult<()> {
+        self.with_conn(move |conn| {
+            let updated =
+                diesel::update(schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)))
+                    .set(schedules::environment_id.eq(Some(env_id)))
+                    .execute(conn)
+                    .map_err(map_diesel_error)?;
+
+            if updated == 0 {
+                return Err(RepositoryError::not_found(format!(
+                    "Schedule {} not found",
+                    schedule_id
+                )));
+            }
+
+            Ok(())
+        })
+        .await
+    }
+
+    async fn unassign_schedule(&self, schedule_id: ScheduleId) -> RepositoryResult<()> {
+        self.with_conn(move |conn| {
+            diesel::update(schedules::table.filter(schedules::schedule_id.eq(schedule_id.0)))
+                .set(schedules::environment_id.eq::<Option<i64>>(None))
+                .execute(conn)
+                .map_err(map_diesel_error)?;
+
+            Ok(())
+        })
+        .await
+    }
+
+    async fn get_preschedule(
+        &self,
+        env_id: crate::api::EnvironmentId,
+    ) -> RepositoryResult<Option<serde_json::Value>> {
+        self.with_conn(move |conn| {
+            let result = environment_preschedule::table
+                .filter(environment_preschedule::environment_id.eq(env_id))
+                .select(environment_preschedule::payload_json)
+                .first::<serde_json::Value>(conn)
+                .optional()
+                .map_err(map_diesel_error)?;
+
+            Ok(result)
         })
         .await
     }

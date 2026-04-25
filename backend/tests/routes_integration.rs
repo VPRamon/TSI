@@ -373,6 +373,7 @@ fn test_schedule_info_creation() {
             start: ModifiedJulianDate::new(60000.0),
             end: ModifiedJulianDate::new(60007.0),
         },
+        environment_id: None,
     };
     assert_eq!(info.schedule_id.value(), 1);
     assert_eq!(info.schedule_name, "test");
