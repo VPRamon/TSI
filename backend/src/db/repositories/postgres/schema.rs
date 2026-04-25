@@ -12,6 +12,29 @@ diesel::table! {
         schedule_period_json -> Jsonb,
         observer_location_json -> Jsonb,
         astronomical_night_periods_json -> Jsonb,
+        environment_id -> Nullable<Int8>,
+    }
+}
+
+diesel::table! {
+    environments (environment_id) {
+        environment_id -> Int8,
+        name -> Text,
+        period_start_mjd -> Nullable<Float8>,
+        period_end_mjd -> Nullable<Float8>,
+        lat_deg -> Nullable<Float8>,
+        lon_deg -> Nullable<Float8>,
+        elevation_m -> Nullable<Float8>,
+        blocks_hash -> Nullable<Text>,
+        created_at -> Timestamptz,
+    }
+}
+
+diesel::table! {
+    environment_preschedule (environment_id) {
+        environment_id -> Int8,
+        payload_json -> Jsonb,
+        computed_at -> Timestamptz,
     }
 }
 
@@ -100,8 +123,12 @@ diesel::joinable!(schedule_blocks -> schedules (schedule_id));
 diesel::joinable!(schedule_summary_analytics -> schedules (schedule_id));
 diesel::joinable!(schedule_validation_results -> schedule_blocks (scheduling_block_id));
 diesel::joinable!(schedule_validation_results -> schedules (schedule_id));
+diesel::joinable!(schedules -> environments (environment_id));
+diesel::joinable!(environment_preschedule -> environments (environment_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    environment_preschedule,
+    environments,
     schedule_block_analytics,
     schedule_blocks,
     schedule_summary_analytics,

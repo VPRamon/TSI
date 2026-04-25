@@ -738,6 +738,7 @@ impl ScheduleRepository for PostgresRepository {
                             map_diesel_error(diesel::result::Error::SerializationError(Box::new(e)))
                         })?,
                     astronomical_night_periods_json: periods_to_json(&schedule.astronomical_nights),
+                    environment_id: None,
                 };
 
                 let inserted: ScheduleRow = diesel::insert_into(schedules::table)

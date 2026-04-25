@@ -4,8 +4,8 @@ use qtty::{Degrees, Hours};
 use serde_json::Value;
 
 use super::schema::{
-    schedule_block_analytics, schedule_blocks, schedule_summary_analytics,
-    schedule_validation_results, schedules,
+    environment_preschedule, environments, schedule_block_analytics, schedule_blocks,
+    schedule_summary_analytics, schedule_validation_results, schedules,
 };
 
 #[derive(Debug, Clone, Queryable, Selectable)]
@@ -22,6 +22,7 @@ pub struct ScheduleRow {
     pub schedule_period_json: Value,
     pub observer_location_json: Value,
     pub astronomical_night_periods_json: Value,
+    pub environment_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Insertable)]
@@ -35,6 +36,7 @@ pub struct NewScheduleRow {
     pub schedule_period_json: Value,
     pub observer_location_json: Value,
     pub astronomical_night_periods_json: Value,
+    pub environment_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Queryable, Selectable)]
@@ -194,4 +196,51 @@ pub struct NewScheduleValidationResultRow {
     pub current_value: Option<String>,
     pub expected_value: Option<String>,
     pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Queryable, Selectable)]
+#[diesel(table_name = environments)]
+#[allow(dead_code)]
+pub struct EnvironmentRow {
+    pub environment_id: i64,
+    pub name: String,
+    pub period_start_mjd: Option<f64>,
+    pub period_end_mjd: Option<f64>,
+    pub lat_deg: Option<f64>,
+    pub lon_deg: Option<f64>,
+    pub elevation_m: Option<f64>,
+    pub blocks_hash: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Insertable)]
+#[diesel(table_name = environments)]
+pub struct NewEnvironmentRow {
+    pub name: String,
+    pub period_start_mjd: Option<f64>,
+    pub period_end_mjd: Option<f64>,
+    pub lat_deg: Option<f64>,
+    pub lon_deg: Option<f64>,
+    pub elevation_m: Option<f64>,
+    pub blocks_hash: Option<String>,
+}
+
+#[derive(Debug, Clone, AsChangeset)]
+#[diesel(table_name = environments)]
+pub struct EnvironmentStructureChangeset {
+    pub period_start_mjd: Option<f64>,
+    pub period_end_mjd: Option<f64>,
+    pub lat_deg: Option<f64>,
+    pub lon_deg: Option<f64>,
+    pub elevation_m: Option<f64>,
+    pub blocks_hash: Option<String>,
+}
+
+#[derive(Debug, Clone, Queryable, Selectable, Insertable)]
+#[diesel(table_name = environment_preschedule)]
+#[allow(dead_code)]
+pub struct EnvironmentPrescheduleRow {
+    pub environment_id: i64,
+    pub payload_json: Value,
+    pub computed_at: DateTime<Utc>,
 }
