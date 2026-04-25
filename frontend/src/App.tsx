@@ -17,6 +17,7 @@ const VisibilityMap = lazy(() => import('./pages/VisibilityMap'));
 const AltAz = lazy(() => import('./pages/AltAz'));
 const ScheduleManagement = lazy(() => import('./pages/ScheduleManagement'));
 const Advanced = lazy(() => import('./pages/Advanced'));
+const EnvironmentCompare = lazy(() => import('./pages/EnvironmentCompare'));
 
 // Loading fallback component
 function PageLoader() {
@@ -35,6 +36,7 @@ function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Landing />} />
             <Route path="advanced" element={<Advanced />} />
+            <Route path="environments/:envId/compare" element={<EnvironmentCompare />} />
             <Route path="manage" element={<ScheduleManagement />} />
             <Route path="schedules/:scheduleId">
               <Route path="sky-map" element={<SkyMap />} />
