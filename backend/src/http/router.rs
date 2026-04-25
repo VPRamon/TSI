@@ -47,6 +47,14 @@ pub fn create_router(state: AppState) -> Router {
             "/environments/{environment_id}",
             delete(handlers::delete_environment),
         )
+        .route(
+            "/environments/{environment_id}/schedules",
+            post(handlers::bulk_import_schedules),
+        )
+        .route(
+            "/schedules/{schedule_id}/environment",
+            delete(handlers::unassign_schedule_environment),
+        )
         // Job management
         .route("/jobs/{job_id}", get(handlers::get_job_status))
         .route("/jobs/{job_id}/logs", get(handlers::stream_job_logs))

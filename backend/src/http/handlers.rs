@@ -840,6 +840,263 @@ pub async fn delete_environment(
     }))
 }
 
+/// POST /v1/environments/{environment_id}/schedules
+///
+/// Bulk-import a batch of schedules into a single environment. Items are
+/// processed sequentially so that the first item can deterministically
+/// initialise the environment's structure and preschedule cache, and
+/// subsequent items reuse that cache without redundant computation.
+///
+/// Each item is independent: parse / structure / store failures push to
+/// `rejected` and the loop continues. The handler only returns 404 when
+/// the environment itself does not exist.
+pub async fn bulk_import_schedules(
+    State(state): State<AppState>,
+    Path(environment_id): Path<i64>,
+    Json(req): Json<super::dto::EnvironmentBulkImportRequest>,
+) -> HandlerResult<super::dto::EnvironmentBulkImportResponse> {
+    use super::dto::{
+        EnvironmentBulkImportCreated, EnvironmentBulkImportRejected, EnvironmentBulkImportResponse,
+    };
+    use crate::models::schedule::compute_schedule_checksum;
+    use crate::services::environment_preschedule::{
+        apply_to_schedule, compute_env_preschedule, EnvPreschedulePayload,
+    };
+    use crate::services::environment_structure::{matches, structure_from_schedule};
+
+    // Verify the environment exists up-front so we can return 404 early.
+    let env_exists = state
+        .repository
+        .get_environment(environment_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .is_some();
+    if !env_exists {
+        return Err(AppError::NotFound(format!(
+            "Environment {} not found",
+            environment_id
+        )));
+    }
+
+    let mut created: Vec<EnvironmentBulkImportCreated> = Vec::new();
+    let mut rejected: Vec<EnvironmentBulkImportRejected> = Vec::new();
+
+    for item in req.items.into_iter() {
+        let item_name = item.name.trim().to_string();
+
+        // Step 1: apply optional location override to the JSON payload.
+        let mut schedule_json = item.schedule_json;
+        if let Some(ref loc) = item.location_override {
+            match serde_json::to_value(loc) {
+                Ok(loc_value) => {
+                    if let Some(obj) = schedule_json.as_object_mut() {
+                        obj.insert("geographic_location".to_string(), loc_value);
+                    }
+                }
+                Err(e) => {
+                    rejected.push(EnvironmentBulkImportRejected {
+                        name: item_name,
+                        reason: format!("Invalid location override: {}", e),
+                        mismatch_fields: vec![],
+                    });
+                    continue;
+                }
+            }
+        }
+
+        let schedule_json_str = match serde_json::to_string(&schedule_json) {
+            Ok(s) => s,
+            Err(e) => {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: format!("Invalid schedule JSON: {}", e),
+                    mismatch_fields: vec![],
+                });
+                continue;
+            }
+        };
+
+        // Step 2: parse via the configured import adapter.
+        let mut schedule = match state.import_adapter.parse_schedule(&schedule_json_str) {
+            Ok(s) => s,
+            Err(e) => {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: format!("Failed to parse schedule: {}", e),
+                    mismatch_fields: vec![],
+                });
+                continue;
+            }
+        };
+
+        // Step 3: apply user-provided name and recompute checksum, mirroring
+        // the single-schedule flow in `process_schedule_async`.
+        if !item_name.is_empty() {
+            schedule.name = item_name.clone();
+        }
+        schedule.checksum =
+            compute_schedule_checksum(&format!("{}:{}", schedule.name, schedule_json_str));
+
+        // Step 4: reload environment state and either initialise structure
+        // or verify the schedule matches the existing structure.
+        let env = match state.repository.get_environment(environment_id).await {
+            Ok(Some(env)) => env,
+            Ok(None) => {
+                // Environment vanished mid-batch; report and stop processing.
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: format!("Environment {} no longer exists", environment_id),
+                    mismatch_fields: vec![],
+                });
+                break;
+            }
+            Err(e) => {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: format!("Failed to load environment: {}", e),
+                    mismatch_fields: vec![],
+                });
+                continue;
+            }
+        };
+
+        if let Some(structure) = env.structure.as_ref() {
+            if let Err(mismatch) = matches(structure, &schedule) {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: mismatch.to_string(),
+                    mismatch_fields: mismatch.fields.clone(),
+                });
+                continue;
+            }
+        } else {
+            let new_structure = structure_from_schedule(&schedule);
+            let preschedule_payload = compute_env_preschedule(&schedule);
+            let payload_json = match serde_json::to_value(&preschedule_payload) {
+                Ok(v) => v,
+                Err(e) => {
+                    rejected.push(EnvironmentBulkImportRejected {
+                        name: item_name,
+                        reason: format!("Failed to serialise preschedule: {}", e),
+                        mismatch_fields: vec![],
+                    });
+                    continue;
+                }
+            };
+            if let Err(e) = state
+                .repository
+                .initialise_environment(environment_id, &new_structure, &payload_json)
+                .await
+            {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: format!("Failed to initialise environment: {}", e),
+                    mismatch_fields: vec![],
+                });
+                continue;
+            }
+        }
+
+        // Step 5/6: pull the cached preschedule payload and apply it so the
+        // schedule's per-block visibility, astronomical nights, and dark
+        // periods come from the cache instead of being recomputed.
+        let cached = match state.repository.get_preschedule(environment_id).await {
+            Ok(Some(v)) => v,
+            Ok(None) => {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: format!("Environment {} has no cached preschedule", environment_id),
+                    mismatch_fields: vec![],
+                });
+                continue;
+            }
+            Err(e) => {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: format!("Failed to load preschedule cache: {}", e),
+                    mismatch_fields: vec![],
+                });
+                continue;
+            }
+        };
+        let payload: EnvPreschedulePayload = match serde_json::from_value(cached) {
+            Ok(p) => p,
+            Err(e) => {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: format!("Cached preschedule is invalid: {}", e),
+                    mismatch_fields: vec![],
+                });
+                continue;
+            }
+        };
+        apply_to_schedule(&mut schedule, &payload);
+        schedule.astronomical_nights = payload.astronomical_nights.clone();
+        schedule.dark_periods = payload.astronomical_nights.clone();
+
+        // Step 7: store the schedule (with analytics population enabled).
+        let stored = match db_services::store_schedule_with_options(
+            state.repository.as_ref(),
+            &schedule,
+            true,
+        )
+        .await
+        {
+            Ok(meta) => meta,
+            Err(e) => {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: item_name,
+                    reason: format!("Failed to store schedule: {}", e),
+                    mismatch_fields: vec![],
+                });
+                continue;
+            }
+        };
+
+        // Step 8: assign the stored schedule to the environment.
+        if let Err(e) = state
+            .repository
+            .assign_schedule(stored.schedule_id, environment_id)
+            .await
+        {
+            rejected.push(EnvironmentBulkImportRejected {
+                name: item_name,
+                reason: format!("Failed to assign schedule to environment: {}", e),
+                mismatch_fields: vec![],
+            });
+            continue;
+        }
+
+        created.push(EnvironmentBulkImportCreated {
+            schedule_id: stored.schedule_id.value(),
+            name: stored.schedule_name,
+        });
+    }
+
+    Ok(Json(EnvironmentBulkImportResponse { created, rejected }))
+}
+
+/// DELETE /v1/schedules/{schedule_id}/environment
+///
+/// Detach a schedule from its environment. The underlying repository
+/// call is a no-op when the schedule is unassigned (or when it does not
+/// exist), so this endpoint always returns 200 with a descriptive message.
+pub async fn unassign_schedule_environment(
+    State(state): State<AppState>,
+    Path(schedule_id): Path<i64>,
+) -> HandlerResult<DeleteScheduleResponse> {
+    let sid = ScheduleId::new(schedule_id);
+    state
+        .repository
+        .unassign_schedule(sid)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(Json(DeleteScheduleResponse {
+        message: format!("Schedule {} unassigned from its environment", schedule_id),
+    }))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

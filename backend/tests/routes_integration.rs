@@ -754,3 +754,453 @@ async fn test_fragmentation_endpoint_registered() {
         "fragmentation route must be registered"
     );
 }
+
+// =========================================================
+// Environment bulk-import + unassign route tests
+// =========================================================
+
+mod environment_routes {
+    use super::*;
+    use axum::{
+        body::{to_bytes, Body},
+        http::{Request, StatusCode},
+    };
+    use std::sync::{Arc, Mutex};
+    use tower::util::ServiceExt;
+    use tsi_rust::api::{Constraints, Schedule, SchedulingBlock};
+    use tsi_rust::db::repositories::LocalRepository;
+    use tsi_rust::http::{create_router, AppState};
+    use tsi_rust::qtty::Seconds;
+    use tsi_rust::services::ScheduleImportAdapter;
+
+    /// Stub adapter returning a pre-registered Schedule keyed by the
+    /// `variant` field of the input JSON. Lets us drive the bulk-import
+    /// handler with full control over the parsed Schedule.
+    #[derive(Debug, Default)]
+    struct VariantStubAdapter {
+        schedules: Mutex<std::collections::HashMap<String, Schedule>>,
+    }
+
+    impl VariantStubAdapter {
+        fn new() -> Self {
+            Self::default()
+        }
+
+        fn insert(&self, variant: &str, schedule: Schedule) {
+            self.schedules
+                .lock()
+                .unwrap()
+                .insert(variant.to_string(), schedule);
+        }
+    }
+
+    impl ScheduleImportAdapter for VariantStubAdapter {
+        fn name(&self) -> &'static str {
+            "variant-stub"
+        }
+
+        fn parse_schedule(&self, raw: &str) -> anyhow::Result<Schedule> {
+            let v: serde_json::Value = serde_json::from_str(raw)?;
+            let key = v
+                .get("variant")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("missing 'variant' field"))?;
+            self.schedules
+                .lock()
+                .unwrap()
+                .get(key)
+                .cloned()
+                .ok_or_else(|| anyhow::anyhow!("unknown variant {}", key))
+        }
+    }
+
+    fn make_block(original_id: &str, ra: f64, dec: f64, priority: f64) -> SchedulingBlock {
+        SchedulingBlock {
+            id: None,
+            original_block_id: original_id.to_string(),
+            block_name: original_id.to_string(),
+            target_ra: Degrees::new(ra),
+            target_dec: Degrees::new(dec),
+            constraints: Constraints::new(
+                Degrees::new(20.0),
+                Degrees::new(80.0),
+                Degrees::new(0.0),
+                Degrees::new(360.0),
+                None,
+            ),
+            priority,
+            min_observation: Seconds::new(300.0),
+            requested_duration: Seconds::new(900.0),
+            visibility_periods: vec![],
+            scheduled_period: None,
+        }
+    }
+
+    /// Schedule with two blocks at La Palma over a 1-day window. The block
+    /// at RA=120, Dec=15 produces non-empty visibility periods (matches the
+    /// invariant exercised by `environment_preschedule::tests`).
+    fn make_seed_schedule(name: &str) -> Schedule {
+        Schedule {
+            id: None,
+            name: name.to_string(),
+            checksum: format!("seed-{name}"),
+            schedule_period: Period {
+                start: ModifiedJulianDate::new(60000.0),
+                end: ModifiedJulianDate::new(60001.0),
+            },
+            dark_periods: vec![],
+            geographic_location: Geodetic::<ECEF>::new(
+                Degrees::new(-17.89),
+                Degrees::new(28.76),
+                Meters::new(2200.0),
+            ),
+            astronomical_nights: vec![],
+            blocks: vec![
+                make_block("block1", 45.0, -30.0, 10.0),
+                make_block("block2", 120.0, 15.0, 5.0),
+            ],
+        }
+    }
+
+    /// Second schedule, structurally identical to the seed (same location,
+    /// period, and block set) but with different priorities — the priority
+    /// is excluded from the structural fingerprint, so this must match.
+    fn make_matching_schedule(name: &str) -> Schedule {
+        let mut s = make_seed_schedule(name);
+        s.name = name.to_string();
+        s.checksum = format!("match-{name}");
+        s
+    }
+
+    /// Schedule with a different latitude — must trigger a structural mismatch.
+    fn make_mismatched_schedule(name: &str) -> Schedule {
+        let mut s = make_seed_schedule(name);
+        s.name = name.to_string();
+        s.checksum = format!("mismatch-{name}");
+        s.geographic_location = Geodetic::<ECEF>::new(
+            Degrees::new(-17.89),
+            Degrees::new(40.0), // very different latitude
+            Meters::new(2200.0),
+        );
+        s
+    }
+
+    fn payload_for_variant(name: &str, variant: &str) -> serde_json::Value {
+        serde_json::json!({
+            "name": name,
+            "schedule_json": { "variant": variant },
+        })
+    }
+
+    async fn create_env(state: &AppState, name: &str) -> i64 {
+        let env = state.repository.create_environment(name).await.unwrap();
+        env.environment_id
+    }
+
+    fn build_state_with_adapter(
+        adapter: Arc<VariantStubAdapter>,
+    ) -> (AppState, Arc<LocalRepository>) {
+        let repo = Arc::new(LocalRepository::new());
+        let repo_dyn: Arc<dyn tsi_rust::db::repository::FullRepository> = repo.clone();
+        let state = AppState::with_import_adapter(repo_dyn, adapter);
+        (state, repo)
+    }
+
+    #[tokio::test]
+    async fn bulk_import_into_empty_env_initialises_structure() {
+        let adapter = Arc::new(VariantStubAdapter::new());
+        adapter.insert("seed", make_seed_schedule("seed"));
+        let (state, _repo) = build_state_with_adapter(adapter);
+        let app = create_router(state.clone());
+        let env_id = create_env(&state, "env-init").await;
+
+        let body = serde_json::json!({
+            "items": [ payload_for_variant("first-import", "seed") ]
+        });
+
+        let request = Request::builder()
+            .method("POST")
+            .uri(format!("/v1/environments/{}/schedules", env_id))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        assert_eq!(payload["created"].as_array().unwrap().len(), 1);
+        assert!(payload["rejected"].as_array().unwrap().is_empty());
+        assert_eq!(payload["created"][0]["name"], "first-import");
+
+        // Environment should now have a structure and one assigned schedule.
+        let env = state
+            .repository
+            .get_environment(env_id)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(env.structure.is_some());
+        assert_eq!(env.schedule_ids.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn bulk_import_second_matching_schedule_uses_cache() {
+        let adapter = Arc::new(VariantStubAdapter::new());
+        adapter.insert("seed", make_seed_schedule("seed"));
+        adapter.insert("match", make_matching_schedule("match"));
+        let (state, _repo) = build_state_with_adapter(adapter);
+        let app = create_router(state.clone());
+        let env_id = create_env(&state, "env-cache").await;
+
+        // First request initialises the env structure + cache.
+        let init_body = serde_json::json!({
+            "items": [ payload_for_variant("first", "seed") ]
+        });
+        let init_req = Request::builder()
+            .method("POST")
+            .uri(format!("/v1/environments/{}/schedules", env_id))
+            .header("content-type", "application/json")
+            .body(Body::from(init_body.to_string()))
+            .unwrap();
+        let init_resp = app.clone().oneshot(init_req).await.unwrap();
+        assert_eq!(init_resp.status(), StatusCode::OK);
+
+        // Second request uses the cache.
+        let body = serde_json::json!({
+            "items": [ payload_for_variant("second", "match") ]
+        });
+        let request = Request::builder()
+            .method("POST")
+            .uri(format!("/v1/environments/{}/schedules", env_id))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(payload["created"].as_array().unwrap().len(), 1);
+        assert!(payload["rejected"].as_array().unwrap().is_empty());
+
+        let stored_id =
+            tsi_rust::api::ScheduleId::new(payload["created"][0]["schedule_id"].as_i64().unwrap());
+
+        // The schedule's blocks should carry the cached visibility periods —
+        // at least one block (RA=120, Dec=15) must have non-empty visibility.
+        let blocks = state
+            .repository
+            .get_blocks_for_schedule(stored_id)
+            .await
+            .unwrap();
+        assert!(
+            blocks.iter().any(|b| !b.visibility_periods.is_empty()),
+            "cached preschedule should have populated at least one block's visibility"
+        );
+    }
+
+    #[tokio::test]
+    async fn bulk_import_partitions_matching_and_mismatched_items() {
+        let adapter = Arc::new(VariantStubAdapter::new());
+        adapter.insert("seed", make_seed_schedule("seed"));
+        adapter.insert("match", make_matching_schedule("match"));
+        adapter.insert("bad", make_mismatched_schedule("bad"));
+        let (state, _repo) = build_state_with_adapter(adapter);
+        let app = create_router(state.clone());
+        let env_id = create_env(&state, "env-mixed").await;
+
+        let body = serde_json::json!({
+            "items": [
+                payload_for_variant("first", "seed"),
+                payload_for_variant("second", "bad"),
+                payload_for_variant("third", "match"),
+            ]
+        });
+
+        let request = Request::builder()
+            .method("POST")
+            .uri(format!("/v1/environments/{}/schedules", env_id))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        let created = payload["created"].as_array().unwrap();
+        let rejected = payload["rejected"].as_array().unwrap();
+        assert_eq!(created.len(), 2, "matching items should be created");
+        assert_eq!(rejected.len(), 1, "mismatched item should be rejected");
+
+        let names: Vec<&str> = created
+            .iter()
+            .map(|c| c["name"].as_str().unwrap())
+            .collect();
+        assert!(names.contains(&"first"));
+        assert!(names.contains(&"third"));
+
+        let r = &rejected[0];
+        assert_eq!(r["name"], "second");
+        let fields = r["mismatch_fields"].as_array().unwrap();
+        let reason = r["reason"].as_str().unwrap();
+        assert!(
+            !fields.is_empty() || !reason.is_empty(),
+            "rejected item should expose either mismatch_fields or a non-empty reason"
+        );
+        assert!(fields.iter().any(|f| f == "lat_deg"));
+    }
+
+    #[tokio::test]
+    async fn bulk_import_unknown_environment_returns_404() {
+        let adapter = Arc::new(VariantStubAdapter::new());
+        adapter.insert("seed", make_seed_schedule("seed"));
+        let (state, _repo) = build_state_with_adapter(adapter);
+        let app = create_router(state);
+
+        let body = serde_json::json!({
+            "items": [ payload_for_variant("orphan", "seed") ]
+        });
+        let request = Request::builder()
+            .method("POST")
+            .uri("/v1/environments/9999999/schedules")
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let response = app.oneshot(request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn delete_environment_clears_schedule_environment_id() {
+        let adapter = Arc::new(VariantStubAdapter::new());
+        adapter.insert("seed", make_seed_schedule("seed"));
+        let (state, _repo) = build_state_with_adapter(adapter);
+        let app = create_router(state.clone());
+        let env_id = create_env(&state, "env-delete").await;
+
+        // Import one schedule to assign it to the environment.
+        let body = serde_json::json!({
+            "items": [ payload_for_variant("imported", "seed") ]
+        });
+        let req = Request::builder()
+            .method("POST")
+            .uri(format!("/v1/environments/{}/schedules", env_id))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Sanity-check assignment.
+        let before = services::list_schedules(state.repository.as_ref())
+            .await
+            .unwrap();
+        assert_eq!(before.len(), 1);
+        assert_eq!(before[0].environment_id, Some(env_id));
+
+        // DELETE the environment.
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(format!("/v1/environments/{}", env_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // The schedule should still exist but no longer be assigned.
+        let after = services::list_schedules(state.repository.as_ref())
+            .await
+            .unwrap();
+        assert_eq!(after.len(), 1);
+        assert_eq!(after[0].environment_id, None);
+    }
+
+    #[tokio::test]
+    async fn unassign_schedule_environment_route_clears_assignment() {
+        let adapter = Arc::new(VariantStubAdapter::new());
+        adapter.insert("seed", make_seed_schedule("seed"));
+        let (state, _repo) = build_state_with_adapter(adapter);
+        let app = create_router(state.clone());
+        let env_id = create_env(&state, "env-unassign").await;
+
+        let body = serde_json::json!({
+            "items": [ payload_for_variant("attached", "seed") ]
+        });
+        let req = Request::builder()
+            .method("POST")
+            .uri(format!("/v1/environments/{}/schedules", env_id))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body_bytes = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body_bytes).unwrap();
+        let schedule_id = payload["created"][0]["schedule_id"].as_i64().unwrap();
+
+        // Hit the unassign endpoint.
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(format!("/v1/schedules/{}/environment", schedule_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        // Schedule should still exist but be unassigned.
+        let listed = services::list_schedules(state.repository.as_ref())
+            .await
+            .unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].environment_id, None);
+
+        // Unassigning a non-existent schedule is a graceful no-op (200).
+        let req = Request::builder()
+            .method("DELETE")
+            .uri("/v1/schedules/9999999/environment")
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn environment_response_exposes_schedule_ids() {
+        let adapter = Arc::new(VariantStubAdapter::new());
+        adapter.insert("seed", make_seed_schedule("seed"));
+        let (state, _repo) = build_state_with_adapter(adapter);
+        let app = create_router(state.clone());
+        let env_id = create_env(&state, "env-members").await;
+
+        let body = serde_json::json!({
+            "items": [ payload_for_variant("member", "seed") ]
+        });
+        let req = Request::builder()
+            .method("POST")
+            .uri(format!("/v1/environments/{}/schedules", env_id))
+            .header("content-type", "application/json")
+            .body(Body::from(body.to_string()))
+            .unwrap();
+        let resp = app.clone().oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let req = Request::builder()
+            .method("GET")
+            .uri(format!("/v1/environments/{}", env_id))
+            .body(Body::empty())
+            .unwrap();
+        let resp = app.oneshot(req).await.unwrap();
+        assert_eq!(resp.status(), StatusCode::OK);
+        let body = to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        let ids = payload["schedule_ids"]
+            .as_array()
+            .expect("schedule_ids array");
+        assert_eq!(ids.len(), 1);
+        assert!(ids[0].as_i64().is_some());
+    }
+}

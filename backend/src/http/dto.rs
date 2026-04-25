@@ -284,6 +284,8 @@ pub struct EnvironmentResponse {
     pub environment_id: i64,
     pub name: String,
     pub structure: Option<crate::api::EnvironmentStructure>,
+    /// IDs of schedules currently assigned to this environment.
+    pub schedule_ids: Vec<i64>,
     pub created_at: String,
 }
 
@@ -300,9 +302,48 @@ impl From<crate::api::EnvironmentInfo> for EnvironmentResponse {
             environment_id: info.environment_id,
             name: info.name,
             structure: info.structure,
+            schedule_ids: info.schedule_ids.into_iter().map(|id| id.value()).collect(),
             created_at: info.created_at.to_rfc3339(),
         }
     }
+}
+
+/// Bulk-import request: a batch of schedules to load into one environment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentBulkImportRequest {
+    pub items: Vec<EnvironmentBulkImportItem>,
+}
+
+/// A single schedule payload inside a bulk-import request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentBulkImportItem {
+    pub name: String,
+    pub schedule_json: serde_json::Value,
+    #[serde(default)]
+    pub location_override: Option<crate::api::GeographicLocation>,
+}
+
+/// Bulk-import response, partitioning the batch into accepted and rejected items.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentBulkImportResponse {
+    pub created: Vec<EnvironmentBulkImportCreated>,
+    pub rejected: Vec<EnvironmentBulkImportRejected>,
+}
+
+/// Successfully imported schedule entry.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentBulkImportCreated {
+    pub schedule_id: i64,
+    pub name: String,
+}
+
+/// Rejected schedule entry, with a human-readable reason and the
+/// list of structure fields that mismatched (empty for non-structure errors).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentBulkImportRejected {
+    pub name: String,
+    pub reason: String,
+    pub mismatch_fields: Vec<String>,
 }
 
 #[cfg(test)]
