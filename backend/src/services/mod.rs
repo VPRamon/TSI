@@ -8,6 +8,7 @@ pub mod altaz;
 pub mod astronomical_night;
 pub mod compare;
 pub mod distributions;
+pub mod environment_preschedule;
 pub mod environment_structure;
 pub mod fragmentation;
 pub mod import_adapter;
@@ -34,6 +35,9 @@ pub mod visibility_service;
 pub use altaz::compute_alt_az_data;
 pub use compare::py_get_compare_data;
 pub use distributions::{py_get_distribution_data, py_get_distribution_data_analytics};
+pub use environment_preschedule::{
+    apply_to_schedule, compute_env_preschedule, EnvPreschedulePayload,
+};
 pub use environment_structure::{
     compute_blocks_hash, matches as match_structure, structure_from_schedule, StructureMismatch,
 };

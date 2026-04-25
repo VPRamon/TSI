@@ -254,8 +254,8 @@ mod tests {
         // Geodetic::new takes (longitude, latitude, height)
         let mut modified_schedule = schedule.clone();
         modified_schedule.geographic_location = Geodetic::<ECEF>::new(
-            Degrees::new(-17.89),          // Longitude unchanged
-            Degrees::new(28.76 + 0.001),   // Latitude changed by 0.001 degrees
+            Degrees::new(-17.89),        // Longitude unchanged
+            Degrees::new(28.76 + 0.001), // Latitude changed by 0.001 degrees
             Meters::new(2200.0),
         );
 
