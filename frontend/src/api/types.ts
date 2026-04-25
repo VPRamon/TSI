@@ -103,6 +103,74 @@ export interface AltAzRequest {
 }
 
 // =============================================================================
+// Environments
+// =============================================================================
+
+/**
+ * Fingerprint of an environment's shared structure. All schedules assigned
+ * to the same environment must agree on these fields. Mirrors the Rust
+ * `EnvironmentStructure` DTO.
+ */
+export interface EnvironmentStructure {
+  period_start_mjd: number;
+  period_end_mjd: number;
+  lat_deg: number;
+  lon_deg: number;
+  elevation_m: number;
+  blocks_hash: string;
+}
+
+export interface EnvironmentInfo {
+  environment_id: number;
+  name: string;
+  /** Structure is null until the first schedule is imported. */
+  structure: EnvironmentStructure | null;
+  schedule_ids: number[];
+  /** RFC3339 timestamp. */
+  created_at: string;
+}
+
+export interface EnvironmentListResponse {
+  environments: EnvironmentInfo[];
+  total: number;
+}
+
+export interface CreateEnvironmentRequest {
+  name: string;
+}
+
+export interface BulkImportItem {
+  name: string;
+  schedule_json: unknown;
+  location_override?: GeographicLocation;
+}
+
+export interface BulkImportRequest {
+  items: BulkImportItem[];
+}
+
+export interface BulkImportCreated {
+  schedule_id: number;
+  name: string;
+}
+
+export interface BulkImportRejected {
+  name: string;
+  reason: string;
+  /** Names of structure fields that mismatched. Empty for non-structure errors. */
+  mismatch_fields: string[];
+}
+
+export interface BulkImportResponse {
+  created: BulkImportCreated[];
+  rejected: BulkImportRejected[];
+}
+
+export interface DeleteEnvironmentResponse {
+  message: string;
+}
+
+// =============================================================================
 // Visualization Types
 // =============================================================================
 

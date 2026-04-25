@@ -10,6 +10,8 @@ import type {
   VisibilityHistogramQuery,
   UpdateScheduleRequest,
   AltAzRequest,
+  CreateEnvironmentRequest,
+  BulkImportRequest,
 } from '@/api/types';
 
 // Query keys factory
@@ -30,6 +32,8 @@ export const queryKeys = {
   validationReport: (id: number) => ['validationReport', id] as const,
   compare: (id: number, otherId: number, query?: CompareQuery) =>
     ['compare', id, otherId, query] as const,
+  environments: ['environments'] as const,
+  environment: (id: number) => ['environment', id] as const,
 };
 
 // Health check
@@ -174,5 +178,77 @@ export function useCompare(scheduleId: number, otherId: number, query?: CompareQ
     queryKey: queryKeys.compare(scheduleId, otherId, query),
     queryFn: () => api.compareSchedules(scheduleId, otherId, query),
     enabled: scheduleId > 0 && otherId > 0,
+  });
+}
+
+// Environments
+
+export function useEnvironments() {
+  return useQuery({
+    queryKey: queryKeys.environments,
+    queryFn: () => api.listEnvironments(),
+  });
+}
+
+export function useEnvironment(environmentId: number) {
+  return useQuery({
+    queryKey: queryKeys.environment(environmentId),
+    queryFn: () => api.getEnvironment(environmentId),
+    enabled: environmentId > 0,
+  });
+}
+
+export function useCreateEnvironment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: CreateEnvironmentRequest) => api.createEnvironment(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.environments });
+    },
+  });
+}
+
+export function useDeleteEnvironment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (environmentId: number) => api.deleteEnvironment(environmentId),
+    onSuccess: (_data, environmentId) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.environments });
+      queryClient.invalidateQueries({ queryKey: queryKeys.environment(environmentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.schedules });
+    },
+  });
+}
+
+export function useBulkImportToEnvironment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      environmentId,
+      request,
+    }: {
+      environmentId: number;
+      request: BulkImportRequest;
+    }) => api.bulkImportToEnvironment(environmentId, request),
+    onSuccess: (_data, { environmentId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.environments });
+      queryClient.invalidateQueries({ queryKey: queryKeys.environment(environmentId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.schedules });
+    },
+  });
+}
+
+export function useRemoveScheduleFromEnvironment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (scheduleId: number) => api.removeScheduleFromEnvironment(scheduleId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.environments });
+      queryClient.invalidateQueries({ queryKey: queryKeys.schedules });
+    },
   });
 }

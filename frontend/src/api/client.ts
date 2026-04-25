@@ -27,6 +27,12 @@ import type {
   UpdateScheduleRequest,
   DeleteScheduleResponse,
   ScheduleInfo,
+  EnvironmentInfo,
+  EnvironmentListResponse,
+  CreateEnvironmentRequest,
+  BulkImportRequest,
+  BulkImportResponse,
+  DeleteEnvironmentResponse,
 } from './types';
 import {
   ApiRequestError,
@@ -228,6 +234,49 @@ class ApiClient {
   // Job management
   async getJobStatus(jobId: string): Promise<JobStatusResponse> {
     const { data } = await this.client.get<JobStatusResponse>(`/v1/jobs/${jobId}`);
+    return data;
+  }
+
+  // Environments
+  async listEnvironments(): Promise<EnvironmentListResponse> {
+    const { data } = await this.client.get<EnvironmentListResponse>('/v1/environments');
+    return data;
+  }
+
+  async getEnvironment(environmentId: number): Promise<EnvironmentInfo> {
+    const { data } = await this.client.get<EnvironmentInfo>(
+      `/v1/environments/${environmentId}`
+    );
+    return data;
+  }
+
+  async createEnvironment(request: CreateEnvironmentRequest): Promise<EnvironmentInfo> {
+    const { data } = await this.client.post<EnvironmentInfo>('/v1/environments', request);
+    return data;
+  }
+
+  async deleteEnvironment(environmentId: number): Promise<DeleteEnvironmentResponse> {
+    const { data } = await this.client.delete<DeleteEnvironmentResponse>(
+      `/v1/environments/${environmentId}`
+    );
+    return data;
+  }
+
+  async bulkImportToEnvironment(
+    environmentId: number,
+    request: BulkImportRequest
+  ): Promise<BulkImportResponse> {
+    const { data } = await this.client.post<BulkImportResponse>(
+      `/v1/environments/${environmentId}/schedules`,
+      request
+    );
+    return data;
+  }
+
+  async removeScheduleFromEnvironment(scheduleId: number): Promise<DeleteEnvironmentResponse> {
+    const { data } = await this.client.delete<DeleteEnvironmentResponse>(
+      `/v1/schedules/${scheduleId}/environment`
+    );
     return data;
   }
 }
