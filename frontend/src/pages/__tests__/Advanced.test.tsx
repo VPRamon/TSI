@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
-import { render as rtlRender } from '@testing-library/react';
-import { waitFor } from '@testing-library/react';
+import { render as rtlRender, waitFor } from '@testing-library/react';
 import { MemoryRouterProvider, screen, userEvent, within } from '../../test/test-utils';
 
 vi.mock('react-plotly.js', () => ({ default: () => null }));
@@ -13,40 +12,22 @@ vi.mock('@/hooks', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/hooks')>();
   return {
     ...actual,
+    useEnvironments: vi.fn(),
     useSchedules: vi.fn(),
-    useDeleteSchedule: vi.fn(),
-    useUpdateSchedule: vi.fn(),
-  };
-});
-
-vi.mock('@/features/schedules', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/features/schedules')>();
-  return {
-    ...actual,
-    UploadScheduleCard: ({
-      onUploadComplete,
-    }: {
-      onUploadComplete?: (result: { schedule_id: number; schedule_name?: string }) => void;
-    }) => (
-      <button
-        type="button"
-        onClick={() => onUploadComplete?.({ schedule_id: 4, schedule_name: 'Schedule Delta' })}
-      >
-        Mock Upload
-      </button>
-    ),
-    useScheduleAnalysisData: vi.fn(),
-    downloadScheduleJson: vi.fn().mockResolvedValue(undefined),
+    useCreateEnvironment: vi.fn(),
+    useDeleteEnvironment: vi.fn(),
+    useBulkImportToEnvironment: vi.fn(),
+    useRemoveScheduleFromEnvironment: vi.fn(),
   };
 });
 
 import * as hooks from '@/hooks';
-import * as schedulesFeature from '@/features/schedules';
 import Advanced from '../Advanced';
+import type { EnvironmentInfo } from '@/api/types';
 
-function renderAdvanced(path = '/advanced') {
+function renderAdvanced() {
   return rtlRender(
-    <MemoryRouterProvider initialEntries={[path]}>
+    <MemoryRouterProvider initialEntries={['/advanced']}>
       <Routes>
         <Route path="/advanced" element={<Advanced />} />
       </Routes>
@@ -54,187 +35,152 @@ function renderAdvanced(path = '/advanced') {
   );
 }
 
-const schedulesResponse = {
-  schedules: [
-    { schedule_id: 1, schedule_name: 'Schedule Alpha' },
-    { schedule_id: 2, schedule_name: 'Schedule Beta' },
-    { schedule_id: 3, schedule_name: 'Schedule Gamma' },
-    { schedule_id: 4, schedule_name: 'Schedule Delta' },
-  ],
-  total: 4,
-};
-
-function makeVisibleAnalysis(ids: number[]) {
-  return ids.map((id) => ({
-    id,
-    name:
-      schedulesResponse.schedules.find((schedule) => schedule.schedule_id === id)?.schedule_name ??
-      `#${id}`,
-    insights: {
-      blocks: [
-        {
-          scheduling_block_id: id * 10,
-          original_block_id: `OB-${id}`,
-          block_name: `Block ${id}`,
-          priority: 8,
-          total_visibility_hours: 4,
-          requested_hours: 2,
-          elevation_range_deg: 45,
-          scheduled: true,
-          scheduled_start_mjd: 60000 + id,
-          scheduled_stop_mjd: 60000 + id + 0.1,
-        },
-      ],
-      metrics: {
-        total_observations: 1,
-        scheduled_count: 1,
-        unscheduled_count: 0,
-        scheduling_rate: 1,
-        mean_priority: 8,
-        median_priority: 8,
-        mean_priority_scheduled: 8,
-        mean_priority_unscheduled: 0,
-        total_visibility_hours: 4,
-        mean_requested_hours: 2,
-      },
-      correlations: [],
-      top_priority: [],
-      top_visibility: [],
-      conflicts: [],
-      total_count: 1,
-      scheduled_count: 1,
-      impossible_count: 0,
+const baseEnvironments: EnvironmentInfo[] = [
+  {
+    environment_id: 1,
+    name: 'CTAO South March',
+    structure: {
+      period_start_mjd: 60000,
+      period_end_mjd: 60030,
+      lat_deg: -24.6,
+      lon_deg: -70.4,
+      elevation_m: 2400,
+      blocks_hash: 'abc123',
     },
-    fragmentation: {
-      schedule_id: id,
-      schedule_name:
-        schedulesResponse.schedules.find((schedule) => schedule.schedule_id === id)
-          ?.schedule_name ?? `#${id}`,
-      schedule_window: { start_mjd: 59000, end_mjd: 60000 },
-      operable_periods: [],
-      operable_source: 'dark_time',
-      segments: [],
-      largest_gaps: [],
-      reason_breakdown: [],
-      unscheduled_reasons: [],
-      metrics: {
-        schedule_hours: 200,
-        requested_hours: 150,
-        operable_hours: 180,
-        scheduled_hours: 120,
-        idle_operable_hours: 60,
-        raw_visibility_coverage_hours: 170,
-        fit_visibility_coverage_hours: 150,
-        gap_count: 5,
-        gap_mean_hours: 2.5,
-        gap_median_hours: 2.0,
-        gap_std_dev_hours: 0.8,
-        gap_p90_hours: 4.0,
-        largest_gap_hours: 6.0,
-        scheduled_fraction_of_operable: 0.67,
-        idle_fraction_of_operable: 0.33,
-        raw_visibility_fraction_of_operable: 0.94,
-        fit_visibility_fraction_of_operable: 0.83,
-      },
-    },
-    isLoading: false,
-    error: null,
-  }));
-}
+    schedule_ids: [101, 102],
+    created_at: '2025-03-01T00:00:00Z',
+  },
+  {
+    environment_id: 2,
+    name: 'Empty draft',
+    structure: null,
+    schedule_ids: [],
+    created_at: '2025-02-01T00:00:00Z',
+  },
+];
 
-describe('Advanced page', () => {
+describe('Advanced page (environments)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
+    vi.mocked(hooks.useEnvironments).mockReturnValue({
+      data: { environments: baseEnvironments, total: baseEnvironments.length },
+      isLoading: false,
+      error: null,
+    } as unknown as ReturnType<typeof hooks.useEnvironments>);
+
     vi.mocked(hooks.useSchedules).mockReturnValue({
-      data: schedulesResponse,
+      data: {
+        schedules: [
+          { schedule_id: 101, schedule_name: 'Plan A' },
+          { schedule_id: 102, schedule_name: 'Plan B' },
+        ],
+        total: 2,
+      },
       isLoading: false,
       error: null,
     } as unknown as ReturnType<typeof hooks.useSchedules>);
 
-    vi.mocked(hooks.useDeleteSchedule).mockReturnValue({
-      mutateAsync: vi.fn().mockResolvedValue({ message: 'deleted' }),
+    vi.mocked(hooks.useDeleteEnvironment).mockReturnValue({
+      mutateAsync: vi.fn(),
       isPending: false,
-    } as unknown as ReturnType<typeof hooks.useDeleteSchedule>);
+    } as unknown as ReturnType<typeof hooks.useDeleteEnvironment>);
 
-    vi.mocked(hooks.useUpdateSchedule).mockReturnValue({
-      mutateAsync: vi.fn().mockResolvedValue({}),
+    vi.mocked(hooks.useRemoveScheduleFromEnvironment).mockReturnValue({
+      mutate: vi.fn(),
       isPending: false,
-    } as unknown as ReturnType<typeof hooks.useUpdateSchedule>);
+    } as unknown as ReturnType<typeof hooks.useRemoveScheduleFromEnvironment>);
 
-    vi.mocked(schedulesFeature.useScheduleAnalysisData).mockImplementation((ids: number[]) =>
-      makeVisibleAnalysis(ids)
-    );
+    vi.mocked(hooks.useBulkImportToEnvironment).mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useBulkImportToEnvironment>);
+
+    vi.mocked(hooks.useCreateEnvironment).mockReturnValue({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useCreateEnvironment>);
   });
 
-  it('renders the /advanced workspace route and normalizes invalid params', async () => {
-    renderAdvanced('/advanced?workspace=2,2,1,999&visible=999,2&baseline=999');
-
-    expect(screen.getByText('Advanced Workspace')).toBeInTheDocument();
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Schedule Beta')).toBeInTheDocument();
-    });
-
-    expect(screen.getByText(/missing schedule removed from the workspace/i)).toBeInTheDocument();
+  it('renders the environment cards', () => {
+    renderAdvanced();
+    expect(screen.getByRole('heading', { name: /environments/i })).toBeInTheDocument();
+    expect(screen.getByText('CTAO South March')).toBeInTheDocument();
+    expect(screen.getByText('Empty draft')).toBeInTheDocument();
+    expect(screen.getByText(/2 schedules/i)).toBeInTheDocument();
+    expect(screen.getByText(/no structure/i)).toBeInTheDocument();
   });
 
-  it('adds schedules from the database list and keeps the visible subset in sync', async () => {
+  it('creates an environment then bulk-imports the dropped files', async () => {
     const user = userEvent.setup();
-
-    renderAdvanced('/advanced?workspace=1&visible=1&baseline=1');
-
-    await user.click(screen.getAllByRole('button', { name: 'Add' })[1]);
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Schedule Alpha')).toBeInTheDocument();
+    const createMutate = vi
+      .fn()
+      .mockResolvedValue({
+        environment_id: 99,
+        name: 'New env',
+        structure: null,
+        schedule_ids: [],
+        created_at: '2025-03-15T00:00:00Z',
+      });
+    const bulkMutate = vi.fn().mockResolvedValue({
+      created: [{ schedule_id: 500, name: 'good' }],
+      rejected: [
+        {
+          name: 'mismatch',
+          reason: 'period mismatch',
+          mismatch_fields: ['period_start_mjd', 'blocks_hash'],
+        },
+      ],
     });
 
-    expect(screen.getByText('Schedule Beta')).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByText(/summary metrics/i)).toBeInTheDocument();
-      expect(screen.getByText(/block status/i)).toBeInTheDocument();
-    });
-  });
+    vi.mocked(hooks.useCreateEnvironment).mockReturnValue({
+      mutateAsync: createMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useCreateEnvironment>);
 
-  it('reassigns the baseline when hiding or deleting the current baseline', async () => {
-    const user = userEvent.setup();
+    vi.mocked(hooks.useBulkImportToEnvironment).mockReturnValue({
+      mutateAsync: bulkMutate,
+      isPending: false,
+    } as unknown as ReturnType<typeof hooks.useBulkImportToEnvironment>);
 
-    renderAdvanced('/advanced?workspace=1,2&visible=1,2&baseline=1');
+    renderAdvanced();
 
-    const workspacePanel = screen.getByText('Workspace (2)').closest('section');
-    expect(workspacePanel).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: /create environment/i }));
 
-    const workspaceButtons = workspacePanel?.querySelectorAll('button');
-    expect(workspaceButtons?.length).toBeGreaterThan(0);
+    const dialog = await screen.findByRole('dialog', { name: /create environment/i });
+    await user.type(within(dialog).getByLabelText(/environment name/i), 'New env');
 
-    await user.click(screen.getAllByRole('button', { name: 'Hide' })[0]);
-
-    await waitFor(() => {
-      expect(screen.getByDisplayValue('Schedule Beta')).toBeInTheDocument();
-    });
-
-    expect(screen.getByText(/Schedule Beta is loaded as the baseline/i)).toBeInTheDocument();
-
-    await user.click(screen.getAllByRole('button', { name: 'Delete' })[0]);
-    const dialog = screen.getByText('Delete Schedule').closest('div');
-    expect(dialog).toBeTruthy();
-    await user.click(within(dialog as HTMLElement).getByRole('button', { name: /^Delete$/ }));
+    const goodFile = new File(['{"foo":1}'], 'good.json', { type: 'application/json' });
+    const badFile = new File(['{"foo":2}'], 'mismatch.json', { type: 'application/json' });
+    const fileInput = dialog.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).toBeTruthy();
+    await user.upload(fileInput, [goodFile, badFile]);
 
     await waitFor(() => {
-      expect(screen.getByText(/Schedule Beta is loaded as the baseline/i)).toBeInTheDocument();
+      expect(within(dialog).getByText('good.json')).toBeInTheDocument();
+      expect(within(dialog).getByText('mismatch.json')).toBeInTheDocument();
     });
-  });
 
-  it('adds uploaded schedules into the workspace', async () => {
-    const user = userEvent.setup();
-
-    renderAdvanced('/advanced?workspace=1&visible=1&baseline=1');
-
-    await user.click(screen.getByRole('button', { name: 'Mock Upload' }));
+    await user.click(within(dialog).getByRole('button', { name: /^create$/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Schedule Delta')).toBeInTheDocument();
+      expect(createMutate).toHaveBeenCalledWith({ name: 'New env' });
     });
+    expect(bulkMutate).toHaveBeenCalledWith({
+      environmentId: 99,
+      request: {
+        items: [
+          { name: 'good', schedule_json: { foo: 1 } },
+          { name: 'mismatch', schedule_json: { foo: 2 } },
+        ],
+      },
+    });
+
+    const result = await within(dialog).findByTestId('bulk-import-result');
+    expect(within(result).getByText(/1 schedule accepted/i)).toBeInTheDocument();
+    const rejected = within(result).getByTestId('rejected-list');
+    expect(within(rejected).getByText('mismatch')).toBeInTheDocument();
+    expect(within(rejected).getByText(/period mismatch/i)).toBeInTheDocument();
+    expect(within(rejected).getByText(/period_start_mjd, blocks_hash/i)).toBeInTheDocument();
   });
 });

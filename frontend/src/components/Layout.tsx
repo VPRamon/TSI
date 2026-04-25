@@ -232,27 +232,6 @@ function Layout() {
 
               {/* Right section - Schedule indicator, Compare, Status */}
               <div className="flex items-center gap-4">
-                <NavLink
-                  to="/advanced"
-                  className={({ isActive }) =>
-                    `hidden items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors md:flex ${
-                      isActive
-                        ? 'border-sky-500/60 bg-sky-900/30 text-sky-200'
-                        : 'border-slate-600 bg-slate-700/50 text-slate-300 hover:bg-slate-700 hover:text-white'
-                    }`
-                  }
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
-                    />
-                  </svg>
-                  Advanced
-                </NavLink>
-
                 {/* Current schedule indicator */}
                 {scheduleId && (
                   <div className="hidden items-center gap-4 lg:flex">
@@ -344,29 +323,6 @@ function Layout() {
                 role="navigation"
                 aria-label="Mobile navigation"
               >
-                <div className="mb-2">
-                  <NavLink
-                    to="/advanced"
-                    className={({ isActive }) =>
-                      `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                        isActive
-                          ? 'bg-sky-900/40 text-sky-200'
-                          : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                      }`
-                    }
-                  >
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
-                      />
-                    </svg>
-                    <span>Advanced</span>
-                  </NavLink>
-                </div>
-
                 {scheduleId ? (
                   <>
                     <div className="mb-3 flex items-center gap-2 px-1">
