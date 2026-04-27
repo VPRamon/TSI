@@ -47,7 +47,7 @@ pub struct PostgresSettings {
 }
 
 fn default_max_connections() -> u32 {
-    10
+    8
 }
 
 fn default_min_connections() -> u32 {

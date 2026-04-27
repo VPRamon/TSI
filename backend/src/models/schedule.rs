@@ -7,7 +7,7 @@
 // when data is split across multiple files.
 
 use crate::api;
-use crate::services::visibility_service::{compute_block_visibility, VisibilityInput};
+use crate::services::visibility::{compute_block_visibility, VisibilityInput};
 use anyhow::{Context, Result};
 use rayon::prelude::*;
 use std::collections::HashMap;

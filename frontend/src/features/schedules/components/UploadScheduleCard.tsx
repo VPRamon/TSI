@@ -8,6 +8,7 @@ import { useCreateSchedule, useSchedules } from '@/hooks';
 import { LoadingSpinner, LogStream } from '@/components';
 import { OBSERVATORY_SITES, SITE_FROM_FILE, formatSiteLabel } from '@/constants';
 import { dateToMjd } from '@/constants/dates';
+import { errorMessage } from '@/api/errors';
 
 function normalizeScheduleName(name: string): string {
   return name.trim().toLowerCase();
@@ -54,11 +55,14 @@ function UploadScheduleCard({
   const { data: schedulesData } = useSchedules();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const traceInputRef = useRef<HTMLInputElement>(null);
   const [uploadName, setUploadName] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [traceFile, setTraceFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [selectedSiteIdx, setSelectedSiteIdx] = useState<string>('0');
   const [periodOverrideEnabled, setPeriodOverrideEnabled] = useState(false);
   const [periodStart, setPeriodStart] = useState('');
@@ -71,6 +75,11 @@ function UploadScheduleCard({
       setSelectedFile(file);
       setUploadError('');
     }
+  };
+
+  const handleTraceSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setTraceFile(file);
   };
 
   const handleFileUpload = async () => {
@@ -98,6 +107,7 @@ function UploadScheduleCard({
     setIsUploading(true);
     setUploadError('');
     setJobId(null);
+    setUploadProgress(0);
     try {
       const content = await selectedFile.text();
       let scheduleJson: unknown;
@@ -138,32 +148,51 @@ function UploadScheduleCard({
             }
           : undefined;
 
+      const algorithmTraceJsonl = traceFile ? await traceFile.text() : undefined;
+
       const response = await createSchedule.mutateAsync({
-        name,
-        schedule_json: scheduleJson,
-        populate_analytics: true,
-        location_override: locationOverride,
-        schedule_period_override: schedulePeriodOverride,
+        request: {
+          name,
+          schedule_json: scheduleJson,
+          populate_analytics: true,
+          location_override: locationOverride,
+          schedule_period_override: schedulePeriodOverride,
+          algorithm_trace_jsonl: algorithmTraceJsonl,
+        },
+        onUploadProgress: (event) => {
+          if (event.total && event.total > 0) {
+            setUploadProgress(Math.round((event.loaded / event.total) * 100));
+          } else {
+            setUploadProgress(null);
+          }
+        },
       });
 
+      setUploadProgress(100);
       // Set job ID to start streaming logs
       setJobId(response.job_id);
     } catch (err) {
       console.error('Failed to upload schedule:', err);
-      const message = err instanceof Error ? err.message : 'Unknown upload error';
+      const message = errorMessage(err);
       setUploadError(message);
       onError?.(message);
       setIsUploading(false);
+      setUploadProgress(null);
     }
   };
 
   const handleComplete = (result: unknown) => {
     setIsUploading(false);
+    setUploadProgress(null);
     // Reset form on success
     setUploadName('');
     setSelectedFile(null);
+    setTraceFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+    if (traceInputRef.current) {
+      traceInputRef.current.value = '';
     }
 
     // Navigate to the schedule validation page if we have a schedule_id
@@ -178,6 +207,8 @@ function UploadScheduleCard({
 
   const handleJobError = (error: string) => {
     setIsUploading(false);
+    setUploadProgress(null);
+    console.error(`[${new Date().toISOString()}] Upload job failed: ${error}`);
     setUploadError(error);
     onError?.(error);
   };
@@ -370,13 +401,87 @@ function UploadScheduleCard({
             </label>
           </div>
 
+          {/* Optional algorithm trace file */}
+          <div>
+            <input
+              ref={traceInputRef}
+              type="file"
+              accept=".jsonl,.json,.log,application/jsonl,text/plain"
+              onChange={handleTraceSelect}
+              disabled={isUploading}
+              className="sr-only"
+              id="algorithm-trace-upload"
+              aria-describedby="algorithm-trace-description"
+            />
+            <label
+              htmlFor="algorithm-trace-upload"
+              className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-2 text-xs transition-all ${
+                isUploading
+                  ? 'cursor-not-allowed border-slate-700 bg-slate-800/30'
+                  : traceFile
+                    ? 'border-blue-500/40 bg-blue-500/5'
+                    : 'border-slate-700 bg-slate-900/30 hover:border-blue-500/30'
+              }`}
+            >
+              <FileIcon />
+              <span className="text-slate-400" id="algorithm-trace-description">
+                {traceFile
+                  ? `Algorithm trace: ${traceFile.name}`
+                  : 'Optional: attach algorithm trace (.jsonl) for Algorithm Analysis'}
+              </span>
+              {traceFile && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setTraceFile(null);
+                    if (traceInputRef.current) traceInputRef.current.value = '';
+                  }}
+                  className="ml-2 text-slate-400 hover:text-slate-200"
+                  aria-label="Clear algorithm trace file"
+                >
+                  ×
+                </button>
+              )}
+            </label>
+          </div>
+
           {/* Error Message */}
           {uploadError && (
             <div
               className="rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200"
               role="alert"
             >
-              <strong className="font-medium">Error:</strong> {uploadError}
+              <strong className="font-medium">Error:</strong>{' '}
+              <span className="whitespace-pre-wrap break-words">{uploadError}</span>
+            </div>
+          )}
+
+          {/* Upload progress (axios → backend) */}
+          {isUploading && uploadProgress !== null && !jobId && (
+            <div className="space-y-1" aria-live="polite">
+              <div className="flex items-center justify-between text-xs text-slate-400">
+                <span>
+                  {uploadProgress < 100 ? 'Uploading file…' : 'Processing on server…'}
+                </span>
+                {uploadProgress < 100 && <span>{uploadProgress}%</span>}
+              </div>
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800"
+                role="progressbar"
+                aria-valuenow={uploadProgress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div
+                  className={`h-full rounded-full transition-all duration-200 ${
+                    uploadProgress < 100
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-400'
+                      : 'animate-pulse bg-blue-400/60'
+                  }`}
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
             </div>
           )}
 

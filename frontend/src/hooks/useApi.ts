@@ -2,6 +2,7 @@
  * React Query hooks for the TSI API.
  */
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import type { AxiosProgressEvent } from 'axios';
 import { api } from '@/api';
 import type {
   CreateScheduleRequest,
@@ -27,6 +28,7 @@ export const queryKeys = {
   timeline: (id: number) => ['timeline', id] as const,
   insights: (id: number) => ['insights', id] as const,
   fragmentation: (id: number) => ['fragmentation', id] as const,
+  algorithmTrace: (id: number) => ['algorithmTrace', id] as const,
   altAz: (id: number, request?: AltAzRequest) => ['altAz', id, request] as const,
   trends: (id: number, query?: TrendsQuery) => ['trends', id, query] as const,
   validationReport: (id: number) => ['validationReport', id] as const,
@@ -34,6 +36,8 @@ export const queryKeys = {
     ['compare', id, otherId, query] as const,
   environments: ['environments'] as const,
   environment: (id: number) => ['environment', id] as const,
+  scheduleKpis: (id: number) => ['scheduleKpis', id] as const,
+  environmentKpis: (id: number) => ['environmentKpis', id] as const,
 };
 
 // Health check
@@ -54,11 +58,17 @@ export function useSchedules() {
 }
 
 // Create schedule mutation
+export interface CreateScheduleVariables {
+  request: CreateScheduleRequest;
+  onUploadProgress?: (event: AxiosProgressEvent) => void;
+}
+
 export function useCreateSchedule() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: CreateScheduleRequest) => api.createSchedule(request),
+    mutationFn: (vars: CreateScheduleVariables) =>
+      api.createSchedule(vars.request, vars.onUploadProgress),
     onSuccess: () => {
       // Invalidate schedules list to refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.schedules });
@@ -175,6 +185,21 @@ export function useFragmentation(scheduleId: number) {
   });
 }
 
+/**
+ * Fetch the algorithm trace for a schedule.  Returns `undefined` data
+ * when the schedule was not produced by an algorithm that emits a trace
+ * or when the trace was not uploaded; the underlying 404 is surfaced via
+ * `error`.
+ */
+export function useAlgorithmTrace(scheduleId: number) {
+  return useQuery({
+    queryKey: queryKeys.algorithmTrace(scheduleId),
+    queryFn: () => api.getAlgorithmTrace(scheduleId),
+    enabled: scheduleId > 0,
+    retry: false,
+  });
+}
+
 export function useAltAz(scheduleId: number, request?: AltAzRequest) {
   return useQuery({
     queryKey: queryKeys.altAz(scheduleId, request),
@@ -220,6 +245,14 @@ export function useEnvironment(environmentId: number) {
   return useQuery({
     queryKey: queryKeys.environment(environmentId),
     queryFn: () => api.getEnvironment(environmentId),
+    enabled: environmentId > 0,
+  });
+}
+
+export function useEnvironmentKpis(environmentId: number) {
+  return useQuery({
+    queryKey: queryKeys.environmentKpis(environmentId),
+    queryFn: () => api.getEnvironmentKpis(environmentId),
     enabled: environmentId > 0,
   });
 }

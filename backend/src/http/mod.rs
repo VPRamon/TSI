@@ -43,7 +43,19 @@ pub mod error;
 pub mod dto;
 
 #[cfg(feature = "http-server")]
+pub mod extensions;
+
+#[cfg(feature = "http-server")]
 pub use router::create_router;
+
+#[cfg(feature = "http-server")]
+pub use router::create_router_with_extensions;
+
+#[cfg(feature = "http-server")]
+pub use extensions::{
+    AlgorithmTraceValidator, BackendExtensions, BackendExtensionsBuilder,
+    EXTENSION_CONTRACT_VERSION,
+};
 
 #[cfg(feature = "http-server")]
 pub use state::AppState;

@@ -56,3 +56,23 @@ pub use qtty;
 
 /// Re-export `siderust` so adapter crates can use coordinate types directly.
 pub use siderust;
+
+/// Configure the global Rayon thread pool to avoid oversubscribing CPUs
+/// (Rayon defaults to one thread per logical core, which competes with
+/// the Tokio runtime + Diesel pool threads inside the same container).
+///
+/// Caps the pool at `max(1, num_cpus - 1)` and respects the
+/// `RAYON_NUM_THREADS` env var if it is already set. Safe to call
+/// multiple times — only the first call wins.
+pub fn configure_rayon_thread_pool() {
+    if std::env::var_os("RAYON_NUM_THREADS").is_some() {
+        return;
+    }
+    let cpus = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(2);
+    let target = cpus.saturating_sub(1).max(1);
+    let _ = rayon::ThreadPoolBuilder::new()
+        .num_threads(target)
+        .build_global();
+}

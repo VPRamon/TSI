@@ -2,7 +2,7 @@
  * Plotly chart configuration constants and factory functions.
  * Centralizes chart theming for consistent visualization.
  */
-import type { Layout, Config } from 'plotly.js';
+import type { Layout, Config } from 'plotly.js-dist-min';
 import { CHART_COLORS } from './colors';
 
 /**

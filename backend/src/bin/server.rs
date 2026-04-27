@@ -27,7 +27,7 @@ use std::net::SocketAddr;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use tsi_rust::db;
+use tsi_rust::db::RepositoryFactory;
 use tsi_rust::http::{create_router, AppState};
 use tsi_rust::services::default_schedule_import_adapter;
 
@@ -47,11 +47,14 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Starting TSI HTTP Server");
 
-    // Initialize global repository once and reuse it across the app
-    db::init_repository_async()
+    // Cap rayon thread pool to avoid oversubscribing CPUs alongside
+    // the tokio runtime and Diesel pool threads.
+    tsi_rust::configure_rayon_thread_pool();
+
+    // Build the repository owned by AppState (no global singleton).
+    let repository = RepositoryFactory::from_env()
         .await
-        .map_err(|e| anyhow::anyhow!(e))?;
-    let repository = std::sync::Arc::clone(db::get_repository()?);
+        .map_err(|e| anyhow::anyhow!(e.to_string()))?;
     info!("Repository initialized successfully");
 
     // Create application state

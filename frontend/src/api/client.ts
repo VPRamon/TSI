@@ -1,7 +1,7 @@
 /**
  * API client for the TSI backend.
  */
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError, AxiosProgressEvent } from 'axios';
 import type {
   ScheduleListResponse,
   CreateScheduleRequest,
@@ -13,6 +13,7 @@ import type {
   ScheduleTimelineData,
   InsightsData,
   FragmentationData,
+  AlgorithmTraceResponse,
   AltAzData,
   AltAzRequest,
   TrendsData,
@@ -33,6 +34,8 @@ import type {
   BulkImportRequest,
   BulkImportResponse,
   DeleteEnvironmentResponse,
+  ScheduleKpi,
+  EnvironmentKpisResponse,
 } from './types';
 import {
   ApiRequestError,
@@ -133,8 +136,13 @@ class ApiClient {
     return data;
   }
 
-  async createSchedule(request: CreateScheduleRequest): Promise<CreateScheduleResponse> {
-    const { data } = await this.client.post<CreateScheduleResponse>('/v1/schedules', request);
+  async createSchedule(
+    request: CreateScheduleRequest,
+    onUploadProgress?: (event: AxiosProgressEvent) => void
+  ): Promise<CreateScheduleResponse> {
+    const { data } = await this.client.post<CreateScheduleResponse>('/v1/schedules', request, {
+      onUploadProgress,
+    });
     return data;
   }
 
@@ -196,6 +204,25 @@ class ApiClient {
   async getFragmentation(scheduleId: number): Promise<FragmentationData> {
     const { data } = await this.client.get<FragmentationData>(
       `/v1/schedules/${scheduleId}/fragmentation`
+    );
+    return data;
+  }
+
+  async getScheduleKpis(scheduleId: number): Promise<ScheduleKpi> {
+    const { data } = await this.client.get<ScheduleKpi>(`/v1/schedules/${scheduleId}/kpis`);
+    return data;
+  }
+
+  async getEnvironmentKpis(environmentId: number): Promise<EnvironmentKpisResponse> {
+    const { data } = await this.client.get<EnvironmentKpisResponse>(
+      `/v1/environments/${environmentId}/kpis`
+    );
+    return data;
+  }
+
+  async getAlgorithmTrace(scheduleId: number): Promise<AlgorithmTraceResponse> {
+    const { data } = await this.client.get<AlgorithmTraceResponse>(
+      `/v1/schedules/${scheduleId}/algorithm_trace`
     );
     return data;
   }

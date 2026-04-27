@@ -14,11 +14,24 @@ use tower_http::{
     trace::TraceLayer,
 };
 
+use super::extensions::BackendExtensions;
 use super::handlers;
 use super::state::AppState;
 
-/// Create the main application router with all routes and middleware.
+/// Create the main application router with all routes and middleware,
+/// using the default (empty) [`BackendExtensions`].
 pub fn create_router(state: AppState) -> Router {
+    create_router_with_extensions(state, BackendExtensions::default())
+}
+
+/// Create the main application router with integrator-supplied
+/// extensions merged in.
+pub fn create_router_with_extensions(state: AppState, mut extensions: BackendExtensions) -> Router {
+    // Stash the (still-mutable) extensions clone on AppState so handlers
+    // can look up trace validators at request time. Routes are taken
+    // out below before the registry is shared.
+    let extra_routes = extensions.take_extra_routes();
+    let state = state.with_extensions(extensions);
     // CORS configuration - permissive for development, should be restricted in production
     let cors = CorsLayer::new()
         .allow_origin(Any)
@@ -88,6 +101,10 @@ pub fn create_router(state: AppState) -> Router {
             get(handlers::get_insights),
         )
         .route(
+            "/schedules/{schedule_id}/algorithm_trace",
+            get(handlers::get_algorithm_trace),
+        )
+        .route(
             "/schedules/{schedule_id}/fragmentation",
             get(handlers::get_fragmentation),
         )
@@ -99,7 +116,24 @@ pub fn create_router(state: AppState) -> Router {
         .route(
             "/schedules/{schedule_id}/compare/{other_id}",
             get(handlers::compare_schedules),
-        );
+        )
+        // KPI summaries (A1)
+        .route(
+            "/schedules/{schedule_id}/kpis",
+            get(handlers::get_schedule_kpis),
+        )
+        .route(
+            "/environments/{environment_id}/kpis",
+            get(handlers::get_environment_kpis),
+        )
+        // Diagnostics
+        .route("/_health/db", get(handlers::db_diagnostics));
+
+    // Merge integrator-contributed routes under the same `/v1` prefix.
+    let api_v1 = match extra_routes {
+        Some(extra) => api_v1.merge(extra),
+        None => api_v1,
+    };
 
     // Combine all routes
     Router::new()

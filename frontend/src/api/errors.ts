@@ -136,6 +136,20 @@ export function getErrorMessage(error: unknown): string {
 }
 
 /**
+ * Best-effort extraction of a human-readable error message from an unknown error.
+ * Prefers backend `response.data.message`, then `response.data.error`, then
+ * the standard `Error.message`. Falls back to a generic string.
+ */
+export function errorMessage(err: unknown): string {
+  const data = (err as { response?: { data?: { message?: string; error?: string } } } | null)
+    ?.response?.data;
+  if (data?.message) return data.message;
+  if (data?.error) return data.error;
+  if (err instanceof Error) return err.message;
+  return 'Unexpected error';
+}
+
+/**
  * Get error title for display.
  */
 export function getErrorTitle(error: unknown): string {

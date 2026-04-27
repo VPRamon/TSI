@@ -1,6 +1,7 @@
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { mjdToDate, isValidDate } from '@/constants/dates';
 import type { ScheduleAnalysisData } from '../hooks/useScheduleAnalysisData';
+import { groupEquivalentSchedules } from '../analytics';
 
 const PAGE_SIZE = 100;
 
@@ -153,20 +154,14 @@ interface MetricRow {
 
 const METRIC_ROWS: MetricRow[] = [
   {
-    label: 'Scheduled tasks',
-    getValue: (schedule) => schedule.insights?.metrics.scheduled_count ?? null,
-    format: (value) => (value == null ? '—' : value.toLocaleString()),
+    label: 'Scheduling rate',
+    getValue: (schedule) => schedule.insights?.metrics.scheduling_rate ?? null,
+    format: (value) => (value == null ? '—' : pct(value)),
     bestIs: 'max',
   },
   {
-    label: 'Unscheduled tasks',
-    getValue: (schedule) => schedule.insights?.metrics.unscheduled_count ?? null,
-    format: (value) => (value == null ? '—' : value.toLocaleString()),
-    bestIs: 'min',
-  },
-  {
-    label: 'Scheduling rate',
-    getValue: (schedule) => schedule.insights?.metrics.scheduling_rate ?? null,
+    label: 'Priority capture',
+    getValue: (schedule) => schedule.insights?.metrics.priority_capture_ratio ?? null,
     format: (value) => (value == null ? '—' : pct(value)),
     bestIs: 'max',
   },
@@ -174,9 +169,11 @@ const METRIC_ROWS: MetricRow[] = [
     label: 'Cumulative priority',
     getValue: (schedule) => {
       if (!schedule.insights) return null;
+      const sum = schedule.insights.metrics.sum_priority_scheduled;
+      if (typeof sum === 'number' && Number.isFinite(sum)) return sum;
       return schedule.insights.blocks
         .filter((block) => block.scheduled)
-        .reduce((sum, block) => sum + block.priority, 0);
+        .reduce((s, block) => s + block.priority, 0);
     },
     format: (value) => fmt2(value),
     bestIs: 'max',
@@ -229,7 +226,7 @@ function formatDelta(delta: number, row: MetricRow): string {
   const sign = delta >= 0 ? '+' : '−';
   const abs = Math.abs(delta);
 
-  if (row.label === 'Scheduling rate') {
+  if (row.label === 'Scheduling rate' || row.label === 'Priority capture') {
     return `${sign}${(abs * 100).toFixed(1)} pp`;
   }
 
@@ -242,11 +239,7 @@ function formatDelta(delta: number, row: MetricRow): string {
     return `${sign}${abs.toFixed(2)} h`;
   }
 
-  if (
-    row.label === 'Scheduled tasks' ||
-    row.label === 'Unscheduled tasks' ||
-    row.label === 'Gap count'
-  ) {
+  if (row.label === 'Gap count') {
     return `${sign}${Math.round(abs).toLocaleString()}`;
   }
 
@@ -281,6 +274,45 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
     () => METRIC_ROWS.find((row) => row.label === orderMetricLabel) ?? null,
     [orderMetricLabel]
   );
+
+  const equivalence = useMemo(
+    () => groupEquivalentSchedules(schedules, (s) => s.insights),
+    [schedules]
+  );
+
+  /**
+   * Within an environment every schedule shares the same task pool, so
+   * `total_observations` is a single number that belongs in the header
+   * rather than a per-column row.
+   */
+  const poolSize = useMemo(() => {
+    for (const s of schedules) {
+      const total = s.insights?.metrics.total_observations;
+      if (typeof total === 'number' && Number.isFinite(total)) return total;
+    }
+    return null;
+  }, [schedules]);
+
+  const equivalenceBadge = (id: number): ReactNode => {
+    const schedule = schedules.find((s) => s.id === id);
+    if (!schedule) return null;
+    const fp = equivalence.fingerprintOf.get(schedule);
+    if (!fp) return null;
+    const idx = equivalence.groupIndex.get(fp);
+    const group = idx != null ? equivalence.groups[idx] : null;
+    if (!group || group.members.length < 2) return null;
+    return (
+      <span
+        className="ml-1 rounded-sm bg-emerald-700/40 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-200"
+        title={`Same scheduled task set as: ${group.members
+          .filter((m) => m.id !== id)
+          .map((m) => m.name)
+          .join(', ')}`}
+      >
+        ≡ {String.fromCharCode(65 + (idx ?? 0))}
+      </span>
+    );
+  };
 
   const orderedComparisons = useMemo(() => {
     if (!selectedOrderMetric) return comparisons;
@@ -327,7 +359,11 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
 
   return (
     <ComparePanel
-      title="Summary Metrics"
+      title={
+        poolSize != null
+          ? `Summary Metrics · pool ${poolSize.toLocaleString()} tasks`
+          : 'Summary Metrics'
+      }
       headerActions={
         selectedOrderMetric ? (
           <button
@@ -350,6 +386,7 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
                 <div>
                   {reference.name}
                   <span className="ml-1 text-xs text-slate-500">#{reference.id}</span>
+                  {equivalenceBadge(reference.id)}
                 </div>
                 <div className="mt-0.5">
                   <span className="rounded-sm bg-sky-700/60 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-300">
@@ -361,6 +398,7 @@ export function SummaryTable({ schedules }: { schedules: ScheduleAnalysisData[] 
                 <th key={schedule.id} className="whitespace-nowrap px-3 py-2 text-right">
                   {schedule.name}
                   <span className="ml-1 text-xs text-slate-500">#{schedule.id}</span>
+                  {equivalenceBadge(schedule.id)}
                 </th>
               ))}
             </tr>

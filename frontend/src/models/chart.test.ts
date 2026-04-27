@@ -2,7 +2,7 @@
  * Tests for chart data view models.
  */
 import { describe, it, expect } from 'vitest';
-import type { ScatterData } from 'plotly.js';
+import type { ScatterData } from 'plotly.js-dist-min';
 import {
   createSkyMapScatterData,
   createHistogramData,

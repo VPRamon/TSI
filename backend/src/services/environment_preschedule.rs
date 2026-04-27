@@ -6,7 +6,7 @@
 
 use crate::api::{Period, Schedule};
 use crate::services::astronomical_night::compute_astronomical_nights;
-use crate::services::visibility_service::{compute_block_visibility, VisibilityInput};
+use crate::services::visibility::{compute_block_visibility, VisibilityInput};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

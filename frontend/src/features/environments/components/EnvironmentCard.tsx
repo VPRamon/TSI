@@ -1,5 +1,5 @@
 /**
- * One environment rendered as a card on the /advanced page.
+ * One environment rendered as a card on the /workspace page.
  */
 import { useNavigate } from 'react-router-dom';
 import { useSchedules } from '@/hooks';
@@ -24,10 +24,19 @@ export function EnvironmentCard({
   const navigate = useNavigate();
   const { data: schedulesData } = useSchedules();
   const nameById = new Map<number, string>();
-  schedulesData?.schedules.forEach((s) => nameById.set(s.schedule_id, s.schedule_name));
+  const algorithmById = new Map<number, string>();
+  schedulesData?.schedules.forEach((s) => {
+    nameById.set(s.schedule_id, s.schedule_name);
+    const algo = s.schedule_metadata?.algorithm?.trim();
+    if (algo) algorithmById.set(s.schedule_id, algo);
+  });
 
   const memberCount = environment.schedule_ids.length;
   const canCompare = memberCount >= 2;
+  const hasAlgorithmTrace = environment.schedule_ids.some((id) => {
+    const algo = algorithmById.get(id);
+    return algo && algo !== 'unknown';
+  });
 
   return (
     <section
@@ -89,6 +98,19 @@ export function EnvironmentCard({
             title={canCompare ? 'Open compare view' : 'Need at least 2 schedules to compare'}
           >
             Open compare
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/environments/${environment.environment_id}/algorithm`)}
+            disabled={!hasAlgorithmTrace}
+            className="rounded-lg border border-violet-500/60 bg-violet-600/30 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-600/50 disabled:cursor-not-allowed disabled:opacity-40"
+            title={
+              hasAlgorithmTrace
+                ? 'Open algorithm-specific dashboards'
+                : 'No member schedule has an algorithm trace yet'
+            }
+          >
+            Algorithm analysis →
           </button>
         </div>
         <button

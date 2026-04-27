@@ -3,7 +3,7 @@
  * Isolates expensive computations and ensures stable references.
  */
 import { useMemo } from 'react';
-import type { Data } from 'plotly.js';
+import type { Data } from 'plotly.js-dist-min';
 
 export interface HistogramBin {
   bin_start_unix: number;

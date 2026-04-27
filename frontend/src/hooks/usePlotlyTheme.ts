@@ -3,7 +3,7 @@
  * Provides consistent layout and config across all charts.
  */
 import { useMemo } from 'react';
-import type { Layout, Config } from 'plotly.js';
+import type { Layout, Config } from 'plotly.js-dist-min';
 import {
   BASE_LAYOUT,
   DEFAULT_AXIS_STYLE,

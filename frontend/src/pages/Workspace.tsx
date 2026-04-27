@@ -1,7 +1,7 @@
 /**
- * Advanced page — environment management.
+ * Workspace page — environment management.
  *
- * Hidden from the navigation bar but mounted at /advanced. Lists every
+ * Hidden from the navigation bar but mounted at /workspace. Lists every
  * environment as a card and provides:
  *   - "Create environment" with an optional bulk-import drop zone.
  *   - Per-card "Add schedules", "Open compare", "Unassign" and "Delete env".
@@ -70,7 +70,7 @@ function ConfirmDeleteDialog({
   );
 }
 
-function AdvancedPage() {
+function Workspace() {
   const { data, isLoading, error } = useEnvironments();
   const deleteEnv = useDeleteEnvironment();
   const removeSchedule = useRemoveScheduleFromEnvironment();
@@ -116,8 +116,8 @@ function AdvancedPage() {
   return (
     <PageContainer className="gap-6">
       <PageHeader
-        title="Environments"
-        description="Group schedules that share the same observatory, schedule period and blocks. The first uploaded schedule defines the structure; subsequent uploads must match."
+        title="Workspace"
+        description="Manage environments and algorithm analysis. Group schedules that share the same observatory, schedule period and blocks; the first uploaded schedule defines the structure and subsequent uploads must match."
         actions={
           <button
             type="button"
@@ -167,4 +167,4 @@ function AdvancedPage() {
   );
 }
 
-export default AdvancedPage;
+export default Workspace;

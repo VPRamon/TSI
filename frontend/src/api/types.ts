@@ -12,6 +12,21 @@ export interface ScheduleInfo {
   schedule_name: string;
   observer_location: GeographicLocation;
   schedule_period: { start_mjd: number; end_mjd: number };
+  /** Optional schedule-level algorithm metadata.  Populated by the
+   *  algorithm trace pipeline by joining `ScheduleInfo` with the trace's
+   *  `Started` event.  Schedules produced by algorithms that don't emit
+   *  a trace will have this unset. */
+  schedule_metadata?: ScheduleMetadata;
+}
+
+/**
+ * Compact algorithm provenance attached to a schedule.  The shape of
+ * `algorithm_config` is algorithm-specific and only interpreted by the
+ * matching frontend extension.
+ */
+export interface ScheduleMetadata {
+  algorithm: string;
+  algorithm_config?: Record<string, unknown>;
 }
 
 export interface ScheduleListResponse {
@@ -38,6 +53,11 @@ export interface CreateScheduleRequest {
    *  period inferred from the payload. Use when the file has no scheduled
    *  blocks or does not define the schedule window explicitly. */
   schedule_period_override?: SchedulePeriodOverride;
+  /** Optional algorithm trace (raw JSONL text) emitted alongside the
+   *  schedule by an algorithm-specific experiment runner.  When present,
+   *  the backend parses and persists it so algorithm-specific frontend
+   *  extensions can replay or visualise the search. */
+  algorithm_trace_jsonl?: string;
 }
 
 export interface SchedulePeriodOverride {
@@ -143,6 +163,7 @@ export interface BulkImportItem {
   name: string;
   schedule_json: unknown;
   location_override?: GeographicLocation;
+  algorithm_trace_jsonl?: string;
 }
 
 export interface BulkImportRequest {
@@ -164,6 +185,52 @@ export interface BulkImportRejected {
 export interface BulkImportResponse {
   created: BulkImportCreated[];
   rejected: BulkImportRejected[];
+}
+
+// =============================================================================
+// Schedule KPI Types (A1)
+// =============================================================================
+
+export interface KpiScoreComponents {
+  scheduling_rate: number;
+  scheduled_fraction_of_operable: number;
+  fit_visibility_utilisation: number;
+  priority_alignment: number;
+  gap_compactness: number;
+}
+
+export interface ScheduleKpi {
+  schedule_id: number;
+  schedule_name: string;
+  total_observations: number;
+  scheduled_count: number;
+  unscheduled_count: number;
+  operable_hours: number;
+  scheduled_hours: number;
+  idle_operable_hours: number;
+  gap_count: number;
+  gap_p90_hours: number;
+  largest_gap_hours: number;
+  scheduling_rate: number;
+  scheduled_fraction_of_operable: number;
+  fit_visibility_fraction_of_operable: number;
+  mean_priority_scheduled: number;
+  mean_priority_unscheduled: number;
+  /** `Σ priority(scheduled) / Σ priority(all)` ∈ [0, 1]; 0 when no priority mass. */
+  priority_capture_ratio: number;
+  composite_score: number;
+  score_components: KpiScoreComponents;
+}
+
+export interface EnvironmentKpiError {
+  schedule_id: number;
+  reason: string;
+}
+
+export interface EnvironmentKpisResponse {
+  environment_id: number;
+  kpis: ScheduleKpi[];
+  errors: EnvironmentKpiError[];
 }
 
 export interface DeleteEnvironmentResponse {
@@ -291,6 +358,12 @@ export interface AnalyticsMetrics {
   median_priority: number;
   mean_priority_scheduled: number;
   mean_priority_unscheduled: number;
+  /** `Σ priority(scheduled) / Σ priority(all)` ∈ [0, 1]; 0 when no priority mass. */
+  priority_capture_ratio: number;
+  /** Σ priority over scheduled blocks; numerator of `priority_capture_ratio`. */
+  sum_priority_scheduled: number;
+  /** Σ priority over all blocks; denominator of `priority_capture_ratio`. */
+  sum_priority_total: number;
   total_visibility_hours: number;
   mean_requested_hours: number;
 }
@@ -690,4 +763,36 @@ export interface ApiError {
   code: string;
   message: string;
   details?: string;
+}
+
+// =============================================================================
+// Algorithm Trace
+// =============================================================================
+
+/**
+ * One event from a per-schedule algorithm trace.
+ *
+ * The shape is intentionally opaque: TSI core does not interpret any
+ * field; algorithm-specific extensions cast the value to a richer shape
+ * they understand.
+ */
+export type AlgorithmTraceIteration = Record<string, unknown>;
+
+/**
+ * Run-level summary combining the algorithm configuration recorded in the
+ * `Started` event and the aggregates from the `Summary` event.
+ */
+export interface AlgorithmTraceSummary {
+  /** Algorithm identifier, e.g. `"est"`. */
+  algorithm: string;
+  /** Frozen algorithm configuration. Algorithm-specific shape. */
+  algorithm_config: Record<string, unknown>;
+  /** Forward-compatible: extra fields produced by the algorithm runner. */
+  [extra: string]: unknown;
+}
+
+export interface AlgorithmTraceResponse {
+  schedule_id: number;
+  summary: AlgorithmTraceSummary;
+  iterations: AlgorithmTraceIteration[];
 }

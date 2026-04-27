@@ -5,9 +5,8 @@ use crate::api::{
     AdvancedCompare, AdvancedCompareParams, AdvancedGlobalMetrics, CoherentBlock, CompareBlock,
     CompareData, CompareDiffBlock, CompareStats, RetimedBlockChange, SchedulingChange,
 };
-use crate::db::get_repository;
+use crate::db::FullRepository;
 use std::collections::{HashMap, HashSet};
-use tokio::runtime::Runtime;
 
 /// Retimed-block tolerance: treat scheduled boundaries as unchanged if both
 /// differ by less than one second (1 s = 1/86400 days in MJD).
@@ -682,7 +681,9 @@ fn build_coherent_block(idx: usize, indices: &[usize], timed: &[TimedTask]) -> C
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn get_compare_data(
+    repo: &(dyn FullRepository + 'static),
     current_schedule_id: crate::api::ScheduleId,
     comparison_schedule_id: crate::api::ScheduleId,
     current_name: String,
@@ -691,8 +692,6 @@ pub async fn get_compare_data(
     min_block_size: Option<usize>,
     merge_epsilon_minutes: Option<f64>,
 ) -> Result<CompareData, String> {
-    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
-
     let current_blocks = repo
         .fetch_compare_blocks(current_schedule_id)
         .await
@@ -716,27 +715,6 @@ pub async fn get_compare_data(
         min_block_size,
         merge_epsilon_minutes,
     )
-}
-
-pub fn py_get_compare_data(
-    current_schedule_id: crate::api::ScheduleId,
-    comparison_schedule_id: crate::api::ScheduleId,
-    current_name: String,
-    comparison_name: String,
-    epsilon_minutes: Option<f64>,
-    min_block_size: Option<usize>,
-    merge_epsilon_minutes: Option<f64>,
-) -> Result<CompareData, String> {
-    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
-    runtime.block_on(get_compare_data(
-        current_schedule_id,
-        comparison_schedule_id,
-        current_name,
-        comparison_name,
-        epsilon_minutes,
-        min_block_size,
-        merge_epsilon_minutes,
-    ))
 }
 
 #[cfg(test)]

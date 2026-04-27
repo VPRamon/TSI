@@ -5,10 +5,8 @@ use crate::api::{
     TrendsMetrics,
 };
 use std::collections::HashMap;
-use tokio::runtime::Runtime;
 
-// Import the global repository accessor
-use crate::db::{get_repository, services as db_services};
+use crate::db::{services as db_services, FullRepository};
 
 /// Compute overview metrics from trends blocks.
 pub(crate) fn compute_metrics(blocks: &[TrendsBlock]) -> TrendsMetrics {
@@ -390,13 +388,15 @@ pub fn compute_trends_data(
 ///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 pub async fn get_trends_data(
+    repo: &(dyn FullRepository + 'static),
     schedule_id: crate::api::ScheduleId,
     n_bins: usize,
     bandwidth: f64,
     n_smooth_points: usize,
 ) -> Result<TrendsData, String> {
-    // Get the initialized repository
-    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
+    db_services::ensure_analytics(repo, schedule_id)
+        .await
+        .map_err(|e| format!("Failed to ensure analytics: {}", e))?;
 
     // Fetch analytics-ready blocks with visibility and requested hours.
     let insight_blocks = repo
@@ -446,32 +446,6 @@ pub async fn get_trends_data(
     }
 
     compute_trends_data(blocks, n_bins, bandwidth, n_smooth_points)
-}
-
-/// Get complete trends data with computed analytics and metadata.
-///
-/// **Note**: Impossible blocks are automatically excluded.
-pub fn py_get_trends_data(
-    schedule_id: crate::api::ScheduleId,
-    n_bins: usize,
-    bandwidth: f64,
-    n_smooth_points: usize,
-) -> Result<TrendsData, String> {
-    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
-
-    // Ensure analytics are populated (if missing) before computing trends.
-    let repo = crate::db::get_repository().map_err(|e| format!("{}", e))?;
-
-    runtime
-        .block_on(db_services::ensure_analytics(repo.as_ref(), schedule_id))
-        .map_err(|e| format!("{}", e))?;
-
-    runtime.block_on(get_trends_data(
-        schedule_id,
-        n_bins,
-        bandwidth,
-        n_smooth_points,
-    ))
 }
 
 #[cfg(test)]

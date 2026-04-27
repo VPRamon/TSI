@@ -1,7 +1,7 @@
 /**
  * Chart data view models for Plotly visualizations.
  */
-import type { Data } from 'plotly.js';
+import type { Data } from 'plotly.js-dist-min';
 import { STATUS_COLORS } from '@/constants/colors';
 
 export interface ScatterPoint {

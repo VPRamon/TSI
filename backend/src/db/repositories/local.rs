@@ -53,6 +53,9 @@ struct LocalData {
     // Validation data
     validation_results: HashMap<i64, crate::api::ValidationReport>,
 
+    // Algorithm trace data: (algorithm, summary_json, iterations_json) keyed by schedule_id
+    algorithm_traces: HashMap<i64, (String, serde_json::Value, serde_json::Value)>,
+
     // Environment data
     environments: HashMap<
         i64,
@@ -1222,6 +1225,66 @@ impl crate::db::repository::EnvironmentRepository for LocalRepository {
         self.check_health()?;
         let data = self.data.read().unwrap();
         Ok(data.preschedule.get(&env_id).cloned())
+    }
+}
+
+#[async_trait]
+impl crate::db::repository::AlgorithmTraceRepository for LocalRepository {
+    async fn store_algorithm_trace(
+        &self,
+        schedule_id: ScheduleId,
+        algorithm: &str,
+        summary: &serde_json::Value,
+        iterations: &serde_json::Value,
+    ) -> RepositoryResult<()> {
+        self.check_health()?;
+        let mut data = self.data.write().unwrap();
+        data.algorithm_traces.insert(
+            schedule_id.0,
+            (algorithm.to_string(), summary.clone(), iterations.clone()),
+        );
+        Ok(())
+    }
+
+    async fn get_algorithm_trace(
+        &self,
+        schedule_id: ScheduleId,
+    ) -> RepositoryResult<Option<crate::api::AlgorithmTraceResponse>> {
+        self.check_health()?;
+        let data = self.data.read().unwrap();
+        let Some((algorithm, summary_json, iterations_json)) =
+            data.algorithm_traces.get(&schedule_id.0)
+        else {
+            return Ok(None);
+        };
+        let mut summary: crate::api::AlgorithmTraceSummary =
+            serde_json::from_value(summary_json.clone()).map_err(|e| {
+                RepositoryError::internal(format!("Failed to decode algorithm_trace summary: {e}"))
+            })?;
+        if summary.algorithm.is_empty() {
+            summary.algorithm = algorithm.clone();
+        }
+        let iterations: Vec<crate::api::AlgorithmTraceIteration> =
+            serde_json::from_value(iterations_json.clone()).map_err(|e| {
+                RepositoryError::internal(format!(
+                    "Failed to decode algorithm_trace iterations: {e}"
+                ))
+            })?;
+        Ok(Some(crate::api::AlgorithmTraceResponse {
+            schedule_id,
+            summary,
+            iterations,
+        }))
+    }
+
+    async fn list_algorithm_names(&self) -> RepositoryResult<Vec<(ScheduleId, String)>> {
+        self.check_health()?;
+        let data = self.data.read().unwrap();
+        Ok(data
+            .algorithm_traces
+            .iter()
+            .map(|(id, (algo, _, _))| (ScheduleId::new(*id), algo.clone()))
+            .collect())
     }
 }
 

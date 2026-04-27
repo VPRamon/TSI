@@ -15,7 +15,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@root/*": ["../../*"]
+      "@root/*": ["../../*"],
+      "tsi-extensions-pack": ["../../phd-extensions"]
     },
     "types": ["vite/client", "vitest/globals"]
   },

@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary, LoadingSpinner } from './components';
 import Layout from './components/Layout';
+import { extensions } from '@/extensions';
 
 // Lazy load pages for better initial bundle size
 const Landing = lazy(() => import('./pages/Landing'));
@@ -16,8 +17,9 @@ const Compare = lazy(() => import('./pages/Compare'));
 const VisibilityMap = lazy(() => import('./pages/VisibilityMap'));
 const AltAz = lazy(() => import('./pages/AltAz'));
 const ScheduleManagement = lazy(() => import('./pages/ScheduleManagement'));
-const Advanced = lazy(() => import('./pages/Advanced'));
+const Workspace = lazy(() => import('./pages/Workspace'));
 const EnvironmentCompare = lazy(() => import('./pages/EnvironmentCompare'));
+const AlgorithmAnalysis = lazy(() => import('./pages/AlgorithmAnalysis'));
 
 // Loading fallback component
 function PageLoader() {
@@ -35,9 +37,24 @@ function App() {
         <Routes>
           <Route path="/" element={<Layout />}>
             <Route index element={<Landing />} />
-            <Route path="advanced" element={<Advanced />} />
+            <Route path="workspace" element={<Workspace />} />
             <Route path="environments/:envId/compare" element={<EnvironmentCompare />} />
+            <Route
+              path="environments/:envId/algorithm"
+              element={<AlgorithmAnalysis />}
+            />
+            <Route
+              path="environments/:envId/algorithm/:algoId"
+              element={<AlgorithmAnalysis />}
+            />
+            <Route
+              path="environments/:envId/algorithm/:algoId/:tabId"
+              element={<AlgorithmAnalysis />}
+            />
             <Route path="manage" element={<ScheduleManagement />} />
+            {extensions.routes.map((route) => (
+              <Route key={route.path} path={route.path} element={route.element} />
+            ))}
             <Route path="schedules/:scheduleId">
               <Route path="sky-map" element={<SkyMap />} />
               <Route path="distributions" element={<Distributions />} />

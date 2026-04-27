@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatCreatedAt,
   formatStructureSummary,
+  prepareUploadFiles,
   sortEnvironmentsByRecency,
   validateScheduleJsonFile,
 } from './utils';
@@ -85,5 +86,66 @@ describe('formatCreatedAt', () => {
     const formatted = formatCreatedAt('2025-01-15T12:34:00Z');
     expect(formatted).not.toBe('2025-01-15T12:34:00Z');
     expect(formatted.length).toBeGreaterThan(0);
+  });
+});
+
+describe('prepareUploadFiles', () => {
+  const mkJson = (name: string, body: unknown) =>
+    new File([JSON.stringify(body)], name, { type: 'application/json' });
+  const mkJsonl = (name: string, body: string) =>
+    new File([body], name, { type: 'application/jsonl' });
+
+  it('pairs a schedule and its <stem>.<algo>_trace.jsonl trace', async () => {
+    const sched = mkJson('e1-k1-b1.json', { foo: 1 });
+    const trace = mkJsonl('e1-k1-b1.est_trace.jsonl', '{"kind":"started"}\n');
+    const result = await prepareUploadFiles([sched, trace]);
+    expect(result.entries).toHaveLength(1);
+    const e = result.entries[0];
+    expect(e.error).toBeUndefined();
+    expect(e.trace?.name).toBe('e1-k1-b1.est_trace.jsonl');
+    expect(e.item).not.toBeNull();
+    expect(e.item!.name).toBe('e1-k1-b1');
+    expect(e.item!.algorithm_trace_jsonl).toContain('started');
+    expect(result.orphanTraces).toEqual([]);
+  });
+
+  it('pairs a bare <stem>.jsonl trace too', async () => {
+    const sched = mkJson('plan.json', { foo: 1 });
+    const trace = mkJsonl('plan.jsonl', '{}');
+    const result = await prepareUploadFiles([sched, trace]);
+    expect(result.entries[0].trace?.name).toBe('plan.jsonl');
+    expect(result.orphanTraces).toEqual([]);
+  });
+
+  it('reports unmatched traces as orphans', async () => {
+    const sched = mkJson('a.json', {});
+    const orphan = mkJsonl('b.est_trace.jsonl', '{}');
+    const result = await prepareUploadFiles([sched, orphan]);
+    expect(result.entries[0].trace).toBeUndefined();
+    expect(result.orphanTraces.map((f) => f.name)).toEqual(['b.est_trace.jsonl']);
+  });
+
+  it('rejects unsupported file extensions', async () => {
+    const txt = new File(['hi'], 'notes.txt');
+    const result = await prepareUploadFiles([txt]);
+    expect(result.entries[0].item).toBeNull();
+    expect(result.entries[0].error).toMatch(/only \.json/);
+  });
+
+  it('marks malformed schedule JSON with an error and keeps the trace pairing', async () => {
+    const sched = new File(['not-json'], 'bad.json');
+    const trace = mkJsonl('bad.est_trace.jsonl', '{}');
+    const result = await prepareUploadFiles([sched, trace]);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].item).toBeNull();
+    expect(result.entries[0].error).toMatch(/bad\.json/);
+    expect(result.entries[0].trace?.name).toBe('bad.est_trace.jsonl');
+  });
+
+  it('omits algorithm_trace_jsonl when no trace is paired', async () => {
+    const sched = mkJson('solo.json', { foo: 1 });
+    const result = await prepareUploadFiles([sched]);
+    expect(result.entries[0].item).not.toBeNull();
+    expect(result.entries[0].item!.algorithm_trace_jsonl).toBeUndefined();
   });
 });

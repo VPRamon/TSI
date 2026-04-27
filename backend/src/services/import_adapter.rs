@@ -21,6 +21,35 @@ pub trait ScheduleImportAdapter: Send + Sync {
 
     /// Parse and normalize a raw payload into the canonical schedule model.
     fn parse_schedule(&self, raw_payload: &str) -> anyhow::Result<Schedule>;
+
+    /// Parse and normalize a JSON value into the canonical schedule model.
+    ///
+    /// The default implementation re-serialises the value and delegates to
+    /// [`Self::parse_schedule`]; adapters that already know how to consume a
+    /// `serde_json::Value` directly should override this to skip the
+    /// intermediate string round-trip (this is on the hot path for bulk
+    /// imports).
+    fn parse_schedule_value(&self, value: &serde_json::Value) -> anyhow::Result<Schedule> {
+        let raw = serde_json::to_string(value)?;
+        self.parse_schedule(&raw)
+    }
+
+    /// Parse the payload but skip any expensive astronomy work whose result
+    /// the caller intends to overwrite immediately (typically `dark_periods`,
+    /// `astronomical_nights`, and per-block `visibility_periods`).
+    ///
+    /// The default implementation simply delegates to [`Self::parse_schedule_value`];
+    /// adapters that compute these fields themselves (e.g. via solar/lunar
+    /// sweeps per item) should override this to short-circuit those passes.
+    /// This is called by the bulk-import handler after the first item has
+    /// produced an environment-level preschedule cache, so subsequent items
+    /// only need their structural fields populated.
+    fn parse_schedule_value_structural(
+        &self,
+        value: &serde_json::Value,
+    ) -> anyhow::Result<Schedule> {
+        self.parse_schedule_value(value)
+    }
 }
 
 /// Built-in adapter for TSI's native JSON format.

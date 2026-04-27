@@ -16,14 +16,12 @@
 
 use std::collections::HashMap;
 
-use tokio::runtime::Runtime;
-
 use crate::api::{
     FragmentationData, FragmentationGap, FragmentationMetrics, FragmentationSegment,
     FragmentationSegmentKind, ModifiedJulianDate, Period, ReasonBreakdownEntry, Schedule,
     ScheduleId, UnscheduledReason, UnscheduledReasonSummary, ValidationIssue, ValidationReport,
 };
-use crate::db::{get_repository, services as db_services};
+use crate::db::{services as db_services, FullRepository};
 use qtty::time::Hours;
 
 // =========================================================================
@@ -32,10 +30,11 @@ use qtty::time::Hours;
 
 /// Async version: ensures analytics, loads schedule + validation report, and
 /// computes the fragmentation view.
-pub async fn get_fragmentation_data(schedule_id: ScheduleId) -> Result<FragmentationData, String> {
-    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
-
-    db_services::ensure_analytics(repo.as_ref(), schedule_id)
+pub async fn get_fragmentation_data(
+    repo: &(dyn FullRepository + 'static),
+    schedule_id: ScheduleId,
+) -> Result<FragmentationData, String> {
+    db_services::ensure_analytics(repo, schedule_id)
         .await
         .map_err(|e| format!("Failed to ensure analytics: {}", e))?;
 
@@ -59,12 +58,6 @@ pub async fn get_fragmentation_data(schedule_id: ScheduleId) -> Result<Fragmenta
         });
 
     Ok(compute_fragmentation(&schedule, &validation))
-}
-
-/// Python/sync binding wrapper.
-pub fn py_get_fragmentation_data(schedule_id: ScheduleId) -> Result<FragmentationData, String> {
-    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
-    runtime.block_on(get_fragmentation_data(schedule_id))
 }
 
 // =========================================================================

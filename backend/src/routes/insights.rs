@@ -30,6 +30,21 @@ pub struct AnalyticsMetrics {
     pub median_priority: f64,
     pub mean_priority_scheduled: f64,
     pub mean_priority_unscheduled: f64,
+    /// Fraction of total request priority that ended up scheduled.
+    ///
+    /// Defined as `Σ priority(scheduled) / Σ priority(all)`; equals 0.0 when
+    /// the denominator is 0 (no observations, or every priority is 0). Lives
+    /// in `[0.0, 1.0]` for non-negative priorities. Replaces the older
+    /// `mean_priority_scheduled` as the primary "did the algorithm pick the
+    /// good ones?" signal: it does not penalise schedules that *also* pick up
+    /// extra low-priority work, and it does not reward fewer-but-higher-pri
+    /// schedules unfairly.
+    pub priority_capture_ratio: f64,
+    /// Σ priority across blocks where `scheduled = true` (numerator of
+    /// `priority_capture_ratio`).
+    pub sum_priority_scheduled: f64,
+    /// Σ priority across all blocks (denominator of `priority_capture_ratio`).
+    pub sum_priority_total: f64,
     pub total_visibility_hours: qtty::Hours,
     pub mean_requested_hours: qtty::Hours,
 }
@@ -134,6 +149,9 @@ mod tests {
             median_priority: 5.0,
             mean_priority_scheduled: 6.0,
             mean_priority_unscheduled: 4.5,
+            priority_capture_ratio: 0.65,
+            sum_priority_scheduled: 360.0,
+            sum_priority_total: 550.0,
             total_visibility_hours: qtty::Hours::new(500.0),
             mean_requested_hours: qtty::Hours::new(2.5),
         };
@@ -152,6 +170,9 @@ mod tests {
             median_priority: 5.0,
             mean_priority_scheduled: 6.0,
             mean_priority_unscheduled: 4.5,
+            priority_capture_ratio: 0.65,
+            sum_priority_scheduled: 360.0,
+            sum_priority_total: 550.0,
             total_visibility_hours: qtty::Hours::new(500.0),
             mean_requested_hours: qtty::Hours::new(2.5),
         };
@@ -213,6 +234,9 @@ mod tests {
                 median_priority: 0.0,
                 mean_priority_scheduled: 0.0,
                 mean_priority_unscheduled: 0.0,
+                priority_capture_ratio: 0.0,
+                sum_priority_scheduled: 0.0,
+                sum_priority_total: 0.0,
                 total_visibility_hours: qtty::Hours::new(0.0),
                 mean_requested_hours: qtty::Hours::new(0.0),
             },

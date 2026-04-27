@@ -4,12 +4,9 @@
 use crate::api;
 use crate::api::Period;
 use crate::db::models::ScheduleTimelineBlock;
+use crate::db::FullRepository;
 use chrono::TimeZone;
 use std::collections::HashSet;
-use tokio::runtime::Runtime;
-
-// Import the global repository accessor
-use crate::db::get_repository;
 
 /// Compute schedule timeline data with statistics and metadata.
 /// This function takes the raw blocks and computes everything needed for visualization.
@@ -85,12 +82,9 @@ pub fn compute_schedule_timeline_data(
 ///
 /// Uses the analytics table for optimal performance when available.
 pub async fn get_schedule_timeline_data(
+    repo: &(dyn FullRepository + 'static),
     schedule_id: crate::api::ScheduleId,
 ) -> Result<crate::api::ScheduleTimelineData, String> {
-    // Get the initialized repository
-    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
-
-    // Fetch timeline blocks from visualization repository
     let blocks = repo
         .fetch_schedule_timeline_blocks(schedule_id)
         .await
@@ -108,17 +102,6 @@ pub async fn get_schedule_timeline_data(
     };
 
     compute_schedule_timeline_data(blocks, dark_periods)
-}
-
-/// Get complete schedule timeline data with computed statistics and metadata.
-/// This is the main function for the schedule timeline feature, computing all statistics
-/// on the Rust side for maximum performance.
-pub fn py_get_schedule_timeline_data(
-    schedule_id: crate::api::ScheduleId,
-) -> Result<crate::api::ScheduleTimelineData, String> {
-    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
-
-    runtime.block_on(get_schedule_timeline_data(schedule_id))
 }
 
 #[cfg(test)]

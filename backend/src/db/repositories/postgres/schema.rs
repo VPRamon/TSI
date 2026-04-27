@@ -123,10 +123,22 @@ diesel::joinable!(schedule_blocks -> schedules (schedule_id));
 diesel::joinable!(schedule_summary_analytics -> schedules (schedule_id));
 diesel::joinable!(schedule_validation_results -> schedule_blocks (scheduling_block_id));
 diesel::joinable!(schedule_validation_results -> schedules (schedule_id));
+diesel::table! {
+    algorithm_traces (schedule_id) {
+        schedule_id -> Int8,
+        algorithm -> Text,
+        summary -> Jsonb,
+        iterations -> Jsonb,
+        created_at -> Timestamptz,
+    }
+}
+
 diesel::joinable!(schedules -> environments (environment_id));
 diesel::joinable!(environment_preschedule -> environments (environment_id));
+diesel::joinable!(algorithm_traces -> schedules (schedule_id));
 
 diesel::allow_tables_to_appear_in_same_query!(
+    algorithm_traces,
     environment_preschedule,
     environments,
     schedule_block_analytics,

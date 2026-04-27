@@ -12,6 +12,7 @@ use futures::stream::Stream;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::convert::Infallible;
+use std::sync::Arc;
 use std::time::Duration;
 
 use super::dto::{
@@ -23,6 +24,26 @@ use super::error::AppError;
 use super::state::AppState;
 use crate::api::{AltAzData, AltAzRequest, ScheduleId, SchedulingBlock};
 use crate::db::services as db_services;
+use crate::http::extensions::BackendExtensions;
+use crate::services::schedule_processor::TraceValidatorFn;
+
+/// Build a [`TraceValidatorFn`] from the registered backend extensions,
+/// or return `None` when no validators are registered. Run on the hot
+/// path of every schedule upload, so kept O(validators).
+fn build_trace_validator(extensions: Arc<BackendExtensions>) -> Option<TraceValidatorFn> {
+    if extensions.trace_validators.is_empty() {
+        return None;
+    }
+    Some(Arc::new(
+        move |algorithm: &str, summary: &serde_json::Value| {
+            if let Some(validator) = extensions.trace_validator_for(algorithm) {
+                validator.validate_summary(summary)
+            } else {
+                Ok(())
+            }
+        },
+    ))
+}
 
 /// Result type for handlers.
 pub type HandlerResult<T> = Result<Json<T>, AppError>;
@@ -186,6 +207,37 @@ pub async fn health_check(State(state): State<AppState>) -> HandlerResult<Health
     }))
 }
 
+/// GET /v1/_health/db
+///
+/// Diagnostics endpoint that surfaces the bulk-import latency ring buffer
+/// and current concurrency knob. Used to investigate "missing schedules"
+/// reports during bulk uploads (R1 instrumentation): a sudden jump in
+/// `duration_ms` or `rejected` count, or growth of `recorded_at_unix_ms`
+/// gaps, points at pool starvation or chunk-level failures. The endpoint
+/// is read-only and intentionally cheap (no DB round-trip).
+pub async fn db_diagnostics(
+    State(state): State<AppState>,
+) -> HandlerResult<super::dto::DbDiagnosticsResponse> {
+    let samples = state
+        .bulk_import_latencies
+        .snapshot()
+        .into_iter()
+        .map(|s| super::dto::BulkImportSampleDto {
+            duration_ms: s.duration_ms,
+            items: s.items,
+            created: s.created,
+            rejected: s.rejected,
+            concurrency: s.concurrency,
+            environment_id: s.environment_id,
+            recorded_at_unix_ms: s.recorded_at_unix_ms,
+        })
+        .collect::<Vec<_>>();
+    Ok(Json(super::dto::DbDiagnosticsResponse {
+        bulk_import_concurrency: state.bulk_import_concurrency,
+        recent_bulk_imports: samples,
+    }))
+}
+
 // =============================================================================
 // Schedule CRUD
 // =============================================================================
@@ -195,8 +247,27 @@ pub async fn health_check(State(state): State<AppState>) -> HandlerResult<Health
 /// List all schedules in the database.
 pub async fn list_schedules(State(state): State<AppState>) -> HandlerResult<ScheduleListResponse> {
     let schedules = db_services::list_schedules(state.repository.as_ref()).await?;
+    let algo_names = db_services::list_algorithm_names(state.repository.as_ref()).await?;
 
-    let schedule_dtos: Vec<ScheduleInfoDto> = schedules.into_iter().map(Into::into).collect();
+    // Build a lookup map: schedule_id → algorithm name
+    let algo_map: std::collections::HashMap<i64, String> = algo_names
+        .into_iter()
+        .map(|(id, algo)| (id.value(), algo))
+        .collect();
+
+    let schedule_dtos: Vec<ScheduleInfoDto> = schedules
+        .into_iter()
+        .map(|info| {
+            let id = info.schedule_id.value();
+            let mut dto: ScheduleInfoDto = info.into();
+            if let Some(algo) = algo_map.get(&id) {
+                dto.schedule_metadata = Some(super::dto::ScheduleMetadataDto {
+                    algorithm: algo.clone(),
+                });
+            }
+            dto
+        })
+        .collect();
     let total = schedule_dtos.len();
 
     Ok(Json(ScheduleListResponse {
@@ -303,6 +374,8 @@ pub async fn create_schedule(
     let schedule_name = request.name.clone();
     let populate_analytics = request.populate_analytics;
     let period_override = request.schedule_period_override.clone();
+    let algorithm_trace_jsonl = request.algorithm_trace_jsonl.clone();
+    let trace_validator = build_trace_validator(state.extensions.clone());
 
     tokio::spawn(async move {
         let _ = crate::services::schedule_processor::process_schedule_async(
@@ -314,6 +387,8 @@ pub async fn create_schedule(
             schedule_json_str,
             populate_analytics,
             period_override,
+            algorithm_trace_jsonl,
+            trace_validator,
         )
         .await;
     });
@@ -399,19 +474,13 @@ pub async fn update_schedule(
 ///
 /// Get sky map visualization data for a schedule.
 pub async fn get_sky_map(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::SkyMapData> {
     let schedule_id = ScheduleId::new(schedule_id);
-
-    // Use the sync version wrapped in spawn_blocking for CPU-intensive work
-    let data = tokio::task::spawn_blocking(move || {
-        crate::services::py_get_sky_map_data_analytics(schedule_id)
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-    .map_err(|e| AppError::Internal(e.to_string()))?;
-
+    let data = crate::services::sky_map::get_sky_map_data(state.repository.as_ref(), schedule_id)
+        .await
+        .map_err(AppError::Internal)?;
     Ok(Json(data))
 }
 
@@ -419,18 +488,16 @@ pub async fn get_sky_map(
 ///
 /// Get distribution analysis data for a schedule.
 pub async fn get_distributions(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::DistributionData> {
     let schedule_id = ScheduleId::new(schedule_id);
-
-    let data = tokio::task::spawn_blocking(move || {
-        crate::services::py_get_distribution_data_analytics(schedule_id)
-    })
+    let data = crate::services::distributions::get_distribution_data(
+        state.repository.as_ref(),
+        schedule_id,
+    )
     .await
-    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-    .map_err(|e| AppError::Internal(e.to_string()))?;
-
+    .map_err(AppError::Internal)?;
     Ok(Json(data))
 }
 
@@ -544,36 +611,51 @@ pub async fn compute_alt_az(
 ///
 /// Get timeline visualization data for a schedule.
 pub async fn get_timeline(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::ScheduleTimelineData> {
     let schedule_id = ScheduleId::new(schedule_id);
-
-    let data = tokio::task::spawn_blocking(move || {
-        crate::services::py_get_schedule_timeline_data(schedule_id)
-    })
+    let data = crate::services::timeline::get_schedule_timeline_data(
+        state.repository.as_ref(),
+        schedule_id,
+    )
     .await
-    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-    .map_err(|e| AppError::Internal(e.to_string()))?;
-
+    .map_err(AppError::Internal)?;
     Ok(Json(data))
+}
+
+/// GET /v1/schedules/{schedule_id}/algorithm_trace
+///
+/// Get the algorithm trace for a schedule. Returns 404 if the schedule
+/// has no trace (e.g. it was produced by an algorithm that does not emit
+/// one).
+pub async fn get_algorithm_trace(
+    State(state): State<AppState>,
+    Path(schedule_id): Path<i64>,
+) -> HandlerResult<crate::api::AlgorithmTraceResponse> {
+    let schedule_id = ScheduleId::new(schedule_id);
+    let trace = db_services::get_algorithm_trace(state.repository.as_ref(), schedule_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| {
+            AppError::NotFound(format!(
+                "No algorithm trace stored for schedule {schedule_id}"
+            ))
+        })?;
+    Ok(Json(trace))
 }
 
 /// GET /v1/schedules/{schedule_id}/insights
 ///
 /// Get insights analysis data for a schedule.
 pub async fn get_insights(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::InsightsData> {
     let schedule_id = ScheduleId::new(schedule_id);
-
-    let data =
-        tokio::task::spawn_blocking(move || crate::services::py_get_insights_data(schedule_id))
-            .await
-            .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-
+    let data = crate::services::insights::get_insights_data(state.repository.as_ref(), schedule_id)
+        .await
+        .map_err(AppError::Internal)?;
     Ok(Json(data))
 }
 
@@ -581,26 +663,80 @@ pub async fn get_insights(
 ///
 /// Get fragmentation analysis data for a schedule.
 pub async fn get_fragmentation(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::FragmentationData> {
     let schedule_id = ScheduleId::new(schedule_id);
-
-    let data = tokio::task::spawn_blocking(move || {
-        crate::services::py_get_fragmentation_data(schedule_id)
-    })
+    let data = crate::services::fragmentation::get_fragmentation_data(
+        state.repository.as_ref(),
+        schedule_id,
+    )
     .await
-    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-    .map_err(|e| AppError::Internal(e.to_string()))?;
-
+    .map_err(AppError::Internal)?;
     Ok(Json(data))
+}
+
+/// GET /v1/schedules/{schedule_id}/kpis
+///
+/// Compact KPI summary for a single schedule (A1). Backed by the
+/// `schedule_kpis` service, which composes the existing insights and
+/// fragmentation analytics into the small shape consumed by the
+/// Workspace verdict / delta / evolution UIs.
+pub async fn get_schedule_kpis(
+    State(state): State<AppState>,
+    Path(schedule_id): Path<i64>,
+) -> HandlerResult<crate::services::schedule_kpis::ScheduleKpi> {
+    let sid = ScheduleId::new(schedule_id);
+    let kpi = crate::services::schedule_kpis::compute_kpi_summary(state.repository.as_ref(), sid)
+        .await
+        .map_err(AppError::Internal)?;
+    Ok(Json(kpi))
+}
+
+/// GET /v1/environments/{environment_id}/kpis
+///
+/// Batched KPI summaries for every schedule assigned to the given
+/// environment. Per-schedule failures are collected in `errors` so a
+/// single broken schedule does not blank out the whole comparison page.
+pub async fn get_environment_kpis(
+    State(state): State<AppState>,
+    Path(environment_id): Path<i64>,
+) -> HandlerResult<crate::services::schedule_kpis::EnvironmentKpisResponse> {
+    use crate::services::schedule_kpis::{
+        compute_kpi_summary, EnvironmentKpiError, EnvironmentKpisResponse,
+    };
+
+    let env = state
+        .repository
+        .get_environment(environment_id)
+        .await
+        .map_err(|e| AppError::Internal(e.to_string()))?
+        .ok_or_else(|| AppError::NotFound(format!("Environment {} not found", environment_id)))?;
+
+    let mut kpis = Vec::with_capacity(env.schedule_ids.len());
+    let mut errors = Vec::new();
+    for sid in env.schedule_ids.clone() {
+        match compute_kpi_summary(state.repository.as_ref(), sid).await {
+            Ok(kpi) => kpis.push(kpi),
+            Err(reason) => errors.push(EnvironmentKpiError {
+                schedule_id: sid.value(),
+                reason,
+            }),
+        }
+    }
+
+    Ok(Json(EnvironmentKpisResponse {
+        environment_id,
+        kpis,
+        errors,
+    }))
 }
 
 /// GET /v1/schedules/{schedule_id}/trends
 ///
 /// Get trends analysis data for a schedule.
 pub async fn get_trends(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(schedule_id): Path<i64>,
     Query(query): Query<TrendsQuery>,
 ) -> HandlerResult<crate::api::TrendsData> {
@@ -609,13 +745,15 @@ pub async fn get_trends(
     let bandwidth = query.bandwidth.unwrap_or(0.5);
     let n_smooth_points = query.points.unwrap_or(12);
 
-    let data = tokio::task::spawn_blocking(move || {
-        crate::services::py_get_trends_data(schedule_id, n_bins, bandwidth, n_smooth_points)
-    })
+    let data = crate::services::trends::get_trends_data(
+        state.repository.as_ref(),
+        schedule_id,
+        n_bins,
+        bandwidth,
+        n_smooth_points,
+    )
     .await
-    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-    .map_err(|e| AppError::Internal(e.to_string()))?;
-
+    .map_err(AppError::Internal)?;
     Ok(Json(data))
 }
 
@@ -623,17 +761,14 @@ pub async fn get_trends(
 ///
 /// Get validation report for a schedule.
 pub async fn get_validation_report(
-    State(_state): State<AppState>,
+    State(state): State<AppState>,
     Path(schedule_id): Path<i64>,
 ) -> HandlerResult<crate::api::ValidationReport> {
     let schedule_id = ScheduleId::new(schedule_id);
-
     let data =
-        tokio::task::spawn_blocking(move || crate::services::py_get_validation_report(schedule_id))
+        crate::services::validation::get_validation_report(state.repository.as_ref(), schedule_id)
             .await
-            .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-            .map_err(|e| AppError::Internal(e.to_string()))?;
-
+            .map_err(AppError::Internal)?;
     Ok(Json(data))
 }
 
@@ -668,20 +803,18 @@ pub async fn compare_schedules(
             .unwrap_or_else(|| format!("Schedule #{}", other_id)),
     };
 
-    let data = tokio::task::spawn_blocking(move || {
-        crate::services::py_get_compare_data(
-            current_id,
-            comparison_id,
-            current_name,
-            comparison_name,
-            query.epsilon_minutes,
-            query.min_block_size,
-            query.merge_epsilon_minutes,
-        )
-    })
+    let data = crate::services::compare::get_compare_data(
+        state.repository.as_ref(),
+        current_id,
+        comparison_id,
+        current_name,
+        comparison_name,
+        query.epsilon_minutes,
+        query.min_block_size,
+        query.merge_epsilon_minutes,
+    )
     .await
-    .map_err(|e| AppError::Internal(format!("Task join error: {}", e)))?
-    .map_err(|e| AppError::Internal(e.to_string()))?;
+    .map_err(AppError::Internal)?;
 
     Ok(Json(data))
 }
@@ -819,7 +952,7 @@ pub async fn create_environment(
         .repository
         .create_environment(&req.name)
         .await
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+        .map_err(AppError::from)?;
 
     Ok(Json(environment.into()))
 }
@@ -856,35 +989,212 @@ pub async fn bulk_import_schedules(
     Json(req): Json<super::dto::EnvironmentBulkImportRequest>,
 ) -> HandlerResult<super::dto::EnvironmentBulkImportResponse> {
     use super::dto::{
-        EnvironmentBulkImportCreated, EnvironmentBulkImportRejected, EnvironmentBulkImportResponse,
+        EnvironmentBulkImportCreated, EnvironmentBulkImportItem, EnvironmentBulkImportRejected,
+        EnvironmentBulkImportResponse,
     };
+    use crate::api::EnvironmentStructure;
     use crate::models::schedule::compute_schedule_checksum;
     use crate::services::environment_preschedule::{
         apply_to_schedule, compute_env_preschedule, EnvPreschedulePayload,
     };
     use crate::services::environment_structure::{matches, structure_from_schedule};
+    use futures::stream::{self, StreamExt};
+    use std::time::Instant;
+
+    /// Outcome for a single bulk-import item; an item can produce up to one
+    /// `created` entry and any number of `rejected` entries (the optional
+    /// algorithm-trace step contributes a synthetic `.trace` rejection on
+    /// failure).
+    struct ItemOutcome {
+        created: Option<EnvironmentBulkImportCreated>,
+        rejected: Vec<EnvironmentBulkImportRejected>,
+    }
+
+    impl ItemOutcome {
+        fn empty() -> Self {
+            Self {
+                created: None,
+                rejected: Vec::new(),
+            }
+        }
+
+        fn rejected_one(name: String, reason: String, mismatch_fields: Vec<String>) -> Self {
+            Self {
+                created: None,
+                rejected: vec![EnvironmentBulkImportRejected {
+                    name,
+                    reason,
+                    mismatch_fields,
+                }],
+            }
+        }
+    }
 
     // Verify the environment exists up-front so we can return 404 early.
-    let env_exists = state
+    let request_started_at = Instant::now();
+    let env = state
         .repository
         .get_environment(environment_id)
         .await
         .map_err(|e| AppError::Internal(e.to_string()))?
-        .is_some();
-    if !env_exists {
-        return Err(AppError::NotFound(format!(
-            "Environment {} not found",
-            environment_id
-        )));
-    }
+        .ok_or_else(|| AppError::NotFound(format!("Environment {} not found", environment_id)))?;
 
     let mut created: Vec<EnvironmentBulkImportCreated> = Vec::new();
     let mut rejected: Vec<EnvironmentBulkImportRejected> = Vec::new();
 
-    for item in req.items.into_iter() {
-        let item_name = item.name.trim().to_string();
+    let items = req.items;
+    let total_items = items.len();
+    if items.is_empty() {
+        return Ok(Json(EnvironmentBulkImportResponse { created, rejected }));
+    }
+    tracing::info!(
+        environment_id = environment_id,
+        items = total_items,
+        concurrency = state.bulk_import_concurrency,
+        "bulk_import_schedules: start"
+    );
 
-        // Step 1: apply optional location override to the JSON payload.
+    // Phase A hoist: structure + preschedule are constant within a request,
+    // so we resolve them once and share a single Arc with all worker tasks.
+    let mut env_structure = env.structure.clone();
+    let mut cached_preschedule: Option<EnvPreschedulePayload> = None;
+
+    // Bootstrap: if the environment is empty, we must initialise its
+    // structure from the first parseable item *before* running anything in
+    // parallel — concurrent workers would otherwise race on
+    // `initialise_environment` and `compute_env_preschedule`.
+    let mut bootstrap_outcomes: Vec<(usize, ItemOutcome)> = Vec::new();
+    let mut remaining: Vec<(usize, EnvironmentBulkImportItem)> =
+        items.into_iter().enumerate().collect();
+
+    if env_structure.is_none() {
+        // Walk items in order until one parses successfully; report
+        // failures inline so item ordering in the response is preserved.
+        let mut consumed = 0usize;
+        while consumed < remaining.len() {
+            let (idx, item) = &remaining[consumed];
+            let item_name = item.name.trim().to_string();
+            let mut schedule_json = item.schedule_json.clone();
+            if let Some(ref loc) = item.location_override {
+                if let Ok(loc_value) = serde_json::to_value(loc) {
+                    if let Some(obj) = schedule_json.as_object_mut() {
+                        obj.insert("geographic_location".to_string(), loc_value);
+                    }
+                }
+            }
+            match state.import_adapter.parse_schedule_value(&schedule_json) {
+                Ok(mut schedule) => {
+                    if !item_name.is_empty() {
+                        schedule.name = item_name.clone();
+                    }
+                    let new_structure = structure_from_schedule(&schedule);
+                    let preschedule_payload = compute_env_preschedule(&schedule);
+                    let payload_json = match serde_json::to_value(&preschedule_payload) {
+                        Ok(v) => v,
+                        Err(e) => {
+                            bootstrap_outcomes.push((
+                                *idx,
+                                ItemOutcome::rejected_one(
+                                    item_name,
+                                    format!("Failed to serialise preschedule: {}", e),
+                                    vec![],
+                                ),
+                            ));
+                            consumed += 1;
+                            continue;
+                        }
+                    };
+                    if let Err(e) = state
+                        .repository
+                        .initialise_environment(environment_id, &new_structure, &payload_json)
+                        .await
+                    {
+                        bootstrap_outcomes.push((
+                            *idx,
+                            ItemOutcome::rejected_one(
+                                item_name,
+                                format!("Failed to initialise environment: {}", e),
+                                vec![],
+                            ),
+                        ));
+                        consumed += 1;
+                        continue;
+                    }
+                    env_structure = Some(new_structure);
+                    cached_preschedule = Some(preschedule_payload);
+                    break;
+                }
+                Err(e) => {
+                    bootstrap_outcomes.push((
+                        *idx,
+                        ItemOutcome::rejected_one(
+                            item_name,
+                            format!("Failed to parse schedule: {}", e),
+                            vec![],
+                        ),
+                    ));
+                    consumed += 1;
+                }
+            }
+        }
+        // Drop the items we already accounted for during bootstrap.
+        remaining.drain(0..consumed);
+    }
+
+    // If structure is *still* missing (every bootstrap item failed to
+    // parse), there's nothing left to do; surface what we have.
+    let structure = match env_structure {
+        Some(s) => Arc::new(s),
+        None => {
+            for (_, out) in bootstrap_outcomes {
+                created.extend(out.created);
+                rejected.extend(out.rejected);
+            }
+            return Ok(Json(EnvironmentBulkImportResponse { created, rejected }));
+        }
+    };
+
+    // Load the preschedule if we didn't just compute it locally during
+    // bootstrap. This single fetch replaces what used to be one per item.
+    if cached_preschedule.is_none() {
+        let cached = match state.repository.get_preschedule(environment_id).await {
+            Ok(Some(v)) => v,
+            Ok(None) => {
+                rejected.push(EnvironmentBulkImportRejected {
+                    name: String::new(),
+                    reason: format!("Environment {} has no cached preschedule", environment_id),
+                    mismatch_fields: vec![],
+                });
+                for (_, out) in bootstrap_outcomes {
+                    created.extend(out.created);
+                    rejected.extend(out.rejected);
+                }
+                return Ok(Json(EnvironmentBulkImportResponse { created, rejected }));
+            }
+            Err(e) => return Err(AppError::Internal(e.to_string())),
+        };
+        cached_preschedule = Some(
+            serde_json::from_value::<EnvPreschedulePayload>(cached)
+                .map_err(|e| AppError::Internal(format!("Cached preschedule invalid: {e}")))?,
+        );
+    }
+    let preschedule = Arc::new(cached_preschedule.unwrap());
+
+    /// Process one item end-to-end: parse, apply preschedule, store
+    /// schedule + analytics, assign to environment, optionally store the
+    /// algorithm trace. Pure function of the inputs (no shared mutable
+    /// state) so it is safe to run concurrently with peers.
+    async fn process_item(
+        state: AppState,
+        environment_id: i64,
+        structure: Arc<EnvironmentStructure>,
+        preschedule: Arc<EnvPreschedulePayload>,
+        item: EnvironmentBulkImportItem,
+    ) -> ItemOutcome {
+        let item_name = item.name.trim().to_string();
+        let algorithm_trace_jsonl = item.algorithm_trace_jsonl;
+
+        // Step 1: optional location override (mutate the Value in place).
         let mut schedule_json = item.schedule_json;
         if let Some(ref loc) = item.location_override {
             match serde_json::to_value(loc) {
@@ -894,162 +1204,83 @@ pub async fn bulk_import_schedules(
                     }
                 }
                 Err(e) => {
-                    rejected.push(EnvironmentBulkImportRejected {
-                        name: item_name,
-                        reason: format!("Invalid location override: {}", e),
-                        mismatch_fields: vec![],
-                    });
-                    continue;
+                    return ItemOutcome::rejected_one(
+                        item_name,
+                        format!("Invalid location override: {}", e),
+                        vec![],
+                    );
                 }
             }
         }
 
-        let schedule_json_str = match serde_json::to_string(&schedule_json) {
+        // Step 2: parse via the adapter directly from the Value. Bulk-import
+        // uses the structural fast path: the block visibility, dark periods,
+        // and astronomical nights are about to be overwritten from the env
+        // preschedule, so adapters can skip the per-item astronomy work.
+        let mut schedule = match state
+            .import_adapter
+            .parse_schedule_value_structural(&schedule_json)
+        {
             Ok(s) => s,
             Err(e) => {
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: format!("Invalid schedule JSON: {}", e),
-                    mismatch_fields: vec![],
-                });
-                continue;
+                return ItemOutcome::rejected_one(
+                    item_name,
+                    format!("Failed to parse schedule: {}", e),
+                    vec![],
+                );
             }
         };
 
-        // Step 2: parse via the configured import adapter.
-        let mut schedule = match state.import_adapter.parse_schedule(&schedule_json_str) {
-            Ok(s) => s,
-            Err(e) => {
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: format!("Failed to parse schedule: {}", e),
-                    mismatch_fields: vec![],
-                });
-                continue;
-            }
-        };
-
-        // Step 3: apply user-provided name and recompute checksum, mirroring
-        // the single-schedule flow in `process_schedule_async`.
+        // Step 3: apply user-provided name and recompute checksum from the
+        // canonical (post-override) payload.
         if !item_name.is_empty() {
             schedule.name = item_name.clone();
         }
-        schedule.checksum =
-            compute_schedule_checksum(&format!("{}:{}", schedule.name, schedule_json_str));
-
-        // Step 4: reload environment state and either initialise structure
-        // or verify the schedule matches the existing structure.
-        let env = match state.repository.get_environment(environment_id).await {
-            Ok(Some(env)) => env,
-            Ok(None) => {
-                // Environment vanished mid-batch; report and stop processing.
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: format!("Environment {} no longer exists", environment_id),
-                    mismatch_fields: vec![],
-                });
-                break;
-            }
+        let canonical_payload = match serde_json::to_string(&schedule_json) {
+            Ok(s) => s,
             Err(e) => {
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: format!("Failed to load environment: {}", e),
-                    mismatch_fields: vec![],
-                });
-                continue;
+                return ItemOutcome::rejected_one(
+                    item_name,
+                    format!("Failed to serialise canonical payload: {}", e),
+                    vec![],
+                );
             }
         };
+        schedule.checksum =
+            compute_schedule_checksum(&format!("{}:{}", schedule.name, canonical_payload));
 
-        if let Some(structure) = env.structure.as_ref() {
-            if let Err(mismatch) = matches(structure, &schedule) {
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: mismatch.to_string(),
-                    mismatch_fields: mismatch.fields.clone(),
-                });
-                continue;
-            }
-        } else {
-            let new_structure = structure_from_schedule(&schedule);
-            let preschedule_payload = compute_env_preschedule(&schedule);
-            let payload_json = match serde_json::to_value(&preschedule_payload) {
-                Ok(v) => v,
-                Err(e) => {
-                    rejected.push(EnvironmentBulkImportRejected {
-                        name: item_name,
-                        reason: format!("Failed to serialise preschedule: {}", e),
-                        mismatch_fields: vec![],
-                    });
-                    continue;
-                }
-            };
-            if let Err(e) = state
-                .repository
-                .initialise_environment(environment_id, &new_structure, &payload_json)
-                .await
-            {
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: format!("Failed to initialise environment: {}", e),
-                    mismatch_fields: vec![],
-                });
-                continue;
-            }
+        // Step 4: validate against the shared structure.
+        if let Err(mismatch) = matches(&structure, &schedule) {
+            return ItemOutcome::rejected_one(
+                item_name,
+                mismatch.to_string(),
+                mismatch.fields.clone(),
+            );
         }
 
-        // Step 5/6: pull the cached preschedule payload and apply it so the
-        // schedule's per-block visibility, astronomical nights, and dark
-        // periods come from the cache instead of being recomputed.
-        let cached = match state.repository.get_preschedule(environment_id).await {
-            Ok(Some(v)) => v,
-            Ok(None) => {
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: format!("Environment {} has no cached preschedule", environment_id),
-                    mismatch_fields: vec![],
-                });
-                continue;
-            }
-            Err(e) => {
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: format!("Failed to load preschedule cache: {}", e),
-                    mismatch_fields: vec![],
-                });
-                continue;
-            }
-        };
-        let payload: EnvPreschedulePayload = match serde_json::from_value(cached) {
-            Ok(p) => p,
-            Err(e) => {
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: format!("Cached preschedule is invalid: {}", e),
-                    mismatch_fields: vec![],
-                });
-                continue;
-            }
-        };
-        apply_to_schedule(&mut schedule, &payload);
-        schedule.astronomical_nights = payload.astronomical_nights.clone();
-        schedule.dark_periods = payload.astronomical_nights.clone();
+        // Step 5/6: apply the cached preschedule.
+        apply_to_schedule(&mut schedule, &preschedule);
+        schedule.astronomical_nights = preschedule.astronomical_nights.clone();
+        schedule.dark_periods = preschedule.astronomical_nights.clone();
 
-        // Step 7: store the schedule (with analytics population enabled).
+        // Step 7: store the schedule. Analytics are deferred: the
+        // `/insights` and friends already call `ensure_analytics` on read,
+        // so populating per-item synchronously here just inflates upload
+        // latency for users who may never view every uploaded schedule.
         let stored = match db_services::store_schedule_with_options(
             state.repository.as_ref(),
             &schedule,
-            true,
+            false,
         )
         .await
         {
             Ok(meta) => meta,
             Err(e) => {
-                rejected.push(EnvironmentBulkImportRejected {
-                    name: item_name,
-                    reason: format!("Failed to store schedule: {}", e),
-                    mismatch_fields: vec![],
-                });
-                continue;
+                return ItemOutcome::rejected_one(
+                    item_name,
+                    format!("Failed to store schedule: {}", e),
+                    vec![],
+                );
             }
         };
 
@@ -1059,19 +1290,143 @@ pub async fn bulk_import_schedules(
             .assign_schedule(stored.schedule_id, environment_id)
             .await
         {
-            rejected.push(EnvironmentBulkImportRejected {
-                name: item_name,
-                reason: format!("Failed to assign schedule to environment: {}", e),
-                mismatch_fields: vec![],
-            });
-            continue;
+            return ItemOutcome::rejected_one(
+                item_name,
+                format!("Failed to assign schedule to environment: {}", e),
+                vec![],
+            );
         }
 
-        created.push(EnvironmentBulkImportCreated {
+        let mut outcome = ItemOutcome::empty();
+        outcome.created = Some(EnvironmentBulkImportCreated {
             schedule_id: stored.schedule_id.value(),
             name: stored.schedule_name,
         });
+
+        // Step 9: persist optional algorithm trace.
+        if let Some(trace_text) = algorithm_trace_jsonl {
+            match crate::services::schedule_processor::parse_algorithm_trace_jsonl(&trace_text) {
+                Ok((algorithm, summary, iterations)) => {
+                    if let Some(validator) = state.extensions.trace_validator_for(&algorithm) {
+                        if let Err(e) = validator.validate_summary(&summary) {
+                            outcome.rejected.push(EnvironmentBulkImportRejected {
+                                name: format!("{}.trace", item_name),
+                                reason: format!(
+                                    "Algorithm trace validation failed for `{algorithm}`: {e}"
+                                ),
+                                mismatch_fields: vec![],
+                            });
+                            return outcome;
+                        }
+                    }
+                    if let Err(e) = state
+                        .repository
+                        .store_algorithm_trace(
+                            stored.schedule_id,
+                            &algorithm,
+                            &summary,
+                            &iterations,
+                        )
+                        .await
+                    {
+                        outcome.rejected.push(EnvironmentBulkImportRejected {
+                            name: format!("{}.trace", item_name),
+                            reason: format!("Failed to store algorithm trace: {e}"),
+                            mismatch_fields: vec![],
+                        });
+                    }
+                }
+                Err(e) => {
+                    outcome.rejected.push(EnvironmentBulkImportRejected {
+                        name: format!("{}.trace", item_name),
+                        reason: format!("Failed to parse algorithm trace JSONL: {e}"),
+                        mismatch_fields: vec![],
+                    });
+                }
+            }
+        }
+
+        outcome
     }
+
+    // Parallel fan-out. `buffered` preserves the original item order in the
+    // response while keeping at most `concurrency` items in flight against
+    // the repository at once. `concurrency` is bounded by both the
+    // configured limit and the number of items so we don't allocate
+    // unused slots.
+    let concurrency = state.bulk_import_concurrency.max(1).min(remaining.len());
+    let parallel_outcomes: Vec<(usize, ItemOutcome)> = stream::iter(remaining.into_iter())
+        .map(|(idx, item)| {
+            let state = state.clone();
+            let structure = Arc::clone(&structure);
+            let preschedule = Arc::clone(&preschedule);
+            async move {
+                (
+                    idx,
+                    process_item(state, environment_id, structure, preschedule, item).await,
+                )
+            }
+        })
+        .buffered(concurrency)
+        .collect()
+        .await;
+
+    // Merge bootstrap + parallel outcomes back into request order so the
+    // response mirrors the input layout.
+    let mut all_outcomes = bootstrap_outcomes;
+    all_outcomes.extend(parallel_outcomes);
+    all_outcomes.sort_by_key(|(i, _)| *i);
+    for (_, out) in all_outcomes {
+        created.extend(out.created);
+        rejected.extend(out.rejected);
+    }
+
+    // R3 correctness check (H3 — dedup masking): the postgres
+    // `store_schedule` repository call deduplicates by checksum, so two
+    // items in the same request that collapse to the same row would each
+    // appear in `created` with the same `schedule_id`. Detect that here
+    // and emit a structured warning so silent merges become observable
+    // without changing the response shape (clients already see the same
+    // id twice).
+    {
+        let mut seen: std::collections::HashSet<i64> = std::collections::HashSet::new();
+        for c in &created {
+            if !seen.insert(c.schedule_id) {
+                tracing::warn!(
+                    environment_id = environment_id,
+                    duplicate_schedule_id = c.schedule_id,
+                    name = %c.name,
+                    "bulk_import_schedules: duplicate schedule_id in created list \
+                     (likely checksum dedup masking)"
+                );
+            }
+        }
+    }
+
+    let elapsed_ms = request_started_at.elapsed().as_millis() as u64;
+    tracing::info!(
+        environment_id = environment_id,
+        items = total_items,
+        created = created.len(),
+        rejected = rejected.len(),
+        elapsed_ms = elapsed_ms,
+        concurrency = state.bulk_import_concurrency,
+        "bulk_import_schedules: done"
+    );
+    state
+        .bulk_import_latencies
+        .push(super::state::BulkImportSample {
+            duration_ms: elapsed_ms,
+            items: total_items,
+            created: created.len(),
+            rejected: rejected.len(),
+            concurrency: state.bulk_import_concurrency,
+            environment_id,
+            recorded_at_unix_ms: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0),
+        });
 
     Ok(Json(EnvironmentBulkImportResponse { created, rejected }))
 }

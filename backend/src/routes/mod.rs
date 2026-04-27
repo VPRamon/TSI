@@ -1,3 +1,4 @@
+pub mod algorithm_trace;
 pub mod altaz;
 pub mod compare;
 pub mod distribution;

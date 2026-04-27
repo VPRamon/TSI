@@ -87,9 +87,8 @@ pub struct PoolStats {
 // Use these high-level functions that work with any repository implementation
 
 pub use services::{
-    ensure_analytics, fetch_dark_periods, fetch_possible_periods, get_blocks_for_schedule,
-    get_schedule, get_schedule_time_range, get_scheduling_block, has_analytics_data, health_check,
-    list_schedules, store_schedule,
+    ensure_analytics, get_schedule, has_analytics_data, health_check, list_schedules,
+    store_schedule,
 };
 
 // ==================== Repository Pattern Exports ====================
@@ -107,82 +106,3 @@ pub use repository::{
     AnalyticsRepository, ErrorContext, FullRepository, RepositoryError, RepositoryResult,
     ScheduleRepository, ValidationRepository, VisualizationRepository,
 };
-
-use anyhow::{Context, Result};
-use std::sync::{Arc, OnceLock};
-#[cfg(feature = "postgres-repo")]
-use tokio::runtime::Runtime;
-
-/// Global repository instance initialized once per process.
-static REPOSITORY: OnceLock<Arc<dyn FullRepository>> = OnceLock::new();
-
-// Priority: postgres > local (when --all-features is used)
-#[cfg(feature = "postgres-repo")]
-async fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
-    let config = PostgresConfig::from_env().map_err(RepositoryError::ConfigurationError)?;
-    let repo = RepositoryFactory::create_postgres(&config).await?;
-    Ok(repo as Arc<dyn FullRepository>)
-}
-
-#[cfg(all(feature = "local-repo", not(feature = "postgres-repo")))]
-fn create_selected_repository() -> RepositoryResult<Arc<dyn FullRepository>> {
-    Ok(RepositoryFactory::create_local())
-}
-
-/// Initialize the global repository singleton for the selected backend from an async context.
-#[cfg(feature = "postgres-repo")]
-pub async fn init_repository_async() -> Result<()> {
-    if REPOSITORY.get().is_some() {
-        return Ok(());
-    }
-
-    let repo = create_selected_repository()
-        .await
-        .map_err(|e| anyhow::Error::msg(e.to_string()))?;
-    let _ = REPOSITORY.set(repo);
-    Ok(())
-}
-
-/// Initialize the global repository singleton for the selected backend from an async context.
-#[cfg(all(feature = "local-repo", not(feature = "postgres-repo")))]
-pub async fn init_repository_async() -> Result<()> {
-    init_repository()
-}
-
-/// Initialize the global repository singleton for the selected backend.
-#[cfg(feature = "postgres-repo")]
-pub fn init_repository() -> Result<()> {
-    if REPOSITORY.get().is_some() {
-        return Ok(());
-    }
-
-    let runtime = Runtime::new().context("Failed to create async runtime for repository init")?;
-    let repo = runtime
-        .block_on(create_selected_repository())
-        .map_err(|e| anyhow::Error::msg(e.to_string()))?;
-    let _ = REPOSITORY.set(repo);
-    Ok(())
-}
-
-/// Initialize the global repository singleton for the selected backend.
-#[cfg(all(feature = "local-repo", not(feature = "postgres-repo")))]
-pub fn init_repository() -> Result<()> {
-    if REPOSITORY.get().is_some() {
-        return Ok(());
-    }
-
-    let repo = create_selected_repository()?;
-    let _ = REPOSITORY.set(repo);
-    Ok(())
-}
-
-/// Get a reference to the global repository instance.
-pub fn get_repository() -> Result<&'static Arc<dyn FullRepository>> {
-    if REPOSITORY.get().is_none() {
-        let _ = init_repository();
-    }
-
-    REPOSITORY
-        .get()
-        .context("Database not initialized. Call init_repository() first.")
-}

@@ -207,91 +207,6 @@ pub async fn list_schedules<R: FullRepository + ?Sized>(
     repo.list_schedules().await
 }
 
-/// Get the time range covered by a schedule.
-///
-/// # Arguments
-/// * `repo` - Repository implementation
-/// * `schedule_id` - The ID of the schedule
-///
-/// # Returns
-/// * `Ok(Some(Period))` - Time range as a Period
-/// * `Ok(None)` - If schedule has no time constraints
-/// * `Err` if query fails
-pub async fn get_schedule_time_range<R: FullRepository + ?Sized>(
-    repo: &R,
-    schedule_id: crate::api::ScheduleId,
-) -> RepositoryResult<Option<Period>> {
-    repo.get_schedule_time_range(schedule_id).await
-}
-
-// ==================== Scheduling Block Operations ====================
-
-/// Get a single scheduling block by ID.
-///
-/// # Arguments
-/// * `repo` - Repository implementation
-/// * `scheduling_block_id` - The ID of the block
-///
-/// # Returns
-/// * `Ok(SchedulingBlock)` - The scheduling block with all details
-/// * `Err` if block not found or query fails
-pub async fn get_scheduling_block<R: FullRepository + ?Sized>(
-    repo: &R,
-    scheduling_block_id: i64,
-) -> RepositoryResult<SchedulingBlock> {
-    repo.get_scheduling_block(scheduling_block_id).await
-}
-
-/// Get all scheduling blocks for a schedule.
-///
-/// # Arguments
-/// * `repo` - Repository implementation
-/// * `schedule_id` - The ID of the schedule
-///
-/// # Returns
-/// * `Ok(Vec<SchedulingBlock>)` - List of all blocks
-/// * `Err` if query fails
-pub async fn get_blocks_for_schedule<R: FullRepository + ?Sized>(
-    repo: &R,
-    schedule_id: crate::api::ScheduleId,
-) -> RepositoryResult<Vec<SchedulingBlock>> {
-    repo.get_blocks_for_schedule(schedule_id).await
-}
-
-// ==================== Dark Periods & Possible Periods ====================
-
-/// Fetch dark periods (observing windows) for a schedule.
-///
-/// # Arguments
-/// * `repo` - Repository implementation
-/// * `schedule_id` - The ID of the schedule
-///
-/// # Returns
-/// * `Ok(Vec<Period>)` - List of dark periods
-/// * `Err` if query fails
-pub async fn fetch_dark_periods<R: FullRepository + ?Sized>(
-    repo: &R,
-    schedule_id: crate::api::ScheduleId,
-) -> RepositoryResult<Vec<Period>> {
-    repo.fetch_dark_periods(schedule_id).await
-}
-
-/// Fetch possible observation periods for a schedule.
-///
-/// # Arguments
-/// * `repo` - Repository implementation
-/// * `schedule_id` - The ID of the schedule
-///
-/// # Returns
-/// * `Ok(Vec<Period>)` - List of visibility periods
-/// * `Err` if query fails
-pub async fn fetch_possible_periods<R: FullRepository + ?Sized>(
-    repo: &R,
-    schedule_id: crate::api::ScheduleId,
-) -> RepositoryResult<Vec<Period>> {
-    repo.fetch_possible_periods(schedule_id).await
-}
-
 // ==================== Schedule Management ====================
 
 /// Delete a schedule and all associated data.
@@ -435,44 +350,6 @@ pub fn parse_schedule_from_json(
     Ok(schedule)
 }
 
-/// Store schedule in database with options (synchronous wrapper).
-///
-/// This helper function handles the async runtime creation and repository
-/// interaction for storing a schedule. It blocks on the async operation,
-/// making it suitable for use in synchronous contexts like Python bindings.
-///
-/// # Arguments
-/// * `schedule` - The schedule to store
-/// * `populate_analytics` - Whether to run Phase 1 analytics ETL
-/// * `skip_time_bins` - Whether to skip Phase 3 time bin population
-///
-/// # Returns
-/// * `Ok(crate::api::ScheduleInfo)` - Metadata of the stored schedule
-/// * `Err` if storage or analytics population fails
-///
-/// # Errors
-/// Returns an error if:
-/// - The async runtime cannot be created
-/// - The repository is not initialized
-/// - The schedule storage fails
-/// - Analytics population fails (if requested)
-pub fn store_schedule_sync(
-    schedule: &crate::api::Schedule,
-    populate_analytics: bool,
-) -> anyhow::Result<crate::api::ScheduleInfo> {
-    use anyhow::Context;
-    use tokio::runtime::Runtime;
-
-    let runtime = Runtime::new().context("Failed to create async runtime")?;
-    let repo = crate::db::get_repository().context("Repository not initialized")?;
-
-    Ok(runtime.block_on(store_schedule_with_options(
-        repo.as_ref(),
-        schedule,
-        populate_analytics,
-    ))?)
-}
-
 // ==================== Schedule Validation ====================
 
 /// Validate that schedule_period encompasses all scheduled blocks.
@@ -506,4 +383,23 @@ fn validate_schedule_period(schedule: &Schedule) -> RepositoryResult<()> {
     }
 
     Ok(())
+}
+
+// ==================== Algorithm Trace ====================
+
+/// Retrieve the stored algorithm trace for a schedule.
+///
+/// Returns `Ok(None)` when the schedule exists but no trace was uploaded
+/// (e.g. it was produced by an algorithm that does not emit one).
+pub async fn get_algorithm_trace<R: FullRepository + ?Sized>(
+    repo: &R,
+    schedule_id: ScheduleId,
+) -> RepositoryResult<Option<AlgorithmTraceResponse>> {
+    repo.get_algorithm_trace(schedule_id).await
+}
+
+pub async fn list_algorithm_names<R: FullRepository + ?Sized>(
+    repo: &R,
+) -> RepositoryResult<Vec<(ScheduleId, String)>> {
+    repo.list_algorithm_names().await
 }

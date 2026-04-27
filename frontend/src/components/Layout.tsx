@@ -7,6 +7,7 @@ import { Outlet, NavLink, useParams, useLocation } from 'react-router-dom';
 import { useAppStore } from '@/store';
 import { useHealth } from '@/hooks';
 import { useScheduleSync, AnalysisProvider } from '@/features/schedules';
+import { extensions } from '@/extensions';
 import BrandMark from './BrandMark';
 
 // Navigation items for schedule-specific views
@@ -14,6 +15,7 @@ const scheduleNavItems = [
   {
     path: 'sky-map',
     label: 'Sky Map',
+    scope: 'schedule',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -28,6 +30,7 @@ const scheduleNavItems = [
   {
     path: 'distributions',
     label: 'Distributions',
+    scope: 'schedule',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -42,6 +45,7 @@ const scheduleNavItems = [
   {
     path: 'visibility-map',
     label: 'Visibility',
+    scope: 'schedule',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -56,6 +60,7 @@ const scheduleNavItems = [
   {
     path: 'timeline',
     label: 'Timeline',
+    scope: 'schedule',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -70,6 +75,7 @@ const scheduleNavItems = [
   {
     path: 'insights',
     label: 'Insights',
+    scope: 'schedule',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -84,6 +90,7 @@ const scheduleNavItems = [
   {
     path: 'fragmentation',
     label: 'Fragmentation',
+    scope: 'schedule',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -98,6 +105,7 @@ const scheduleNavItems = [
   {
     path: 'trends',
     label: 'Trends',
+    scope: 'schedule',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -112,6 +120,7 @@ const scheduleNavItems = [
   {
     path: 'alt-az',
     label: 'Alt/Az',
+    scope: 'schedule',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -126,6 +135,7 @@ const scheduleNavItems = [
   {
     path: 'validation',
     label: 'Validation',
+    scope: 'schedule',
     icon: (
       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path
@@ -168,6 +178,10 @@ function Layout() {
   }, []);
 
   const selectedScheduleName = selectedSchedule?.schedule_name?.trim();
+  const globalNavItems = extensions.navItems.filter((item) => item.scope === 'global');
+  const navItems = scheduleId
+    ? [...scheduleNavItems, ...globalNavItems]
+    : [...globalNavItems];
   const scheduleBadgeName =
     selectedScheduleName && selectedScheduleName.length > 0
       ? selectedScheduleName
@@ -205,16 +219,20 @@ function Layout() {
               </div>
 
               {/* Center section - Navigation Links */}
-              {scheduleId && (
+              {navItems.length > 0 && (
                 <nav
                   className="hidden flex-1 items-center justify-center gap-2 md:flex"
                   role="navigation"
                   aria-label="Main navigation"
                 >
-                  {scheduleNavItems.map((item) => (
+                  {navItems.map((item) => (
                     <NavLink
                       key={item.path}
-                      to={`/schedules/${scheduleId}/${item.path}`}
+                      to={
+                        item.scope === 'schedule' && scheduleId
+                          ? `/schedules/${scheduleId}/${item.path}`
+                          : item.path
+                      }
                       className={({ isActive }) =>
                         `flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                           isActive
@@ -323,47 +341,55 @@ function Layout() {
                 role="navigation"
                 aria-label="Mobile navigation"
               >
-                {scheduleId ? (
+                {navItems.length > 0 ? (
                   <>
-                    <div className="mb-3 flex items-center gap-2 px-1">
-                      <span className="text-xs text-slate-400">Schedule</span>
-                      <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs font-medium text-white">
-                        {scheduleBadgeName}
-                        <span className="ml-1 text-[11px] font-normal text-slate-400">
-                          #{scheduleId}
+                    {scheduleId && (
+                      <div className="mb-3 flex items-center gap-2 px-1">
+                        <span className="text-xs text-slate-400">Schedule</span>
+                        <span className="rounded-md bg-slate-700 px-2 py-0.5 text-xs font-medium text-white">
+                          {scheduleBadgeName}
+                          <span className="ml-1 text-[11px] font-normal text-slate-400">
+                            #{scheduleId}
+                          </span>
                         </span>
-                      </span>
-                    </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-2">
-                      <NavLink
-                        to={`/schedules/${scheduleId}/compare`}
-                        className={({ isActive }) =>
-                          `col-span-2 flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                            isActive
-                              ? 'bg-sky-900/40 text-sky-200'
-                              : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
-                          }`
-                        }
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
+                      {scheduleId && (
+                        <NavLink
+                          to={`/schedules/${scheduleId}/compare`}
+                          className={({ isActive }) =>
+                            `col-span-2 flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                              isActive
+                                ? 'bg-sky-900/40 text-sky-200'
+                                : 'text-slate-300 hover:bg-slate-700/50 hover:text-white'
+                            }`
+                          }
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                          />
-                        </svg>
-                        <span>Compare</span>
-                      </NavLink>
-                      {scheduleNavItems.map((item) => (
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                            />
+                          </svg>
+                          <span>Compare</span>
+                        </NavLink>
+                      )}
+                      {navItems.map((item) => (
                         <NavLink
                           key={item.path}
-                          to={`/schedules/${scheduleId}/${item.path}`}
+                          to={
+                            item.scope === 'schedule' && scheduleId
+                              ? `/schedules/${scheduleId}/${item.path}`
+                              : item.path
+                          }
                           className={({ isActive }) =>
                             `flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                               isActive

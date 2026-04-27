@@ -5,10 +5,8 @@
 use crate::db::models::{
     AnalyticsMetrics, ConflictRecord, CorrelationEntry, InsightsBlock, InsightsData, TopObservation,
 };
-use tokio::runtime::Runtime;
 
-// Import the global repository accessor
-use crate::db::{get_repository, services as db_services};
+use crate::db::{services as db_services, FullRepository};
 use qtty::time::Hours;
 
 /// Compute analytics metrics from insights blocks.
@@ -69,6 +67,18 @@ pub(crate) fn compute_metrics(blocks: &[InsightsBlock]) -> AnalyticsMetrics {
         0.0
     };
 
+    // Priority-capture ratio: what fraction of the total priority "mass"
+    // ended up scheduled. Insensitive to whether the algorithm also picks up
+    // extra low-priority work (which would drag `mean_priority_scheduled`
+    // down despite being a strict improvement).
+    let sum_priority_total: f64 = priorities.iter().sum();
+    let sum_priority_scheduled: f64 = scheduled_priorities.iter().sum();
+    let priority_capture_ratio = if sum_priority_total > 0.0 {
+        sum_priority_scheduled / sum_priority_total
+    } else {
+        0.0
+    };
+
     // Total visibility and requested hours (work with raw f64 values, then wrap as Hours)
     let total_visibility_hours_f64: f64 = blocks
         .iter()
@@ -90,6 +100,9 @@ pub(crate) fn compute_metrics(blocks: &[InsightsBlock]) -> AnalyticsMetrics {
         median_priority,
         mean_priority_scheduled,
         mean_priority_unscheduled,
+        priority_capture_ratio,
+        sum_priority_scheduled,
+        sum_priority_total,
         total_visibility_hours: qtty::time::Hours::new(total_visibility_hours_f64),
         mean_requested_hours: qtty::time::Hours::new(mean_requested_hours_f64),
     }
@@ -313,12 +326,11 @@ pub fn compute_insights_data(blocks: Vec<InsightsBlock>) -> Result<InsightsData,
 ///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded during ETL.
 /// Validation results are stored separately and can be retrieved via py_get_validation_report.
-pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String> {
-    // Get the initialized repository
-    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
-    let schedule_id = crate::api::ScheduleId(schedule_id);
-
-    db_services::ensure_analytics(repo.as_ref(), schedule_id)
+pub async fn get_insights_data(
+    repo: &(dyn FullRepository + 'static),
+    schedule_id: crate::api::ScheduleId,
+) -> Result<InsightsData, String> {
+    db_services::ensure_analytics(repo, schedule_id)
         .await
         .map_err(|e| format!("Failed to ensure analytics: {}", e))?;
 
@@ -347,18 +359,6 @@ pub async fn get_insights_data(schedule_id: i64) -> Result<InsightsData, String>
     }
 
     compute_insights_data(blocks)
-}
-
-/// Get complete insights data with computed analytics and metadata.
-/// This is the main function for the insights feature, computing all analytics
-/// on the Rust side for maximum performance.
-///
-/// **Note**: Impossible blocks (zero visibility) are automatically excluded.
-/// To see validation issues, use py_get_validation_report.
-pub fn py_get_insights_data(schedule_id: crate::api::ScheduleId) -> Result<InsightsData, String> {
-    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
-
-    runtime.block_on(get_insights_data(schedule_id.0))
 }
 
 #[cfg(test)]
@@ -424,6 +424,61 @@ mod tests {
         let metrics = compute_metrics(&blocks);
 
         assert_eq!(metrics.median_priority, 5.0); // (4.0 + 6.0) / 2
+    }
+
+    #[test]
+    fn test_priority_capture_ratio_empty() {
+        let metrics = compute_metrics(&[]);
+        assert_eq!(metrics.priority_capture_ratio, 0.0);
+        assert_eq!(metrics.sum_priority_scheduled, 0.0);
+        assert_eq!(metrics.sum_priority_total, 0.0);
+    }
+
+    #[test]
+    fn test_priority_capture_ratio_basic() {
+        // Total priority mass = 21.0; scheduled mass = 5 + 9 = 14.0.
+        let blocks = vec![
+            create_test_block(5.0, true, 10.0, 2.0),
+            create_test_block(7.0, false, 15.0, 3.0),
+            create_test_block(9.0, true, 20.0, 4.0),
+        ];
+        let m = compute_metrics(&blocks);
+        assert!((m.sum_priority_total - 21.0).abs() < 1e-9);
+        assert!((m.sum_priority_scheduled - 14.0).abs() < 1e-9);
+        assert!((m.priority_capture_ratio - 14.0 / 21.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_priority_capture_ratio_all_scheduled() {
+        let blocks = vec![
+            create_test_block(3.0, true, 1.0, 1.0),
+            create_test_block(7.0, true, 1.0, 1.0),
+        ];
+        let m = compute_metrics(&blocks);
+        assert!((m.priority_capture_ratio - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_priority_capture_ratio_none_scheduled() {
+        let blocks = vec![
+            create_test_block(3.0, false, 1.0, 1.0),
+            create_test_block(7.0, false, 1.0, 1.0),
+        ];
+        let m = compute_metrics(&blocks);
+        assert_eq!(m.priority_capture_ratio, 0.0);
+        assert_eq!(m.sum_priority_scheduled, 0.0);
+        assert!((m.sum_priority_total - 10.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_priority_capture_ratio_zero_priorities() {
+        // All priorities zero → denominator is zero → ratio is 0.0 by convention.
+        let blocks = vec![
+            create_test_block(0.0, true, 1.0, 1.0),
+            create_test_block(0.0, false, 1.0, 1.0),
+        ];
+        let m = compute_metrics(&blocks);
+        assert_eq!(m.priority_capture_ratio, 0.0);
     }
 
     #[test]

@@ -1,8 +1,8 @@
 //! Service layer for business logic and orchestration.
 //!
-//! This module contains the service layer that sits between the database operations
-//! and the Python bindings. Services orchestrate database calls and implement
-//! business logic and data processing.
+//! This module contains the service layer that sits between the database
+//! operations and the HTTP handlers. Services orchestrate database calls and
+//! implement business logic and data processing.
 
 pub mod altaz;
 pub mod astronomical_night;
@@ -22,32 +22,25 @@ pub mod timeline;
 pub mod trends;
 
 pub mod validation;
-pub mod validation_report;
-pub mod visibility;
 
 // Async job processing
 pub mod job_tracker;
 pub mod schedule_processor;
 
 // Backend visibility fallback computation
-pub mod visibility_service;
+pub mod visibility;
+
+// KPI summary for Workspace verdict / delta / evolution UIs
+pub mod schedule_kpis;
 
 pub use altaz::compute_alt_az_data;
-pub use compare::py_get_compare_data;
-pub use distributions::{py_get_distribution_data, py_get_distribution_data_analytics};
 pub use environment_preschedule::{
     apply_to_schedule, compute_env_preschedule, EnvPreschedulePayload,
 };
 pub use environment_structure::{
     compute_blocks_hash, matches as match_structure, structure_from_schedule, StructureMismatch,
 };
-pub use fragmentation::py_get_fragmentation_data;
 pub use import_adapter::{
     default_schedule_import_adapter, NativeScheduleImportAdapter, ScheduleImportAdapter,
 };
-pub use insights::py_get_insights_data;
-pub use sky_map::{py_get_sky_map_data, py_get_sky_map_data_analytics};
-pub use timeline::py_get_schedule_timeline_data;
-pub use trends::py_get_trends_data;
-pub use validation_report::py_get_validation_report;
 pub use visibility::compute_visibility_histogram_rust;

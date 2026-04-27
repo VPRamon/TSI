@@ -17,6 +17,7 @@ import type { ScheduleAnalysisData } from '@/features/schedules';
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
 vi.mock('react-plotly.js', () => ({ default: () => null }));
+vi.mock('react-plotly.js/factory', () => ({ default: () => () => null }));
 vi.mock('plotly.js-dist-min', () => ({
   default: { newPlot: vi.fn(), react: vi.fn(), purge: vi.fn() },
 }));
@@ -86,6 +87,9 @@ function makeScheduleAnalysisData(
         median_priority: 8,
         mean_priority_scheduled: 9,
         mean_priority_unscheduled: 6,
+        priority_capture_ratio: scheduledCount / blocks.length,
+        sum_priority_scheduled: 9 * scheduledCount,
+        sum_priority_total: 8 * blocks.length,
         total_visibility_hours: 40,
         mean_requested_hours: 2,
       },
@@ -209,9 +213,8 @@ describe('Compare page — 2+ schedules', () => {
     renderCompare('/schedules/1/compare/2');
 
     const expectedLabels = [
-      'Scheduled tasks',
-      'Unscheduled tasks',
       'Scheduling rate',
+      'Priority capture',
       'Cumulative priority',
       'Mean priority (sched.)',
       'Scheduled hours',
@@ -222,8 +225,14 @@ describe('Compare page — 2+ schedules', () => {
       'Largest gap',
     ];
 
+    const summaryTable = screen
+      .getByRole('heading', { name: /Summary Metrics/ })
+      .closest('section')
+      ?.querySelector('table') as HTMLTableElement;
+    expect(summaryTable).toBeTruthy();
+
     for (const label of expectedLabels) {
-      expect(screen.getByText(label)).toBeInTheDocument();
+      expect(within(summaryTable).getByText(label)).toBeInTheDocument();
     }
   });
 
@@ -235,7 +244,7 @@ describe('Compare page — 2+ schedules', () => {
 
   it('renders "Summary Metrics" panel title', () => {
     renderCompare('/schedules/1/compare/2');
-    expect(screen.getByText('Summary Metrics')).toBeInTheDocument();
+    expect(screen.getByText(/Summary Metrics/)).toBeInTheDocument();
   });
 
   it('orders summary schedule columns by selected metric while keeping reference fixed', async () => {
@@ -274,16 +283,17 @@ describe('Compare page — 2+ schedules', () => {
 
     renderCompare('/schedules/1/compare/2,3');
 
-    await user.selectOptions(screen.getByLabelText(/order schedules by metric/i), 'Scheduled tasks');
-
     const summaryTable = screen
-      .getByRole('heading', { name: 'Summary Metrics' })
+      .getByRole('heading', { name: /Summary Metrics/ })
       .closest('section')
-      ?.querySelector('table');
+      ?.querySelector('table') as HTMLTableElement;
     expect(summaryTable).toBeTruthy();
 
+    // Sorting is triggered by clicking the metric row label inside the summary table.
+    await user.click(within(summaryTable).getByText('Cumulative priority'));
+
     const getSummaryHeaders = () =>
-      within(summaryTable as HTMLTableElement)
+      within(summaryTable)
         .getAllByRole('columnheader')
         .map((header) => header.textContent?.replace(/\s+/g, ' ').trim() ?? '');
 
@@ -291,9 +301,8 @@ describe('Compare page — 2+ schedules', () => {
     expect(getSummaryHeaders()[2]).toContain('Schedule Gamma');
     expect(getSummaryHeaders()[3]).toContain('Schedule Beta');
 
-    await user.click(
-      screen.getByRole('button', { name: /toggle summary schedule sort direction/i })
-    );
+    // Clicking the same metric again toggles direction (desc → asc).
+    await user.click(within(summaryTable).getByText('Cumulative priority'));
 
     expect(getSummaryHeaders()[1]).toContain('Schedule Alpha');
     expect(getSummaryHeaders()[2]).toContain('Schedule Beta');

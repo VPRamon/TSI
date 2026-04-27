@@ -92,6 +92,12 @@ pub struct CreateScheduleRequest {
     /// where no blocks carry timing information.
     #[serde(default)]
     pub schedule_period_override: Option<SchedulePeriodOverride>,
+    /// Optional algorithm trace as raw JSONL text. When provided, the
+    /// trace is parsed (one event per line) and persisted alongside the
+    /// schedule so algorithm-specific frontend extensions can replay the
+    /// search.
+    #[serde(default)]
+    pub algorithm_trace_jsonl: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -206,6 +212,27 @@ pub struct HealthResponse {
     pub database: String,
 }
 
+/// One sample exposed by the bulk-import latency ring buffer.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkImportSampleDto {
+    pub duration_ms: u64,
+    pub items: usize,
+    pub created: usize,
+    pub rejected: usize,
+    pub concurrency: usize,
+    pub environment_id: i64,
+    pub recorded_at_unix_ms: u64,
+}
+
+/// Diagnostics response served by `/v1/_health/db`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbDiagnosticsResponse {
+    /// Currently effective `BULK_IMPORT_CONCURRENCY` knob.
+    pub bulk_import_concurrency: usize,
+    /// Most recent bulk-import requests (oldest first).
+    pub recent_bulk_imports: Vec<BulkImportSampleDto>,
+}
+
 /// Schedule list response.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleListResponse {
@@ -226,6 +253,17 @@ pub struct ScheduleInfoDto {
     pub observer_location: crate::api::GeographicLocation,
     /// Overall time window of the schedule (MJD).
     pub schedule_period: SchedulePeriodDto,
+    /// Optional algorithm provenance populated when the schedule was produced
+    /// with a structured algorithm trace.  Absent for schedules uploaded
+    /// without a trace.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schedule_metadata: Option<ScheduleMetadataDto>,
+}
+
+/// Minimal algorithm provenance attached to a schedule in list responses.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScheduleMetadataDto {
+    pub algorithm: String,
 }
 
 /// Schedule period in MJD, as returned by the list endpoint.
@@ -245,6 +283,7 @@ impl From<crate::api::ScheduleInfo> for ScheduleInfoDto {
                 start_mjd: info.schedule_period.start.value(),
                 end_mjd: info.schedule_period.end.value(),
             },
+            schedule_metadata: None,
         }
     }
 }
@@ -321,6 +360,8 @@ pub struct EnvironmentBulkImportItem {
     pub schedule_json: serde_json::Value,
     #[serde(default)]
     pub location_override: Option<crate::api::GeographicLocation>,
+    #[serde(default)]
+    pub algorithm_trace_jsonl: Option<String>,
 }
 
 /// Bulk-import response, partitioning the batch into accepted and rejected items.
@@ -373,5 +414,20 @@ mod tests {
         let q: VisibilityHistogramQuery = serde_urlencoded::from_str("block_ids=1,bad,3").unwrap();
         // "bad" is silently skipped; only valid integers survive
         assert_eq!(q.block_ids, Some(vec![1, 3]));
+    }
+
+    #[test]
+    fn bulk_import_item_round_trips_optional_algorithm_trace() {
+        let json = r#"{"name":"sched","schedule_json":{"a":1},"algorithm_trace_jsonl":"{\"kind\":\"started\",\"algorithm\":\"est\"}"}"#;
+        let item: EnvironmentBulkImportItem = serde_json::from_str(json).unwrap();
+        assert_eq!(item.name, "sched");
+        assert_eq!(
+            item.algorithm_trace_jsonl.as_deref(),
+            Some("{\"kind\":\"started\",\"algorithm\":\"est\"}")
+        );
+
+        let bare = r#"{"name":"sched","schedule_json":{"a":1}}"#;
+        let item: EnvironmentBulkImportItem = serde_json::from_str(bare).unwrap();
+        assert!(item.algorithm_trace_jsonl.is_none());
     }
 }

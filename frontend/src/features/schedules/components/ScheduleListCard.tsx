@@ -78,16 +78,12 @@ export interface ScheduleListCardProps {
   onScheduleClick: (scheduleId: number) => void;
   /** Callback when a schedule JSON download is requested */
   onScheduleDownload: (schedule: ScheduleInfo) => void;
-  /** Callback when all schedules download is requested */
-  onDownloadAll: () => void;
   /** Callback when schedule management page is requested */
   onManageSchedules: () => void;
-  /** Callback when advanced workspace is requested */
-  onOpenAdvanced?: () => void;
+  /** Callback when workspace is requested */
+  onOpenWorkspace?: () => void;
   /** IDs currently downloading */
   downloadingScheduleIds?: ReadonlySet<number>;
-  /** Whether all schedules are currently downloading */
-  isDownloadingAll?: boolean;
 }
 
 function ScheduleListCard({
@@ -95,11 +91,9 @@ function ScheduleListCard({
   total,
   onScheduleClick,
   onScheduleDownload,
-  onDownloadAll,
   onManageSchedules,
-  onOpenAdvanced,
+  onOpenWorkspace,
   downloadingScheduleIds,
-  isDownloadingAll,
 }: ScheduleListCardProps) {
   const isEmpty = schedules.length === 0;
 
@@ -141,55 +135,36 @@ function ScheduleListCard({
           )}
         </div>
 
-        {/* Info Footer */}
-        {!isEmpty && (
-          <div className="border-t border-slate-700/50 pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-slate-500">{total} available</p>
-              <div className="ml-auto flex items-center gap-2">
-                {onOpenAdvanced ? (
-                  <button
-                    type="button"
-                    onClick={onOpenAdvanced}
-                    className="inline-flex items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-medium text-sky-200 transition-all duration-200 hover:border-sky-400/60 hover:bg-sky-500/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50"
-                    title="Open advanced workspace"
-                    aria-label="Open advanced workspace"
-                  >
-                    <DatabaseIcon />
-                    <span>Advanced</span>
-                  </button>
-                ) : null}
+        {/* Info Footer — always visible so navigation is reachable even on empty DB */}
+        <div className="border-t border-slate-700/50 pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            {!isEmpty && <p className="text-xs text-slate-500">{total} available</p>}
+            <div className="ml-auto flex items-center gap-2">
+              {onOpenWorkspace ? (
                 <button
                   type="button"
-                  onClick={onManageSchedules}
-                  className="inline-flex items-center gap-2 rounded-lg border border-slate-600/60 bg-slate-800/70 px-3 py-2 text-xs font-medium text-slate-200 transition-all duration-200 hover:border-slate-500/70 hover:bg-slate-700/80 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-500/50"
-                  title="Manage schedules"
-                  aria-label="Manage schedules"
+                  onClick={onOpenWorkspace}
+                  className="inline-flex items-center gap-2 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-xs font-medium text-sky-200 transition-all duration-200 hover:border-sky-400/60 hover:bg-sky-500/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-sky-500/50"
+                  title="Open workspace"
+                  aria-label="Open workspace"
                 >
-                  <ManageIcon />
-                  <span>Manage Schedules</span>
+                  <DatabaseIcon />
+                  <span>Workspace</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={onDownloadAll}
-                  disabled={isDownloadingAll}
-                  className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-300 transition-all duration-200 hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 disabled:cursor-not-allowed disabled:opacity-60"
-                  title={
-                    isDownloadingAll ? 'Downloading all schedules...' : 'Download all schedules'
-                  }
-                  aria-label={
-                    isDownloadingAll
-                      ? 'Downloading all schedules'
-                      : 'Download all schedules as JSON'
-                  }
-                >
-                  {isDownloadingAll ? <SpinnerIcon /> : <DownloadIcon />}
-                  <span>Download all</span>
-                </button>
-              </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={onManageSchedules}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-600/60 bg-slate-800/70 px-3 py-2 text-xs font-medium text-slate-200 transition-all duration-200 hover:border-slate-500/70 hover:bg-slate-700/80 hover:text-white focus:outline-none focus:ring-2 focus:ring-slate-500/50"
+                title="Manage schedules"
+                aria-label="Manage schedules"
+              >
+                <ManageIcon />
+                <span>Manage Schedules</span>
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </article>
   );

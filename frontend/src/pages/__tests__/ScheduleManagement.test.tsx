@@ -4,6 +4,7 @@ import { render as rtlRender } from '@testing-library/react';
 import { MemoryRouterProvider, screen, waitFor, userEvent } from '../../test/test-utils';
 
 vi.mock('react-plotly.js', () => ({ default: () => null }));
+vi.mock('react-plotly.js/factory', () => ({ default: () => () => null }));
 vi.mock('plotly.js-dist-min', () => ({
   default: { newPlot: vi.fn(), react: vi.fn(), purge: vi.fn() },
 }));
@@ -18,7 +19,16 @@ vi.mock('@/hooks', async (importOriginal) => {
   };
 });
 
+vi.mock('@/features/schedules', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/features/schedules')>();
+  return {
+    ...actual,
+    downloadAllSchedulesAsZip: vi.fn().mockResolvedValue(undefined),
+  };
+});
+
 import * as hooks from '@/hooks';
+import * as schedulesFeature from '@/features/schedules';
 import ScheduleManagement from '../ScheduleManagement';
 
 type MutationResult<TArgs extends unknown[] = [number[]]> = {
@@ -177,5 +187,28 @@ describe('ScheduleManagement', () => {
     expect(screen.getByText('Edit Schedule')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Schedule Beta')).toBeInTheDocument();
     expect(screen.getByText('1 selected')).toBeInTheDocument();
+  });
+
+  it('downloads selected schedules when Download selected is clicked', async () => {
+    const user = userEvent.setup();
+    renderScheduleManagement();
+
+    // Button is disabled with nothing selected
+    const downloadBtn = screen.getByRole('button', { name: /download selected schedules/i });
+    expect(downloadBtn).toBeDisabled();
+
+    await user.click(screen.getByLabelText('Select Schedule Alpha'));
+    await user.click(screen.getByLabelText('Select Schedule Beta'));
+
+    expect(downloadBtn).not.toBeDisabled();
+    await user.click(downloadBtn);
+
+    await waitFor(() => {
+      expect(schedulesFeature.downloadAllSchedulesAsZip).toHaveBeenCalledTimes(1);
+    });
+    expect(schedulesFeature.downloadAllSchedulesAsZip).toHaveBeenCalledWith([
+      schedulesResponse.schedules[0],
+      schedulesResponse.schedules[1],
+    ]);
   });
 });

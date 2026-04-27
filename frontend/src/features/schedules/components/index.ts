@@ -12,3 +12,5 @@ export { ComparisonCharts } from './ScheduleComparisonCharts';
 export { BlocksTable, type TableBlock } from './BlocksTable';
 export { BlockDetailsDrawer } from './BlockDetailsDrawer';
 export { ExportMenu } from './ExportMenu';
+export { default as EnvironmentVerdict } from './EnvironmentVerdict';
+export { default as KpiEvolutionChart } from './KpiEvolutionChart';

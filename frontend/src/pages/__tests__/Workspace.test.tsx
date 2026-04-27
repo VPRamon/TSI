@@ -4,6 +4,7 @@ import { render as rtlRender, waitFor } from '@testing-library/react';
 import { MemoryRouterProvider, screen, userEvent, within } from '../../test/test-utils';
 
 vi.mock('react-plotly.js', () => ({ default: () => null }));
+vi.mock('react-plotly.js/factory', () => ({ default: () => () => null }));
 vi.mock('plotly.js-dist-min', () => ({
   default: { newPlot: vi.fn(), react: vi.fn(), purge: vi.fn() },
 }));
@@ -22,14 +23,14 @@ vi.mock('@/hooks', async (importOriginal) => {
 });
 
 import * as hooks from '@/hooks';
-import Advanced from '../Advanced';
+import Workspace from '../Workspace';
 import type { EnvironmentInfo } from '@/api/types';
 
-function renderAdvanced() {
+function renderWorkspace() {
   return rtlRender(
-    <MemoryRouterProvider initialEntries={['/advanced']}>
+    <MemoryRouterProvider initialEntries={['/workspace']}>
       <Routes>
-        <Route path="/advanced" element={<Advanced />} />
+        <Route path="/workspace" element={<Workspace />} />
       </Routes>
     </MemoryRouterProvider>
   );
@@ -59,7 +60,7 @@ const baseEnvironments: EnvironmentInfo[] = [
   },
 ];
 
-describe('Advanced page (environments)', () => {
+describe('Workspace page (environments)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
@@ -103,8 +104,8 @@ describe('Advanced page (environments)', () => {
   });
 
   it('renders the environment cards', () => {
-    renderAdvanced();
-    expect(screen.getByRole('heading', { name: /environments/i })).toBeInTheDocument();
+    renderWorkspace();
+    expect(screen.getByRole('heading', { name: /workspace/i })).toBeInTheDocument();
     expect(screen.getByText('CTAO South March')).toBeInTheDocument();
     expect(screen.getByText('Empty draft')).toBeInTheDocument();
     expect(screen.getByText(/2 schedules/i)).toBeInTheDocument();
@@ -143,7 +144,7 @@ describe('Advanced page (environments)', () => {
       isPending: false,
     } as unknown as ReturnType<typeof hooks.useBulkImportToEnvironment>);
 
-    renderAdvanced();
+    renderWorkspace();
 
     await user.click(screen.getByRole('button', { name: /create environment/i }));
 
@@ -165,6 +166,9 @@ describe('Advanced page (environments)', () => {
 
     await waitFor(() => {
       expect(createMutate).toHaveBeenCalledWith({ name: 'New env' });
+    });
+    await waitFor(() => {
+      expect(bulkMutate).toHaveBeenCalledTimes(1);
     });
     expect(bulkMutate).toHaveBeenCalledWith({
       environmentId: 99,

@@ -5,11 +5,13 @@
  * Route: /environments/:envId/compare
  */
 import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
-import { useEnvironment, useSchedules } from '@/hooks';
+import { Link, useParams } from 'react-router-dom';
+import { useEnvironment, useEnvironmentKpis, useSchedules } from '@/hooks';
 import {
   BlockStatusTable,
   ComparisonCharts,
+  EnvironmentVerdict,
+  KpiEvolutionChart,
   SummaryTable,
   useScheduleAnalysisData,
 } from '@/features/schedules';
@@ -27,16 +29,17 @@ function EnvironmentComparePage() {
   } = useEnvironment(Number.isFinite(envId) && envId > 0 ? envId : 0);
 
   const { data: schedulesData } = useSchedules();
-  const scheduleNames = useMemo(() => {
-    const map = new Map<number, string>();
+  const scheduleInfoMap = useMemo(() => {
+    const map = new Map<number, import('@/api/types').ScheduleInfo>();
     schedulesData?.schedules.forEach((schedule) => {
-      map.set(schedule.schedule_id, schedule.schedule_name);
+      map.set(schedule.schedule_id, schedule);
     });
     return map;
   }, [schedulesData]);
 
   const memberIds = useMemo(() => environment?.schedule_ids ?? [], [environment]);
-  const schedules = useScheduleAnalysisData(memberIds, scheduleNames);
+  const schedules = useScheduleAnalysisData(memberIds, scheduleInfoMap);
+  const { data: envKpis } = useEnvironmentKpis(Number.isFinite(envId) && envId > 0 ? envId : 0);
 
   const anyLoading = schedules.some((schedule) => schedule.isLoading);
   const anyError = schedules.find((schedule) => schedule.error);
@@ -87,7 +90,18 @@ function EnvironmentComparePage() {
 
   return (
     <PageContainer>
-      <PageHeader title={environment.name} description={description} />
+      <PageHeader
+        title={environment.name}
+        description={description}
+        actions={
+          <Link
+            to={`/environments/${envId}/algorithm`}
+            className="rounded-lg border border-violet-500/60 bg-violet-600/30 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-600/50"
+          >
+            Algorithm analysis →
+          </Link>
+        }
+      />
 
       {anyError ? (
         <ErrorMessage message={`Error loading data: ${anyError.error?.message}`} />
@@ -99,6 +113,12 @@ function EnvironmentComparePage() {
         </div>
       ) : (
         <>
+          {envKpis && envKpis.kpis.length >= 2 ? (
+            <>
+              <EnvironmentVerdict kpis={envKpis.kpis} />
+              <KpiEvolutionChart kpis={envKpis.kpis} />
+            </>
+          ) : null}
           <SummaryTable schedules={schedules} />
           <ComparisonCharts schedules={schedules} />
           <BlockStatusTable schedules={schedules} />

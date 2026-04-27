@@ -3,10 +3,7 @@
 #![allow(clippy::useless_vec)]
 
 use crate::api::{LightweightBlock, SkyMapData};
-use tokio::runtime::Runtime;
-
-// Import the global repository accessor
-use crate::db::get_repository;
+use crate::db::FullRepository;
 
 /// Compute sky map data with priority bins and metadata.
 /// This function takes the raw blocks and computes everything needed for visualization.
@@ -131,10 +128,10 @@ pub fn compute_sky_map_data(blocks: Vec<LightweightBlock>) -> Result<SkyMapData,
 ///
 /// This function retrieves blocks from the analytics repository
 /// which contains pre-computed, denormalized data for optimal performance.
-pub async fn get_sky_map_data(schedule_id: crate::api::ScheduleId) -> Result<SkyMapData, String> {
-    // Get the initialized repository
-    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
-
+pub async fn get_sky_map_data(
+    repo: &(dyn FullRepository + 'static),
+    schedule_id: crate::api::ScheduleId,
+) -> Result<SkyMapData, String> {
     let blocks = repo
         .fetch_analytics_blocks_for_sky_map(schedule_id)
         .await
@@ -147,20 +144,6 @@ pub async fn get_sky_map_data(schedule_id: crate::api::ScheduleId) -> Result<Sky
         ));
     }
     compute_sky_map_data(blocks)
-}
-
-/// Get complete sky map data with computed bins and metadata.
-pub fn py_get_sky_map_data(schedule_id: crate::api::ScheduleId) -> Result<SkyMapData, String> {
-    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
-
-    runtime.block_on(get_sky_map_data(schedule_id))
-}
-
-/// Alias for compatibility - uses analytics path.
-pub fn py_get_sky_map_data_analytics(
-    schedule_id: crate::api::ScheduleId,
-) -> Result<SkyMapData, String> {
-    py_get_sky_map_data(schedule_id)
 }
 
 #[cfg(test)]

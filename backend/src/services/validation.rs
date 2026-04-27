@@ -576,3 +576,21 @@ pub fn validate_blocks(blocks: &[BlockForValidation]) -> Vec<ValidationResult> {
         .flat_map(|block| validate_block(block))
         .collect()
 }
+
+// =====================================================================
+// Validation report fetcher (formerly services::validation_report)
+// =====================================================================
+
+/// Get validation report data for a schedule.
+pub async fn get_validation_report(
+    repo: &(dyn crate::db::FullRepository + 'static),
+    schedule_id: crate::api::ScheduleId,
+) -> Result<crate::api::ValidationReport, String> {
+    crate::db::services::ensure_analytics(repo, schedule_id)
+        .await
+        .map_err(|e| format!("Failed to ensure analytics for validation report: {}", e))?;
+
+    repo.fetch_validation_results(schedule_id)
+        .await
+        .map_err(|e| format!("Failed to fetch validation report: {}", e))
+}

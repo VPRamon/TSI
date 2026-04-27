@@ -8,9 +8,29 @@ The frontend is a React + TypeScript application using:
 
 - **React 18** with React Router v6 for routing
 - **Tailwind CSS** for styling (single styling approach)
-- **Plotly.js** via `react-plotly.js` for all charts
+- **Plotly.js** via `react-plotly.js`'s factory binding against
+  `plotly.js-dist-min` for all charts (the heavy `plotly.js` umbrella
+  package is intentionally NOT a runtime dep)
 - **Zustand** for global state management
-- **TanStack React Query** for data fetching and caching
+- **TanStack React Query** for data fetching and caching (defaults
+  tuned in `src/main.tsx`: `staleTime` 5 min, `gcTime` 10 min,
+  `refetchOnWindowFocus` disabled)
+
+## Algorithm-agnostic core
+
+TSI ships **zero** algorithm-specific code. All EST/HAP/etc. surface
+area is contributed by integrator extension packs (see
+`docs/EXTENSIONS.md`):
+
+- Pack location is configured at build time via the
+  `VITE_TSI_EXTENSIONS_PATH` env var which resolves the
+  `tsi-extensions-pack` alias (default: `webapp/phd-extensions`).
+- The pack must export `EXTENSION_CONTRACT_VERSION` matching the
+  TSI build it targets, plus a default `TsiExtensions` value with
+  optional `routes`, `navItems` and `algorithms`.
+- Algorithm tabs are rendered inside a `<Suspense>` boundary by
+  `pages/AlgorithmAnalysisPage`, so packs SHOULD declare their tab
+  components with `React.lazy` to keep the core bundle small.
 
 ## Folder Structure
 

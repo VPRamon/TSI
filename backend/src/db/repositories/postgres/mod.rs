@@ -14,7 +14,7 @@
 //!
 //! Environment variables:
 //! - `DATABASE_URL` or `PG_DATABASE_URL`: Connection string (required)
-//! - `PG_POOL_MAX`: Maximum pool size (default: 10)
+//! - `PG_POOL_MAX`: Maximum pool size (default: 8)
 //! - `PG_POOL_MIN`: Minimum pool size (default: 1)
 //! - `PG_CONN_TIMEOUT_SEC`: Connection timeout in seconds (default: 30)
 //! - `PG_IDLE_TIMEOUT_SEC`: Idle connection timeout in seconds (default: 600)
@@ -35,13 +35,14 @@ use std::time::{Duration, Instant};
 use tokio::task;
 
 use crate::api::{
-    CompareBlock, Constraints, DistributionBlock, InsightsBlock, LightweightBlock,
-    ModifiedJulianDate, Period, Schedule, ScheduleId, ScheduleInfo, ScheduleTimelineBlock,
-    SchedulingBlock, SchedulingBlockId, VisibilityBlockSummary, VisibilityMapData,
+    AlgorithmTraceIteration, AlgorithmTraceResponse, AlgorithmTraceSummary, CompareBlock,
+    Constraints, DistributionBlock, InsightsBlock, LightweightBlock, ModifiedJulianDate, Period,
+    Schedule, ScheduleId, ScheduleInfo, ScheduleTimelineBlock, SchedulingBlock, SchedulingBlockId,
+    VisibilityBlockSummary, VisibilityMapData,
 };
 use crate::db::repository::{
-    AnalyticsRepository, ErrorContext, RepositoryError, RepositoryResult, ScheduleRepository,
-    ValidationRepository, VisualizationRepository,
+    AlgorithmTraceRepository, AnalyticsRepository, ErrorContext, RepositoryError, RepositoryResult,
+    ScheduleRepository, ValidationRepository, VisualizationRepository,
 };
 use crate::services::validation::{
     validate_blocks, BlockForValidation, ValidationResult, ValidationStatus,
@@ -78,9 +79,17 @@ pub struct PostgresConfig {
 
 impl Default for PostgresConfig {
     fn default() -> Self {
+        // Bulk-import is the dominant user of pool connections: each
+        // item briefly holds **three** connections sequentially
+        // (store_schedule TX, populate_schedule_analytics TX,
+        // assign_schedule). To stay within laptop/dev memory budgets
+        // (each PG backend ≈10 MB) we cap the pool at 8 and require
+        // that `BULK_IMPORT_CONCURRENCY ≤ floor(max_pool_size / 3)`
+        // (default 2). For larger deployments override
+        // `PG_POOL_MAX` and `BULK_IMPORT_CONCURRENCY` together.
         Self {
             database_url: String::new(),
-            max_pool_size: 10,
+            max_pool_size: 8,
             min_pool_size: 1,
             connection_timeout_sec: 30,
             idle_timeout_sec: 600,
@@ -95,8 +104,11 @@ impl PostgresConfig {
     ///
     /// # Environment Variables
     /// - `DATABASE_URL` or `PG_DATABASE_URL`: Connection string (required)
-    /// - `PG_POOL_MAX`: Maximum pool size (default: 10)
-    /// - `PG_POOL_MIN`: Minimum pool size (default: 1)
+    /// - `PG_POOL_MAX`: Maximum pool size (default: 8). Must be at
+    ///   least `3 × BULK_IMPORT_CONCURRENCY` to avoid pool starvation
+    ///   during bulk imports — each item briefly holds three
+    ///   connections (store / analytics / assign).
+    /// - `PG_POOL_MIN`: Minimum idle pool size (default: 1)
     /// - `PG_CONN_TIMEOUT_SEC`: Connection timeout in seconds (default: 30)
     /// - `PG_IDLE_TIMEOUT_SEC`: Idle connection timeout in seconds (default: 600)
     /// - `PG_MAX_RETRIES`: Maximum retry attempts (default: 3)
@@ -109,7 +121,7 @@ impl PostgresConfig {
         let max_pool_size = std::env::var("PG_POOL_MAX")
             .ok()
             .and_then(|v| v.parse::<u32>().ok())
-            .unwrap_or(10);
+            .unwrap_or(8);
 
         let min_pool_size = std::env::var("PG_POOL_MIN")
             .ok()
@@ -732,7 +744,7 @@ impl ScheduleRepository for PostgresRepository {
                     checksum: schedule.checksum.clone(),
                     dark_periods_json: periods_to_json(&schedule.dark_periods),
                     possible_periods_json: compute_possible_periods_json(&schedule.blocks),
-                    raw_schedule_json: serde_json::to_value(&schedule).ok(),
+                    raw_schedule_json: None, // never read back; skip expensive serialization
                     schedule_period_json: period_to_json(&schedule.schedule_period),
                     observer_location_json: serde_json::to_value(schedule.geographic_location)
                         .map_err(|e| {
@@ -2054,10 +2066,7 @@ impl crate::db::repository::EnvironmentRepository for PostgresRepository {
             let mut env_schedules: std::collections::HashMap<i64, Vec<ScheduleId>> =
                 std::collections::HashMap::new();
             for (sid, eid) in schedule_mappings {
-                env_schedules
-                    .entry(eid)
-                    .or_insert_with(Vec::new)
-                    .push(ScheduleId(sid));
+                env_schedules.entry(eid).or_default().push(ScheduleId(sid));
             }
 
             // Build result
@@ -2391,6 +2400,101 @@ impl crate::db::repository::EnvironmentRepository for PostgresRepository {
                 .map_err(map_diesel_error)?;
 
             Ok(result)
+        })
+        .await
+    }
+}
+
+#[async_trait]
+impl AlgorithmTraceRepository for PostgresRepository {
+    async fn store_algorithm_trace(
+        &self,
+        schedule_id: ScheduleId,
+        algorithm: &str,
+        summary: &serde_json::Value,
+        iterations: &serde_json::Value,
+    ) -> RepositoryResult<()> {
+        let summary = summary.clone();
+        let iterations = iterations.clone();
+        let algorithm = algorithm.to_string();
+        self.with_conn(move |conn| {
+            diesel::insert_into(algorithm_traces::table)
+                .values((
+                    algorithm_traces::schedule_id.eq(schedule_id.0),
+                    algorithm_traces::algorithm.eq(&algorithm),
+                    algorithm_traces::summary.eq(&summary),
+                    algorithm_traces::iterations.eq(&iterations),
+                ))
+                .on_conflict(algorithm_traces::schedule_id)
+                .do_update()
+                .set((
+                    algorithm_traces::algorithm.eq(excluded(algorithm_traces::algorithm)),
+                    algorithm_traces::summary.eq(excluded(algorithm_traces::summary)),
+                    algorithm_traces::iterations.eq(excluded(algorithm_traces::iterations)),
+                    algorithm_traces::created_at.eq(diesel::dsl::now),
+                ))
+                .execute(conn)
+                .map_err(map_diesel_error)?;
+            Ok(())
+        })
+        .await
+    }
+
+    async fn get_algorithm_trace(
+        &self,
+        schedule_id: ScheduleId,
+    ) -> RepositoryResult<Option<AlgorithmTraceResponse>> {
+        self.with_conn(move |conn| {
+            let row = algorithm_traces::table
+                .filter(algorithm_traces::schedule_id.eq(schedule_id.0))
+                .select((
+                    algorithm_traces::algorithm,
+                    algorithm_traces::summary,
+                    algorithm_traces::iterations,
+                ))
+                .first::<(String, serde_json::Value, serde_json::Value)>(conn)
+                .optional()
+                .map_err(map_diesel_error)?;
+
+            let Some((algorithm, summary_json, iterations_json)) = row else {
+                return Ok(None);
+            };
+
+            let mut summary: AlgorithmTraceSummary =
+                serde_json::from_value(summary_json).map_err(|e| {
+                    RepositoryError::internal(format!(
+                        "Failed to decode algorithm_trace summary: {e}"
+                    ))
+                })?;
+            if summary.algorithm.is_empty() {
+                summary.algorithm = algorithm;
+            }
+            let iterations: Vec<AlgorithmTraceIteration> = serde_json::from_value(iterations_json)
+                .map_err(|e| {
+                    RepositoryError::internal(format!(
+                        "Failed to decode algorithm_trace iterations: {e}"
+                    ))
+                })?;
+
+            Ok(Some(AlgorithmTraceResponse {
+                schedule_id,
+                summary,
+                iterations,
+            }))
+        })
+        .await
+    }
+
+    async fn list_algorithm_names(&self) -> RepositoryResult<Vec<(ScheduleId, String)>> {
+        self.with_conn(move |conn| {
+            let rows = algorithm_traces::table
+                .select((algorithm_traces::schedule_id, algorithm_traces::algorithm))
+                .load::<(i64, String)>(conn)
+                .map_err(map_diesel_error)?;
+            Ok(rows
+                .into_iter()
+                .map(|(id, algo)| (ScheduleId::new(id), algo))
+                .collect())
         })
         .await
     }

@@ -11,7 +11,6 @@ import {
   LandingHeader,
   UploadScheduleCard,
   ScheduleListCard,
-  downloadAllSchedulesAsZip,
   downloadScheduleJson,
 } from '@/features/schedules';
 
@@ -20,7 +19,6 @@ function Landing() {
   const { data, isLoading, error, refetch } = useSchedules();
   const [pageError, setPageError] = useState('');
   const [downloadingScheduleIds, setDownloadingScheduleIds] = useState<Set<number>>(new Set());
-  const [isDownloadingAll, setIsDownloadingAll] = useState(false);
 
   const handleScheduleClick = (scheduleId: number) => {
     // Verify schedule exists in the current list before navigating
@@ -57,36 +55,6 @@ function Landing() {
       setDownloadingScheduleIds((prev) => {
         const next = new Set(prev);
         next.delete(schedule.schedule_id);
-        return next;
-      });
-    }
-  };
-
-  const handleDownloadAll = async () => {
-    const schedules = data?.schedules ?? [];
-    if (schedules.length === 0) {
-      return;
-    }
-
-    setPageError('');
-    setIsDownloadingAll(true);
-
-    const scheduleIds = schedules.map((schedule) => schedule.schedule_id);
-    setDownloadingScheduleIds((prev) => {
-      const next = new Set(prev);
-      scheduleIds.forEach((id) => next.add(id));
-      return next;
-    });
-
-    try {
-      await downloadAllSchedulesAsZip(schedules);
-    } catch {
-      setPageError('Failed to download all schedules. Please try again.');
-    } finally {
-      setIsDownloadingAll(false);
-      setDownloadingScheduleIds((prev) => {
-        const next = new Set(prev);
-        scheduleIds.forEach((id) => next.delete(id));
         return next;
       });
     }
@@ -152,11 +120,9 @@ function Landing() {
             total={data?.total ?? 0}
             onScheduleClick={handleScheduleClick}
             onScheduleDownload={handleScheduleDownload}
-            onDownloadAll={handleDownloadAll}
             onManageSchedules={() => navigate('/manage')}
-            onOpenAdvanced={() => navigate('/advanced')}
+            onOpenWorkspace={() => navigate('/workspace')}
             downloadingScheduleIds={downloadingScheduleIds}
-            isDownloadingAll={isDownloadingAll}
           />
         </div>
       </div>

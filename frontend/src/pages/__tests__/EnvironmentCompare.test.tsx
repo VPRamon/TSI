@@ -11,6 +11,7 @@ import type { ScheduleAnalysisData } from '@/features/schedules';
 import type { EnvironmentInfo } from '@/api/types';
 
 vi.mock('react-plotly.js', () => ({ default: () => null }));
+vi.mock('react-plotly.js/factory', () => ({ default: () => () => null }));
 vi.mock('plotly.js-dist-min', () => ({
   default: { newPlot: vi.fn(), react: vi.fn(), purge: vi.fn() },
 }));
@@ -66,6 +67,9 @@ function makeAnalysis(id: number, name: string, scheduledCount: number): Schedul
         median_priority: 5,
         mean_priority_scheduled: 5,
         mean_priority_unscheduled: 5,
+        priority_capture_ratio: scheduledCount / blocks.length,
+        sum_priority_scheduled: 5 * scheduledCount,
+        sum_priority_total: 5 * blocks.length,
         total_visibility_hours: 12,
         mean_requested_hours: 2,
       },

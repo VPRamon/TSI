@@ -16,6 +16,7 @@ import {
   isRetryableError,
   getErrorMessage,
   getErrorTitle,
+  errorMessage,
 } from './errors';
 
 describe('ApiRequestError', () => {
@@ -162,5 +163,24 @@ describe('getErrorTitle', () => {
     expect(getErrorTitle(new NetworkError())).toBe('Connection Error');
     expect(getErrorTitle(new ServerError())).toBe('Server Error');
     expect(getErrorTitle(new Error('test'))).toBe('Error');
+  });
+});
+
+describe('errorMessage', () => {
+  it('extracts response.data.message from axios-style errors', () => {
+    expect(errorMessage({ response: { data: { message: 'boom' } } })).toBe('boom');
+  });
+
+  it('falls back to response.data.error', () => {
+    expect(errorMessage({ response: { data: { error: 'nope' } } })).toBe('nope');
+  });
+
+  it('uses Error.message when no envelope is present', () => {
+    expect(errorMessage(new Error('plain'))).toBe('plain');
+  });
+
+  it('returns a generic fallback for unknown values', () => {
+    expect(errorMessage('weird')).toBe('Unexpected error');
+    expect(errorMessage(null)).toBe('Unexpected error');
   });
 });

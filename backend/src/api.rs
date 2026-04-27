@@ -3,6 +3,9 @@
 //! This file consolidates the DTO types for the HTTP API.
 //! All types derive Serialize/Deserialize for JSON serialization.
 
+pub use crate::routes::algorithm_trace::{
+    AlgorithmTraceIteration, AlgorithmTraceResponse, AlgorithmTraceSummary, ScheduleMetadata,
+};
 pub use crate::routes::altaz::AltAzCurve;
 pub use crate::routes::altaz::AltAzData;
 pub use crate::routes::altaz::AltAzObservatoryRequest;

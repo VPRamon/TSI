@@ -121,15 +121,8 @@ function ComparePage() {
     });
     return map;
   }, [schedulesData]);
-  const scheduleNames = useMemo(() => {
-    const map = new Map<number, string>();
-    schedulesData?.schedules.forEach((schedule) => {
-      map.set(schedule.schedule_id, schedule.schedule_name);
-    });
-    return map;
-  }, [schedulesData]);
 
-  const schedules = useScheduleAnalysisData(orderedIds, scheduleNames);
+  const schedules = useScheduleAnalysisData(orderedIds, scheduleInfoMap);
 
   const handleRemove = (id: number) => {
     const next = comparisonIds.filter((comparisonId) => comparisonId !== id);

@@ -4,9 +4,12 @@
  * Memoized to prevent unnecessary re-renders.
  */
 import { memo, useMemo } from 'react';
-import Plot from 'react-plotly.js';
-import type { Data, Layout, Config } from 'plotly.js';
+import createPlotlyComponent from 'react-plotly.js/factory';
+import Plotly from 'plotly.js-dist-min';
+import type { Data, Layout, Config } from 'plotly.js-dist-min';
 import { sanitizeImageFilename } from '@/lib/imageExport';
+
+const Plot = createPlotlyComponent(Plotly);
 
 export interface PlotlyChartProps {
   /** Chart data traces */

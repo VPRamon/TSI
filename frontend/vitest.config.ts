@@ -19,6 +19,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@root': path.resolve(__dirname, '../..'),
+      'tsi-extensions-pack': path.resolve(__dirname, '../../phd-extensions'),
     },
   },
 });

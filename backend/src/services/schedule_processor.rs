@@ -10,10 +10,17 @@ use crate::http::dto::SchedulePeriodOverride;
 use crate::models::schedule::compute_schedule_checksum;
 use crate::services::astronomical_night::compute_astronomical_nights;
 use crate::services::job_tracker::{JobTracker, LogLevel};
-use crate::services::visibility_service::{compute_block_visibility, VisibilityInput};
+use crate::services::visibility::{compute_block_visibility, VisibilityInput};
 use crate::services::ScheduleImportAdapter;
 use rayon::prelude::*;
 use std::sync::Arc;
+
+/// Validator callback for algorithm trace summaries. Provided by the
+/// http extension layer; receives the parsed `algorithm` name and the
+/// summary JSON object, returns `Err(human_readable)` to reject the
+/// upload.
+pub type TraceValidatorFn =
+    Arc<dyn Fn(&str, &serde_json::Value) -> Result<(), String> + Send + Sync>;
 
 /// Process a schedule asynchronously: parse, compute nights, store, and populate analytics.
 ///
@@ -43,6 +50,8 @@ pub async fn process_schedule_async(
     schedule_json: String,
     populate_analytics: bool,
     period_override: Option<SchedulePeriodOverride>,
+    algorithm_trace_jsonl: Option<String>,
+    trace_validator: Option<TraceValidatorFn>,
 ) -> Result<ScheduleId, String> {
     let adapter_name = import_adapter.name();
     tracker.log(
@@ -226,11 +235,53 @@ pub async fn process_schedule_async(
         }
     };
 
-    // Step 3: Log analytics population if enabled
+    // Step 3: Persist algorithm trace alongside the schedule when supplied.
+    if let Some(trace_text) = algorithm_trace_jsonl.as_deref() {
+        tracker.log(&job_id, LogLevel::Info, "Persisting algorithm trace...");
+        match parse_algorithm_trace_jsonl(trace_text) {
+            Ok((algorithm, summary, iterations)) => {
+                if let Some(validator) = trace_validator.as_deref() {
+                    if let Err(e) = validator(&algorithm, &summary) {
+                        let msg =
+                            format!("Algorithm trace validation failed for `{algorithm}`: {e}");
+                        tracker.fail_job(&job_id, &msg);
+                        return Err(msg);
+                    }
+                }
+                let iter_count = iterations.as_array().map(|a| a.len()).unwrap_or(0);
+                if let Err(e) = repo
+                    .store_algorithm_trace(metadata.schedule_id, &algorithm, &summary, &iterations)
+                    .await
+                {
+                    tracker.log(
+                        &job_id,
+                        LogLevel::Warning,
+                        format!("⚠ Failed to persist algorithm trace ({iter_count} rows): {e}"),
+                    );
+                } else {
+                    tracker.log(
+                        &job_id,
+                        LogLevel::Success,
+                        format!("✓ Stored {algorithm} algorithm trace ({iter_count} iterations)"),
+                    );
+                }
+            }
+            Err(e) => {
+                tracker.log(
+                    &job_id,
+                    LogLevel::Warning,
+                    format!("⚠ Skipping algorithm trace; failed to parse JSONL: {e}"),
+                );
+            }
+        }
+    }
+
+    // Step 4: Log analytics population if enabled
     if populate_analytics {
+        tracker.log(&job_id, LogLevel::Info, "Computing analytics...");
         tracker.log(
             &job_id,
-            LogLevel::Info,
+            LogLevel::Success,
             "✓ Analytics populated successfully",
         );
     }
@@ -274,6 +325,75 @@ fn apply_visibility_override(
             astronomical_nights: Some(nights),
         });
     });
+}
+
+/// Parse a generic algorithm trace in JSONL form into the data persisted by
+/// [`AlgorithmTraceRepository::store_algorithm_trace`].
+///
+/// The trace format is intentionally minimal: each line is a JSON object
+/// with a `kind` discriminator. Three kinds are recognised, all others are
+/// ignored:
+///
+/// - `"started"`              → carries the algorithm identifier and its
+///   configuration; merged into the summary.
+/// - `"iteration_completed"`  → appended to the iterations array (without
+///   the `kind` field).
+/// - `"summary"`              → run-level aggregates; merged into the
+///   summary.
+///
+/// Returns `(algorithm, summary_object, iterations_array)`. The `algorithm`
+/// string is taken from the `algorithm` field of the `started` event and
+/// falls back to `"unknown"` when missing.
+pub fn parse_algorithm_trace_jsonl(
+    text: &str,
+) -> Result<(String, serde_json::Value, serde_json::Value), String> {
+    let mut summary = serde_json::Map::new();
+    let mut iterations: Vec<serde_json::Value> = Vec::new();
+
+    for (line_no, line) in text.lines().enumerate() {
+        let line = line.trim();
+        if line.is_empty() {
+            continue;
+        }
+        let value: serde_json::Value = serde_json::from_str(line)
+            .map_err(|e| format!("line {}: invalid JSON: {e}", line_no + 1))?;
+        let kind = value
+            .get("kind")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+        match kind.as_str() {
+            "started" | "summary" => {
+                if let serde_json::Value::Object(map) = value {
+                    for (k, v) in map {
+                        if k == "kind" {
+                            continue;
+                        }
+                        summary.insert(k, v);
+                    }
+                }
+            }
+            "iteration_completed" => {
+                if let serde_json::Value::Object(mut map) = value {
+                    map.remove("kind");
+                    iterations.push(serde_json::Value::Object(map));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let algorithm = summary
+        .get("algorithm")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    Ok((
+        algorithm,
+        serde_json::Value::Object(summary),
+        serde_json::Value::Array(iterations),
+    ))
 }
 
 #[cfg(test)]
@@ -347,6 +467,8 @@ mod tests {
             "not valid native schedule json".to_string(),
             false,
             None,
+            None,
+            None,
         )
         .await;
 
@@ -378,6 +500,8 @@ mod tests {
             "ignored-name".to_string(),
             "{}".to_string(),
             false,
+            None,
+            None,
             None,
         )
         .await;
@@ -415,6 +539,8 @@ mod tests {
                 start_mjd: override_start,
                 end_mjd: override_end,
             }),
+            None,
+            None,
         )
         .await;
 
@@ -492,6 +618,8 @@ mod tests {
                 start_mjd: 60010.0,
                 end_mjd: 60020.0,
             }),
+            None,
+            None,
         )
         .await;
 

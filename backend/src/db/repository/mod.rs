@@ -36,6 +36,7 @@
 //! }
 //! ```
 
+pub mod algorithm_trace;
 pub mod analytics;
 pub mod environment;
 pub mod error;
@@ -47,6 +48,7 @@ pub mod visualization;
 pub use error::{ErrorContext, RepositoryError, RepositoryResult};
 
 // Re-export all traits
+pub use algorithm_trace::AlgorithmTraceRepository;
 pub use analytics::AnalyticsRepository;
 pub use environment::EnvironmentRepository;
 pub use schedule::ScheduleRepository;
@@ -78,6 +80,7 @@ pub trait FullRepository:
     + ValidationRepository
     + VisualizationRepository
     + EnvironmentRepository
+    + AlgorithmTraceRepository
     + std::fmt::Debug
 {
 }
@@ -89,6 +92,7 @@ impl<T> FullRepository for T where
         + ValidationRepository
         + VisualizationRepository
         + EnvironmentRepository
+        + AlgorithmTraceRepository
         + std::fmt::Debug
 {
 }

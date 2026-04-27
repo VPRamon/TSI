@@ -2,3 +2,7 @@ export { default as PlotlyChart } from './PlotlyChart';
 export type { PlotlyChartProps } from './PlotlyChart';
 export { default as CelestialSkyMap } from './CelestialSkyMap';
 export type { CelestialSkyMapProps } from './CelestialSkyMap';
+export { default as HelpPopover } from './HelpPopover';
+export type { HelpContent, HelpPopoverProps } from './HelpPopover';
+export { default as ChartFullscreenOverlay } from './ChartFullscreenOverlay';
+export type { ChartFullscreenOverlayProps } from './ChartFullscreenOverlay';

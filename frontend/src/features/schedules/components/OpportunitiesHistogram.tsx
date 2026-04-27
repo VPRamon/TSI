@@ -7,8 +7,21 @@
  */
 import { memo, useCallback, useMemo } from 'react';
 import { ChartPanel } from '@/components';
+import HelpPopover, { type HelpContent } from '@/components/charts/HelpPopover';
 import type { HistogramBin } from '../hooks/useHistogramData';
 import { downloadCanvasAsPng } from '@/lib/imageExport';
+
+const HISTOGRAM_HELP: HelpContent = {
+  title: 'Visibility histogram',
+  summary:
+    'Time-binned count of how many scheduling blocks are visible to the telescope at each instant.',
+  bullets: [
+    'Each bar covers a fixed time bin; height = number of blocks visible during that bin.',
+    'Bar opacity scales with count, making peaks visually obvious.',
+    'Hover a bar to see the exact UTC range and visible-block count.',
+    'Use Download PNG to export the chart at print resolution.',
+  ],
+};
 
 const EXPORT_WIDTH = 1600;
 const EXPORT_HEIGHT = 900;
@@ -170,14 +183,17 @@ const OpportunitiesHistogram = memo(function OpportunitiesHistogram({
     <ChartPanel
       title="Visibility Histogram"
       headerActions={
-        <button
-          type="button"
-          onClick={handleDownload}
-          disabled={bins.length === 0}
-          className={DOWNLOAD_BUTTON_CLASS}
-        >
-          Download PNG
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={bins.length === 0}
+            className={DOWNLOAD_BUTTON_CLASS}
+          >
+            Download PNG
+          </button>
+          <HelpPopover content={HISTOGRAM_HELP} ariaLabel="Help: visibility histogram" />
+        </div>
       }
     >
       <div

@@ -2,10 +2,7 @@
 #![allow(clippy::redundant_closure)]
 
 use crate::api::{DistributionBlock, DistributionData, DistributionStats};
-use tokio::runtime::Runtime;
-
-// Import the global repository accessor
-use crate::db::{get_repository, services as db_services};
+use crate::db::{services as db_services, FullRepository};
 
 /// Compute statistics for a set of values.
 /// This is a helper function that calculates mean, median, std dev, min, max, and sum.
@@ -102,12 +99,10 @@ pub fn compute_distribution_data(
 ///
 /// **Note**: Impossible blocks (zero visibility) are automatically excluded.
 pub async fn get_distribution_data(
+    repo: &(dyn FullRepository + 'static),
     schedule_id: crate::api::ScheduleId,
 ) -> Result<DistributionData, String> {
-    // Get the initialized repository
-    let repo = get_repository().map_err(|e| format!("Failed to get repository: {}", e))?;
-
-    db_services::ensure_analytics(repo.as_ref(), schedule_id)
+    db_services::ensure_analytics(repo, schedule_id)
         .await
         .map_err(|e| format!("Failed to ensure analytics: {}", e))?;
 
@@ -140,24 +135,6 @@ pub async fn get_distribution_data(
     }
 
     compute_distribution_data(blocks, impossible_count)
-}
-
-/// Get complete distribution data with computed statistics and metadata.
-/// This is the main Python-callable function for the distributions feature.
-///
-/// **Note**: Impossible blocks are automatically excluded.
-pub fn py_get_distribution_data(
-    schedule_id: crate::api::ScheduleId,
-) -> Result<DistributionData, String> {
-    let runtime = Runtime::new().map_err(|e| format!("Failed to create async runtime: {}", e))?;
-    runtime.block_on(get_distribution_data(schedule_id))
-}
-
-/// Alias for compatibility - uses analytics path.
-pub fn py_get_distribution_data_analytics(
-    schedule_id: crate::api::ScheduleId,
-) -> Result<DistributionData, String> {
-    py_get_distribution_data(schedule_id)
 }
 
 #[cfg(test)]

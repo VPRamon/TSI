@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSchedules, useDeleteSchedules, useUpdateSchedule } from '@/hooks';
 import { LoadingSpinner, ErrorMessage } from '@/components';
+import { downloadAllSchedulesAsZip } from '@/features/schedules';
 import type { ScheduleInfo, GeographicLocation } from '@/api/types';
 import { OBSERVATORY_SITES, formatSiteLabel } from '@/constants';
 
@@ -90,6 +91,39 @@ function ChevronLeftIcon() {
       aria-hidden="true"
     >
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+    </svg>
+  );
+}
+
+function DownloadAllIcon() {
+  return (
+    <svg
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.75}
+        d="M12 4v10m0 0 4-4m-4 4-4-4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+      />
+    </svg>
+  );
+}
+
+function DownloadAllSpinner() {
+  return (
+    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" />
+      <path
+        d="M22 12a10 10 0 0 0-10-10"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }
@@ -382,6 +416,23 @@ function ScheduleManagement() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null
   );
+  const [isDownloadingSelected, setIsDownloadingSelected] = useState(false);
+
+  const handleDownloadSelected = async () => {
+    if (selectedSchedules.length === 0 || isDownloadingSelected) return;
+    setIsDownloadingSelected(true);
+    try {
+      await downloadAllSchedulesAsZip(selectedSchedules);
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        message:
+          err instanceof Error ? err.message : 'Failed to download selected schedules',
+      });
+    } finally {
+      setIsDownloadingSelected(false);
+    }
+  };
 
   const selectedSchedules = schedules.filter((schedule) =>
     selectedScheduleIds.has(schedule.schedule_id)
@@ -544,7 +595,7 @@ function ScheduleManagement() {
           <div className="rounded-xl bg-indigo-500/10 p-3 text-indigo-400">
             <SettingsIcon />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold text-white">Manage Schedules</h1>
             <p className="mt-1 text-sm text-slate-400">
               Edit schedule metadata, change observatory location, or remove schedules from the
@@ -614,6 +665,20 @@ function ScheduleManagement() {
                       Clear selection
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={handleDownloadSelected}
+                    disabled={selectedSchedules.length === 0 || isDownloadingSelected}
+                    className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 transition-all duration-200 hover:border-emerald-400/60 hover:bg-emerald-500/20 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label={
+                      isDownloadingSelected
+                        ? 'Downloading selected schedules'
+                        : 'Download selected schedules as ZIP'
+                    }
+                  >
+                    {isDownloadingSelected ? <DownloadAllSpinner /> : <DownloadAllIcon />}
+                    Download selected
+                  </button>
                   <button
                     type="button"
                     onClick={() => openDeleteDialogForIds(selectedSchedules.map((s) => s.schedule_id))}

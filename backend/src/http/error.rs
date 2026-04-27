@@ -59,15 +59,20 @@ impl IntoResponse for AppError {
                 ApiError::new("INTERNAL_ERROR", msg),
             ),
             AppError::Repository(e) => {
-                let msg = e.to_string();
-                // Check if it's a "not found" type error
-                if msg.to_lowercase().contains("not found") {
-                    (StatusCode::NOT_FOUND, ApiError::new("NOT_FOUND", msg))
-                } else {
-                    (
+                use crate::db::repository::RepositoryError;
+                match e {
+                    RepositoryError::NotFound { .. } => (
+                        StatusCode::NOT_FOUND,
+                        ApiError::new("NOT_FOUND", e.to_string()),
+                    ),
+                    RepositoryError::ValidationError { .. } => (
+                        StatusCode::CONFLICT,
+                        ApiError::new("CONFLICT", e.to_string()),
+                    ),
+                    _ => (
                         StatusCode::INTERNAL_SERVER_ERROR,
-                        ApiError::new("REPOSITORY_ERROR", msg),
-                    )
+                        ApiError::new("REPOSITORY_ERROR", e.to_string()),
+                    ),
                 }
             }
         };
