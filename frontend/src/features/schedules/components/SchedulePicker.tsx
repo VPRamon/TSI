@@ -5,7 +5,16 @@
  * - Layout top bar "Compare with..." action
  * - Any view that needs quick schedule selection
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { List, type RowComponentProps } from 'react-window';
 import { useSchedules } from '@/hooks/useApi';
@@ -137,6 +146,19 @@ export function SchedulePicker({
 }: SchedulePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
+  // Defer the search term used by the heavy filter so the input itself stays
+  // snappy while large schedule lists re-filter in the background.
+  const deferredSearch = useDeferredValue(search);
+  const isFilteringPending = search !== deferredSearch;
+  const [showFilteringHint, setShowFilteringHint] = useState(false);
+  useEffect(() => {
+    if (!isFilteringPending) {
+      setShowFilteringHint(false);
+      return;
+    }
+    const handle = setTimeout(() => setShowFilteringHint(true), 200);
+    return () => clearTimeout(handle);
+  }, [isFilteringPending]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set(initialSelectedIds));
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -153,10 +175,10 @@ export function SchedulePicker({
   }, [schedulesData, excludeId]);
 
   const filteredIndex = useMemo<IndexedSchedule[]>(() => {
-    const normalized = search.trim().toLowerCase();
+    const normalized = deferredSearch.trim().toLowerCase();
     if (!normalized) return searchIndex;
     return searchIndex.filter((entry) => entry.search.includes(normalized));
-  }, [searchIndex, search]);
+  }, [searchIndex, deferredSearch]);
 
   const filteredSchedules = useMemo(
     () => filteredIndex.map((entry) => entry.schedule),
@@ -247,7 +269,17 @@ export function SchedulePicker({
             aria-label="Search schedules"
             aria-expanded={isOpen}
             aria-haspopup="listbox"
+            aria-busy={isFilteringPending}
           />
+          {showFilteringHint && (
+            <span
+              className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-xs text-slate-400"
+              role="status"
+              aria-live="polite"
+            >
+              Filtering…
+            </span>
+          )}
           <button
             type="button"
             onClick={() => setIsOpen(!isOpen)}
@@ -353,7 +385,17 @@ export function SchedulePicker({
           aria-label="Search schedules"
           aria-expanded={isOpen}
           aria-haspopup="listbox"
+          aria-busy={isFilteringPending}
         />
+        {showFilteringHint && (
+          <span
+            className="pointer-events-none absolute right-8 top-1/2 -translate-y-1/2 text-xs text-slate-400"
+            role="status"
+            aria-live="polite"
+          >
+            Filtering…
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}

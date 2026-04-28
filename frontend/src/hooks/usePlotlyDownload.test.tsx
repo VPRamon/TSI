@@ -14,6 +14,14 @@ const { mockedPlotly } = vi.hoisted(() => ({
 vi.mock('plotly.js-dist-min', () => ({
   default: mockedPlotly,
 }));
+vi.mock('plotly.js-basic-dist-min', () => ({
+  default: mockedPlotly,
+}));
+vi.mock('@/components/charts/plotlyRegistry', () => ({
+  loadPlotly: vi.fn(async () => mockedPlotly),
+  loadPreferredPlotly: vi.fn(async () => mockedPlotly),
+  getPreferredBundle: vi.fn(() => 'basic'),
+}));
 
 // Mock the dependencies
 vi.mock('@/lib/imageExport', () => ({

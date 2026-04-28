@@ -48,7 +48,7 @@ export function useScheduleAnalysisData(
   const insightQueries = useQueries({
     queries: ids.map((id) => ({
       queryKey: queryKeys.insights(id),
-      queryFn: () => api.getInsights(id),
+      queryFn: ({ signal }: { signal: AbortSignal }) => api.getInsights(id, { signal }),
       enabled: id > 0,
     })),
   });
@@ -56,7 +56,7 @@ export function useScheduleAnalysisData(
   const fragmentationQueries = useQueries({
     queries: ids.map((id) => ({
       queryKey: queryKeys.fragmentation(id),
-      queryFn: () => api.getFragmentation(id),
+      queryFn: ({ signal }: { signal: AbortSignal }) => api.getFragmentation(id, { signal }),
       enabled: id > 0,
     })),
   });

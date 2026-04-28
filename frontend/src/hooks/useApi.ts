@@ -15,6 +15,14 @@ import type {
   BulkImportRequest,
 } from '@/api/types';
 
+/**
+ * Garbage-collection window for heavy per-schedule payloads (sky maps,
+ * insights, fragmentation, …). 5 minutes balances responsiveness when a
+ * user revisits a schedule against the memory cost of holding several
+ * large payloads in the react-query cache.
+ */
+const HEAVY_SCHEDULE_GC_TIME_MS = 5 * 60_000;
+
 // Query keys factory
 export const queryKeys = {
   health: ['health'] as const,
@@ -132,31 +140,34 @@ export function useUpdateSchedule() {
 export function useSkyMap(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.skyMap(scheduleId),
-    queryFn: () => api.getSkyMap(scheduleId),
+    queryFn: ({ signal }) => api.getSkyMap(scheduleId, { signal }),
     enabled: scheduleId > 0,
+    gcTime: HEAVY_SCHEDULE_GC_TIME_MS,
   });
 }
 
 export function useDistributions(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.distributions(scheduleId),
-    queryFn: () => api.getDistributions(scheduleId),
+    queryFn: ({ signal }) => api.getDistributions(scheduleId, { signal }),
     enabled: scheduleId > 0,
+    gcTime: HEAVY_SCHEDULE_GC_TIME_MS,
   });
 }
 
 export function useVisibilityMap(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.visibilityMap(scheduleId),
-    queryFn: () => api.getVisibilityMap(scheduleId),
+    queryFn: ({ signal }) => api.getVisibilityMap(scheduleId, { signal }),
     enabled: scheduleId > 0,
+    gcTime: HEAVY_SCHEDULE_GC_TIME_MS,
   });
 }
 
 export function useVisibilityHistogram(scheduleId: number, query?: VisibilityHistogramQuery) {
   return useQuery({
     queryKey: queryKeys.visibilityHistogram(scheduleId, query),
-    queryFn: () => api.getVisibilityHistogram(scheduleId, query),
+    queryFn: ({ signal }) => api.getVisibilityHistogram(scheduleId, query, { signal }),
     enabled: scheduleId > 0,
     placeholderData: keepPreviousData,
   });
@@ -165,24 +176,27 @@ export function useVisibilityHistogram(scheduleId: number, query?: VisibilityHis
 export function useTimeline(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.timeline(scheduleId),
-    queryFn: () => api.getTimeline(scheduleId),
+    queryFn: ({ signal }) => api.getTimeline(scheduleId, { signal }),
     enabled: scheduleId > 0,
+    gcTime: HEAVY_SCHEDULE_GC_TIME_MS,
   });
 }
 
 export function useInsights(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.insights(scheduleId),
-    queryFn: () => api.getInsights(scheduleId),
+    queryFn: ({ signal }) => api.getInsights(scheduleId, { signal }),
     enabled: scheduleId > 0,
+    gcTime: HEAVY_SCHEDULE_GC_TIME_MS,
   });
 }
 
 export function useFragmentation(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.fragmentation(scheduleId),
-    queryFn: () => api.getFragmentation(scheduleId),
+    queryFn: ({ signal }) => api.getFragmentation(scheduleId, { signal }),
     enabled: scheduleId > 0,
+    gcTime: HEAVY_SCHEDULE_GC_TIME_MS,
   });
 }
 
@@ -195,16 +209,17 @@ export function useFragmentation(scheduleId: number) {
 export function useAlgorithmTrace(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.algorithmTrace(scheduleId),
-    queryFn: () => api.getAlgorithmTrace(scheduleId),
+    queryFn: ({ signal }) => api.getAlgorithmTrace(scheduleId, { signal }),
     enabled: scheduleId > 0,
     retry: false,
+    gcTime: HEAVY_SCHEDULE_GC_TIME_MS,
   });
 }
 
 export function useAltAz(scheduleId: number, request?: AltAzRequest) {
   return useQuery({
     queryKey: queryKeys.altAz(scheduleId, request),
-    queryFn: () => api.computeAltAz(scheduleId, request as AltAzRequest),
+    queryFn: ({ signal }) => api.computeAltAz(scheduleId, request as AltAzRequest, { signal }),
     enabled: scheduleId > 0 && !!request,
   });
 }
@@ -212,7 +227,7 @@ export function useAltAz(scheduleId: number, request?: AltAzRequest) {
 export function useTrends(scheduleId: number, query?: TrendsQuery) {
   return useQuery({
     queryKey: queryKeys.trends(scheduleId, query),
-    queryFn: () => api.getTrends(scheduleId, query),
+    queryFn: ({ signal }) => api.getTrends(scheduleId, query, { signal }),
     enabled: scheduleId > 0,
   });
 }
@@ -220,16 +235,18 @@ export function useTrends(scheduleId: number, query?: TrendsQuery) {
 export function useValidationReport(scheduleId: number) {
   return useQuery({
     queryKey: queryKeys.validationReport(scheduleId),
-    queryFn: () => api.getValidationReport(scheduleId),
+    queryFn: ({ signal }) => api.getValidationReport(scheduleId, { signal }),
     enabled: scheduleId > 0,
+    gcTime: HEAVY_SCHEDULE_GC_TIME_MS,
   });
 }
 
 export function useCompare(scheduleId: number, otherId: number, query?: CompareQuery) {
   return useQuery({
     queryKey: queryKeys.compare(scheduleId, otherId, query),
-    queryFn: () => api.compareSchedules(scheduleId, otherId, query),
+    queryFn: ({ signal }) => api.compareSchedules(scheduleId, otherId, query, { signal }),
     enabled: scheduleId > 0 && otherId > 0,
+    gcTime: HEAVY_SCHEDULE_GC_TIME_MS,
   });
 }
 

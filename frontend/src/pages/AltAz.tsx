@@ -514,6 +514,7 @@ function AltAz() {
               layout={altitudeLayout}
               config={config}
               height="500px"
+              bundle="full"
               onInitialized={onAltInit}
             />
           ) : altAzError && altAzRequest ? (
@@ -542,6 +543,7 @@ function AltAz() {
               layout={azLayout}
               config={config}
               height="500px"
+              bundle="full"
               onInitialized={onAzInit}
             />
           ) : altAzError && altAzRequest ? (

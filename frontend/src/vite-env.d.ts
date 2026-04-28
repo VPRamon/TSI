@@ -1,5 +1,14 @@
 /// <reference types="vite/client" />
 
+declare module 'plotly.js-basic-dist-min' {
+  // The basic build exposes the same `Plotly` namespace shape (subset
+  // of trace/transform support) — re-export the full type surface so
+  // call sites can stay strongly typed without pulling in 3-D/mapbox
+  // implementations at runtime.
+  import Plotly from 'plotly.js-dist-min';
+  export default Plotly;
+}
+
 declare module 'react-plotly.js' {
   import { Component } from 'react';
   import Plotly from 'plotly.js-dist-min';

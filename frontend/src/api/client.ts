@@ -143,8 +143,10 @@ class ApiClient {
     };
   }
 
-  async getSchedule(scheduleId: number): Promise<unknown> {
-    const { data } = await this.client.get<unknown>(`/v1/schedules/${scheduleId}`);
+  async getSchedule(scheduleId: number, init?: { signal?: AbortSignal }): Promise<unknown> {
+    const { data } = await this.client.get<unknown>(`/v1/schedules/${scheduleId}`, {
+      signal: init?.signal,
+    });
     return data;
   }
 
@@ -171,51 +173,76 @@ class ApiClient {
   }
 
   // Visualization endpoints
-  async getSkyMap(scheduleId: number): Promise<SkyMapData> {
-    const { data } = await this.client.get<SkyMapData>(`/v1/schedules/${scheduleId}/sky-map`);
+  async getSkyMap(scheduleId: number, init?: { signal?: AbortSignal }): Promise<SkyMapData> {
+    const { data } = await this.client.get<SkyMapData>(`/v1/schedules/${scheduleId}/sky-map`, {
+      signal: init?.signal,
+    });
     return data;
   }
 
-  async getDistributions(scheduleId: number): Promise<DistributionData> {
+  async getDistributions(
+    scheduleId: number,
+    init?: { signal?: AbortSignal }
+  ): Promise<DistributionData> {
     const { data } = await this.client.get<DistributionData>(
-      `/v1/schedules/${scheduleId}/distributions`
+      `/v1/schedules/${scheduleId}/distributions`,
+      { signal: init?.signal }
     );
     return data;
   }
 
-  async getVisibilityMap(scheduleId: number): Promise<VisibilityMapData> {
+  async getVisibilityMap(
+    scheduleId: number,
+    init?: { signal?: AbortSignal }
+  ): Promise<VisibilityMapData> {
     const { data } = await this.client.get<VisibilityMapData>(
-      `/v1/schedules/${scheduleId}/visibility-map`
+      `/v1/schedules/${scheduleId}/visibility-map`,
+      { signal: init?.signal }
     );
     return data;
   }
 
   async getVisibilityHistogram(
     scheduleId: number,
-    query?: VisibilityHistogramQuery
+    query?: VisibilityHistogramQuery,
+    init?: { signal?: AbortSignal }
   ): Promise<VisibilityBin[]> {
     const { data } = await this.client.get<VisibilityBin[]>(
       `/v1/schedules/${scheduleId}/visibility-histogram`,
-      { params: query }
+      { params: query, signal: init?.signal }
     );
     return data;
   }
 
-  async getTimeline(scheduleId: number): Promise<ScheduleTimelineData> {
+  async getTimeline(
+    scheduleId: number,
+    init?: { signal?: AbortSignal }
+  ): Promise<ScheduleTimelineData> {
     const { data } = await this.client.get<ScheduleTimelineData>(
-      `/v1/schedules/${scheduleId}/timeline`
+      `/v1/schedules/${scheduleId}/timeline`,
+      { signal: init?.signal }
     );
     return data;
   }
 
-  async getInsights(scheduleId: number): Promise<InsightsData> {
-    const { data } = await this.client.get<InsightsData>(`/v1/schedules/${scheduleId}/insights`);
+  async getInsights(
+    scheduleId: number,
+    init?: { signal?: AbortSignal }
+  ): Promise<InsightsData> {
+    const { data } = await this.client.get<InsightsData>(
+      `/v1/schedules/${scheduleId}/insights`,
+      { signal: init?.signal }
+    );
     return data;
   }
 
-  async getFragmentation(scheduleId: number): Promise<FragmentationData> {
+  async getFragmentation(
+    scheduleId: number,
+    init?: { signal?: AbortSignal }
+  ): Promise<FragmentationData> {
     const { data } = await this.client.get<FragmentationData>(
-      `/v1/schedules/${scheduleId}/fragmentation`
+      `/v1/schedules/${scheduleId}/fragmentation`,
+      { signal: init?.signal }
     );
     return data;
   }
@@ -232,28 +259,49 @@ class ApiClient {
     return data;
   }
 
-  async getAlgorithmTrace(scheduleId: number): Promise<AlgorithmTraceResponse> {
+  async getAlgorithmTrace(
+    scheduleId: number,
+    init?: { signal?: AbortSignal }
+  ): Promise<AlgorithmTraceResponse> {
     const { data } = await this.client.get<AlgorithmTraceResponse>(
-      `/v1/schedules/${scheduleId}/algorithm_trace`
+      `/v1/schedules/${scheduleId}/algorithm_trace`,
+      { signal: init?.signal }
     );
     return data;
   }
 
-  async computeAltAz(scheduleId: number, request: AltAzRequest): Promise<AltAzData> {
-    const { data } = await this.client.post<AltAzData>(`/v1/schedules/${scheduleId}/alt-az`, request);
+  async computeAltAz(
+    scheduleId: number,
+    request: AltAzRequest,
+    init?: { signal?: AbortSignal }
+  ): Promise<AltAzData> {
+    const { data } = await this.client.post<AltAzData>(
+      `/v1/schedules/${scheduleId}/alt-az`,
+      request,
+      { signal: init?.signal }
+    );
     return data;
   }
 
-  async getTrends(scheduleId: number, query?: TrendsQuery): Promise<TrendsData> {
+  async getTrends(
+    scheduleId: number,
+    query?: TrendsQuery,
+    init?: { signal?: AbortSignal }
+  ): Promise<TrendsData> {
     const { data } = await this.client.get<TrendsData>(`/v1/schedules/${scheduleId}/trends`, {
       params: query,
+      signal: init?.signal,
     });
     return data;
   }
 
-  async getValidationReport(scheduleId: number): Promise<ValidationReport> {
+  async getValidationReport(
+    scheduleId: number,
+    init?: { signal?: AbortSignal }
+  ): Promise<ValidationReport> {
     const { data } = await this.client.get<ValidationReport>(
-      `/v1/schedules/${scheduleId}/validation-report`
+      `/v1/schedules/${scheduleId}/validation-report`,
+      { signal: init?.signal }
     );
     return data;
   }
@@ -261,11 +309,12 @@ class ApiClient {
   async compareSchedules(
     scheduleId: number,
     otherId: number,
-    query?: CompareQuery
+    query?: CompareQuery,
+    init?: { signal?: AbortSignal }
   ): Promise<CompareData> {
     const { data } = await this.client.get<CompareData>(
       `/v1/schedules/${scheduleId}/compare/${otherId}`,
-      { params: query }
+      { params: query, signal: init?.signal }
     );
     return data;
   }

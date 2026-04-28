@@ -5,6 +5,28 @@ import '@testing-library/jest-dom';
 import { cleanup } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
 
+// Default Plotly mocks — keep both the basic and full bundles stubbed
+// so dynamic imports in `plotlyRegistry` resolve in jsdom. Individual
+// tests can override these with their own `vi.mock(...)` calls.
+vi.mock('plotly.js-basic-dist-min', () => ({
+  default: {
+    newPlot: vi.fn(),
+    react: vi.fn(),
+    purge: vi.fn(),
+    toImage: vi.fn(),
+    Plots: { resize: vi.fn() },
+  },
+}));
+vi.mock('plotly.js-dist-min', () => ({
+  default: {
+    newPlot: vi.fn(),
+    react: vi.fn(),
+    purge: vi.fn(),
+    toImage: vi.fn(),
+    Plots: { resize: vi.fn() },
+  },
+}));
+
 // Cleanup after each test
 afterEach(() => {
   cleanup();

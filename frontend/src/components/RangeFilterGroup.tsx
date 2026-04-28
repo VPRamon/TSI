@@ -10,10 +10,20 @@
  *   - Emits `{ [key]: [min, max] }` updates on every change, debounced
  *     to a single React commit per interaction (no extra dep).
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from 'react';
 
 /** Debounce window (ms) applied to slider drags before `onChange` fires. */
 const DEBOUNCE_MS = 120;
+/** Show a small "filtering…" hint when downstream work is still pending. */
+const FILTERING_HINT_DELAY_MS = 200;
 
 export interface RangeFilterSpec {
   /** Stable key used in the `values` map. */
@@ -83,6 +93,8 @@ export function RangeFilterGroup({ specs, values, onChange, label }: RangeFilter
   // window (no extra deps; behaves like lodash.debounce trailing-only).
   const [local, setLocal] = useState<Record<string, RangeFilterValue>>(values);
   const dirtyRef = useRef(false);
+  const [pending, setPending] = useState(false);
+  const [showFilteringHint, setShowFilteringHint] = useState(false);
 
   useEffect(() => {
     if (!dirtyRef.current) setLocal(values);
@@ -97,10 +109,26 @@ export function RangeFilterGroup({ specs, values, onChange, label }: RangeFilter
     if (!dirtyRef.current) return;
     const handle = setTimeout(() => {
       dirtyRef.current = false;
-      onChangeRef.current(local);
+      // Mark downstream work as pending and dispatch the heavy update inside
+      // a transition so React can keep the slider thumbs interactive while
+      // consumers recompute derived state.
+      setPending(true);
+      startTransition(() => {
+        onChangeRef.current(local);
+        setPending(false);
+      });
     }, DEBOUNCE_MS);
     return () => clearTimeout(handle);
   }, [local]);
+
+  useEffect(() => {
+    if (!pending) {
+      setShowFilteringHint(false);
+      return;
+    }
+    const handle = setTimeout(() => setShowFilteringHint(true), FILTERING_HINT_DELAY_MS);
+    return () => clearTimeout(handle);
+  }, [pending]);
 
   const update = useCallback((key: string, next: RangeFilterValue) => {
     dirtyRef.current = true;
@@ -110,9 +138,25 @@ export function RangeFilterGroup({ specs, values, onChange, label }: RangeFilter
   if (resolved.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800/40 p-3">
-      {label && (
-        <span className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</span>
+    <div
+      className="flex flex-col gap-2 rounded-lg border border-slate-700 bg-slate-800/40 p-3"
+      aria-busy={pending}
+    >
+      {(label || showFilteringHint) && (
+        <div className="flex items-center justify-between">
+          {label ? (
+            <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              {label}
+            </span>
+          ) : (
+            <span />
+          )}
+          {showFilteringHint && (
+            <span className="text-xs text-slate-400" role="status" aria-live="polite">
+              Filtering…
+            </span>
+          )}
+        </div>
       )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {resolved.map(({ spec, min, max, step }) => {

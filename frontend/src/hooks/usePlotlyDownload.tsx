@@ -6,7 +6,7 @@
  * Uses Plotly.toImage for high-DPI PNG export (2× scale).
  */
 import { useState, useCallback, type ReactNode } from 'react';
-import Plotly from 'plotly.js-dist-min';
+import { loadPreferredPlotly } from '@/components/charts/plotlyRegistry';
 import { sanitizeImageFilename, downloadPngDataUrl } from '@/lib/imageExport';
 
 /** Matches the secondary action button style used across panel headers. */
@@ -41,6 +41,7 @@ export function usePlotlyDownload(label: string): UsePlotlyDownloadResult {
       setError(msg);
       return;
     }
+    const Plotly = await loadPreferredPlotly();
     if (typeof Plotly.toImage !== 'function') {
       const msg = 'Plotly.js not loaded';
       console.error(`[PNG Export] ${msg}`);

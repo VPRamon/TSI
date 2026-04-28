@@ -3,13 +3,37 @@
  * Provides consistent styling and responsive behavior.
  * Memoized to prevent unnecessary re-renders.
  */
-import { memo, useMemo } from 'react';
+import { lazy, memo, Suspense, useMemo, type ComponentType } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
-import Plotly from 'plotly.js-dist-min';
 import type { Data, Layout, Config, PlotMouseEvent, PlotSelectionEvent } from 'plotly.js-dist-min';
 import { sanitizeImageFilename } from '@/lib/imageExport';
+import { loadPlotly, type PlotlyBundle } from './plotlyRegistry';
 
-const Plot = createPlotlyComponent(Plotly);
+interface InternalPlotProps {
+  data: Data[];
+  layout: Partial<Layout>;
+  config: Partial<Config>;
+  style: React.CSSProperties;
+  useResizeHandler: boolean;
+  onInitialized?: (figure: unknown, graphDiv: HTMLElement) => void;
+  onSelected?: (event: PlotSelectionEvent | undefined) => void;
+  onDeselect?: () => void;
+  onClick?: (event: PlotMouseEvent) => void;
+}
+
+const lazyComponentCache: Partial<Record<PlotlyBundle, ComponentType<InternalPlotProps>>> = {};
+
+function getLazyPlot(bundle: PlotlyBundle): ComponentType<InternalPlotProps> {
+  const cached = lazyComponentCache[bundle];
+  if (cached) return cached;
+  const Component = lazy(async () => {
+    const Plotly = await loadPlotly(bundle);
+    const Plot = createPlotlyComponent(Plotly) as ComponentType<InternalPlotProps>;
+    return { default: Plot };
+  });
+  lazyComponentCache[bundle] = Component;
+  return Component;
+}
 
 export interface PlotlyChartProps {
   /** Chart data traces */
@@ -24,6 +48,12 @@ export interface PlotlyChartProps {
   className?: string;
   /** Accessible label for the chart */
   ariaLabel?: string;
+  /**
+   * Which Plotly bundle to load. Defaults to `'basic'` (lighter).
+   * Use `'full'` for charts that need 3-D, mapbox/geo, or other
+   * trace types missing from the basic build.
+   */
+  bundle?: PlotlyBundle;
   /**
    * Called once after Plotly initialises the chart.
    * Receives the raw figure object and the underlying DOM element.
@@ -57,6 +87,7 @@ const PlotlyChart = memo(function PlotlyChart({
   height = '400px',
   className = '',
   ariaLabel,
+  bundle = 'basic',
   onInitialized,
   onSelected,
   onDeselect,
@@ -92,19 +123,32 @@ const PlotlyChart = memo(function PlotlyChart({
     [config, exportFilename]
   );
 
+  const Plot = getLazyPlot(bundle);
+  // Sized placeholder so the layout doesn't shift while the Plotly
+  // bundle is fetched on first mount. Reuses neutral chart background
+  // styling already in the surrounding ChartPanel.
+  const fallback = (
+    <div
+      className="h-full w-full animate-pulse rounded-md bg-slate-800/40"
+      aria-hidden="true"
+    />
+  );
+
   return (
     <div className={`w-full ${className}`} style={{ height }} role="img" aria-label={ariaLabel}>
-      <Plot
-        data={data}
-        layout={layout}
-        config={mergedConfig}
-        style={{ width: '100%', height: '100%' }}
-        useResizeHandler
-        onInitialized={onInitialized}
-        onSelected={onSelected}
-        onDeselect={onDeselect}
-        onClick={onClick}
-      />
+      <Suspense fallback={fallback}>
+        <Plot
+          data={data}
+          layout={layout}
+          config={mergedConfig}
+          style={{ width: '100%', height: '100%' }}
+          useResizeHandler
+          onInitialized={onInitialized}
+          onSelected={onSelected}
+          onDeselect={onDeselect}
+          onClick={onClick}
+        />
+      </Suspense>
     </div>
   );
 });

@@ -2,8 +2,21 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react
 import { mjdToDate, isValidDate } from '@/constants/dates';
 import type { ScheduleAnalysisData } from '../hooks/useScheduleAnalysisData';
 import { groupEquivalentSchedules } from '../analytics';
+import { useAsyncMemo } from '@/hooks/useAsyncMemo';
+import {
+  computeBlockStatusMap as computeBlockStatusMapSync,
+  type BlockStatusInputSchedule,
+} from '@/workers/aggregations';
+import { getAggregationsClient } from '@/workers/aggregationsClient';
 
 const PAGE_SIZE = 100;
+
+/**
+ * Skip the worker round-trip when the per-page workload is small.  The
+ * aggregation cost scales with `schedules.length * pageBlockIds.length`
+ * (each schedule's blocks are scanned once per page render).
+ */
+const WORKER_BLOCK_MAP_THRESHOLD = 200;
 
 function formatMjdUtc(mjd: number | null | undefined): string {
   if (mjd == null || !Number.isFinite(mjd)) return '—';
@@ -683,42 +696,50 @@ export function BlockStatusTable({ schedules }: { schedules: ScheduleAnalysisDat
 
   // Build the heavier per-row map only for the visible page slice. Keyed by
   // [currentPage, schedules, blockIds] so we re-aggregate only when the user
-  // navigates pages or the underlying data/sort changes.
-  const pageBlockMap = useMemo(() => {
-    const ids = new Set(pageBlockIds);
-    const map = new Map<string, BlockEntry>();
-    if (ids.size === 0) return map;
+  // navigates pages or the underlying data/sort changes.  When the workload
+  // grows large enough we offload it to the shared aggregations worker so
+  // the main thread stays responsive while users page through results.
+  const workerSchedulesPayload = useMemo<BlockStatusInputSchedule[]>(
+    () =>
+      schedules
+        .filter((s) => s.insights)
+        .map((s) => ({
+          id: s.id,
+          blocks: s.insights!.blocks.map((b) => ({
+            original_block_id: b.original_block_id,
+            priority: b.priority,
+            requested_hours: b.requested_hours,
+            scheduled: b.scheduled,
+            scheduled_start_mjd: b.scheduled_start_mjd,
+          })),
+        })),
+    [schedules]
+  );
 
-    for (const schedule of schedules) {
-      if (!schedule.insights) continue;
+  const useWorkerForBlockMap =
+    workerSchedulesPayload.length * pageBlockIds.length > WORKER_BLOCK_MAP_THRESHOLD;
 
-      for (const block of schedule.insights.blocks) {
-        const key = block.original_block_id;
-        if (!ids.has(key)) continue;
+  const inlineBlockMap = useMemo<Map<string, BlockEntry>>(
+    () =>
+      computeBlockStatusMapSync(workerSchedulesPayload, pageBlockIds) as unknown as Map<
+        string,
+        BlockEntry
+      >,
+    [workerSchedulesPayload, pageBlockIds]
+  );
 
-        let entry = map.get(key);
-        if (!entry) {
-          entry = {
-            original_block_id: key,
-            maxPriority: block.priority,
-            maxRequestedHours: block.requested_hours,
-            perSchedule: {},
-          };
-          map.set(key, entry);
-        }
-
-        entry.maxPriority = Math.max(entry.maxPriority, block.priority);
-        entry.maxRequestedHours = Math.max(entry.maxRequestedHours, block.requested_hours);
-        entry.perSchedule[schedule.id] = {
-          scheduled: block.scheduled,
-          start_mjd: block.scheduled_start_mjd,
-          requested_hours: block.requested_hours,
-        };
-      }
-    }
-
-    return map;
-  }, [pageBlockIds, schedules]);
+  const { value: pageBlockMap } = useAsyncMemo<Map<string, BlockEntry>>(
+    () => {
+      if (!useWorkerForBlockMap) return inlineBlockMap;
+      const client = getAggregationsClient();
+      if (!client) return inlineBlockMap;
+      return client
+        .computeBlockStatusMap(workerSchedulesPayload, pageBlockIds)
+        .then((m) => m as unknown as Map<string, BlockEntry>);
+    },
+    [useWorkerForBlockMap, workerSchedulesPayload, pageBlockIds, inlineBlockMap],
+    inlineBlockMap
+  );
 
   const pageBlocks = useMemo(
     () =>

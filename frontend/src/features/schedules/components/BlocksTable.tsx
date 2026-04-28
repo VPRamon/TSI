@@ -9,8 +9,16 @@
  *
  * Used in VisibilityMap, Insights, and other drill-down views.
  */
-import { useState, useMemo, useCallback, memo, useEffect } from 'react';
+import { useState, useMemo, useCallback, memo, useEffect, useDeferredValue } from 'react';
 import { useBlockSelection } from '../context/AnalysisContext';
+import { useAsyncMemo } from '@/hooks/useAsyncMemo';
+import { sortFilterBlocks as sortFilterBlocksSync } from '@/workers/aggregations';
+import { getAggregationsClient } from '@/workers/aggregationsClient';
+
+const FILTERING_HINT_DELAY_MS = 200;
+
+/** Below this row count we skip the worker round-trip and compute inline. */
+const WORKER_BLOCKS_THRESHOLD = 200;
 
 // Generic block interface - pages provide their specific block type
 export interface TableBlock {
@@ -62,59 +70,54 @@ function BlocksTableInner<T extends TableBlock>({
   const [sortField, setSortField] = useState<SortField>('priority');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [filter, setFilter] = useState('');
+  // Defer the value used by the heavy filter/sort pipeline so the controlled
+  // input stays responsive while large block sets re-filter in the background.
+  const deferredFilter = useDeferredValue(filter);
+  const isFilteringPending = filter !== deferredFilter;
+  const [showFilteringHint, setShowFilteringHint] = useState(false);
   const [page, setPage] = useState(0);
+
+  useEffect(() => {
+    if (!isFilteringPending) {
+      setShowFilteringHint(false);
+      return;
+    }
+    const handle = setTimeout(() => setShowFilteringHint(true), FILTERING_HINT_DELAY_MS);
+    return () => clearTimeout(handle);
+  }, [isFilteringPending]);
 
   const { selectedBlockIds, selectBlocks, addToSelection, removeFromSelection, isSelected } =
     useBlockSelection();
 
   // Filter and sort the full block set (sorting happens BEFORE pagination so
   // page slices reflect the chosen sort order across the whole dataset).
-  const sortedBlocks = useMemo(() => {
-    let result = [...blocks];
+  // For small inputs we compute synchronously to avoid the postMessage hop;
+  // for larger ones we offload to the shared aggregations worker and keep
+  // showing the previous result until the new one resolves.
+  const useWorker = blocks.length > WORKER_BLOCKS_THRESHOLD;
 
-    // Filter by search term (block ID, original ID, or target name)
-    if (filter) {
-      const lowerFilter = filter.toLowerCase();
-      result = result.filter(
-        (b) =>
-          b.scheduling_block_id.toString().includes(lowerFilter) ||
-          b.original_block_id.toLowerCase().includes(lowerFilter) ||
-          (b.block_name?.toLowerCase().includes(lowerFilter) ?? false)
-      );
-    }
+  const inlineSorted = useMemo(
+    () =>
+      sortFilterBlocksSync(blocks, deferredFilter, {
+        field: sortField,
+        direction: sortDirection,
+      }),
+    [blocks, deferredFilter, sortField, sortDirection]
+  );
 
-    // Sort
-    result.sort((a, b) => {
-      let aVal: number | boolean;
-      let bVal: number | boolean;
-
-      switch (sortField) {
-        case 'priority':
-          aVal = a.priority;
-          bVal = b.priority;
-          break;
-        case 'scheduled':
-          aVal = a.scheduled ? 1 : 0;
-          bVal = b.scheduled ? 1 : 0;
-          break;
-        case 'total_visibility_hours':
-          aVal = a.total_visibility_hours ?? 0;
-          bVal = b.total_visibility_hours ?? 0;
-          break;
-        case 'requested_hours':
-          aVal = a.requested_hours ?? 0;
-          bVal = b.requested_hours ?? 0;
-          break;
-        default:
-          return 0;
-      }
-
-      const diff = typeof aVal === 'number' && typeof bVal === 'number' ? aVal - bVal : 0;
-      return sortDirection === 'asc' ? diff : -diff;
-    });
-
-    return result;
-  }, [blocks, filter, sortField, sortDirection]);
+  const { value: sortedBlocks } = useAsyncMemo<T[]>(
+    () => {
+      if (!useWorker) return inlineSorted;
+      const client = getAggregationsClient();
+      if (!client) return inlineSorted;
+      return client.sortFilterBlocks(blocks, deferredFilter, {
+        field: sortField,
+        direction: sortDirection,
+      }) as Promise<T[]>;
+    },
+    [useWorker, blocks, deferredFilter, sortField, sortDirection, inlineSorted],
+    inlineSorted
+  );
 
   const totalRows = sortedBlocks.length;
   const pageSize = Math.max(1, maxRows);
@@ -125,7 +128,7 @@ function BlocksTableInner<T extends TableBlock>({
   // the user is not left on an out-of-range page.
   useEffect(() => {
     setPage(0);
-  }, [filter, sortField, sortDirection, blocks, pageSize]);
+  }, [deferredFilter, sortField, sortDirection, blocks, pageSize]);
 
   const processedBlocks = useMemo(() => {
     if (totalRows <= pageSize) return sortedBlocks;
@@ -233,8 +236,14 @@ function BlocksTableInner<T extends TableBlock>({
             placeholder="Filter by ID..."
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
+            aria-busy={isFilteringPending}
             className="w-40 rounded border border-slate-600 bg-slate-700 px-2 py-1 text-xs text-white placeholder-slate-400 focus:border-primary-500 focus:outline-none"
           />
+          {showFilteringHint && (
+            <span className="text-xs text-slate-400" role="status" aria-live="polite">
+              Filtering…
+            </span>
+          )}
           {selectedBlockIds.size > 0 && (
             <button
               onClick={() => selectBlocks([])}
@@ -305,7 +314,7 @@ function BlocksTableInner<T extends TableBlock>({
             {processedBlocks.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-8 text-center text-sm text-slate-400">
-                  {filter ? 'No blocks match your filter' : 'No blocks available'}
+                  {deferredFilter ? 'No blocks match your filter' : 'No blocks available'}
                 </td>
               </tr>
             ) : (

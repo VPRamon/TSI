@@ -2,7 +2,7 @@
  * Schedule list card component.
  * Displays list of existing schedules from the database.
  */
-import { memo, useMemo, useState } from 'react';
+import { memo, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { List, type RowComponentProps } from 'react-window';
 import type { ScheduleInfo } from '@/api/types';
 import { Icon } from '@/components';
@@ -113,8 +113,21 @@ function ScheduleListCard({
   downloadingScheduleIds,
 }: ScheduleListCardProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  // Defer the query used by the heavy filter so the input stays responsive
+  // while large schedule sets re-filter.
+  const deferredQuery = useDeferredValue(searchQuery);
+  const isFilteringPending = searchQuery !== deferredQuery;
+  const [showFilteringHint, setShowFilteringHint] = useState(false);
+  useEffect(() => {
+    if (!isFilteringPending) {
+      setShowFilteringHint(false);
+      return;
+    }
+    const handle = setTimeout(() => setShowFilteringHint(true), 200);
+    return () => clearTimeout(handle);
+  }, [isFilteringPending]);
   const isEmpty = schedules.length === 0;
-  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const normalizedQuery = deferredQuery.trim().toLowerCase();
   const searchIndex = useMemo(
     () => schedules.map((schedule) => ({ schedule, text: buildScheduleSearchText(schedule) })),
     [schedules]
@@ -165,7 +178,17 @@ function ScheduleListCard({
                   placeholder="Search schedules by name, ID, algorithm, or site..."
                   className="w-full rounded-lg border border-slate-700/60 bg-slate-900/50 py-2.5 pl-9 pr-9 text-sm text-white placeholder-slate-500 transition-colors focus:border-indigo-500/70 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                   aria-label="Search database schedules"
+                  aria-busy={isFilteringPending}
                 />
+                {showFilteringHint && (
+                  <span
+                    className="pointer-events-none absolute right-16 top-1/2 -translate-y-1/2 text-xs text-slate-400"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Filtering…
+                  </span>
+                )}
                 {searchQuery ? (
                   <button
                     type="button"

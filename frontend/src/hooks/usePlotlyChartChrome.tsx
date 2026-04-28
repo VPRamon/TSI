@@ -20,7 +20,7 @@
  *                    place it once next to the chart.
  */
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import Plotly from 'plotly.js-dist-min';
+import { loadPreferredPlotly } from '@/components/charts/plotlyRegistry';
 import type { Config } from 'plotly.js-dist-min';
 import HelpPopover, { type HelpContent } from '@/components/charts/HelpPopover';
 import ChartFullscreenOverlay from '@/components/charts/ChartFullscreenOverlay';
@@ -127,7 +127,9 @@ export function usePlotlyChartChrome(options: UsePlotlyChartChromeOptions): Plot
 
   const downloadImage = useCallback(
     async (format: 'png' | 'svg') => {
-      if (!graphDiv || typeof Plotly.toImage !== 'function') return;
+      if (!graphDiv) return;
+      const Plotly = await loadPreferredPlotly();
+      if (typeof Plotly.toImage !== 'function') return;
       try {
         const dataUrl = await Plotly.toImage(graphDiv, {
           format,

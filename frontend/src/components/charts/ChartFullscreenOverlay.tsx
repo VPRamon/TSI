@@ -10,7 +10,7 @@
  * unmount so the chart fits the new container both ways.
  */
 import { useEffect, useRef } from 'react';
-import Plotly from 'plotly.js-dist-min';
+import { loadPreferredPlotly } from './plotlyRegistry';
 
 export interface ChartFullscreenOverlayProps {
   graphDiv: HTMLElement;
@@ -31,10 +31,17 @@ export function ChartFullscreenOverlay({ graphDiv, title, onClose }: ChartFullsc
       nextSibling: graphDiv.nextSibling,
     };
     slotRef.current.appendChild(graphDiv);
-    void Plotly.Plots.resize(graphDiv);
+    let cancelled = false;
+    void loadPreferredPlotly().then((Plotly) => {
+      if (cancelled) return;
+      void Plotly.Plots.resize(graphDiv);
+    });
 
     const onResize = () => {
-      void Plotly.Plots.resize(graphDiv);
+      void loadPreferredPlotly().then((Plotly) => {
+        if (cancelled) return;
+        void Plotly.Plots.resize(graphDiv);
+      });
     };
     window.addEventListener('resize', onResize);
 
@@ -44,13 +51,16 @@ export function ChartFullscreenOverlay({ graphDiv, title, onClose }: ChartFullsc
     window.addEventListener('keydown', onKey);
 
     return () => {
+      cancelled = true;
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKey);
       const origin = originRef.current;
       if (origin?.parent) {
         origin.parent.insertBefore(graphDiv, origin.nextSibling);
       }
-      void Plotly.Plots.resize(graphDiv);
+      void loadPreferredPlotly().then((Plotly) => {
+        void Plotly.Plots.resize(graphDiv);
+      });
     };
   }, [graphDiv, onClose]);
 
