@@ -207,6 +207,19 @@ pub async fn list_schedules<R: FullRepository + ?Sized>(
     repo.list_schedules().await
 }
 
+/// Paginated listing joined with algorithm-trace names in a single query.
+///
+/// Replaces the legacy `list_schedules` + `list_algorithm_names` pair that
+/// caused an N+1-style double round-trip on the schedules landing page.
+pub async fn list_schedules_with_algorithms<R: FullRepository + ?Sized>(
+    repo: &R,
+    limit: u32,
+    offset: u32,
+) -> RepositoryResult<(Vec<(crate::api::ScheduleInfo, Option<String>)>, u64)> {
+    info!("Service layer: listing schedules (limit={limit}, offset={offset})");
+    repo.list_schedules_with_algorithms(limit, offset).await
+}
+
 // ==================== Schedule Management ====================
 
 /// Delete a schedule and all associated data.

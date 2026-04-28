@@ -247,6 +247,36 @@ impl ScheduleRepository for LocalRepository {
         Ok(schedules)
     }
 
+    async fn list_schedules_with_algorithms(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> RepositoryResult<(Vec<(crate::api::ScheduleInfo, Option<String>)>, u64)> {
+        self.check_health()?;
+
+        let data = self.data.read().unwrap();
+
+        let mut schedules: Vec<crate::api::ScheduleInfo> =
+            data.schedule_metadata.values().cloned().collect();
+        schedules.sort_by_key(|s| s.schedule_id);
+        let total = schedules.len() as u64;
+
+        let items = schedules
+            .into_iter()
+            .skip(offset as usize)
+            .take(limit as usize)
+            .map(|info| {
+                let algo = data
+                    .algorithm_traces
+                    .get(&info.schedule_id.value())
+                    .map(|(name, _, _)| name.clone());
+                (info, algo)
+            })
+            .collect();
+
+        Ok((items, total))
+    }
+
     async fn get_schedule_time_range(
         &self,
         schedule_id: ScheduleId,

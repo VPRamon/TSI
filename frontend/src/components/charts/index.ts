@@ -6,3 +6,5 @@ export { default as HelpPopover } from './HelpPopover';
 export type { HelpContent, HelpPopoverProps } from './HelpPopover';
 export { default as ChartFullscreenOverlay } from './ChartFullscreenOverlay';
 export type { ChartFullscreenOverlayProps } from './ChartFullscreenOverlay';
+export { default as DownloadCsvButton } from './DownloadCsvButton';
+export type { DownloadCsvButtonProps } from './DownloadCsvButton';

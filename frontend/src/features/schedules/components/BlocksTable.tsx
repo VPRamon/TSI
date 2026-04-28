@@ -9,7 +9,7 @@
  *
  * Used in VisibilityMap, Insights, and other drill-down views.
  */
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import { useBlockSelection } from '../context/AnalysisContext';
 
 // Generic block interface - pages provide their specific block type
@@ -32,7 +32,7 @@ interface BlocksTableProps<T extends TableBlock> {
   blocks: T[];
   /** Loading state */
   isLoading?: boolean;
-  /** Maximum rows to display (pagination not implemented, just truncation) */
+  /** Page size for pagination (default 100). When total rows fit in a single page no pagination footer is shown. */
   maxRows?: number;
   /** Callback when a block row is clicked */
   onBlockClick?: (block: T) => void;
@@ -62,12 +62,14 @@ function BlocksTableInner<T extends TableBlock>({
   const [sortField, setSortField] = useState<SortField>('priority');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [filter, setFilter] = useState('');
+  const [page, setPage] = useState(0);
 
   const { selectedBlockIds, selectBlocks, addToSelection, removeFromSelection, isSelected } =
     useBlockSelection();
 
-  // Filter and sort blocks
-  const processedBlocks = useMemo(() => {
+  // Filter and sort the full block set (sorting happens BEFORE pagination so
+  // page slices reflect the chosen sort order across the whole dataset).
+  const sortedBlocks = useMemo(() => {
     let result = [...blocks];
 
     // Filter by search term (block ID, original ID, or target name)
@@ -111,9 +113,29 @@ function BlocksTableInner<T extends TableBlock>({
       return sortDirection === 'asc' ? diff : -diff;
     });
 
-    // Limit rows
-    return result.slice(0, maxRows);
-  }, [blocks, filter, sortField, sortDirection, maxRows]);
+    return result;
+  }, [blocks, filter, sortField, sortDirection]);
+
+  const totalRows = sortedBlocks.length;
+  const pageSize = Math.max(1, maxRows);
+  const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+
+  // Reset to first page when the filter, sort, or underlying data changes so
+  // the user is not left on an out-of-range page.
+  useEffect(() => {
+    setPage(0);
+  }, [filter, sortField, sortDirection, blocks, pageSize]);
+
+  const processedBlocks = useMemo(() => {
+    if (totalRows <= pageSize) return sortedBlocks;
+    const start = safePage * pageSize;
+    return sortedBlocks.slice(start, start + pageSize);
+  }, [sortedBlocks, safePage, pageSize, totalRows]);
+
+  const showPagination = totalRows > pageSize;
+  const pageStart = totalRows === 0 ? 0 : safePage * pageSize + 1;
+  const pageEnd = Math.min(totalRows, (safePage + 1) * pageSize);
 
   // Handle column header click for sorting
   const handleSort = useCallback((field: SortField) => {
@@ -195,8 +217,8 @@ function BlocksTableInner<T extends TableBlock>({
         <div className="flex items-center gap-3">
           <h3 className="text-sm font-medium text-white">{title}</h3>
           <span className="text-xs text-slate-400">
-            {processedBlocks.length}
-            {processedBlocks.length !== blocks.length && ` of ${blocks.length}`} blocks
+            {totalRows}
+            {totalRows !== blocks.length && ` of ${blocks.length}`} blocks
           </span>
           {selectedBlockIds.size > 0 && (
             <span className="rounded-full bg-primary-600/20 px-2 py-0.5 text-xs text-primary-400">
@@ -362,10 +384,33 @@ function BlocksTableInner<T extends TableBlock>({
         </table>
       </div>
 
-      {/* Footer with truncation notice */}
-      {blocks.length > maxRows && (
-        <div className="border-t border-slate-700 px-4 py-2 text-xs text-slate-400">
-          Showing first {maxRows} of {blocks.length} blocks. Use filters to narrow results.
+      {/* Pagination footer */}
+      {showPagination && (
+        <div className="flex items-center justify-between border-t border-slate-700 px-4 py-2 text-xs text-slate-400">
+          <span>
+            Showing {pageStart}–{pageEnd} of {totalRows}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={safePage === 0}
+              className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Prev
+            </button>
+            <span className="tabular-nums">
+              Page {safePage + 1} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={safePage >= totalPages - 1}
+              className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
     </div>

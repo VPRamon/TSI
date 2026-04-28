@@ -10,7 +10,10 @@
  *   - Emits `{ [key]: [min, max] }` updates on every change, debounced
  *     to a single React commit per interaction (no extra dep).
  */
-import { useCallback, useMemo, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+
+/** Debounce window (ms) applied to slider drags before `onChange` fires. */
+const DEBOUNCE_MS = 120;
 
 export interface RangeFilterSpec {
   /** Stable key used in the `values` map. */
@@ -75,12 +78,34 @@ export function RangeFilterGroup({ specs, values, onChange, label }: RangeFilter
     [specs],
   );
 
-  const update = useCallback(
-    (key: string, next: RangeFilterValue) => {
-      onChange({ ...values, [key]: next });
-    },
-    [onChange, values],
-  );
+  // Local mirror so rapid drags update the UI immediately, while the
+  // upstream `onChange` is throttled to one trailing call per DEBOUNCE_MS
+  // window (no extra deps; behaves like lodash.debounce trailing-only).
+  const [local, setLocal] = useState<Record<string, RangeFilterValue>>(values);
+  const dirtyRef = useRef(false);
+
+  useEffect(() => {
+    if (!dirtyRef.current) setLocal(values);
+  }, [values]);
+
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
+
+  useEffect(() => {
+    if (!dirtyRef.current) return;
+    const handle = setTimeout(() => {
+      dirtyRef.current = false;
+      onChangeRef.current(local);
+    }, DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [local]);
+
+  const update = useCallback((key: string, next: RangeFilterValue) => {
+    dirtyRef.current = true;
+    setLocal((prev) => ({ ...prev, [key]: next }));
+  }, []);
 
   if (resolved.length === 0) return null;
 
@@ -91,7 +116,7 @@ export function RangeFilterGroup({ specs, values, onChange, label }: RangeFilter
       )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {resolved.map(({ spec, min, max, step }) => {
-          const current = values[spec.key] ?? { min, max };
+          const current = local[spec.key] ?? values[spec.key] ?? { min, max };
           const lo = Math.max(min, Math.min(current.min, current.max));
           const hi = Math.min(max, Math.max(current.min, current.max));
 

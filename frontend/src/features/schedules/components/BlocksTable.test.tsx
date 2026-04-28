@@ -2,7 +2,8 @@
  * Tests for BlocksTable component, focusing on block_name display and filtering.
  */
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '../../../test/test-utils';
+import { render, screen, within } from '../../../test/test-utils';
+import { fireEvent } from '@testing-library/react';
 import { AnalysisProvider } from '../context/AnalysisContext';
 import { BlocksTable, type TableBlock } from './BlocksTable';
 
@@ -65,5 +66,37 @@ describe('BlocksTable', () => {
   it('renders the provided table title', () => {
     renderTable([makeBlock({ scheduling_block_id: 1 })], 'My Blocks');
     expect(screen.getByText('My Blocks')).toBeInTheDocument();
+  });
+
+  it('paginates 250 rows into 3 pages of 100/100/50 with Prev/Next controls', () => {
+    const blocks = Array.from({ length: 250 }, (_, i) =>
+      makeBlock({ scheduling_block_id: i + 1, priority: i + 1 })
+    );
+    renderTable(blocks);
+
+    const countDataRows = () => {
+      const tbody = document.querySelector('tbody');
+      return tbody ? within(tbody as HTMLElement).getAllByRole('row').length : 0;
+    };
+
+    expect(screen.getByText(/Showing 1–100 of 250/)).toBeInTheDocument();
+    expect(screen.getByText(/Page 1 \/ 3/)).toBeInTheDocument();
+    expect(countDataRows()).toBe(100);
+
+    const prev = screen.getByRole('button', { name: /Prev/i });
+    const next = screen.getByRole('button', { name: /Next/i });
+    expect(prev).toBeDisabled();
+    expect(next).not.toBeDisabled();
+
+    fireEvent.click(next);
+    expect(screen.getByText(/Showing 101–200 of 250/)).toBeInTheDocument();
+    expect(screen.getByText(/Page 2 \/ 3/)).toBeInTheDocument();
+    expect(countDataRows()).toBe(100);
+
+    fireEvent.click(next);
+    expect(screen.getByText(/Showing 201–250 of 250/)).toBeInTheDocument();
+    expect(screen.getByText(/Page 3 \/ 3/)).toBeInTheDocument();
+    expect(countDataRows()).toBe(50);
+    expect(screen.getByRole('button', { name: /Next/i })).toBeDisabled();
   });
 });

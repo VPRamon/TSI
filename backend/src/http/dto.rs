@@ -126,6 +126,18 @@ pub struct JobStatusResponse {
     pub result: Option<serde_json::Value>,
 }
 
+/// Query parameters for `GET /v1/schedules`.
+///
+/// `limit` defaults to 200 and is capped at 1000 by the handler.
+/// `offset` defaults to 0.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ListSchedulesParams {
+    #[serde(default)]
+    pub limit: Option<u32>,
+    #[serde(default)]
+    pub offset: Option<u32>,
+}
+
 /// Query parameters for trends endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TrendsQuery {
@@ -233,13 +245,21 @@ pub struct DbDiagnosticsResponse {
     pub recent_bulk_imports: Vec<BulkImportSampleDto>,
 }
 
-/// Schedule list response.
+/// Schedule list response envelope.
+///
+/// Returned by `GET /v1/schedules`.  The list itself is exposed under
+/// `items`; `total` is the unfiltered row count, while `limit`/`offset`
+/// echo the pagination parameters used to satisfy the request.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScheduleListResponse {
-    /// List of schedules
-    pub schedules: Vec<ScheduleInfoDto>,
-    /// Total count
-    pub total: usize,
+    /// Page of schedules (oldest legacy alias: `schedules`).
+    pub items: Vec<ScheduleInfoDto>,
+    /// Total number of schedules in the database (unfiltered).
+    pub total: u64,
+    /// Echo of the `limit` query parameter applied to this page.
+    pub limit: u32,
+    /// Echo of the `offset` query parameter applied to this page.
+    pub offset: u32,
 }
 
 /// Schedule info DTO for API responses.

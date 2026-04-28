@@ -33,3 +33,18 @@ export function downloadPngDataUrl(dataUrl: string, filename: string): void {
 export function downloadCanvasAsPng(canvas: HTMLCanvasElement, filename: string): void {
   downloadPngDataUrl(canvas.toDataURL('image/png'), filename);
 }
+
+/**
+ * Trigger a download for an SVG markup string.
+ */
+export function downloadSvgString(svg: string, filename: string): void {
+  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename.endsWith('.svg') ? filename : `${filename}.svg`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}

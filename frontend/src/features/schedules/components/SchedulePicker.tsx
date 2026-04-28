@@ -5,10 +5,103 @@
  * - Layout top bar "Compare with..." action
  * - Any view that needs quick schedule selection
  */
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { List, type RowComponentProps } from 'react-window';
 import { useSchedules } from '@/hooks/useApi';
 import type { ScheduleInfo } from '@/api/types';
+
+const VIRTUALIZE_THRESHOLD = 50;
+const SINGLE_ROW_HEIGHT = 36;
+const MULTI_ROW_HEIGHT = 36;
+const SINGLE_LIST_HEIGHT = 320;
+const MULTI_LIST_HEIGHT = 208;
+
+type IndexedSchedule = { schedule: ScheduleInfo; search: string };
+
+function buildPickerSearchText(schedule: ScheduleInfo): string {
+  return [
+    schedule.schedule_name,
+    schedule.schedule_id,
+    schedule.schedule_metadata?.algorithm,
+  ]
+    .filter((value) => value !== undefined && value !== null)
+    .join(' ')
+    .toLowerCase();
+}
+
+interface SingleRowData {
+  items: IndexedSchedule[];
+  onSelect: (schedule: ScheduleInfo) => void;
+}
+
+const SingleSelectRow = memo(function SingleSelectRow({
+  index,
+  style,
+  ariaAttributes,
+  items,
+  onSelect,
+}: RowComponentProps<SingleRowData>) {
+  const schedule = items[index].schedule;
+  return (
+    <button
+      {...ariaAttributes}
+      role="option"
+      aria-selected={false}
+      key={schedule.schedule_id}
+      type="button"
+      onClick={() => onSelect(schedule)}
+      style={style}
+      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 focus:bg-slate-700 focus:outline-none"
+    >
+      <span className="truncate">{schedule.schedule_name}</span>
+    </button>
+  );
+});
+
+const renderSingleSelectRow = (props: RowComponentProps<SingleRowData>) => (
+  <SingleSelectRow {...props} />
+);
+
+interface MultiRowData {
+  items: IndexedSchedule[];
+  selectedIds: Set<number>;
+  onToggle: (id: number) => void;
+}
+
+const MultiSelectRow = memo(function MultiSelectRow({
+  index,
+  style,
+  ariaAttributes,
+  items,
+  selectedIds,
+  onToggle,
+}: RowComponentProps<MultiRowData>) {
+  const schedule = items[index].schedule;
+  const checked = selectedIds.has(schedule.schedule_id);
+  return (
+    <label
+      {...ariaAttributes}
+      role="option"
+      aria-selected={checked}
+      style={style}
+      className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700"
+    >
+      <input
+        type="checkbox"
+        className="h-4 w-4 rounded border-slate-500 text-primary-500 accent-sky-500"
+        checked={checked}
+        onChange={() => onToggle(schedule.schedule_id)}
+      />
+      <span className="truncate">{schedule.schedule_name}</span>
+      <span className="ml-auto shrink-0 text-xs text-slate-500">#{schedule.schedule_id}</span>
+    </label>
+  );
+});
+
+const renderMultiSelectRow = (props: RowComponentProps<MultiRowData>) => (
+  <MultiSelectRow {...props} />
+);
 
 interface SchedulePickerProps {
   /** Currently selected schedule ID (excluded from list in single-select mode) */
@@ -52,21 +145,23 @@ export function SchedulePicker({
 
   const { data: schedulesData, isLoading } = useSchedules();
 
-  // All schedules (excluding excludeId when provided)
-  const allSchedules =
-    schedulesData?.schedules.filter((s) => {
-      if (excludeId && s.schedule_id === excludeId) return false;
-      return true;
-    }) ?? [];
+  const searchIndex = useMemo<IndexedSchedule[]>(() => {
+    const source = schedulesData?.schedules ?? [];
+    return source
+      .filter((s) => !(excludeId && s.schedule_id === excludeId))
+      .map((schedule) => ({ schedule, search: buildPickerSearchText(schedule) }));
+  }, [schedulesData, excludeId]);
 
-  // Filter schedules based on search
-  const filteredSchedules = allSchedules.filter((s) => {
-    if (!search) return true;
-    return (
-      s.schedule_name.toLowerCase().includes(search.toLowerCase()) ||
-      s.schedule_id.toString().includes(search)
-    );
-  });
+  const filteredIndex = useMemo<IndexedSchedule[]>(() => {
+    const normalized = search.trim().toLowerCase();
+    if (!normalized) return searchIndex;
+    return searchIndex.filter((entry) => entry.search.includes(normalized));
+  }, [searchIndex, search]);
+
+  const filteredSchedules = useMemo(
+    () => filteredIndex.map((entry) => entry.schedule),
+    [filteredIndex]
+  );
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -189,10 +284,25 @@ export function SchedulePicker({
                 <div className="px-3 py-2 text-sm text-slate-400">
                   {search ? 'No matching schedules' : 'No schedules available'}
                 </div>
+              ) : filteredIndex.length > VIRTUALIZE_THRESHOLD ? (
+                <List
+                  rowCount={filteredIndex.length}
+                  rowHeight={MULTI_ROW_HEIGHT}
+                  rowComponent={renderMultiSelectRow}
+                  rowProps={{
+                    items: filteredIndex,
+                    selectedIds,
+                    onToggle: handleToggleCheck,
+                  }}
+                  overscanCount={5}
+                  style={{ height: MULTI_LIST_HEIGHT }}
+                />
               ) : (
                 filteredSchedules.map((schedule) => (
                   <label
                     key={schedule.schedule_id}
+                    role="option"
+                    aria-selected={selectedIds.has(schedule.schedule_id)}
                     className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-slate-200 hover:bg-slate-700"
                   >
                     <input
@@ -273,6 +383,15 @@ export function SchedulePicker({
             <div className="px-3 py-2 text-sm text-slate-400">
               {search ? 'No matching schedules' : 'No schedules available'}
             </div>
+          ) : filteredIndex.length > VIRTUALIZE_THRESHOLD ? (
+            <List
+              rowCount={filteredIndex.length}
+              rowHeight={SINGLE_ROW_HEIGHT}
+              rowComponent={renderSingleSelectRow}
+              rowProps={{ items: filteredIndex, onSelect: handleSelect }}
+              overscanCount={5}
+              style={{ height: SINGLE_LIST_HEIGHT }}
+            />
           ) : (
             filteredSchedules.map((schedule) => (
               <button
@@ -281,6 +400,7 @@ export function SchedulePicker({
                 onClick={() => handleSelect(schedule)}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-200 hover:bg-slate-700 focus:bg-slate-700 focus:outline-none"
                 role="option"
+                aria-selected={false}
               >
                 <span className="truncate">{schedule.schedule_name}</span>
               </button>

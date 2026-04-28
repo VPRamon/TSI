@@ -20,10 +20,15 @@
  *                    place it once next to the chart.
  */
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import Plotly from 'plotly.js-dist-min';
 import type { Config } from 'plotly.js-dist-min';
 import HelpPopover, { type HelpContent } from '@/components/charts/HelpPopover';
 import ChartFullscreenOverlay from '@/components/charts/ChartFullscreenOverlay';
-import { sanitizeImageFilename } from '@/lib/imageExport';
+import {
+  downloadPngDataUrl,
+  downloadSvgString,
+  sanitizeImageFilename,
+} from '@/lib/imageExport';
 
 const HEADER_BTN_CLASS =
   'inline-flex h-7 items-center gap-1 rounded-md border border-slate-600 bg-slate-800/70 px-2 text-xs font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:ring-offset-slate-900';
@@ -48,7 +53,11 @@ export interface PlotlyChartChrome {
   helpButton: ReactNode | null;
   fullscreenButton: ReactNode;
   fullscreenOverlay: ReactNode;
-  /** Combined header actions (`?` + fullscreen) ready to drop in. */
+  /** "Download PNG" button (header). */
+  downloadPngButton: ReactNode;
+  /** "Download SVG" button (header). */
+  downloadSvgButton: ReactNode;
+  /** Combined header actions (PNG + SVG + fullscreen + help) ready to drop in. */
   headerActions: ReactNode;
 }
 
@@ -116,6 +125,59 @@ export function usePlotlyChartChrome(options: UsePlotlyChartChromeOptions): Plot
     return { ...base, ...configOverrides };
   }, [filename, openFullscreen, configOverrides]);
 
+  const downloadImage = useCallback(
+    async (format: 'png' | 'svg') => {
+      if (!graphDiv || typeof Plotly.toImage !== 'function') return;
+      try {
+        const dataUrl = await Plotly.toImage(graphDiv, {
+          format,
+          scale: format === 'png' ? 2 : 1,
+          width: graphDiv.offsetWidth || 800,
+          height: graphDiv.offsetHeight || 400,
+        });
+        if (format === 'png') {
+          downloadPngDataUrl(dataUrl, filename);
+          return;
+        }
+        // Plotly returns an SVG payload as `data:image/svg+xml,<encoded>`.
+        const commaIdx = dataUrl.indexOf(',');
+        const payload = commaIdx >= 0 ? dataUrl.slice(commaIdx + 1) : dataUrl;
+        const svg = decodeURIComponent(payload);
+        downloadSvgString(svg, filename);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(`[Plotly export ${format.toUpperCase()}]`, err);
+      }
+    },
+    [graphDiv, filename],
+  );
+
+  const downloadPngButton = (
+    <button
+      type="button"
+      onClick={() => void downloadImage('png')}
+      disabled={!graphDiv}
+      className={HEADER_BTN_CLASS}
+      title="Download chart as PNG"
+      aria-label={`Download ${label} as PNG`}
+    >
+      PNG
+    </button>
+  );
+
+  const downloadSvgButton = (
+    <button
+      type="button"
+      onClick={() => void downloadImage('svg')}
+      disabled={!graphDiv}
+      className={HEADER_BTN_CLASS}
+      title="Download chart as SVG"
+      aria-label={`Download ${label} as SVG`}
+    >
+      SVG
+    </button>
+  );
+
   const helpButton = help ? <HelpPopover content={help} ariaLabel={`Help: ${label}`} /> : null;
 
   const fullscreenButton = (
@@ -141,6 +203,8 @@ export function usePlotlyChartChrome(options: UsePlotlyChartChromeOptions): Plot
 
   const headerActions = (
     <div className="flex items-center gap-2">
+      {downloadPngButton}
+      {downloadSvgButton}
       {fullscreenButton}
       {helpButton}
     </div>
@@ -152,6 +216,8 @@ export function usePlotlyChartChrome(options: UsePlotlyChartChromeOptions): Plot
     helpButton,
     fullscreenButton,
     fullscreenOverlay,
+    downloadPngButton,
+    downloadSvgButton,
     headerActions,
   };
 }

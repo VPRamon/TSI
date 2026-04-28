@@ -6,7 +6,7 @@
 import { memo, useMemo } from 'react';
 import createPlotlyComponent from 'react-plotly.js/factory';
 import Plotly from 'plotly.js-dist-min';
-import type { Data, Layout, Config } from 'plotly.js-dist-min';
+import type { Data, Layout, Config, PlotMouseEvent, PlotSelectionEvent } from 'plotly.js-dist-min';
 import { sanitizeImageFilename } from '@/lib/imageExport';
 
 const Plot = createPlotlyComponent(Plotly);
@@ -30,6 +30,12 @@ export interface PlotlyChartProps {
    * Use with usePlotlyDownload to wire up the header download button.
    */
   onInitialized?: (figure: unknown, graphDiv: HTMLElement) => void;
+  /** Plotly box/lasso selection event. */
+  onSelected?: (event: PlotSelectionEvent | undefined) => void;
+  /** Fired when the current selection is cleared (e.g. double-click). */
+  onDeselect?: () => void;
+  /** Plotly point click event. */
+  onClick?: (event: PlotMouseEvent) => void;
 }
 
 /**
@@ -52,6 +58,9 @@ const PlotlyChart = memo(function PlotlyChart({
   className = '',
   ariaLabel,
   onInitialized,
+  onSelected,
+  onDeselect,
+  onClick,
 }: PlotlyChartProps) {
   const exportFilename = useMemo(() => {
     const titleValue = layout.title;
@@ -92,6 +101,9 @@ const PlotlyChart = memo(function PlotlyChart({
         style={{ width: '100%', height: '100%' }}
         useResizeHandler
         onInitialized={onInitialized}
+        onSelected={onSelected}
+        onDeselect={onDeselect}
+        onClick={onClick}
       />
     </div>
   );

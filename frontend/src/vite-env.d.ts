@@ -16,6 +16,11 @@ declare module 'react-plotly.js' {
     onUpdate?: (figure: Plotly.Figure, graphDiv: HTMLElement) => void;
     onPurge?: (figure: Plotly.Figure, graphDiv: HTMLElement) => void;
     onError?: (error: Error) => void;
+    onSelected?: (event: Plotly.PlotSelectionEvent | undefined) => void;
+    onDeselect?: () => void;
+    onClick?: (event: Plotly.PlotMouseEvent) => void;
+    onHover?: (event: Plotly.PlotMouseEvent) => void;
+    onUnhover?: (event: Plotly.PlotMouseEvent) => void;
     divId?: string;
   }
 

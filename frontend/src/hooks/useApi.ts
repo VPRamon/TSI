@@ -50,10 +50,11 @@ export function useHealth() {
 }
 
 // Schedule list
-export function useSchedules() {
+export function useSchedules(params?: { limit?: number; offset?: number }) {
   return useQuery({
-    queryKey: queryKeys.schedules,
-    queryFn: () => api.listSchedules(),
+    queryKey: [...queryKeys.schedules, params?.limit ?? null, params?.offset ?? null] as const,
+    queryFn: () => api.listSchedules(params),
+    staleTime: 30_000,
   });
 }
 
@@ -238,6 +239,7 @@ export function useEnvironments() {
   return useQuery({
     queryKey: queryKeys.environments,
     queryFn: () => api.listEnvironments(),
+    staleTime: 30_000,
   });
 }
 

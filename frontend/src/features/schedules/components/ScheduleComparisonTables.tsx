@@ -480,6 +480,19 @@ interface BlockEntry {
   >;
 }
 
+/**
+ * Lightweight per-block aggregate used for sorting/filtering across the full
+ * dataset. Holds only the fields required by `sortBlockSummaries` and the
+ * "differences only" filter so we can avoid allocating the heavier
+ * `BlockEntry` objects for blocks that are not on the current page.
+ */
+interface BlockSummary {
+  original_block_id: string;
+  maxPriority: number;
+  maxRequestedHours: number;
+  perSchedule: Record<number, { scheduled: boolean; start_mjd: number | null }>;
+}
+
 type BlockSortField =
   | { kind: 'blockId' }
   | { kind: 'priority' }
@@ -497,20 +510,8 @@ function compareNumber(left: number, right: number): number {
 }
 
 function compareScheduleEntry(
-  left:
-    | {
-        scheduled: boolean;
-        start_mjd: number | null;
-        requested_hours: number;
-      }
-    | undefined,
-  right:
-    | {
-        scheduled: boolean;
-        start_mjd: number | null;
-        requested_hours: number;
-      }
-    | undefined
+  left: { scheduled: boolean; start_mjd: number | null } | undefined,
+  right: { scheduled: boolean; start_mjd: number | null } | undefined
 ): number {
   const leftRank = left ? (left.scheduled ? 0 : 1) : 2;
   const rightRank = right ? (right.scheduled ? 0 : 1) : 2;
@@ -531,11 +532,11 @@ function compareScheduleEntry(
   return 0;
 }
 
-function sortBlocks(
-  blocks: BlockEntry[],
+function sortBlocks<T extends BlockSummary>(
+  blocks: T[],
   sortField: BlockSortField,
   sortDirection: BlockSortDirection
-): BlockEntry[] {
+): T[] {
   const directionMultiplier = sortDirection === 'asc' ? 1 : -1;
 
   return [...blocks].sort((left, right) => {
@@ -579,30 +580,30 @@ export function BlockStatusTable({ schedules }: { schedules: ScheduleAnalysisDat
   const [sortDirection, setSortDirection] = useState<BlockSortDirection>('desc');
   const referenceId = schedules[0]?.id;
 
-  const blockMap = useMemo(() => {
-    const map = new Map<string, BlockEntry>();
+  const blockSummaries = useMemo(() => {
+    const map = new Map<string, BlockSummary>();
 
     for (const schedule of schedules) {
       if (!schedule.insights) continue;
 
       for (const block of schedule.insights.blocks) {
         const key = block.original_block_id;
-        if (!map.has(key)) {
-          map.set(key, {
+        let entry = map.get(key);
+        if (!entry) {
+          entry = {
             original_block_id: key,
             maxPriority: block.priority,
             maxRequestedHours: block.requested_hours,
             perSchedule: {},
-          });
+          };
+          map.set(key, entry);
         }
 
-        const entry = map.get(key)!;
         entry.maxPriority = Math.max(entry.maxPriority, block.priority);
         entry.maxRequestedHours = Math.max(entry.maxRequestedHours, block.requested_hours);
         entry.perSchedule[schedule.id] = {
           scheduled: block.scheduled,
           start_mjd: block.scheduled_start_mjd,
-          requested_hours: block.requested_hours,
         };
       }
     }
@@ -610,15 +611,15 @@ export function BlockStatusTable({ schedules }: { schedules: ScheduleAnalysisDat
     return map;
   }, [schedules]);
 
-  const sortedBlocks = useMemo(
-    () => sortBlocks([...blockMap.values()], sortField, sortDirection),
-    [blockMap, sortDirection, sortField]
+  const sortedSummaries = useMemo(
+    () => sortBlocks([...blockSummaries.values()], sortField, sortDirection),
+    [blockSummaries, sortDirection, sortField]
   );
 
-  const filteredBlocks = useMemo(() => {
-    if (!showDifferencesOnly) return sortedBlocks;
+  const filteredSummaries = useMemo(() => {
+    if (!showDifferencesOnly) return sortedSummaries;
 
-    return sortedBlocks.filter((block) => {
+    return sortedSummaries.filter((block) => {
       const states = schedules.map((schedule) => {
         const entry = block.perSchedule[schedule.id];
         if (!entry) return 'missing' as const;
@@ -630,7 +631,12 @@ export function BlockStatusTable({ schedules }: { schedules: ScheduleAnalysisDat
 
       return !allScheduled && !allUnscheduled;
     });
-  }, [showDifferencesOnly, sortedBlocks, schedules]);
+  }, [showDifferencesOnly, sortedSummaries, schedules]);
+
+  const blockIds = useMemo(
+    () => filteredSummaries.map((block) => block.original_block_id),
+    [filteredSummaries]
+  );
 
   useEffect(() => {
     setPage(0);
@@ -667,12 +673,64 @@ export function BlockStatusTable({ schedules }: { schedules: ScheduleAnalysisDat
     return <span className="ml-1 text-sky-400">{sortDirection === 'asc' ? '↑' : '↓'}</span>;
   };
 
-  const totalPages = Math.ceil(filteredBlocks.length / PAGE_SIZE);
-  const pageBlocks = filteredBlocks.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(blockIds.length / PAGE_SIZE);
+  const currentPage = totalPages === 0 ? 0 : Math.min(page, totalPages - 1);
+
+  const pageBlockIds = useMemo(
+    () => blockIds.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE),
+    [blockIds, currentPage]
+  );
+
+  // Build the heavier per-row map only for the visible page slice. Keyed by
+  // [currentPage, schedules, blockIds] so we re-aggregate only when the user
+  // navigates pages or the underlying data/sort changes.
+  const pageBlockMap = useMemo(() => {
+    const ids = new Set(pageBlockIds);
+    const map = new Map<string, BlockEntry>();
+    if (ids.size === 0) return map;
+
+    for (const schedule of schedules) {
+      if (!schedule.insights) continue;
+
+      for (const block of schedule.insights.blocks) {
+        const key = block.original_block_id;
+        if (!ids.has(key)) continue;
+
+        let entry = map.get(key);
+        if (!entry) {
+          entry = {
+            original_block_id: key,
+            maxPriority: block.priority,
+            maxRequestedHours: block.requested_hours,
+            perSchedule: {},
+          };
+          map.set(key, entry);
+        }
+
+        entry.maxPriority = Math.max(entry.maxPriority, block.priority);
+        entry.maxRequestedHours = Math.max(entry.maxRequestedHours, block.requested_hours);
+        entry.perSchedule[schedule.id] = {
+          scheduled: block.scheduled,
+          start_mjd: block.scheduled_start_mjd,
+          requested_hours: block.requested_hours,
+        };
+      }
+    }
+
+    return map;
+  }, [pageBlockIds, schedules]);
+
+  const pageBlocks = useMemo(
+    () =>
+      pageBlockIds
+        .map((id) => pageBlockMap.get(id))
+        .filter((entry): entry is BlockEntry => entry !== undefined),
+    [pageBlockIds, pageBlockMap]
+  );
 
   return (
     <ComparePanel
-      title={`Block Status (${filteredBlocks.length} of ${sortedBlocks.length} unique blocks)`}
+      title={`Block Status (${blockIds.length} of ${sortedSummaries.length} unique blocks)`}
       headerActions={
         <div className="flex items-center gap-3">
           <button
@@ -689,7 +747,7 @@ export function BlockStatusTable({ schedules }: { schedules: ScheduleAnalysisDat
           </button>
           {totalPages > 1 ? (
             <span className="text-xs text-slate-400">
-              Page {page + 1} / {totalPages}
+              Page {currentPage + 1} / {totalPages}
             </span>
           ) : null}
         </div>
@@ -819,18 +877,18 @@ export function BlockStatusTable({ schedules }: { schedules: ScheduleAnalysisDat
           <button
             type="button"
             onClick={() => setPage((value) => Math.max(0, value - 1))}
-            disabled={page === 0}
+            disabled={currentPage === 0}
             className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700 disabled:opacity-40"
           >
             Prev
           </button>
           <span className="text-sm text-slate-400">
-            {page + 1} / {totalPages}
+            {currentPage + 1} / {totalPages}
           </span>
           <button
             type="button"
             onClick={() => setPage((value) => Math.min(totalPages - 1, value + 1))}
-            disabled={page === totalPages - 1}
+            disabled={currentPage >= totalPages - 1}
             className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700 disabled:opacity-40"
           >
             Next

@@ -5,11 +5,25 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  server: {
+    fs: {
+      // Allow loading test files and source from the sibling phd-extensions pack.
+      allow: [path.resolve(__dirname, '../..')],
+    },
+  },
   test: {
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    include: [
+      'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+      '../../phd-extensions/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+    ],
+    server: {
+      deps: {
+        inline: [/phd-extensions/],
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

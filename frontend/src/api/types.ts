@@ -30,8 +30,27 @@ export interface ScheduleMetadata {
 }
 
 export interface ScheduleListResponse {
+  /** Page of schedules. Backwards-compatible alias for the new envelope `items` field. */
   schedules: ScheduleInfo[];
+  /** Total number of schedules in the database (unfiltered). */
   total: number;
+  /** Echo of the `limit` query parameter used to satisfy the request. */
+  limit: number;
+  /** Echo of the `offset` query parameter used to satisfy the request. */
+  offset: number;
+}
+
+/** Raw envelope returned by the backend. */
+export interface ScheduleListEnvelope {
+  items: ScheduleInfo[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ListSchedulesParams {
+  limit?: number;
+  offset?: number;
 }
 
 export interface GeographicLocation {

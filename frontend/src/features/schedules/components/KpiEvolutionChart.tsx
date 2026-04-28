@@ -29,6 +29,21 @@ interface KpiEvolutionChartProps {
   kpis: ScheduleKpi[];
 }
 
+const MAX_POINTS_PER_TRACE = 500;
+
+/**
+ * Downsample a series of points using a simple stride filter, always keeping
+ * the first and last points so the temporal extent of the trace is preserved.
+ */
+export function downsampleTrace<T>(points: T[], maxPoints: number = MAX_POINTS_PER_TRACE): T[] {
+  if (points.length <= maxPoints) return points;
+  const stride = Math.ceil(points.length / maxPoints);
+  const sampled = points.filter((_, i) => i % stride === 0);
+  const last = points[points.length - 1];
+  if (sampled[sampled.length - 1] !== last) sampled.push(last);
+  return sampled;
+}
+
 interface SeriesSpec {
   name: string;
   color: string;
@@ -78,16 +93,19 @@ export function KpiEvolutionChart({ kpis }: KpiEvolutionChartProps) {
 
   const traces = useMemo(
     () =>
-      SERIES.map((spec) => ({
-        type: 'scatter' as const,
-        mode: 'lines+markers' as const,
-        name: spec.name,
-        x: ordered.map((k) => k.schedule_name),
-        y: ordered.map((k) => spec.pick(k)),
-        line: { color: spec.color, width: 2 },
-        marker: { color: spec.color, size: 7 },
-        hovertemplate: `${spec.name}: %{y:.3f}<br>%{x}<extra></extra>`,
-      })),
+      SERIES.map((spec) => {
+        const sampled = downsampleTrace(ordered);
+        return {
+          type: 'scatter' as const,
+          mode: 'lines+markers' as const,
+          name: spec.name,
+          x: sampled.map((k) => k.schedule_name),
+          y: sampled.map((k) => spec.pick(k)),
+          line: { color: spec.color, width: 2 },
+          marker: { color: spec.color, size: 7 },
+          hovertemplate: `${spec.name}: %{y:.3f}<br>%{x}<extra></extra>`,
+        };
+      }),
     [ordered],
   );
 

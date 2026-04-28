@@ -4,6 +4,8 @@
 import axios, { AxiosInstance, AxiosError, AxiosProgressEvent } from 'axios';
 import type {
   ScheduleListResponse,
+  ScheduleListEnvelope,
+  ListSchedulesParams,
   CreateScheduleRequest,
   CreateScheduleResponse,
   JobStatusResponse,
@@ -126,9 +128,19 @@ class ApiClient {
   }
 
   // Schedule CRUD
-  async listSchedules(): Promise<ScheduleListResponse> {
-    const { data } = await this.client.get<ScheduleListResponse>('/v1/schedules');
-    return data;
+  async listSchedules(params?: ListSchedulesParams): Promise<ScheduleListResponse> {
+    const { data } = await this.client.get<ScheduleListEnvelope>('/v1/schedules', {
+      params: {
+        ...(params?.limit !== undefined ? { limit: params.limit } : {}),
+        ...(params?.offset !== undefined ? { offset: params.offset } : {}),
+      },
+    });
+    return {
+      schedules: data.items,
+      total: data.total,
+      limit: data.limit,
+      offset: data.offset,
+    };
   }
 
   async getSchedule(scheduleId: number): Promise<unknown> {

@@ -881,6 +881,69 @@ impl ScheduleRepository for PostgresRepository {
         .await
     }
 
+    async fn list_schedules_with_algorithms(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> RepositoryResult<(Vec<(ScheduleInfo, Option<String>)>, u64)> {
+        self.with_conn(move |conn| {
+            let total: i64 = schedules::table
+                .count()
+                .get_result(conn)
+                .map_err(map_diesel_error)?;
+
+            let rows: Vec<(i64, String, Value, Value, Option<i64>, Option<String>)> =
+                schedules::table
+                    .left_join(
+                        algorithm_traces::table
+                            .on(algorithm_traces::schedule_id.eq(schedules::schedule_id)),
+                    )
+                    .select((
+                        schedules::schedule_id,
+                        schedules::schedule_name,
+                        schedules::schedule_period_json,
+                        schedules::observer_location_json,
+                        schedules::environment_id,
+                        algorithm_traces::algorithm.nullable(),
+                    ))
+                    .order(schedules::uploaded_at.desc())
+                    .limit(limit as i64)
+                    .offset(offset as i64)
+                    .load(conn)
+                    .map_err(map_diesel_error)?;
+
+            let items = rows
+                .into_iter()
+                .map(|(id, name, period_json, location_json, env_id, algo)| {
+                    let schedule_period = json_to_period(&period_json)?.ok_or_else(|| {
+                        RepositoryError::InternalError(
+                            "schedule_period_json is null for listed schedule".to_string(),
+                        )
+                    })?;
+                    let observer_location: crate::api::GeographicLocation =
+                        serde_json::from_value(location_json).map_err(|e| {
+                            RepositoryError::InternalError(format!(
+                                "Failed to parse observer_location_json: {e}"
+                            ))
+                        })?;
+                    Ok((
+                        ScheduleInfo {
+                            schedule_id: ScheduleId(id),
+                            schedule_name: name,
+                            observer_location,
+                            schedule_period,
+                            environment_id: env_id,
+                        },
+                        algo,
+                    ))
+                })
+                .collect::<RepositoryResult<Vec<_>>>()?;
+
+            Ok((items, total.max(0) as u64))
+        })
+        .await
+    }
+
     async fn get_schedule_time_range(
         &self,
         schedule_id: crate::api::ScheduleId,

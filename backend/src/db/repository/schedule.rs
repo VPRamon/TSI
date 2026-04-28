@@ -61,6 +61,30 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `Err(RepositoryError)` - If the operation fails
     async fn list_schedules(&self) -> RepositoryResult<Vec<crate::api::ScheduleInfo>>;
 
+    /// Paginated list of schedules joined with their algorithm trace name.
+    ///
+    /// Returns a page of `(ScheduleInfo, Option<algorithm_name>)` tuples
+    /// (algorithm is `None` when no trace is recorded for that schedule),
+    /// alongside the total number of schedules in the database.
+    ///
+    /// Implementations should perform a single query (e.g. a LEFT JOIN
+    /// against the algorithm-trace table) so that callers do not need a
+    /// follow-up `list_algorithm_names` round-trip.
+    ///
+    /// # Arguments
+    /// * `limit`  - Maximum number of rows to return.
+    /// * `offset` - Number of rows to skip from the start of the listing.
+    ///
+    /// # Returns
+    /// * `Ok((rows, total))` where `rows.len() <= limit` and `total` is
+    ///   the unfiltered count of schedules in the database.
+    /// * `Err(RepositoryError)` if the operation fails.
+    async fn list_schedules_with_algorithms(
+        &self,
+        limit: u32,
+        offset: u32,
+    ) -> RepositoryResult<(Vec<(crate::api::ScheduleInfo, Option<String>)>, u64)>;
+
     /// Get the time range covered by a schedule.
     ///
     /// # Arguments

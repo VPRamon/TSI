@@ -4,6 +4,8 @@
  */
 import { useEffect, useState, useRef } from 'react';
 
+const MAX_LOG_ENTRIES = 1000;
+
 export interface LogEntry {
   timestamp: string;
   level: 'info' | 'success' | 'warning' | 'error';
@@ -23,6 +25,8 @@ export interface LogStreamProps {
   maxHeight?: string;
 }
 
+export { MAX_LOG_ENTRIES };
+
 function LogStream({
   jobId,
   apiBaseUrl = 'http://localhost:3001',
@@ -31,6 +35,7 @@ function LogStream({
   maxHeight = '300px',
 }: LogStreamProps) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [droppedCount, setDroppedCount] = useState(0);
   const [status, setStatus] = useState<'connecting' | 'streaming' | 'completed' | 'failed'>(
     'connecting'
   );
@@ -56,7 +61,15 @@ function LogStream({
       console.log('[LogStream] Received message:', event.data);
       try {
         const log = JSON.parse(event.data) as LogEntry;
-        setLogs((prev) => [...prev, log]);
+        setLogs((prev) => {
+          const next = [...prev, log];
+          if (next.length > MAX_LOG_ENTRIES) {
+            const overflow = next.length - MAX_LOG_ENTRIES;
+            setDroppedCount((d) => d + overflow);
+            return next.slice(overflow);
+          }
+          return next;
+        });
       } catch (err) {
         console.error('Failed to parse log entry:', err);
       }
@@ -166,6 +179,11 @@ function LogStream({
       >
         {logs.length === 0 && status === 'connecting' && (
           <div className="text-slate-500">Waiting for logs...</div>
+        )}
+        {droppedCount > 0 && (
+          <div className="mb-1 rounded border border-slate-700 bg-slate-800/60 px-2 py-1 text-[11px] text-slate-400">
+            {droppedCount} earlier entries hidden
+          </div>
         )}
         {logs.map((log, idx) => (
           <div key={idx} className="flex gap-2">

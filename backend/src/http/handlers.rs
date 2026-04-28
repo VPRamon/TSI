@@ -17,8 +17,8 @@ use std::time::Duration;
 
 use super::dto::{
     CompareQuery, CreateScheduleRequest, CreateScheduleResponse, DeleteScheduleResponse,
-    HealthResponse, JobStatusResponse, ScheduleInfoDto, ScheduleListResponse, TrendsQuery,
-    UpdateScheduleRequest, VisibilityBin, VisibilityHistogramQuery,
+    HealthResponse, JobStatusResponse, ListSchedulesParams, ScheduleInfoDto, ScheduleListResponse,
+    TrendsQuery, UpdateScheduleRequest, VisibilityBin, VisibilityHistogramQuery,
 };
 use super::error::AppError;
 use super::state::AppState;
@@ -244,36 +244,57 @@ pub async fn db_diagnostics(
 
 /// GET /v1/schedules
 ///
-/// List all schedules in the database.
-pub async fn list_schedules(State(state): State<AppState>) -> HandlerResult<ScheduleListResponse> {
-    let schedules = db_services::list_schedules(state.repository.as_ref()).await?;
-    let algo_names = db_services::list_algorithm_names(state.repository.as_ref()).await?;
+/// List schedules in the database with pagination metadata.
+///
+/// Query parameters:
+/// - `limit`  (optional, default 200, capped at 1000)
+/// - `offset` (optional, default 0)
+///
+/// The response envelope is `{ items, total, limit, offset }` and an
+/// `x-total-count` header echoes `total` for HTTP clients that prefer
+/// header-based pagination metadata.
+pub async fn list_schedules(
+    State(state): State<AppState>,
+    Query(params): Query<ListSchedulesParams>,
+) -> Result<axum::response::Response, AppError> {
+    const DEFAULT_LIMIT: u32 = 200;
+    const MAX_LIMIT: u32 = 1000;
 
-    // Build a lookup map: schedule_id → algorithm name
-    let algo_map: std::collections::HashMap<i64, String> = algo_names
-        .into_iter()
-        .map(|(id, algo)| (id.value(), algo))
-        .collect();
+    let limit = params.limit.unwrap_or(DEFAULT_LIMIT).clamp(1, MAX_LIMIT);
+    let offset = params.offset.unwrap_or(0);
 
-    let schedule_dtos: Vec<ScheduleInfoDto> = schedules
+    let (rows, total) =
+        db_services::list_schedules_with_algorithms(state.repository.as_ref(), limit, offset)
+            .await?;
+
+    let items: Vec<ScheduleInfoDto> = rows
         .into_iter()
-        .map(|info| {
-            let id = info.schedule_id.value();
+        .map(|(info, algo)| {
             let mut dto: ScheduleInfoDto = info.into();
-            if let Some(algo) = algo_map.get(&id) {
-                dto.schedule_metadata = Some(super::dto::ScheduleMetadataDto {
-                    algorithm: algo.clone(),
-                });
+            if let Some(algorithm) = algo {
+                dto.schedule_metadata = Some(super::dto::ScheduleMetadataDto { algorithm });
             }
             dto
         })
         .collect();
-    let total = schedule_dtos.len();
 
-    Ok(Json(ScheduleListResponse {
-        schedules: schedule_dtos,
+    let body = ScheduleListResponse {
+        items,
         total,
-    }))
+        limit,
+        offset,
+    };
+
+    use axum::http::header::{HeaderName, HeaderValue};
+    use axum::response::IntoResponse;
+
+    let mut response = Json(body).into_response();
+    if let Ok(value) = HeaderValue::from_str(&total.to_string()) {
+        response
+            .headers_mut()
+            .insert(HeaderName::from_static("x-total-count"), value);
+    }
+    Ok(response)
 }
 
 /// GET /v1/schedules/{schedule_id}
