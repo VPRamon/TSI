@@ -30,6 +30,8 @@ export interface TableBlock {
   total_visibility_hours?: number;
   requested_hours?: number;
   num_visibility_periods?: number;
+  // Allow extra fields to pass through sort/filter workers without losing data.
+  [extra: string]: unknown;
 }
 
 type SortField = 'priority' | 'scheduled' | 'total_visibility_hours' | 'requested_hours';

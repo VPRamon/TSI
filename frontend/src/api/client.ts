@@ -29,6 +29,8 @@ import type {
   ApiError as ApiErrorResponse,
   UpdateScheduleRequest,
   DeleteScheduleResponse,
+  BulkDeleteSchedulesRequest,
+  BulkDeleteSchedulesResponse,
   ScheduleInfo,
   EnvironmentInfo,
   EnvironmentListResponse,
@@ -163,6 +165,14 @@ class ApiClient {
   async deleteSchedule(scheduleId: number): Promise<DeleteScheduleResponse> {
     const { data } = await this.client.delete<DeleteScheduleResponse>(
       `/v1/schedules/${scheduleId}`
+    );
+    return data;
+  }
+
+  async bulkDeleteSchedules(scheduleIds: number[]): Promise<BulkDeleteSchedulesResponse> {
+    const { data } = await this.client.post<BulkDeleteSchedulesResponse>(
+      '/v1/schedules/bulk-delete',
+      { schedule_ids: scheduleIds } satisfies BulkDeleteSchedulesRequest
     );
     return data;
   }

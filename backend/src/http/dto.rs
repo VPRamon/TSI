@@ -326,6 +326,22 @@ pub struct DeleteScheduleResponse {
     pub message: String,
 }
 
+/// Request to delete multiple schedules in one round trip.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkDeleteSchedulesRequest {
+    /// IDs of the schedules to delete. Unknown ids are silently ignored.
+    pub schedule_ids: Vec<i64>,
+}
+
+/// Response for a bulk-delete request.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkDeleteSchedulesResponse {
+    /// Number of schedules actually removed.
+    pub deleted_count: usize,
+    /// Confirmation message.
+    pub message: String,
+}
+
 // ===========================
 // Environment Endpoints DTOs
 // ===========================

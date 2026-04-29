@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 
-use super::error::RepositoryResult;
+use super::error::{RepositoryError, RepositoryResult};
 use crate::api::*;
 /// Repository trait for core schedule database operations.
 ///
@@ -168,6 +168,33 @@ pub trait ScheduleRepository: Send + Sync {
     /// * `Err(RepositoryError::NotFound)` - If the schedule doesn't exist
     /// * `Err(RepositoryError)` - If the operation fails
     async fn delete_schedule(&self, schedule_id: crate::api::ScheduleId) -> RepositoryResult<()>;
+
+    /// Delete multiple schedules and all associated data in a single transaction.
+    ///
+    /// This is significantly faster than calling [`delete_schedule`] in a loop
+    /// because it issues a single SQL statement and amortises connection /
+    /// transaction overhead. Unknown ids are silently ignored.
+    ///
+    /// # Arguments
+    /// * `schedule_ids` - The IDs of the schedules to delete
+    ///
+    /// # Returns
+    /// * `Ok(deleted_count)` - Number of schedules actually deleted
+    /// * `Err(RepositoryError)` - If the operation fails
+    async fn bulk_delete_schedules(
+        &self,
+        schedule_ids: &[crate::api::ScheduleId],
+    ) -> RepositoryResult<usize> {
+        let mut deleted = 0usize;
+        for id in schedule_ids {
+            match self.delete_schedule(*id).await {
+                Ok(()) => deleted += 1,
+                Err(RepositoryError::NotFound { .. }) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        Ok(deleted)
+    }
 
     /// Update schedule metadata (name and/or observer location).
     ///

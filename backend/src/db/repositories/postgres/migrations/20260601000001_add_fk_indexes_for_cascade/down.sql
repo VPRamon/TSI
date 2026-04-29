@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS schedule_validation_results_block_id_idx;
+DROP INDEX IF EXISTS schedule_block_analytics_block_id_idx;

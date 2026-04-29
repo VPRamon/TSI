@@ -120,6 +120,15 @@ export interface DeleteScheduleResponse {
   message: string;
 }
 
+export interface BulkDeleteSchedulesRequest {
+  schedule_ids: number[];
+}
+
+export interface BulkDeleteSchedulesResponse {
+  deleted_count: number;
+  message: string;
+}
+
 export interface AltAzTargetRequest {
   original_block_id: string;
   block_name: string;

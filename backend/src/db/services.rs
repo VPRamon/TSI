@@ -239,6 +239,22 @@ pub async fn delete_schedule<R: FullRepository + ?Sized>(
     repo.delete_schedule(schedule_id).await
 }
 
+/// Bulk-delete schedules in a single repository round-trip.
+///
+/// Postgres-backed implementations issue a single transaction that lets the
+/// schema's `ON DELETE CASCADE` rules clean up all dependent rows in one go,
+/// which is dramatically faster than calling [`delete_schedule`] per id.
+pub async fn bulk_delete_schedules<R: FullRepository + ?Sized>(
+    repo: &R,
+    schedule_ids: &[crate::api::ScheduleId],
+) -> RepositoryResult<usize> {
+    info!(
+        "Service layer: bulk deleting {} schedule(s)",
+        schedule_ids.len()
+    );
+    repo.bulk_delete_schedules(schedule_ids).await
+}
+
 /// Update schedule metadata (name and/or observer location).
 ///
 /// # Arguments

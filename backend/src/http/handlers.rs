@@ -16,9 +16,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::dto::{
-    CompareQuery, CreateScheduleRequest, CreateScheduleResponse, DeleteScheduleResponse,
-    HealthResponse, JobStatusResponse, ListSchedulesParams, ScheduleInfoDto, ScheduleListResponse,
-    TrendsQuery, UpdateScheduleRequest, VisibilityBin, VisibilityHistogramQuery,
+    BulkDeleteSchedulesRequest, BulkDeleteSchedulesResponse, CompareQuery, CreateScheduleRequest,
+    CreateScheduleResponse, DeleteScheduleResponse, HealthResponse, JobStatusResponse,
+    ListSchedulesParams, ScheduleInfoDto, ScheduleListResponse, TrendsQuery, UpdateScheduleRequest,
+    VisibilityBin, VisibilityHistogramQuery,
 };
 use super::error::AppError;
 use super::state::AppState;
@@ -438,6 +439,31 @@ pub async fn delete_schedule(
 
     Ok(Json(DeleteScheduleResponse {
         message: format!("Schedule {} deleted successfully", schedule_id),
+    }))
+}
+
+/// POST /v1/schedules/bulk-delete
+///
+/// Delete many schedules in a single transaction. Considerably faster than
+/// looping the single-id endpoint when the user removes a selection of
+/// schedules at once.
+pub async fn bulk_delete_schedules(
+    State(state): State<AppState>,
+    Json(request): Json<BulkDeleteSchedulesRequest>,
+) -> HandlerResult<BulkDeleteSchedulesResponse> {
+    let ids: Vec<ScheduleId> = request
+        .schedule_ids
+        .into_iter()
+        .map(ScheduleId::new)
+        .collect();
+    let deleted_count = db_services::bulk_delete_schedules(state.repository.as_ref(), &ids).await?;
+    Ok(Json(BulkDeleteSchedulesResponse {
+        deleted_count,
+        message: format!(
+            "Deleted {} schedule{}",
+            deleted_count,
+            if deleted_count == 1 { "" } else { "s" }
+        ),
     }))
 }
 

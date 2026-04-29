@@ -1065,6 +1065,26 @@ impl ScheduleRepository for PostgresRepository {
         .await
     }
 
+    async fn bulk_delete_schedules(
+        &self,
+        schedule_ids: &[crate::api::ScheduleId],
+    ) -> RepositoryResult<usize> {
+        if schedule_ids.is_empty() {
+            return Ok(0);
+        }
+        // Materialise into raw i64s so the closure does not borrow the slice.
+        let ids: Vec<i64> = schedule_ids.iter().map(|id| id.0).collect();
+        self.with_conn(move |conn| {
+            let deleted =
+                diesel::delete(schedules::table.filter(schedules::schedule_id.eq_any(&ids)))
+                    .execute(conn)
+                    .map_err(map_diesel_error)?;
+            // CASCADE deletes handle related tables.
+            Ok(deleted)
+        })
+        .await
+    }
+
     async fn update_schedule_metadata(
         &self,
         schedule_id: crate::api::ScheduleId,

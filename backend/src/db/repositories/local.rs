@@ -1418,6 +1418,49 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_bulk_delete_schedules() {
+        let repo = LocalRepository::new();
+
+        let mk = |checksum: &str| Schedule {
+            id: None,
+            name: format!("S-{checksum}"),
+            blocks: vec![],
+            dark_periods: vec![],
+            geographic_location: Geodetic::<ECEF>::new(
+                Degrees::new(-17.8892),
+                Degrees::new(28.7624),
+                Meters::new(2396.0),
+            ),
+            astronomical_nights: vec![],
+            checksum: checksum.to_string(),
+            schedule_period: default_schedule_period(),
+        };
+
+        let a = repo.store_schedule(&mk("a")).await.unwrap().schedule_id;
+        let b = repo.store_schedule(&mk("b")).await.unwrap().schedule_id;
+        let c = repo.store_schedule(&mk("c")).await.unwrap().schedule_id;
+
+        // Delete two real ids and one missing id; missing id is silently ignored.
+        let deleted = repo
+            .bulk_delete_schedules(&[a, b, ScheduleId(99_999)])
+            .await
+            .unwrap();
+        assert_eq!(deleted, 2);
+
+        let remaining: Vec<_> = repo
+            .list_schedules()
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|s| s.schedule_id)
+            .collect();
+        assert_eq!(remaining, vec![c]);
+
+        // Empty input is a no-op.
+        assert_eq!(repo.bulk_delete_schedules(&[]).await.unwrap(), 0);
+    }
+
+    #[tokio::test]
     async fn test_analytics_operations() {
         let repo = LocalRepository::new();
 

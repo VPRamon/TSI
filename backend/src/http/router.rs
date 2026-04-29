@@ -43,6 +43,10 @@ pub fn create_router_with_extensions(state: AppState, mut extensions: BackendExt
         // Schedule CRUD
         .route("/schedules", get(handlers::list_schedules))
         .route("/schedules", post(handlers::create_schedule))
+        .route(
+            "/schedules/bulk-delete",
+            post(handlers::bulk_delete_schedules),
+        )
         .route("/schedules/{schedule_id}", get(handlers::get_schedule))
         .route(
             "/schedules/{schedule_id}",
