@@ -5,7 +5,7 @@
 //! identical structure.
 
 use crate::api::{Period, Schedule};
-use crate::services::astronomical_night::compute_astronomical_nights;
+use crate::services::astronomical_night::{compute_astronomical_nights, compute_dark_periods};
 use crate::services::visibility::{compute_block_visibility, VisibilityInput};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -18,6 +18,12 @@ use std::collections::HashMap;
 pub struct EnvPreschedulePayload {
     /// Astronomical night periods for the environment location and schedule period
     pub astronomical_nights: Vec<Period>,
+
+    /// Dark periods: intersection of astronomical nights and Moon-below-horizon periods.
+    /// Uses `#[serde(default)]` for backwards compatibility with cached preschedules
+    /// that were serialized before this field was added.
+    #[serde(default)]
+    pub dark_periods: Vec<Period>,
 
     /// Per-block visibility summaries keyed by original_block_id
     pub block_visibility: HashMap<String, BlockVisibilitySummary>,
@@ -83,8 +89,12 @@ pub fn compute_env_preschedule(schedule: &Schedule) -> EnvPreschedulePayload {
         block_visibility.insert(block.original_block_id.clone(), summary);
     }
 
+    let dark_periods =
+        compute_dark_periods(&schedule.geographic_location, &schedule.schedule_period, &astronomical_nights);
+
     EnvPreschedulePayload {
         astronomical_nights,
+        dark_periods,
         block_visibility,
     }
 }

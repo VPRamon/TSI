@@ -84,13 +84,17 @@ pub fn compute_fragmentation(
     // Normalize / merge operable, then clip to schedule window.
     let operable_periods = clip_periods(&merge_periods(normalize(operable_raw)), &schedule_window);
 
-    // Scheduled periods (union).
-    let scheduled_union = merge_periods(
-        schedule
-            .blocks
-            .iter()
-            .filter_map(|b| b.scheduled_period)
-            .collect(),
+    // Scheduled periods (union), clipped to the schedule window so that
+    // metrics reflect only what is actually inside the displayed window.
+    let scheduled_union = clip_periods(
+        &merge_periods(
+            schedule
+                .blocks
+                .iter()
+                .filter_map(|b| b.scheduled_period)
+                .collect(),
+        ),
+        &schedule_window,
     );
 
     // Fit-visibility union (stored visibility_periods — min-observation fits).
@@ -139,10 +143,16 @@ pub fn compute_fragmentation(
         .iter()
         .map(|b| b.requested_duration.value() / 3600.0)
         .sum();
-    let scheduled_hours_val = *per_kind_hours
-        .get(&FragmentationSegmentKind::Scheduled)
-        .unwrap_or(&0.0);
-    let idle_operable_hours_val = operable_hours_val - scheduled_hours_val;
+    // Total scheduled hours = union of all scheduled block periods (clipped to
+    // window). This matches the actual sum of scheduled time present in the
+    // input JSON, independent of the operable baseline.
+    let scheduled_hours_val: f64 = scheduled_union.iter().map(duration_hours).sum();
+    // For idle-operable accounting we only subtract the portion of scheduled
+    // time that falls inside the operable baseline, otherwise idle could go
+    // negative when a block is scheduled outside dark periods.
+    let scheduled_within_operable_val =
+        intersect_duration_hours(&scheduled_union, &operable_periods);
+    let idle_operable_hours_val = operable_hours_val - scheduled_within_operable_val;
 
     // Reason breakdown covers the *idle-operable* kinds, with hours and
     // fraction of operable time.
@@ -248,7 +258,10 @@ pub fn compute_fragmentation(
         gap_std_dev_hours: Hours::new(gap_std_dev),
         gap_p90_hours: Hours::new(gap_p90),
         largest_gap_hours: Hours::new(gap_max),
-        scheduled_fraction_of_operable: safe_frac(scheduled_hours_val, operable_hours_val),
+        scheduled_fraction_of_operable: safe_frac(
+            scheduled_within_operable_val,
+            operable_hours_val,
+        ),
         idle_fraction_of_operable: safe_frac(idle_operable_hours_val, operable_hours_val),
         raw_visibility_fraction_of_operable: safe_frac(raw_cov, operable_hours_val),
         fit_visibility_fraction_of_operable: safe_frac(fit_cov, operable_hours_val),
@@ -779,5 +792,37 @@ mod tests {
             .unwrap();
         assert_eq!(summary.block_count, 1);
         assert_eq!(summary.example_block_ids, vec!["B1"]);
+    }
+
+    #[test]
+    fn scheduled_hours_matches_json_sum_even_outside_operable() {
+        // Two scheduled blocks: one fully inside the operable window
+        // (0..0.25), one partly outside (0.75..1.25 with operable ending at 1.0).
+        // Total scheduled time in JSON = 0.25 + 0.5 = 0.75 day = 18h.
+        let b1 = block(1, Some((0.0, 0.25)), vec![]);
+        let b2 = block(2, Some((0.75, 1.25)), vec![]);
+        let sched = schedule_with(
+            (0.0, 1.5),
+            vec![(0.0, 1.0)],
+            vec![],
+            vec![b1, b2],
+        );
+        let data = compute_fragmentation(&sched, &empty_validation());
+
+        // scheduled_hours must mirror the union of scheduled periods clipped
+        // to the schedule window (0.75 day = 18h), not just the portion that
+        // falls inside the operable baseline.
+        assert!(
+            (data.metrics.scheduled_hours.value() - 18.0).abs() < 1e-9,
+            "scheduled_hours = {}",
+            data.metrics.scheduled_hours.value()
+        );
+        // Idle operable = operable - scheduled∩operable
+        // = 24h - (6h + 6h) = 12h.
+        assert!(
+            (data.metrics.idle_operable_hours.value() - 12.0).abs() < 1e-9,
+            "idle = {}",
+            data.metrics.idle_operable_hours.value()
+        );
     }
 }

@@ -1308,7 +1308,18 @@ pub async fn bulk_import_schedules(
         // Step 5/6: apply the cached preschedule.
         apply_to_schedule(&mut schedule, &preschedule);
         schedule.astronomical_nights = preschedule.astronomical_nights.clone();
-        schedule.dark_periods = preschedule.astronomical_nights.clone();
+        // Use pre-computed dark periods (Moon below horizon ∩ Sun < -18°).
+        // Fall back to computing on the fly if the cached preschedule predates
+        // the dark_periods field (backwards compatibility via #[serde(default)]).
+        schedule.dark_periods = if !preschedule.dark_periods.is_empty() {
+            preschedule.dark_periods.clone()
+        } else {
+            crate::services::astronomical_night::compute_dark_periods(
+                &schedule.geographic_location,
+                &schedule.schedule_period,
+                &preschedule.astronomical_nights,
+            )
+        };
 
         // Step 7: store the schedule. Analytics are deferred: the
         // `/insights` and friends already call `ensure_analytics` on read,

@@ -3,8 +3,10 @@
 //! Computes astronomical night periods (Sun altitude < -18°) for a given
 //! observer location and time period using the siderust astronomy library.
 
+use siderust::bodies::solar_system::Moon;
 use siderust::bodies::Sun;
 use siderust::calculus::solar::Twilight;
+use siderust::time::intersect_periods;
 use siderust::{below_threshold, SearchOpts};
 
 use crate::api::{GeographicLocation, Period};
@@ -34,6 +36,35 @@ pub fn compute_astronomical_nights(
         Twilight::Astronomical.into(),
         SearchOpts::default(),
     )
+}
+
+/// Compute dark periods for a given observer location and time period.
+///
+/// Dark periods are defined as the intersection of astronomical nights
+/// (Sun altitude < -18°) and Moon-below-horizon periods (Moon altitude < 0°).
+///
+/// # Arguments
+///
+/// * `location` - Geographic location of the observer
+/// * `time_period` - Time window to search within (in MJD)
+/// * `astronomical_nights` - Pre-computed astronomical night periods (Sun < -18°)
+///
+/// # Returns
+///
+/// Vector of dark periods (Moon below horizon AND Sun < -18°).
+pub fn compute_dark_periods(
+    location: &GeographicLocation,
+    time_period: &Period,
+    astronomical_nights: &[Period],
+) -> Vec<Period> {
+    let moon_below_horizon = below_threshold(
+        &Moon,
+        location,
+        *time_period,
+        Twilight::Horizon.into(),
+        SearchOpts::default(),
+    );
+    intersect_periods(astronomical_nights, &moon_below_horizon)
 }
 
 #[cfg(test)]
